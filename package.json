@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prepare": "bash scripts/setup-git-hooks.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

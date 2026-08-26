@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+#
+# Git pre-commit hook — chan commit du lieu nhay cam (API keys, tokens,
+# mat khau, private key) trong cac thay doi da duoc STAGED.
+#
+# Chi quet: git diff --cached (khong dong den working-tree chua staged).
+# Bo qua: file binary, file lock (package-lock.json, yarn.lock, ...), file .log
+# Bypass khan cap: git commit --no-verify
+#
+# Viet cho bash 3.2 (mac dinh tren macOS) de chay duoc tren moi may trong team
+# -> KHONG dung declare -A / mapfile (chi co tu bash 4+).
+
+set -uo pipefail
+
+RED='\033[0;31m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+FOUND=0
+
+# ---------------------------------------------------------------------------
+# 1) File luon bo qua: lock file va log file
+# ---------------------------------------------------------------------------
+SKIP_NAME_REGEX='(^|/)(package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|composer\.lock|Gemfile\.lock|Cargo\.lock|Pipfile\.lock)$|\.log$'
+
+# ---------------------------------------------------------------------------
+# 2) Danh sach file binary dang staged (de bo qua) — lay tu `git diff --numstat`,
+#    file binary hien thi "-\t-\t<path>" thay vi so dong them/bot.
+# ---------------------------------------------------------------------------
+BINARY_FILES="$(git diff --cached --numstat | awk -F'\t' '$1 == "-" && $2 == "-" {print $3}')"
+
+is_binary_file() {
+  # so khop chinh xac tung dong voi ten file (an toan hon grep -F tren toan chuoi)
+  printf '%s\n' "$BINARY_FILES" | grep -qxF -- "$1"
+}
+
+# ---------------------------------------------------------------------------
+# 3) Cac pattern nhay cam: "Nhan|Regex (POSIX ERE, dung duoc voi grep -E)"
+#    Regex duoc viet o dang ERE thuan de chay duoc tren ca BSD grep (macOS)
+#    lan GNU grep (Linux/CI) — khong dung PCRE (-P) vi khong co san moi noi.
+# ---------------------------------------------------------------------------
+PATTERNS=(
+  "AWS Access Key ID|AKIA[0-9A-Z]{16}"
+  "AWS Secret Access Key|aws_secret_access_key[[:space:]]*[:=][[:space:]]*[\"']?[A-Za-z0-9/+]{40}"
+  "GitHub Token|gh[pousr]_[A-Za-z0-9]{36,}"
+  "Slack Token|xox[baprs]-[A-Za-z0-9-]{10,}"
+  "OpenAI API Key|sk-[A-Za-z0-9_-]{20,}"
+  "JWT Token|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"
+  "Generic API Key|(api[_-]?key|apikey|api[_-]?secret|access[_-]?token)[[:space:]]*[:=][[:space:]]*[\"']?[A-Za-z0-9_-]{16,}"
+  "Credential (password/secret/private_key)|(password|passwd|pass|secret|private_key)[[:space:]]*[:=][[:space:]]*[\"']?[^[:space:]\"']{6,}"
+  "Private Key Block|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----"
+)
+
+# Cac nhan can loc placeholder (tranh bat nham bien rong / gia tri mau)
+PLACEHOLDER_LABELS_REGEX='^(Credential|Generic API Key)'
+PLACEHOLDER_VALUE_REGEX='(your[_-]?|change[_-]?me|placeholder|example|dummy|xxxx|sample|fake|todo|fixme|<.*>|\$\{|process\.env|test[_-]?value)'
+
+# ---------------------------------------------------------------------------
+# 4) Duyet tung file dang staged (Added/Copied/Modified/Renamed)
+# ---------------------------------------------------------------------------
+while IFS= read -r file; do
+  [ -z "$file" ] && continue
+
+  if [[ "$file" =~ $SKIP_NAME_REGEX ]]; then
+    continue
+  fi
+  if is_binary_file "$file"; then
+    continue
+  fi
+
+  next_new_line=0
+
+  while IFS= read -r diff_line; do
+    if [[ "$diff_line" =~ ^@@\ -[0-9]+(,[0-9]+)?\ \+([0-9]+) ]]; then
+      next_new_line="${BASH_REMATCH[2]}"
+      continue
+    fi
+
+    case "$diff_line" in
+      '+++'*|'---'*)
+        continue
+        ;;
+      '+'*)
+        line_num=$next_new_line
+        next_new_line=$((next_new_line + 1))
+        content="${diff_line:1}"
+
+        for entry in "${PATTERNS[@]}"; do
+          label="${entry%%|*}"
+          regex="${entry#*|}"
+
+          if echo "$content" | grep -qEi -- "$regex"; then
+            if [[ "$label" =~ $PLACEHOLDER_LABELS_REGEX ]] && \
+               echo "$content" | grep -qEi -- "$PLACEHOLDER_VALUE_REGEX"; then
+              continue
+            fi
+
+            printf "${RED}${BOLD}[BLOCKED]${NC}${RED} %s:%s — nghi van: %s${NC}\n" \
+              "$file" "$line_num" "$label"
+            printf "${RED}    > %s${NC}\n" "$content"
+            FOUND=1
+          fi
+        done
+        ;;
+      *)
+        ;;
+    esac
+  done < <(git diff --cached -U0 -- "$file")
+
+done < <(git diff --cached --name-only --diff-filter=ACMR)
+
+# ---------------------------------------------------------------------------
+# 5) Ket qua
+# ---------------------------------------------------------------------------
+if [ "$FOUND" -eq 1 ]; then
+  echo
+  printf "${RED}${BOLD}Commit bi chan: phat hien du lieu nhay cam trong staged changes.${NC}\n"
+  echo "Hay go bo hoac chuyen sang bien moi truong (.env, secrets manager) truoc khi commit lai."
+  echo "Neu day la false positive hoac truong hop khan cap, dung: git commit --no-verify"
+  exit 1
+fi
+
+exit 0
