@@ -36,6 +36,19 @@ rental operations.
 - Preserve existing architecture.
 - Run lint and build after significant changes.
 
+## Detailed Rules
+
+Domain-specific conventions live in `.claude/rules/` and are loaded on
+demand instead of being inlined here:
+
+- @.claude/rules/frontend.md — component conventions, styling, state
+  management (server state vs. client state)
+- @.claude/rules/backend.md — API route conventions, validation, and
+  Supabase query/RLS guidelines
+- @.claude/rules/testing.md — unit vs. integration test guidance and
+  minimum coverage expectations
+- @.claude/rules/git-commit.md — Conventional Commit format and rules
+
 ## Feature Roadmap
 
 F01 Project Foundation
