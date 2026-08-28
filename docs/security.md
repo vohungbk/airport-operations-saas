@@ -10,6 +10,81 @@ consistent policy rather than deciding it ad hoc.
 - Session cookies are refreshed on every request by `src/proxy.ts`, which
   validates the token via `supabase.auth.getClaims()`.
 
+### F03 — Email/password auth, profile sync, and route protection
+
+- **Signup order is fixed**: `supabase.auth.signUp()` first, then a row
+  is written to `public.users` keyed on the returned auth user id
+  (`src/features/auth/actions/signup.action.ts`). The app never creates
+  a `public.users` row before Supabase Auth confirms the auth user
+  exists, and the insert is an upsert-by-id so a signup interrupted
+  between the two steps (e.g. a dropped request) can safely retry
+  without leaving an orphaned or duplicate row.
+- **Role assignment is server-only.** The signup Zod schema
+  (`src/features/auth/schemas/signup.schema.ts`) has no `role` or
+  `partner_id` field — the Server Action hardcodes `role:
+  'partner_staff'`, `partner_id: null` for every public signup. This is
+  the least-privileged value in the `user_role` enum that doesn't
+  require a partner assignment. No code path reads a role or partner id
+  from client-supplied input during signup. Assigning a different role
+  (e.g. promoting a user to `partner_admin`, attaching a `partner_id`)
+  is out of scope for F03 and is deferred to the RBAC feature (F04).
+- **Email confirmation is handled defensively, not assumed on/off.**
+  `signup.action.ts` checks whether `supabase.auth.signUp()` returned a
+  session: if it did (email confirmation disabled), the user is signed
+  in immediately and redirected to `/dashboard`; if not, the UI shows a
+  "check your email" message instead. This makes the flow correct
+  regardless of the "Confirm email" setting in the Supabase project.
+- **Anti email-enumeration.** A duplicate-email signup (whether
+  Supabase reports it as an obfuscated `identities: []` user or as a
+  `user_already_exists` error, depending on the "Confirm email"
+  setting) is shown the exact same "check your email" message as a
+  genuine new signup, and never triggers a `public.users` write.
+  `forgot-password.action.ts` always returns the same generic success
+  message regardless of whether the email exists.
+- **Public vs. protected routes** are defined once, in
+  `src/lib/constants/routes.ts`, and enforced server-side in
+  `src/lib/supabase/proxy.ts` (`updateSession`) — an unauthenticated
+  request to a non-public route is redirected to `/login`; an
+  authenticated request to `/login` or `/signup` is redirected to
+  `/dashboard`. Route protection is never enforced only in the client.
+  - Public: `/`, `/login`, `/signup`, `/forgot-password`,
+    `/reset-password`, `/api/auth/confirm`.
+  - Everything else (e.g. `/dashboard`) requires an authenticated
+    session. Server Components that render protected data additionally
+    call `requireUser()` (`src/lib/auth/session.ts`) as a second,
+    independent guard.
+  - The future public QR seat passport lookup (`F10`) will be added to
+    this same public-routes list when it's implemented — it does not
+    exist yet and no route for it has been created in F03.
+- **`public.users` still has no RLS.** This is the documented exception
+  from `F05 — Multi-tenancy + RLS`, unchanged by F03. Any key currently
+  used by the app can read/write any row in `public.users`; F03 does not
+  attempt to compensate with an application-level `WHERE` filter, since
+  that would be both ineffective as a tenant boundary and misleading
+  about the actual guarantee.
+- **Seeded technician rows** in `supabase/seed.sql` are plain database
+  rows with no corresponding Supabase Auth user — they cannot sign in
+  through this flow. Linking a real Auth user to a technician record is
+  deferred to a later RBAC/technician feature; F03 does not touch the
+  seed data.
+
+### Supabase Dashboard configuration required for F03 (not done from the repo)
+
+`/api/auth/confirm` (`src/app/api/auth/confirm/route.ts`) is the
+callback that exchanges a signup-confirmation or password-recovery email
+link for a session. For that link to work, the exact callback URL must
+be added to the **Redirect URLs** allow-list in the Supabase project's
+Auth settings (Dashboard → Authentication → URL Configuration). This is
+an operational step outside the codebase — add:
+
+- Local development: `http://localhost:3000/api/auth/confirm`
+- Production: `https://<production-domain>/api/auth/confirm`
+
+Until this is configured, `supabase.auth.signUp()` (with email
+confirmation enabled) and `supabase.auth.resetPasswordForEmail()` will
+still succeed, but the link in the resulting email will not be allowed
+to redirect back into the app.
+
 ## Role-Based Access Control
 
 - Access within a tenant is governed by roles (e.g. operator admin,

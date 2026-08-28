@@ -26,10 +26,21 @@ features are implemented incrementally in later tasks (see `roadmap.md`).
 Routes live under `src/app` using Next.js route groups to separate
 concerns without affecting the URL structure:
 
-- `(auth)` — sign-in / sign-up / password-reset routes (unauthenticated)
-- `(dashboard)` — the authenticated operations app
+- `(auth)` — sign-in / sign-up / password-reset routes (unauthenticated).
+  Since F03: `layout.tsx` (centered auth layout), `login/`, `signup/`,
+  `forgot-password/`, `reset-password/` (the last has a server-side
+  guard that only renders the reset form when a live session exists —
+  otherwise it shows an "invalid/expired link" state).
+- `(dashboard)` — the authenticated operations app. Since F03:
+  `dashboard/page.tsx` is a minimal, `requireUser()`-gated landing page
+  used as the real post-login/signup redirect target — not the
+  Operations Dashboard (`F19`), which comes later.
 - `api` — Route Handlers for cases a Server Action can't cover (webhooks,
-  external integrations, non-form mutations)
+  external integrations, non-form mutations). Since F03:
+  `api/auth/confirm/route.ts` exchanges a signup-confirmation or
+  password-recovery email link (`token_hash`/`type` query params) for a
+  session — a Route Handler because it's reached via a `GET` link
+  clicked from an email, not a form submission.
 
 ## Server / Client Component Strategy
 
@@ -53,6 +64,31 @@ That decision is revisited only if a concrete feature needs it.
 its own components, server actions, and types as they're built. Shared,
 domain-agnostic code lives in `src/components` and `src/lib`.
 
+`src/features/auth` (F03) follows this shape, one subfolder per concern:
+
+- `schemas/*.schema.ts` — Zod input schemas for login, signup,
+  forgot-password, and reset-password. The signup schema intentionally
+  excludes `role`/`partner_id`.
+- `actions/*.action.ts` — Server Actions wrapping the corresponding
+  Supabase Auth call, plus (for signup) the `public.users` profile sync.
+- `hooks/use-*-form.ts` — each wraps `react-hook-form` (with a small
+  hand-rolled Zod resolver, `src/lib/validation/zod-resolver.ts` — see
+  below) and the pending/result state of its Server Action, so the
+  `components/*.tsx` files only render.
+- `components/*.tsx` — Client Components for the four auth forms plus
+  `logout-button.tsx`.
+
+Two small shared modules outside any single feature support this:
+
+- `src/lib/auth/session.ts` — `getAuthUser()` / `requireUser()`, a
+  server-only helper for reading the current session's verified JWT
+  claims, reusable by any protected Server Component/layout, not just
+  auth pages.
+- `src/lib/constants/routes.ts` — the single source of truth for
+  `PUBLIC_ROUTES`, `AUTH_ONLY_ROUTES`, `LOGIN_ROUTE`, and
+  `DASHBOARD_ROUTE`, consumed by both the proxy-level route guard and
+  the auth pages/actions.
+
 ## Supabase Architecture
 
 Three integration points, matching the current Supabase SSR guidance for
@@ -68,7 +104,15 @@ Next.js App Router:
   `proxy.ts`; the exported function is named `proxy` instead of
   `middleware`. The helper (`updateSession`) revalidates the auth token on
   every matched request via `supabase.auth.getClaims()` so expired
-  sessions are refreshed before reaching Server Components.
+  sessions are refreshed before reaching Server Components. Since F03,
+  `updateSession` also enforces route protection: an unauthenticated
+  request to a route outside `PUBLIC_ROUTES` is redirected to `/login`,
+  and an authenticated request to `/login`/`/signup` is redirected to
+  `/dashboard`. Any redirect it issues carries the refreshed session
+  cookies forward — dropping them would silently break the session right
+  after the refresh that produced them. `src/proxy.ts` keeps its
+  pre-existing `isSupabaseConfigured` bypass so local dev without
+  `.env.local` still works.
 
 No service-role (secret key) client exists yet — it will be introduced
 only when a specific feature requires bypassing RLS from trusted server

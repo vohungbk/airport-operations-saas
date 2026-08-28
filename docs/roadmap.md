@@ -42,4 +42,12 @@ F31 Portfolio Polish
 - **F01 — Project Foundation**: done. Next.js + TypeScript + Tailwind +
   shadcn/ui scaffold, feature-based folder structure, Supabase client
   architecture, and this documentation set.
-- **F02 — Database Foundation**: next.
+- **F02 — Database Foundation**: done. Core Postgres schema (partners,
+  airports, seats, bookings, technician/cleaning/inspection tables,
+  finance tables) and `public.users`, RLS deferred to F05.
+- **F03 — Authentication**: done. Supabase Auth email/password
+  login/signup/logout, forgot/reset password, signup profile sync into
+  `public.users` (server-hardcoded least-privileged role), and
+  server-side route protection in `src/proxy.ts` /
+  `src/lib/supabase/proxy.ts`.
+- **F04 — RBAC**: next.
