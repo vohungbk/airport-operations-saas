@@ -18,7 +18,10 @@ and do not run steps out of order.
 - Identify which modified/created files are affected, and flag anything
   that looks like a breaking change, database migration, or security-
   sensitive modification (RLS policy, service-role usage, auth/RBAC).
-- Export the full plan to `plan.md` at the repo root.
+- Export the full plan to `plan.md` at the repo root, written in
+  Vietnamese. Keep code identifiers, file paths, and technical terms
+  (e.g. table/column names, route paths) in their original form —
+  translate the surrounding prose only.
 
 **MANDATORY HUMAN APPROVAL GATE**
 
