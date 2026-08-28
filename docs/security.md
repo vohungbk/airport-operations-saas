@@ -22,12 +22,14 @@ consistent policy rather than deciding it ad hoc.
 - **Role assignment is server-only.** The signup Zod schema
   (`src/features/auth/schemas/signup.schema.ts`) has no `role` or
   `partner_id` field — the Server Action hardcodes `role:
-  'partner_staff'`, `partner_id: null` for every public signup. This is
+  'partner_user'`, `partner_id: null` for every public signup. This is
   the least-privileged value in the `user_role` enum that doesn't
-  require a partner assignment. No code path reads a role or partner id
+  require a partner assignment (`user_role` was finalized by F04, see
+  below; the value was originally `partner_staff` under F02's
+  provisional 4-value enum). No code path reads a role or partner id
   from client-supplied input during signup. Assigning a different role
-  (e.g. promoting a user to `partner_admin`, attaching a `partner_id`)
-  is out of scope for F03 and is deferred to the RBAC feature (F04).
+  or a real `partner_id` (a user/role management feature) is out of
+  scope for both F03 and F04, and remains deferred to a later feature.
 - **Email confirmation is handled defensively, not assumed on/off.**
   `signup.action.ts` checks whether `supabase.auth.signUp()` returned a
   session: if it did (email confirmation disabled), the user is signed
@@ -87,9 +89,82 @@ to redirect back into the app.
 
 ## Role-Based Access Control
 
-- Access within a tenant is governed by roles (e.g. operator admin,
-  partner admin, technician). Roles are enforced server-side, not inferred
-  from UI state.
+- Access within a tenant is governed by roles. Roles are enforced
+  server-side, not inferred from UI state.
+
+### F04 — RBAC roles, permissions, and authorization layer
+
+- **4 roles**, defined by the `user_role` Postgres enum
+  (`supabase/migrations/20260828065217_redefine_user_role_enum.sql`,
+  `src/lib/auth/roles.ts`): `admin`, `operations_manager`, `technician`,
+  `partner_user`.
+- **Permission model** (`src/lib/auth/permissions.ts`) — a fixed,
+  string-literal `Permission` union, no permissions are invented beyond
+  this table. `admin` is not listed explicitly: `hasPermission()`
+  short-circuits `true` for `role === "admin"` before consulting the map,
+  matching "full system access" without maintaining a duplicate list of
+  every permission that gets added later.
+
+  | role | permissions |
+  |---|---|
+  | `admin` | all (bypass, no explicit list) |
+  | `operations_manager` | `airports:manage`, `partners:manage`, `seats:manage`, `bookings:manage`, `technicians:manage`, `cleaning:manage`, `inspections:manage`, `incidents:view`, `finance:view`, `dashboards:view` |
+  | `technician` | `jobs:view_assigned`, `jobs:update_assigned`, `installation:perform`, `cleaning:create`, `inspections:create`, `incidents:report` |
+  | `partner_user` | `bookings:view_own_partner`, `seats:view_own_partner`, `operations:view_own_partner`, `finance:view_own_partner` |
+
+- **Authorization-layer helpers** (`src/lib/auth/current-user.ts`), built
+  on top of the existing JWT-only `getAuthUser()`/`requireUser()`
+  (`src/lib/auth/session.ts`, unchanged since F03):
+  - `getCurrentUser()` — verifies the JWT, then does a single self-lookup
+    row read on `public.users` filtered by `.eq("id", authUser.id)`
+    (never a list query). Returns `null` if there's no session, the row
+    is missing, the query errors, or `is_active` is `false` — an
+    inactive account with a still-live Supabase Auth session is rejected
+    here, not left to the UI to filter. Wrapped in React's `cache()` so
+    nested layouts (e.g. `(dashboard)` guarding, then `(admin)` guarding
+    again) share one DB round trip per request.
+  - `requireAuth()` — no session -> redirect `/login`; session but
+    invalid/inactive/missing profile -> redirect `/forbidden`; otherwise
+    returns the resolved `AppUser`.
+  - `requireRole(allowed: Role[])` / `requirePermission(permission)` —
+    built on `requireAuth()`, redirect to `/forbidden` unless
+    `user.role === "admin"` or the role/permission check passes. The
+    `admin` bypass is implemented **only** inside `hasPermission()` and
+    `requireRole()`/`requirePermission()` — never re-implemented inline
+    in a layout or page.
+- **3-way unauthorized handling**:
+  1. Not logged in -> `/login`.
+  2. Logged in but not permitted (role/permission check fails) ->
+     `/forbidden`.
+  3. Logged in but the `public.users` profile is missing/inactive/invalid
+     -> `/forbidden` too, with the same generic, non-leaking copy as
+     case 2 — the page never confirms which of the two happened.
+     `src/app/forbidden/page.tsx` deliberately does not call
+     `requireAuth()` itself (that would risk a redirect loop for exactly
+     the users it exists to serve); it only calls `getAuthUser()` to
+     decide whether to show a logout link or a login link.
+- **Partner isolation design principle.** `partner_user` access is
+  designed around `users.partner_id`. A `null` `partner_id` (e.g. right
+  after signup, see F03) means "no partner assigned yet -> safe empty
+  state," never "unrestricted -> see all partners' data." This is a
+  design principle enforced by convention today (demonstrated in the F04
+  placeholder `/partner` page); it becomes a real, enforced boundary once
+  `F05 — Multi-tenancy + RLS` adds RLS policies keyed on `partner_id`.
+- **Route areas**: `(admin)/admin` gated by `dashboards:view`,
+  `(technician)/technician` gated by `jobs:view_assigned`,
+  `(partner)/partner` gated by `bookings:view_own_partner` — nav
+  visibility (`src/config/nav.ts`) and the area's own layout/page guard
+  reuse the exact same permission, so there's one source of truth for
+  "can this role see this area," not a separate `*:access` permission
+  invented for navigation.
+- **`getCurrentUser()`'s self-lookup query on `public.users` is safe
+  without RLS specifically because it is keyed by the caller's own
+  server-verified id** (`auth.uid()` from the validated JWT, never a
+  client-supplied id) — the same reasoning F03 already relied on for
+  the profile-sync upsert during signup. This is not a precedent for
+  querying any other tenant-scoped table without RLS before F05 ships;
+  every other table remains off-limits to real user-facing queries until
+  then (see the warning at the top of `docs/database.md`).
 
 ## Multi-Tenant Data Isolation
 

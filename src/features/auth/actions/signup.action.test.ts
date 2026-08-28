@@ -53,7 +53,7 @@ describe("signupAction", () => {
         id: "user-1",
         email: "user@example.com",
         full_name: "Jane Doe",
-        role: "partner_staff",
+        role: "partner_user",
         partner_id: null,
       },
       { onConflict: "id" },
@@ -121,7 +121,7 @@ describe("signupAction", () => {
     expect(upsertMock).toHaveBeenCalled();
   });
 
-  it("should always hardcode role: partner_staff and partner_id: null even when the input carries injected role/partner_id fields", async () => {
+  it("should always hardcode role: partner_user and partner_id: null even when the input carries injected role/partner_id fields", async () => {
     signUpMock.mockResolvedValue({
       data: {
         user: { id: "attacker-id", identities: [{ id: "identity-1" }] },
@@ -149,7 +149,7 @@ describe("signupAction", () => {
         id: "attacker-id",
         email: "attacker@example.com",
         full_name: "Jane Doe",
-        role: "partner_staff",
+        role: "partner_user",
         partner_id: null,
       },
       { onConflict: "id" },

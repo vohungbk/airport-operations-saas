@@ -32,9 +32,22 @@ concerns without affecting the URL structure:
   guard that only renders the reset form when a live session exists —
   otherwise it shows an "invalid/expired link" state).
 - `(dashboard)` — the authenticated operations app. Since F03:
-  `dashboard/page.tsx` is a minimal, `requireUser()`-gated landing page
-  used as the real post-login/signup redirect target — not the
-  Operations Dashboard (`F19`), which comes later.
+  `dashboard/page.tsx` is a minimal landing page used as the real
+  post-login/signup redirect target — not the Operations Dashboard
+  (`F19`), which comes later. Since F04: `(dashboard)/layout.tsx` calls
+  `requireAuth()` and wraps children in `AppShell`; the page itself also
+  calls `requireAuth()` as a second, independent guard (same
+  layout-guard-plus-page-guard precedent as F03).
+- `(admin)`, `(technician)`, `(partner)` — 3 sibling route groups added
+  in F04, each protecting one placeholder area (`/admin`, `/technician`,
+  `/partner`) behind `requirePermission()` in both the group's
+  `layout.tsx` and `page.tsx`. Intended as long-term homes for later
+  roadmap features (F06–F09 admin/ops management, F14–F15 technician
+  workflow, F21 Partner Portal), not throwaway demo routes.
+- `forbidden` — top-level `page.tsx` (outside any route group) rendered
+  for both "authenticated but not permitted" and "invalid/missing
+  profile." Deliberately does not call `requireAuth()` itself (redirect
+  loop risk); see `docs/security.md`.
 - `api` — Route Handlers for cases a Server Action can't cover (webhooks,
   external integrations, non-form mutations). Since F03:
   `api/auth/confirm/route.ts` exchanges a signup-confirmation or
@@ -85,9 +98,35 @@ Two small shared modules outside any single feature support this:
   claims, reusable by any protected Server Component/layout, not just
   auth pages.
 - `src/lib/constants/routes.ts` — the single source of truth for
-  `PUBLIC_ROUTES`, `AUTH_ONLY_ROUTES`, `LOGIN_ROUTE`, and
-  `DASHBOARD_ROUTE`, consumed by both the proxy-level route guard and
-  the auth pages/actions.
+  `PUBLIC_ROUTES`, `AUTH_ONLY_ROUTES`, `LOGIN_ROUTE`, `DASHBOARD_ROUTE`,
+  and (since F04) `FORBIDDEN_ROUTE`, consumed by both the proxy-level
+  route guard and the auth pages/actions.
+
+### `src/lib/auth/` (F04 additions) and RBAC-related modules
+
+- `src/lib/auth/roles.ts` — `Role`, aliased from
+  `Database["public"]["Enums"]["user_role"]` so it can never drift from
+  the schema, plus `ROLES` (all 4 values, sourced from the generated
+  `Constants.public.Enums.user_role`).
+- `src/lib/auth/permissions.ts` — the `Permission` union, `ROLE_PERMISSIONS`,
+  and the pure `hasPermission(role, permission)` function. No I/O — the
+  single source of truth for "can this role do this," reused by both
+  route guards and nav filtering.
+- `src/lib/auth/current-user.ts` — `AppUser`, `getCurrentUser()`,
+  `requireAuth()`, `requireRole()`, `requirePermission()`. New file,
+  separate from `session.ts`, doing the `public.users` round trip that
+  `session.ts`'s JWT-only helpers intentionally don't. See
+  `docs/security.md` for the full behavior/rationale.
+- `src/config/nav.ts` — `NavItem[]` for the 3 protected areas and the
+  pure `getVisibleNavItems(role)`, gating each link by the same business
+  permission the area's own route guard uses.
+- `src/components/layout/app-shell.tsx` — Server Component; computes
+  `getVisibleNavItems(user.role)` and renders the shared shell (sidebar +
+  content) for every protected route group.
+- `src/components/layout/sidebar-nav.tsx` — small `"use client"`
+  component; only handles active-link styling via `usePathname()` +
+  `cn()`. Receives the already-filtered `NavItem[]` as props — it never
+  computes permissions itself.
 
 ## Supabase Architecture
 

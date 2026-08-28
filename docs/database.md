@@ -39,7 +39,7 @@ All 11 enums are created in
 
 | enum | values |
 |---|---|
-| `user_role` | `operator_admin`, `partner_admin`, `partner_staff`, `technician` |
+| `user_role` | `admin`, `operations_manager`, `technician`, `partner_user` |
 | `partner_status` | `pending`, `active`, `suspended`, `inactive` |
 | `seat_status` | `available`, `reserved`, `in_use`, `cleaning`, `inspection`, `quarantine`, `retired` |
 | `booking_status` | `pending`, `confirmed`, `assigned`, `in_progress`, `completed`, `cancelled`, `no_show` |
@@ -51,8 +51,11 @@ All 11 enums are created in
 | `settlement_status` | `draft`, `pending_approval`, `approved`, `paid` |
 | `flight_status` | `scheduled`, `delayed`, `landed`, `cancelled`, `diverted` |
 
-`user_role` is provisional — expect a follow-up migration once
-`F04 RBAC` defines the real role model.
+`user_role` was finalized by `F04 — RBAC`
+(`supabase/migrations/20260828065217_redefine_user_role_enum.sql`), which
+replaced the original 4 F02 placeholder values with the ticket's real role
+model (`operator_admin → admin`, `partner_admin`/`partner_staff` →
+`partner_user`, `technician` unchanged, `operations_manager` added new).
 
 `child_age_band` (on `bookings`) and `inspection_type` (on
 `inspection_records`) are free text, not enums — they weren't part of the
@@ -105,7 +108,7 @@ event/completed-record logs and have no `updated_at`.
 | email | text not null unique | |
 | full_name | text not null | |
 | role | user_role not null | |
-| partner_id | uuid, FK → partners.id ON DELETE RESTRICT | nullable — null for `operator_admin` users not tied to a partner |
+| partner_id | uuid, FK → partners.id ON DELETE RESTRICT | nullable — null for `admin`/`operations_manager`/`technician` users not tied to a partner |
 | is_active | boolean not null default true | |
 
 Indexes: `partner_id`, `role`.
@@ -383,7 +386,11 @@ single shared migration for extensions/enums/the trigger helper:
 20260826083824_create_settlements_table.sql
 20260826083827_create_invoices_table.sql
 20260826083829_create_ai_queries_table.sql
+20260828065217_redefine_user_role_enum.sql
 ```
+
+The last entry is an `F04 — RBAC` follow-up migration, not part of the
+original F02 table set — see the `user_role` note above.
 
 Rationale:
 - Matches the `.claude/skills/db-migration/SKILL.md` convention (one

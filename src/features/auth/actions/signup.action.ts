@@ -75,7 +75,7 @@ export async function signupAction(
         id: data.user.id,
         email,
         full_name,
-        role: "partner_staff",
+        role: "partner_user",
         partner_id: null,
       },
       { onConflict: "id" },

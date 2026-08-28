@@ -50,4 +50,11 @@ F31 Portfolio Polish
   `public.users` (server-hardcoded least-privileged role), and
   server-side route protection in `src/proxy.ts` /
   `src/lib/supabase/proxy.ts`.
-- **F04 — RBAC**: next.
+- **F04 — RBAC**: done. `user_role` enum finalized to `admin`,
+  `operations_manager`, `technician`, `partner_user`; centralized
+  permission model and `getCurrentUser`/`requireAuth`/`requireRole`/
+  `requirePermission` helpers (`src/lib/auth/`); role-aware nav
+  (`src/config/nav.ts`) and shared `AppShell`; 3 protected placeholder
+  route areas (`/admin`, `/technician`, `/partner`) plus the shared
+  `/forbidden` page. RLS itself is still deferred to F05.
+- **F05 — Multi-tenancy + RLS**: next.
