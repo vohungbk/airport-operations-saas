@@ -1115,7 +1115,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      booking_partner_id: { Args: { p_booking_id: string }; Returns: string }
+      current_user_partner_id: { Args: never; Returns: string }
+      current_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      is_admin_or_ops_manager: { Args: never; Returns: boolean }
+      is_internal_user: { Args: never; Returns: boolean }
     }
     Enums: {
       booking_status:

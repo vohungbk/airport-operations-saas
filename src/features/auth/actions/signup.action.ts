@@ -6,6 +6,7 @@ import type { AuthError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { DASHBOARD_ROUTE } from "@/lib/constants/routes";
 import { signupSchema } from "@/features/auth/schemas/signup.schema";
+import { syncUserProfile } from "@/features/auth/lib/sync-user-profile";
 
 export interface SignupActionResult {
   success: boolean;
@@ -46,7 +47,14 @@ export async function signupAction(
   const { email, full_name, password } = parsed.data;
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  // full_name is stashed in Auth user_metadata so api/auth/confirm/route.ts
+  // can read it back after email confirmation, when this request/closure
+  // no longer exists — see src/features/auth/lib/sync-user-profile.ts.
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name } },
+  });
 
   if (error) {
     const message = mapSignupError(error);
@@ -66,20 +74,19 @@ export async function signupAction(
   // public.users for it (it isn't actually a new user).
   const isObfuscatedExistingUser = data.user.identities?.length === 0;
 
-  if (!isObfuscatedExistingUser) {
-    // Hardcoded server-side: role/partner_id are never read from client
-    // input. Upsert by id so a retried/interrupted signup can't leave a
-    // duplicate or a broken row behind.
-    const { error: profileError } = await supabase.from("users").upsert(
-      {
-        id: data.user.id,
-        email,
-        full_name,
-        role: "partner_user",
-        partner_id: null,
-      },
-      { onConflict: "id" },
-    );
+  // A session is only returned here when email confirmation is disabled —
+  // auth.uid() is already the real new user's id, so the RLS INSERT
+  // policy on public.users (`id = auth.uid()`) allows this write. When
+  // email confirmation is enabled, signUp() returns no session and this
+  // branch must not run (it would execute as `anon` with no auth.uid());
+  // api/auth/confirm/route.ts performs the equivalent upsert after the
+  // confirmation token is exchanged for a real session instead.
+  if (!isObfuscatedExistingUser && data.session) {
+    const { error: profileError } = await syncUserProfile(supabase, {
+      id: data.user.id,
+      email,
+      full_name,
+    });
 
     if (profileError) {
       return {

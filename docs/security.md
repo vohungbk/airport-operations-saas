@@ -13,12 +13,27 @@ consistent policy rather than deciding it ad hoc.
 ### F03 — Email/password auth, profile sync, and route protection
 
 - **Signup order is fixed**: `supabase.auth.signUp()` first, then a row
-  is written to `public.users` keyed on the returned auth user id
-  (`src/features/auth/actions/signup.action.ts`). The app never creates
-  a `public.users` row before Supabase Auth confirms the auth user
-  exists, and the insert is an upsert-by-id so a signup interrupted
-  between the two steps (e.g. a dropped request) can safely retry
-  without leaving an orphaned or duplicate row.
+  is written to `public.users` keyed on the returned auth user id, via
+  the shared `syncUserProfile()` helper
+  (`src/features/auth/lib/sync-user-profile.ts`). The app never creates a
+  `public.users` row before Supabase Auth confirms the auth user exists,
+  and the write is an upsert-by-id so a signup interrupted between steps
+  (e.g. a dropped request) can safely retry without leaving an orphaned
+  or duplicate row.
+  - **Updated by F05**: `syncUserProfile()` only runs where `auth.uid()`
+    is guaranteed to be the real new user's id, since `F05`'s `users`
+    RLS INSERT policy requires `id = auth.uid()`. When
+    `supabase.auth.signUp()` returns a session immediately (email
+    confirmation disabled), `signup.action.ts` calls it right there.
+    When it does not (email confirmation enabled), `signup.action.ts`
+    skips the write entirely — running it there would execute as `anon`
+    with no `auth.uid()` and be rejected by RLS — and
+    `api/auth/confirm/route.ts` calls `syncUserProfile()` instead, after
+    `verifyOtp()` exchanges the confirmation token for a real session.
+    `full_name` is carried from the signup form to that later request via
+    `signUp()`'s `options.data` (Supabase Auth `user_metadata`), since the
+    original request/closure no longer exists by the time the
+    confirmation link is clicked.
 - **Role assignment is server-only.** The signup Zod schema
   (`src/features/auth/schemas/signup.schema.ts`) has no `role` or
   `partner_id` field — the Server Action hardcodes `role:
@@ -58,12 +73,13 @@ consistent policy rather than deciding it ad hoc.
   - The future public QR seat passport lookup (`F10`) will be added to
     this same public-routes list when it's implemented — it does not
     exist yet and no route for it has been created in F03.
-- **`public.users` still has no RLS.** This is the documented exception
-  from `F05 — Multi-tenancy + RLS`, unchanged by F03. Any key currently
-  used by the app can read/write any row in `public.users`; F03 does not
-  attempt to compensate with an application-level `WHERE` filter, since
-  that would be both ineffective as a tenant boundary and misleading
-  about the actual guarantee.
+- **`public.users` now has RLS**, added by `F05 — Multi-tenancy + RLS`
+  (see that section below). The profile-write step described above only
+  ever runs with a real, server-verified `auth.uid()` (either immediately
+  after `signUp()` when email confirmation is disabled, or after
+  `api/auth/confirm/route.ts` exchanges the confirmation token when it is
+  enabled — see the "Updated by F05" note just above), which is exactly
+  what the `users` INSERT policy requires.
 - **Seeded technician rows** in `supabase/seed.sql` are plain database
   rows with no corresponding Supabase Auth user — they cannot sign in
   through this flow. Linking a real Auth user to a technician record is
@@ -146,10 +162,13 @@ to redirect back into the app.
 - **Partner isolation design principle.** `partner_user` access is
   designed around `users.partner_id`. A `null` `partner_id` (e.g. right
   after signup, see F03) means "no partner assigned yet -> safe empty
-  state," never "unrestricted -> see all partners' data." This is a
-  design principle enforced by convention today (demonstrated in the F04
-  placeholder `/partner` page); it becomes a real, enforced boundary once
-  `F05 — Multi-tenancy + RLS` adds RLS policies keyed on `partner_id`.
+  state," never "unrestricted -> see all partners' data." This was a
+  design principle enforced by convention as of F04; it is now a real,
+  database-enforced boundary — `F05 — Multi-tenancy + RLS`'s
+  `current_user_partner_id()` returns `null` for exactly this case, and a
+  `partner_id = current_user_partner_id()` `USING` clause built on it
+  evaluates to zero rows (never all rows) for a `null` comparison. See
+  the F05 section below.
 - **Route areas**: `(admin)/admin` gated by `dashboards:view`,
   `(technician)/technician` gated by `jobs:view_assigned`,
   `(partner)/partner` gated by `bookings:view_own_partner` — nav
@@ -157,14 +176,14 @@ to redirect back into the app.
   reuse the exact same permission, so there's one source of truth for
   "can this role see this area," not a separate `*:access` permission
   invented for navigation.
-- **`getCurrentUser()`'s self-lookup query on `public.users` is safe
-  without RLS specifically because it is keyed by the caller's own
-  server-verified id** (`auth.uid()` from the validated JWT, never a
-  client-supplied id) — the same reasoning F03 already relied on for
-  the profile-sync upsert during signup. This is not a precedent for
-  querying any other tenant-scoped table without RLS before F05 ships;
-  every other table remains off-limits to real user-facing queries until
-  then (see the warning at the top of `docs/database.md`).
+- **`getCurrentUser()`'s self-lookup query on `public.users`** was
+  originally safe without RLS because it is keyed by the caller's own
+  server-verified id (`auth.uid()` from the validated JWT, never a
+  client-supplied id) — the same reasoning F03 already relied on for the
+  profile-sync upsert during signup. `public.users` now has RLS as of
+  `F05 — Multi-tenancy + RLS` (its `users_select_self` policy matches this
+  exact query shape), so this is now both a safe *and* an RLS-enforced
+  read, not just a safe-by-convention one.
 
 ## Multi-Tenant Data Isolation
 
@@ -181,6 +200,121 @@ to redirect back into the app.
   are created (`F05 — Multi-tenancy + RLS`).
 - Policies are written and reviewed as part of the schema that introduces
   the table, not bolted on afterward.
+
+### F05 — Multi-tenancy + RLS
+
+`supabase/migrations/20260902085338_enable_rls_multi_tenancy.sql` turns
+on Row Level Security for all 18 tables created by `F02`, making the
+`Supabase Auth → Application User → Role → Partner Membership →
+PostgreSQL RLS` chain a real, database-enforced boundary rather than a
+convention `hasPermission()`/`requireRole()` alone provided. RLS is the
+last line of defense: the UI/route guards from F03/F04 remain in place
+unchanged, but the database now independently rejects anything they
+might miss.
+
+**Tenant model**: the tenant is `partners`. Membership is
+`users.partner_id`, nullable for the three internal roles (`admin`,
+`operations_manager`, `technician`), which are not tied to any single
+partner. A `partner_user` with `partner_id is null` (e.g. immediately
+after signup) sees zero rows everywhere partner-scoped, never an error
+and never every partner's rows.
+
+**Helper functions** — all `SECURITY DEFINER`, `STABLE`, `SET
+search_path = ''` (every inner reference fully schema-qualified), with
+`EXECUTE` explicitly revoked from `PUBLIC` and from `anon` and re-granted
+only to `authenticated` (Postgres grants `EXECUTE` to `PUBLIC` by default
+on function creation, and this Supabase project's `public` schema also
+carries its own default privilege directly granting `anon`
+`EXECUTE` on every new function — both had to be revoked, or `anon` could
+call these functions directly):
+
+| function | purpose |
+|---|---|
+| `current_user_role()` | The caller's role from `public.users`, or `null` if there is no session, the profile is missing, or the account is inactive. `SECURITY DEFINER` lets it read `public.users` from inside that table's own policies without RLS recursion (see "RLS recursion" below). Reused by nearly every other policy. |
+| `current_user_partner_id()` | The caller's `partner_id`, or `null` for internal roles and for any inactive/missing-profile `partner_user`. A `null` result makes a `partner_id = current_user_partner_id()` clause return zero rows rather than error or "all rows," turning the partner-isolation design principle above into a database fact. |
+| `is_internal_user()` | True for `admin`/`operations_manager`/`technician` — the three internal, non-partner roles. |
+| `is_admin_or_ops_manager()` | True for `admin`/`operations_manager` — the single most repeated gate in the migration (write access on `partners`/`airports`/`seat_categories`/`seats`/`flights`/`bookings`/`technician_jobs`, and broad SELECT-all on most other tables). |
+| `booking_partner_id(uuid)` | Not part of the ticket's original 4-function list. Returns a booking's `partner_id`, bypassing `bookings`' own RLS. Exists solely to break a real RLS recursion cycle discovered while testing this migration (see "RLS recursion" below) — `bookings`' technician-visibility policy queries `technician_jobs`, and without this function `technician_jobs`' `partner_user`-visibility policy would query `bookings` back, which Postgres detects as infinite policy recursion (`42P17`). |
+
+**RLS recursion**: two tables whose policies query each other cause
+Postgres to error with `42P17 infinite recursion detected in policy`,
+because evaluating either table's policy re-triggers evaluating the
+other's. `public.users` avoids this by construction — its own
+`SECURITY DEFINER` helper functions read it as the (RLS-bypassing) table
+owner. `bookings` and `technician_jobs` needed the same treatment
+(`booking_partner_id()`) because their policies reference each other
+directly. Any future policy that joins two RLS-enabled tables should be
+checked for this before shipping — it is not caught by `db reset` syntax
+validation, only by actually querying the affected tables (which is how
+this instance was found).
+
+**Privilege-escalation trigger**: `prevent_users_privilege_escalation()`
+(`BEFORE UPDATE ON public.users FOR EACH ROW`) blocks any non-admin
+caller from changing `role`, `partner_id`, or `is_active` on any row it
+is otherwise allowed to `UPDATE` (e.g. its own row, via the self-update
+policy below). RLS `USING`/`WITH CHECK` clauses can only decide *which
+rows* a statement touches, not diff old-vs-new column values within an
+`UPDATE` — this is a column-level guard that RLS alone cannot express.
+
+**Per-table access rules**:
+
+| table | SELECT | INSERT / UPDATE | notes |
+|---|---|---|---|
+| `users` | admin: all. operations_manager: all (read-only). technician/partner_user: own row only | INSERT: `id = auth.uid()` only. UPDATE: admin (all), or own row (`id = auth.uid()`, guarded by the trigger above) | No coworker visibility for `partner_user` (deliberately narrow) |
+| `partners` | admin/operations_manager: all. partner_user: own partner | admin/operations_manager only | |
+| `airports`, `seat_categories`, `flights` | any `authenticated` user (`USING (true)`) | admin/operations_manager only | Shared reference data, no partner/financial/personal fields — see the caution in `docs/database.md` about adding sensitive columns later |
+| `seats` | admin/operations_manager: all. technician: seat on a booking assigned to them. partner_user: seat on a booking of their partner | admin/operations_manager only | Technician status/rental_cycles writes are deferred to F16-F18 |
+| `seat_status_history` | admin/operations_manager only | admin/operations_manager only (INSERT scaffolding, no writer yet) | Append-only log |
+| `bookings` | admin/operations_manager: all. technician: assigned to them (via `assigned_technician_id` or `technician_jobs`). partner_user: own partner | admin/operations_manager only | Cancellation is an UPDATE (`status = 'cancelled'`), already covered |
+| `booking_events` | same shape as `bookings` (joins through `booking_id`) | admin/operations_manager, plus technician limited to bookings assigned to them | Append-only log |
+| `technician_jobs` | admin/operations_manager: all. technician: own jobs. partner_user: jobs on their partner's bookings (via `booking_partner_id()`) | INSERT: admin/operations_manager. UPDATE: admin/operations_manager, or technician limited to their own row (`technician_id = auth.uid()`) | Technician UPDATE stops reassigning `technician_id` to someone else, but does not stop changing `booking_id` — a known, deliberately deferred gap (F14/F15) |
+| `installations` | admin/operations_manager: all. technician: own job. partner_user: their partner's bookings (two-hop join) | technician (own job) + admin/operations_manager | Append-only log |
+| `cleaning_records` | admin/operations_manager: all. technician: `employee_id = auth.uid()`. partner_user: their partner's bookings (`booking_id` non-null only) | technician (`employee_id = auth.uid()`) + admin/operations_manager | Append-only log; a `booking_id is null` row is invisible to every `partner_user` |
+| `inspection_records` | same shape as `cleaning_records`, `inspector_id` instead of `employee_id` | same shape | Append-only log |
+| `incidents` | admin/operations_manager: all. technician: `reported_by = auth.uid()`. partner_user: own partner | technician (`reported_by = auth.uid()`) + admin/operations_manager, both requiring `partner_id` to match the referenced booking's real `partner_id` when `booking_id` is supplied. UPDATE: admin only | `operations_manager` has no resolve/manage permission in F04's permission table, so this is not a new restriction RLS introduces |
+| `partner_commercial_terms`, `settlements`, `invoices` | admin/operations_manager: all. partner_user: own partner | admin only | F04 has no `finance:manage` permission for any non-admin role |
+| `ai_queries` | own rows, or admin | own rows, or admin | No `ai:*` permission exists in F04 yet (F28 not started) — the most conservative shape in the migration; INSERT is scaffolding, no writer exists yet |
+
+**Technician-restriction pattern**: every technician-visibility policy is
+scoped to rows the technician is the direct actor on or assigned to —
+`employee_id`/`inspector_id`/`reported_by`/`technician_id` `= auth.uid()`,
+or a join through `technician_jobs`/`bookings` to a row where they are
+the assigned technician. No technician policy ever grants broader
+visibility (e.g. "all seats at their airport") — those are explicitly
+deferred to whichever future feature (F09/F14/F15) defines a concrete
+need, not assumed here.
+
+**No DELETE policy** exists on any table for any role. This is a single
+uniform decision, not 18 separate oversights — consistent with
+`docs/database.md`'s "no `ON DELETE CASCADE`... partners/seats/bookings
+are deactivated via `status`, never hard-deleted" convention. The absence
+of a matching policy means RLS denies every `DELETE` by default.
+
+**Anonymous access is denied by default everywhere.** No policy in this
+migration targets `anon`, including the `USING (true)` policies on
+`airports`/`seat_categories`/`flights` — those are explicitly scoped `to
+authenticated`. An unauthenticated request returns zero rows (not an
+error) on all 18 tables.
+
+**Service-role**: unchanged. No service-role/secret-key client exists in
+this codebase, and this migration does not introduce one — see "Secrets"
+below.
+
+**Design notes (documentation-only, not implemented by F05)**:
+
+- **Public QR seat passport (`F10`)**: RLS operates at row granularity,
+  not column granularity — it cannot selectively expose
+  `seats.public_token` to `anon` while hiding internal columns on the
+  same table/policy. Recommended approach when F10 is actually built:
+  keep `seats`' RLS scoped `to authenticated` only (never add an `anon`
+  policy to `seats`), and expose a separate `SECURITY DEFINER` RPC or a
+  narrow public view that returns only an explicit whitelist of safe
+  fields, keyed by `public_token`.
+- **Storage**: no bucket exists yet. When a real upload feature needs one
+  (inspection/cleaning photos in F16-F18, invoice PDFs in F25), its
+  bucket/path convention should mirror this same `partner_id`/role
+  ownership model via `storage.objects` policies, reusing the helper
+  functions above rather than reimplementing the same checks.
 
 ## Secrets
 
@@ -200,6 +334,9 @@ to redirect back into the app.
   That lookup must expose only the minimal, safe public fields (e.g. seat
   category, inspection status) and never partner-internal, financial, or
   personally identifying data.
+- See the F05 section's "Design notes" above for the recommended
+  RLS-compatible approach (a `SECURITY DEFINER` RPC or narrow public view,
+  never an `anon` policy on `seats` itself) — not implemented yet.
 
 ## Storage
 
@@ -207,3 +344,7 @@ to redirect back into the app.
   database RLS boundaries — a partner must not be able to read another
   partner's stored files (photos, inspection reports, invoices) via a
   guessed or leaked URL.
+- See the F05 section's "Design notes" above for the recommended
+  convention (mirror the `partner_id`/role ownership model via
+  `storage.objects` policies, reusing F05's helper functions) — no bucket
+  exists yet.

@@ -3,7 +3,12 @@ import { type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/server";
-import { DASHBOARD_ROUTE, LOGIN_ROUTE } from "@/lib/constants/routes";
+import {
+  DASHBOARD_ROUTE,
+  FORBIDDEN_ROUTE,
+  LOGIN_ROUTE,
+} from "@/lib/constants/routes";
+import { syncUserProfile } from "@/features/auth/lib/sync-user-profile";
 
 const RESET_PASSWORD_ROUTE = "/reset-password";
 
@@ -20,7 +25,7 @@ export async function GET(request: NextRequest) {
 
   if (tokenHash && type) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type,
     });
@@ -32,7 +37,40 @@ export async function GET(request: NextRequest) {
       redirect(RESET_PASSWORD_ROUTE);
     }
 
-    if (!error) {
+    if (!error && data.user) {
+      if (type === "signup") {
+        // auth.uid() is now the real confirmed user's id — the RLS
+        // INSERT policy on public.users (`id = auth.uid()`) allows this
+        // write. Mirrors the session-immediately branch in
+        // signup.action.ts for the email-confirmation-enabled case,
+        // where that branch can't run (no session/auth.uid() yet at
+        // signup time). full_name comes from the user_metadata stashed
+        // there by signUp()'s `options.data`.
+        const { error: profileError } = await syncUserProfile(supabase, {
+          id: data.user.id,
+          email: data.user.email ?? "",
+          full_name:
+            typeof data.user.user_metadata?.full_name === "string"
+              ? data.user.user_metadata.full_name
+              : "",
+        });
+
+        if (profileError) {
+          // The confirmation token is single-use and already consumed by
+          // verifyOtp() above, so there is no way to retry this exact
+          // link. Land on /forbidden with a specific reason instead of
+          // silently proceeding to /dashboard, where requireAuth() would
+          // otherwise bounce this same user with the generic "access
+          // denied" copy and no explanation. No email/full_name in the
+          // log - just the (non-PII) auth user id and the DB error.
+          console.error(
+            "api/auth/confirm: failed to write public.users profile after email confirmation",
+            { userId: data.user.id, error: profileError },
+          );
+          redirect(`${FORBIDDEN_ROUTE}?reason=confirm_profile_failed`);
+        }
+      }
+
       redirect(DASHBOARD_ROUTE);
     }
   }

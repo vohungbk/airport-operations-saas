@@ -47,6 +47,11 @@ describe("signupAction", () => {
       "REDIRECT:/dashboard",
     );
 
+    expect(signUpMock).toHaveBeenCalledWith({
+      email: "user@example.com",
+      password: "password123",
+      options: { data: { full_name: "Jane Doe" } },
+    });
     expect(fromMock).toHaveBeenCalledWith("users");
     expect(upsertMock).toHaveBeenCalledWith(
       {
@@ -102,7 +107,7 @@ describe("signupAction", () => {
     expect(upsertMock).not.toHaveBeenCalled();
   });
 
-  it("should show the check-email message without redirecting when signup succeeds but no session is returned", async () => {
+  it("should show the check-email message without redirecting or writing the profile row when signup succeeds but no session is returned", async () => {
     signUpMock.mockResolvedValue({
       data: {
         user: { id: "user-3", identities: [{ id: "identity-1" }] },
@@ -118,7 +123,10 @@ describe("signupAction", () => {
       message:
         "Check your email to confirm your account before signing in.",
     });
-    expect(upsertMock).toHaveBeenCalled();
+    // No session means auth.uid() isn't real yet (RLS would reject the
+    // write as anon) — api/auth/confirm/route.ts writes the profile row
+    // instead, after email confirmation.
+    expect(upsertMock).not.toHaveBeenCalled();
   });
 
   it("should always hardcode role: partner_user and partner_id: null even when the input carries injected role/partner_id fields", async () => {

@@ -5,27 +5,34 @@ the enums, tables, relationships, indexes, migration strategy, and seed
 data delivered by F02. See `plan.md` (F02) for the full task-by-task
 rationale this document summarizes.
 
-> **RLS IS NOT YET ENABLED. Read this before querying any table below
-> from application code.**
+> **RLS IS ENABLED on all 18 tables below, as of `F05 — Multi-tenancy +
+> RLS`.**
 >
-> No table created in F02 has Row Level Security enabled and no policies
-> exist. RLS is deliberately deferred to `F05 — Multi-tenancy + RLS`,
-> which lands after `F03 Authentication` and `F04 RBAC`. Until F05 ships:
+> `supabase/migrations/20260902085338_enable_rls_multi_tenancy.sql` turns
+> on `enable row level security` plus explicit `select`/`insert`/`update`
+> policies for every table listed here. No table has a `delete` policy for
+> any role (see "No DELETE policy" below) — RLS denies `DELETE` by default
+> everywhere.
 >
-> - **No Server Action, Route Handler, or Server Component may query any
->   table listed here from real user-facing code.** There is currently
->   nothing in the database enforcing tenant isolation — a query issued
->   with the anon/publishable key (or any authenticated session) can read
->   or write any partner's rows.
-> - Every partner-owned table was designed with an unambiguous
->   `partner_id` or FK-traceable ownership path back to `partners` so
->   that F05 can add `enable row level security` + policies cleanly
->   later, without a schema rework. That path existing is not the same
->   as isolation existing — isolation only exists once F05's policies are
->   applied.
-> - This is a documented, scoped exception to this project's normal
->   convention (`.claude/skills/db-migration/SKILL.md` normally bundles
->   RLS into the same migration as the table), not an oversight.
+> - Four `SECURITY DEFINER` helper functions centralize the "who is
+>   calling and what can they see" checks: `current_user_role()`,
+>   `current_user_partner_id()`, `is_internal_user()`,
+>   `is_admin_or_ops_manager()`. A fifth, `booking_partner_id(uuid)`,
+>   exists purely to break an RLS recursion cycle between `bookings` and
+>   `technician_jobs` (see the migration file's comment on that
+>   function). See `docs/security.md`'s F05 section for the full
+>   per-table access rules.
+> - Anonymous (`anon`) access is denied by default on every table,
+>   including the three "shared reference data" tables (`airports`,
+>   `seat_categories`, `flights`) whose `select` policy is `to
+>   authenticated using (true)` — that clause is scoped to `authenticated`
+>   only, never `anon`.
+> - No service-role client exists in this codebase; nothing bypasses RLS
+>   from application code.
+>
+> See the "Row Level Security (F05)" section below for the ownership
+> table, new indexes, and the `USING (true)` caution on shared reference
+> data.
 
 ## Extensions
 
@@ -387,10 +394,14 @@ single shared migration for extensions/enums/the trigger helper:
 20260826083827_create_invoices_table.sql
 20260826083829_create_ai_queries_table.sql
 20260828065217_redefine_user_role_enum.sql
+20260902085338_enable_rls_multi_tenancy.sql
 ```
 
-The last entry is an `F04 — RBAC` follow-up migration, not part of the
-original F02 table set — see the `user_role` note above.
+The second-to-last entry is an `F04 — RBAC` follow-up migration, not part
+of the original F02 table set — see the `user_role` note above. The last
+entry is `F05 — Multi-tenancy + RLS` (see the "Row Level Security" section
+below) — one migration for the whole feature rather than one-per-table,
+since it only adds to existing tables and creates none.
 
 Rationale:
 - Matches the `.claude/skills/db-migration/SKILL.md` convention (one
@@ -408,9 +419,64 @@ Every table migration's trailing comment block records the rollback
 / `drop function` / `drop extension`) — per the db-migration skill's
 convention, adapted here since no RLS policies exist to drop.
 
-**No `enable row level security` and no `create policy` statements exist
-anywhere in this migration set.** See the warning at the top of this
-document.
+`enable row level security` plus `create policy` statements for all 18
+tables live in `20260902085338_enable_rls_multi_tenancy.sql` (`F05`) —
+see the "Row Level Security" section below.
+
+## Row Level Security (F05)
+
+`20260902085338_enable_rls_multi_tenancy.sql` enables RLS and adds
+`select`/`insert`/`update` policies to every table above (no `delete`
+policy exists anywhere — see "No DELETE policy" below). Full per-table
+access rules live in `docs/security.md`'s F05 section; this section
+covers only what's specific to the schema.
+
+**Ownership relationships used by RLS** — tables below do not carry
+`partner_id` directly and are scoped by joining through another table:
+
+| table | ownership path | notes |
+|---|---|---|
+| `booking_events` | `booking_id → bookings.partner_id` | also joins `bookings`/`technician_jobs` for technician visibility |
+| `technician_jobs` | `booking_id → bookings.partner_id` (via `booking_partner_id()`, not a direct join — see below) | `technician_id` is the direct actor FK |
+| `installations` | `technician_job_id → technician_jobs.technician_id` (actor) and `→ technician_jobs.booking_id → bookings.partner_id` (partner visibility) | two-hop join for `partner_user` |
+| `cleaning_records` | `booking_id → bookings.partner_id`, nullable | `employee_id` is the direct actor FK; a null `booking_id` row is invisible to every `partner_user` |
+| `inspection_records` | `booking_id → bookings.partner_id`, nullable | same shape as `cleaning_records`, `inspector_id` is the actor FK |
+| `incidents` | `partner_id` is direct, not joined | `booking_id` (if present) must reference a booking with a matching `partner_id` — enforced by a `with check` on both INSERT policies |
+| `seats` | `bookings.assigned_seat_id`, no direct `partner_id`/technician FK | technician/partner_user visibility both go through `bookings` |
+
+**RLS recursion note**: `bookings`' technician-visibility policy queries
+`technician_jobs`, and `technician_jobs`' `partner_user`-visibility policy
+needs `bookings.partner_id`. Doing the latter as a plain
+`exists (select ... from bookings ...)` re-triggers `bookings`' own RLS
+policies, which query `technician_jobs` again — Postgres reports this as
+`42P17 infinite recursion detected in policy`. The migration breaks this
+with a fifth `SECURITY DEFINER` helper, `booking_partner_id(uuid)`, that
+reads `bookings.partner_id` bypassing `bookings`' RLS, the same mechanism
+already used for `current_user_role()`/`current_user_partner_id()` reading
+`public.users` from inside that table's own policies.
+
+**New indexes added by F05** (supporting the `exists(...)` ownership joins
+above; everything else needed already existed from F02):
+
+- `installations_technician_job_id_idx` on `installations(technician_job_id)`
+- `cleaning_records_employee_id_idx` on `cleaning_records(employee_id)`
+- `cleaning_records_booking_id_idx` on `cleaning_records(booking_id)`
+- `inspection_records_inspector_id_idx` on `inspection_records(inspector_id)`
+- `inspection_records_booking_id_idx` on `inspection_records(booking_id)`
+- `incidents_reported_by_idx` on `incidents(reported_by)`
+- `ai_queries_user_id_idx` on `ai_queries(user_id)`
+
+**No DELETE policy** exists on any table for any role — consistent with
+the `RESTRICT`-everywhere / soft-delete-via-`status` convention documented
+above. The absence of a matching policy means RLS denies every `DELETE`
+by default.
+
+**Caution**: `airports`, `seat_categories`, and `flights` have a
+`select ... to authenticated using (true)` policy — deliberate for shared
+reference data with no partner/financial/personal fields today. A future
+column added to one of these tables silently inherits that broad
+visibility; review this policy before adding anything sensitive to these
+three tables.
 
 ## Seed strategy
 
