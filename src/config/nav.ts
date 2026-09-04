@@ -15,6 +15,7 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { label: "Admin Operations", href: "/admin", permission: "dashboards:view" },
+  { label: "Partners", href: "/partners", permission: "partners:manage" },
   {
     label: "Technician Jobs",
     href: "/technician",

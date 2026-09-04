@@ -316,6 +316,38 @@ below.
   ownership model via `storage.objects` policies, reusing the helper
   functions above rather than reimplementing the same checks.
 
+### F06 — Partner Management
+
+The `/partners*` routes (`src/app/(admin)/partners/**`) are an
+application-layer CRUD module sitting entirely on top of F05's existing
+`partners_*` RLS policies (see the per-table rules above) — **F06
+introduced no new migration and no new/changed RLS policy**. The F05
+coverage already matched F06's exact access model: admin/
+operations_manager full SELECT/INSERT/UPDATE, `partner_user`
+SELECT-own-row-only, `technician` zero rows (no policy grants it access),
+no DELETE policy for any role. This was verified both by re-reading the
+migration and by a live integration-test addition (`partners table`
+describe block in `src/lib/auth/rls.integration.test.ts`) exercising all
+of the above against a real local Postgres instance.
+
+**Route-level gate**: `requirePermission("partners:manage")` runs in both
+`src/app/(admin)/partners/layout.tsx` and independently in every
+`page.tsx` under it (list/new/detail/edit), plus again at the top of
+every partners Server Action (`create-partner.action.ts`,
+`update-partner.action.ts`, `deactivate-partner.action.ts`) — never
+skipped on the assumption that "RLS already covers admin/
+operations_manager." RLS is the last line of defense, not a substitute
+for the route/action guard: it cannot produce a friendly `/forbidden`
+redirect or stop a page from attempting a query in the first place.
+
+**Deactivation is DB-`status`-only**, consistent with
+`docs/database.md`'s "no `ON DELETE CASCADE`... deactivated via `status`,
+never hard-deleted" convention: `deactivate-partner.action.ts` only ever
+sets `status = 'inactive'` for one partner id and rejects an
+already-inactive target with a `CONFLICT` error rather than silently
+no-oping. No DELETE is ever issued against `partners` from application
+code, matching the "no DELETE policy exists" fact above.
+
 ## Secrets
 
 - `SUPABASE_SERVICE_ROLE_KEY` / the newer secret key (`sb_secret_...`)

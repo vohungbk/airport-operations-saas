@@ -43,7 +43,15 @@ concerns without affecting the URL structure:
   `/partner`) behind `requirePermission()` in both the group's
   `layout.tsx` and `page.tsx`. Intended as long-term homes for later
   roadmap features (F06–F09 admin/ops management, F14–F15 technician
-  workflow, F21 Partner Portal), not throwaway demo routes.
+  workflow, F21 Partner Portal), not throwaway demo routes. Since F06:
+  the `(admin)` group also has its own `partners/` subtree —
+  `partners/page.tsx` (list), `partners/new/page.tsx` (create),
+  `partners/[id]/page.tsx` (detail), `partners/[id]/edit/page.tsx`
+  (edit) — with its own `partners/layout.tsx` guard
+  (`requirePermission("partners:manage")`, independent of the sibling
+  `admin/layout.tsx`). Route group segments don't contribute to the URL,
+  so these resolve to `/partners`, `/partners/new`, `/partners/[id]`,
+  `/partners/[id]/edit`, not `/admin/partners*`.
 - `forbidden` — top-level `page.tsx` (outside any route group) rendered
   for both "authenticated but not permitted" and "invalid/missing
   profile." Deliberately does not call `requireAuth()` itself (redirect
@@ -127,6 +135,67 @@ Two small shared modules outside any single feature support this:
   component; only handles active-link styling via `usePathname()` +
   `cn()`. Receives the already-filtered `NavItem[]` as props — it never
   computes permissions itself.
+
+### `src/features/partners` (F06)
+
+Follows the same shape as `src/features/auth`, gated end-to-end by
+`requirePermission("partners:manage")` (route layout/pages, and again at
+the top of every Server Action):
+
+- `types.ts` — `Partner`/`PartnerStatus` aliased from the generated
+  Supabase types, `PARTNER_STATUSES` sourced from
+  `Constants.public.Enums.partner_status`, mirroring `Role`/`ROLES` in
+  `src/lib/auth/roles.ts`.
+- `schemas/partner.schema.ts` — `createPartnerSchema`
+  (`name`/`code`/`contact_email` required, `status` defaults to
+  `'pending'`) and `updatePartnerSchema` (same minus `code` — `code` is
+  immutable after creation, never part of the edit schema), plus
+  `deactivatePartnerSchema` for the dedicated deactivate action.
+  `schemas/partners-query.schema.ts` validates the list page's
+  `searchParams` (`q`, `status`, an explicit `sort` column allowlist,
+  `order`, `page`/`page_size`), falling back to safe defaults via
+  `.catch()` per field instead of failing the page render on a garbled
+  URL.
+- `lib/build-partners-query-filters.ts` — pure function turning a
+  validated query into `{ search, status, sort, order, range }`,
+  including backslash-escaping reserved PostgREST `or=`-filter
+  characters (`,` `.` `:` `(` `)`) in the search term before it's used in
+  `.or("name.ilike...,code.ilike...")`. `lib/get-partners.ts` /
+  `lib/get-partner-by-id.ts` are the only server-only Supabase readers —
+  RLS (F05) is the tenant/role boundary; these never add their own access
+  filter, only search/sort/pagination. Neither joins `bookings`/`seats`
+  (out of scope — see `partner-detail.tsx`'s placeholder blocks).
+  `lib/partner-errors.ts` maps Postgres errors (`23505` on
+  `partners_code_key` → `DUPLICATE_CODE`) to the shared
+  `{ code, message }` shape from `backend.md`, never leaking a raw
+  Postgres error to the client.
+- `actions/*.action.ts` — `create-partner.action.ts`,
+  `update-partner.action.ts`, `deactivate-partner.action.ts`. Each
+  re-checks `requirePermission("partners:manage")` before touching the
+  database. `deactivate-partner.action.ts` is a dedicated action (not a
+  generic status update) that only ever sets `status = 'inactive'` for
+  one id and returns `CONFLICT` on an already-inactive target instead of
+  no-oping — soft-delete only, no `DELETE` anywhere in this feature.
+- `hooks/use-create-partner-form.ts` / `use-update-partner-form.ts` +
+  `components/create-partner-form.tsx` / `edit-partner-form.tsx` — the
+  same `useForm` + `useTransition` + Server Action pattern as
+  `src/features/auth`'s forms, sharing field rendering through
+  `components/partner-form.tsx` (`mode: "create" | "edit"`; `code` is a
+  registered editable input only in `"create"` mode, a disabled
+  read-only display in `"edit"` mode).
+- `components/partners-table.tsx` / `partners-pagination.tsx` — Server
+  Components; sorting/pagination are plain `<Link>` navigation against
+  new `searchParams`, no client JS. `components/partners-filters.tsx` is
+  the one Client Component the list page needs (search input + status
+  `Select`, pushes new `searchParams` via `useRouter`/`usePathname`).
+  Both list and detail views render the "active bookings"/"seat
+  inventory" columns as an explicit "Not available yet" placeholder,
+  never `0` or blank — Booking Management (F11) and Seat Inventory (F09)
+  don't exist yet, and no query against `bookings`/`seats` is made here.
+- `components/deactivate-partner-button.tsx` — the confirmation `Dialog`
+  (shadcn) + `deactivatePartnerAction` call; `router.refresh()` on
+  success is what keeps the detail page's status badge from showing a
+  stale `'active'` value (no client cache to invalidate otherwise).
 
 ## Supabase Architecture
 

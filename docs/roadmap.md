@@ -57,4 +57,20 @@ F31 Portfolio Polish
   (`src/config/nav.ts`) and shared `AppShell`; 3 protected placeholder
   route areas (`/admin`, `/technician`, `/partner`) plus the shared
   `/forbidden` page. RLS itself is still deferred to F05.
-- **F05 — Multi-tenancy + RLS**: next.
+- **F05 — Multi-tenancy + RLS**: done. Row Level Security enabled on all
+  18 tables from F02 (`supabase/migrations/20260902085338_enable_rls_multi_tenancy.sql`),
+  5 `SECURITY DEFINER` helper functions, a privilege-escalation trigger
+  on `public.users`, and no `DELETE` policy on any table. See
+  `docs/security.md` for the full per-table rule set.
+- **F06 — Partner Management**: done. Internal CRUD for rental-car
+  partners at `/partners`, `/partners/new`, `/partners/[id]`,
+  `/partners/[id]/edit` (`src/app/(admin)/partners/**`,
+  `src/features/partners`): searchable/filterable/sortable/paginated
+  list, create/edit forms (`code` immutable after creation), a detail
+  page with explicit "not available yet" placeholders for
+  booking/inventory data that doesn't exist yet, and soft-only
+  deactivation (`status = 'inactive'`, never a hard delete). Gated by
+  `requirePermission("partners:manage")` on the route layout, every page,
+  and every Server Action. Reuses F05's existing `partners_*` RLS
+  policies as-is — no new migration or policy.
+- **F07 — Airport Management**: next.

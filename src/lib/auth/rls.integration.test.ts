@@ -939,4 +939,158 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       await service.auth.admin.deleteUser(signUpData.user!.id);
     });
   });
+
+  // ===========================================================================
+  // 9. partners table (F06 — Partner Management's app layer sits entirely on
+  // top of this pre-existing F05 RLS coverage; F06 added no new migration/
+  // policy, see plan.md Task 1/19).
+  // ===========================================================================
+  describe("partners table", () => {
+    it("admin can SELECT both seeded partners", async () => {
+      const { data, error } = await adminClient
+        .from("partners")
+        .select("id")
+        .in("id", [PARTNER_A_ID, PARTNER_B_ID]);
+      expect(error).toBeNull();
+      expect(data?.map((p) => p.id).sort()).toEqual(
+        [PARTNER_A_ID, PARTNER_B_ID].sort(),
+      );
+    });
+
+    it("operations_manager can SELECT both seeded partners", async () => {
+      const { data, error } = await opsClient
+        .from("partners")
+        .select("id")
+        .in("id", [PARTNER_A_ID, PARTNER_B_ID]);
+      expect(error).toBeNull();
+      expect(data?.map((p) => p.id).sort()).toEqual(
+        [PARTNER_A_ID, PARTNER_B_ID].sort(),
+      );
+    });
+
+    it("partner_user (partner A) sees only their own partner row; zero rows for partner B's (not an error)", async () => {
+      const { data: own, error: ownError } = await partnerAClient
+        .from("partners")
+        .select("id")
+        .eq("id", PARTNER_A_ID);
+      expect(ownError).toBeNull();
+      expect(own).toHaveLength(1);
+
+      const { data: other, error: otherError } = await partnerAClient
+        .from("partners")
+        .select("id")
+        .eq("id", PARTNER_B_ID);
+      expect(otherError).toBeNull();
+      expect(other).toEqual([]);
+    });
+
+    it("technician gets zero rows on partners (no policy grants technician access)", async () => {
+      const { data, error } = await technicianClient
+        .from("partners")
+        .select("id");
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+    });
+
+    it("partner_user (partner A) is rejected on INSERT into partners", async () => {
+      const { error } = await partnerAClient.from("partners").insert({
+        name: "Attacker Rent A Car",
+        code: `RLS-TEST-DENIED-${Date.now()}`,
+        contact_email: "attacker@example.com",
+      });
+      expect(error).not.toBeNull();
+    });
+
+    it("partner_user (partner A) is rejected on UPDATE of their own partner row (matches zero rows, not an error)", async () => {
+      const { data, error } = await partnerAClient
+        .from("partners")
+        .update({ name: "Hacked By Partner A" })
+        .eq("id", PARTNER_A_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: check } = await service
+        .from("partners")
+        .select("name")
+        .eq("id", PARTNER_A_ID)
+        .single();
+      expect(check?.name).not.toBe("Hacked By Partner A");
+    });
+
+    it("operations_manager can INSERT and UPDATE a partner", async () => {
+      const code = `RLS-TEST-OPS-${Date.now()}`;
+      const { data: inserted, error: insertError } = await opsClient
+        .from("partners")
+        .insert({
+          name: "RLS Test Ops Partner",
+          code,
+          contact_email: "ops-test@example.com",
+        })
+        .select("id")
+        .single();
+      expect(insertError).toBeNull();
+      expect(inserted?.id).toBeDefined();
+
+      const { error: updateError } = await opsClient
+        .from("partners")
+        .update({ status: "active" })
+        .eq("id", inserted!.id);
+      expect(updateError).toBeNull();
+
+      if (inserted) {
+        await service.from("partners").delete().eq("id", inserted.id);
+      }
+    });
+
+    it("a deactivated partner (status = 'inactive') remains readable by admin/operations_manager - no hard delete, no hidden row", async () => {
+      const code = `RLS-TEST-DEACTIVATE-${Date.now()}`;
+      const { data: inserted, error: insertError } = await opsClient
+        .from("partners")
+        .insert({
+          name: "RLS Test Deactivation Partner",
+          code,
+          contact_email: "deactivate-test@example.com",
+        })
+        .select("id")
+        .single();
+      expect(insertError).toBeNull();
+      expect(inserted?.id).toBeDefined();
+
+      // Mirrors deactivate-partner.action.ts's conditional UPDATE - a
+      // soft status change, never a DELETE.
+      const { error: deactivateError } = await opsClient
+        .from("partners")
+        .update({ status: "inactive" })
+        .eq("id", inserted!.id)
+        .neq("status", "inactive");
+      expect(deactivateError).toBeNull();
+
+      const { data: afterAdmin, error: afterAdminError } = await adminClient
+        .from("partners")
+        .select("id, name, code, contact_email, status")
+        .eq("id", inserted!.id)
+        .maybeSingle();
+      expect(afterAdminError).toBeNull();
+      expect(afterAdmin).toMatchObject({
+        id: inserted!.id,
+        name: "RLS Test Deactivation Partner",
+        code,
+        contact_email: "deactivate-test@example.com",
+        status: "inactive",
+      });
+
+      const { data: afterOps, error: afterOpsError } = await opsClient
+        .from("partners")
+        .select("id, status")
+        .eq("id", inserted!.id)
+        .maybeSingle();
+      expect(afterOpsError).toBeNull();
+      expect(afterOps).toMatchObject({ id: inserted!.id, status: "inactive" });
+
+      if (inserted) {
+        await service.from("partners").delete().eq("id", inserted.id);
+      }
+    });
+  });
 });
