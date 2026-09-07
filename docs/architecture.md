@@ -141,6 +141,23 @@ Two small shared modules outside any single feature support this:
   `cn()`. Receives the already-filtered `NavItem[]` as props — it never
   computes permissions itself.
 
+#### F04 addendum — sidebar icons and the Airport Operations color palette
+
+Cross-cutting UI polish (not its own roadmap `F`-number): `NavItem` in
+`src/config/nav.ts` gained an `icon: LucideIcon` field, one per existing
+nav item (no new nav items were added). `sidebar-nav.tsx` renders it at
+`size-4` next to the label, and the active-link state now reads
+`bg-primary/10 text-primary` instead of the old `bg-muted text-foreground`.
+
+Separately, the default shadcn grayscale tokens in `src/app/globals.css`
+(`:root` and `.dark`) were replaced with the Airport Operations brand
+palette (converted from the given hex values to `oklch(...)` to match
+the existing token format), plus new `--success`/`--warning`/`--info`
+semantic tokens (and their `-foreground` pairs) registered in
+`@theme inline` and consumed by `success`/`warning`/`info` variants on
+`badgeVariants` (`src/components/ui/badge.tsx`). `.dark` was updated too,
+as inert future-proofing — no toggle/provider activates it yet.
+
 ### `src/features/partners` (F06)
 
 Follows the same shape as `src/features/auth`, gated end-to-end by

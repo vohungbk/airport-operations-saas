@@ -17,7 +17,10 @@ interface AppShellProps {
  * permission check itself never runs in the browser.
  */
 export function AppShell({ user, children }: AppShellProps) {
-  const navItems = getVisibleNavItems(user.role);
+  const navItems = getVisibleNavItems(user.role).map(({ href, label }) => ({
+    href,
+    label,
+  }));
 
   return (
     <div className="flex min-h-screen flex-1">

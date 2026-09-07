@@ -1,332 +1,315 @@
-# F07 — Airport Management — Kế hoạch triển khai
+# Kế hoạch: Airport Operations Color Palette & Sidebar Icons
 
-## Summary
+## Tóm tắt
 
-Xây dựng module quản lý sân bay nội bộ (`admin`/`operations_manager`) cho
-phép xem danh sách, tạo mới, xem chi tiết và chỉnh sửa các sân bay mà nền
-tảng sử dụng, tại `/airports`, `/airports/new`, `/airports/[id]`,
-`/airports/[id]/edit`. Bảng `airports` đã tồn tại từ F02
-(`supabase/migrations/20260826083747_create_airports_table.sql`) với đầy đủ
-các cột `code` (unique), `name`, `city`, `country`, `timezone`, và F05 đã bật
-RLS + policy `select`/`insert`/`update` đúng khớp với mô hình phân quyền
-ticket yêu cầu (`admin`/`operations_manager` full write, mọi
-`authenticated` user được `select`). Permission `airports:manage` cũng đã
-tồn tại sẵn trong `src/lib/auth/permissions.ts` từ F04. Do đó **F07 không
-cần migration mới, không cần thay đổi RLS, không cần thay đổi permission
-model** — đây thuần là một module CRUD tầng ứng dụng, mirror gần như 1:1
-cấu trúc `src/features/partners` (F06).
+Đây là một thay đổi **chỉ thuộc phần giao diện (UI-only)**, gồm hai phần:
 
-Ngoài phạm vi (explicitly out of scope theo ticket): seat inventory/
-categories, booking management, flight management, QR/passport, technician
-operations, finance, AI features, thay đổi auth/RBAC/multi-tenancy hiện có.
+1. Thay thế các token màu shadcn mặc định hiện tại trong `src/app/globals.css`
+   bằng bảng màu Airport Operations (aviation) được cung cấp — mở rộng hệ
+   thống CSS variable / `@theme inline` đã có sẵn, **không** tạo hệ thống
+   token mới.
+2. Thêm icon Lucide và tinh chỉnh spacing/active-state cho sidebar (được xây
+   ở F04), đồng thời đồng bộ màu badge trạng thái hiện có (hiện chỉ có
+   `partner_status` ở F06) theo các token semantic mới.
+
+Không có route mới, không có nav item mới, không thay đổi RBAC/permission,
+không thay đổi database/auth, không thay đổi business logic. Chỉ thay
+đổi class/token/icon trên những gì đã render sẵn.
+
+Hai phát hiện quan trọng làm thay đổi phạm vi so với mô tả gốc của ticket,
+và được coi là có giá trị cao hơn gợi ý ban đầu của ticket:
+
+- Sidebar nav thực tế (`src/config/nav.ts`) hiện chỉ có **5 mục**:
+  `Admin Operations` (`/admin`), `Partners` (`/partners`),
+  `Airports` (`/airports`), `Technician Jobs` (`/technician`),
+  `Partner Portal` (`/partner`) — không phải danh sách dài (Dashboard,
+  Seats, Bookings, Flights, Cleaning, Inspections, Incidents, Finance,
+  Settlements, Invoices, Reports, AI, Settings, Users, Profile) mà ticket
+  gợi ý. Theo đúng nguyên tắc "không thêm nav item cho tính năng chưa xây",
+  chỉ 5 mục này (cộng thêm `LogoutButton` riêng biệt) sẽ được gắn icon.
+- `AppShell` hiện tại (`src/components/layout/app-shell.tsx`) là một cột
+  `w-64` cố định, **không có hành vi collapse/mobile/responsive và không có
+  component tooltip nào trong codebase**. Vì vậy không có gì để "giữ
+  nguyên" cho tooltip ở trạng thái collapsed — việc thêm nó sẽ là phạm vi
+  UX mới ngoài ticket này, nên được đưa vào phần "Open questions" thay vì
+  triển khai.
+
+**Ngoài phạm vi (out of scope), đã xác nhận:** bất kỳ nav item/route mới,
+permission mới, thay đổi CRUD airport/partner, thay đổi DB/RLS, thay đổi
+auth, thay đổi business logic của bookings/seats/flights/finance/AI, và
+việc thêm cơ chế bật/tắt dark mode (khối CSS `.dark` tồn tại như phần
+scaffold chưa dùng — xem Open Questions).
 
 ## Affected files/modules
 
-**Feature module mới** — `src/features/airports/` (hiện chỉ có `.gitkeep`):
-- `types.ts`
-- `schemas/airport.schema.ts`, `schemas/airports-query.schema.ts`
-- `lib/is-valid-timezone.ts`, `lib/build-airports-query-filters.ts`,
-  `lib/get-airports.ts`, `lib/get-airport-by-id.ts`,
-  `lib/get-airport-related-counts.ts` (có điều kiện — xem Open question 1),
-  `lib/airport-errors.ts`
-- `actions/create-airport.action.ts`, `actions/update-airport.action.ts`
-- `hooks/use-create-airport-form.ts`, `hooks/use-update-airport-form.ts`
-- `components/airport-form.tsx`, `components/create-airport-form.tsx`,
-  `components/edit-airport-form.tsx`, `components/airports-table.tsx`,
-  `components/airports-filters.tsx`, `components/airports-pagination.tsx`,
-  `components/airport-detail.tsx`
+**Design tokens**
+- `src/app/globals.css` — khối CSS variable `:root` và `.dark`, và khối
+  mapping `@theme inline` (thêm `--color-success`, `--color-warning`,
+  `--color-info` nếu các token này được thêm).
 
-**Route mới** — `src/app/(admin)/airports/` (chưa tồn tại):
-- `layout.tsx`, `page.tsx`, `loading.tsx`, `new/page.tsx`,
-  `[id]/page.tsx`, `[id]/edit/page.tsx` + các file `*.test.ts` tương ứng
+**Sidebar / nav**
+- `src/config/nav.ts` — interface `NavItem` (thêm field `icon`) và mảng
+  `NAV_ITEMS` (5 mục).
+- `src/components/layout/sidebar-nav.tsx` — render icon cho từng item,
+  spacing, class active/hover.
+- `src/components/layout/app-shell.tsx` — token màu nền/border của
+  sidebar, phần header, vị trí `LogoutButton`.
+- `src/features/auth/components/logout-button.tsx` — thêm icon `LogOut`.
+- `src/config/nav.test.ts` — test hiện có chỉ assert trên `href`/permission,
+  an toàn để mở rộng thêm, không phá vỡ.
 
-**Cấu hình dùng chung, cần sửa nhỏ**:
-- `src/config/nav.ts` — thêm nav item "Airports"
+**Status badges**
+- `src/features/partners/components/partner-status-badge.tsx` — component
+  status-badge duy nhất hiện có (`pending`/`active`/`suspended`/`inactive`),
+  hiện đang map vào các variant shadcn chung (`secondary`/`default`/
+  `outline`/`destructive`), chưa mang ý nghĩa semantic.
+- `src/components/ui/badge.tsx` — `badgeVariants` (cva) dùng chung, hiện có
+  `default | secondary | destructive | outline | ghost | link`; cần thêm
+  variant `success` / `warning` / `info` nếu Goal 5 được triển khai qua
+  component dùng chung (đúng theo nguyên tắc "không tự chế biến variant
+  handling" trong `frontend.md`).
 
-**Tài liệu cần cập nhật (doc-only, không có schema/RLS thay đổi)**:
-- `docs/architecture.md` — thêm mục mô tả `src/features/airports` (F07),
-  theo đúng khuôn mẫu mục "`src/features/partners` (F06)" hiện có
-- `docs/roadmap.md` — cập nhật trạng thái F07 từ "next" sang "done" kèm mô
-  tả ngắn, theo đúng khuôn mẫu các mục F01–F06 hiện có
-- `docs/database.md` — **không cần sửa nội dung schema** (không có bảng/
-  cột/constraint mới), nhưng nên thêm một dòng chú thích ngắn xác nhận
-  "`airports` table is unchanged by F07 — see plan.md" để người đọc sau
-  này không phải tự đi tra lại, theo đúng tinh thần F06 đã làm với
-  `partners`
-- `docs/security.md` — thêm một mục nhỏ "F07 — Airport Management" mô tả
-  route-level gate (`requirePermission("airports:manage")`), theo đúng
-  khuôn mẫu mục "F06 — Partner Management" hiện có, và nêu rõ **không có
-  policy RLS mới**
+**Component UI dùng token sẵn có (chỉ kiểm tra lại, không viết lại)**
+- `src/components/ui/button.tsx`, `table.tsx`, `card.tsx`, `input.tsx`,
+  `select.tsx`, `dialog.tsx`, `alert.tsx`, `field.tsx`, `label.tsx`,
+  `separator.tsx` — đều đã dùng token (`bg-primary`, `text-muted-foreground`,
+  `border-border`, v.v.), không tìm thấy hex thô hay class màu tùy tiện
+  trong `src` (đã grep xác nhận). Các component này sẽ tự cập nhật giao
+  diện khi token đổi; chỉ cần kiểm tra lại (spot-check).
+- Các trang `src/app/(dashboard)/dashboard/page.tsx`,
+  `(admin)/admin`, `(admin)/partners/**`, `(admin)/airports/**` — kiểm tra/
+  xác nhận việc dùng token, không đụng vào logic.
 
-**Test mở rộng (không phải file mới)**:
-- `src/lib/auth/rls.integration.test.ts` — thêm `describe("airports
-  table", ...)` để xác nhận (không thay đổi) hành vi RLS F05 hiện có
+**Docs**
+- `docs/architecture.md` — phần F04 đã mô tả `nav.ts`/`sidebar-nav.tsx`/
+  `app-shell.tsx`; thêm một đoạn ngắn ghi chú field `icon` mới và nguồn
+  bảng màu, không viết lại toàn bộ.
+- `docs/roadmap.md` — việc này không map vào feature `F` nào trong
+  roadmap (là polish cross-cutting); ghi chú rõ điều này thay vì tạo một
+  mục `F` giả.
 
 ## Task list
 
-1. **`src/features/airports/types.ts`** — alias `Airport` từ
-   `Database["public"]["Tables"]["airports"]["Row"]` (generated types).
-   Không có enum trạng thái (khác `partners` — bảng `airports` không có
-   cột `status`), nên không có hằng số tương đương `PARTNER_STATUSES`.
-
-2. **`src/features/airports/lib/is-valid-timezone.ts`** — hàm thuần
-   `isValidIanaTimezone(value: string): boolean`, dựa trên
-   `Intl.supportedValuesOf("timeZone")`. Không I/O, không phụ thuộc
-   Supabase — test đơn vị theo `testing.md` (input hợp lệ như
-   `"Asia/Dubai"`, input không hợp lệ như `"Not/AZone"`, chuỗi rỗng).
-
-3. **`src/features/airports/schemas/airport.schema.ts`** —
-   `createAirportSchema` (`code`: `trim()` + `toUpperCase()` transform +
-   regex theo quyết định ở Open question 2, `name`/`city`/`country`:
-   required non-empty, `timezone`: required + `.refine(isValidIanaTimezone,
-   ...)`) và `updateAirportSchema` (giống hệt nhưng **không có field
-   `code`** — `code` bất biến sau khi tạo, mirror chính xác
-   `updatePartnerSchema`). Không pre-check uniqueness của `code` trong
-   schema (tránh race TOCTOU) — để DB unique constraint + mapping lỗi
-   `23505` xử lý, giống `partner.schema.ts`.
-
-4. **`src/features/airports/schemas/airports-query.schema.ts`** —
-   `partnersQuerySchema`-equivalent cho `/airports`: `q` (tìm theo
-   code/name/city), `sort` (allowlist cột — xem Open question 4), `order`,
-   `page`, `page_size`, dùng `.catch()` cho từng field như bản gốc.
-
-5. **`src/features/airports/lib/build-airports-query-filters.ts`** — hàm
-   thuần chuyển `AirportsQuery` thành filter Supabase-ready (bao gồm
-   escape ký tự đặc biệt PostgREST `or=`, tái sử dụng đúng logic
-   `escapePostgrestFilterValue` của `build-partners-query-filters.ts` —
-   nhân bản cục bộ trong feature `airports`, không import chéo từ
-   `features/partners`).
-
-6. **`src/features/airports/lib/airport-errors.ts`** — mirror
-   `partner-errors.ts`: `VALIDATION_ERROR`, `DUPLICATE_CODE` (map từ
-   Postgres `23505` trên unique constraint của `airports.code`),
-   `NOT_FOUND`, `INTERNAL_ERROR`. Không có `CONFLICT`/`ALREADY_INACTIVE`
-   vì không có action deactivate (xem Open question 3).
-
-7. **`src/features/airports/lib/get-airports.ts`** — server-only, đọc
-   danh sách có search/sort/pagination; **không** tự thêm điều kiện lọc
-   quyền truy cập nào khác — RLS (F05) là ranh giới truy cập, giống
-   `get-partners.ts`.
-
-8. **`src/features/airports/lib/get-airport-by-id.ts`** — server-only,
-   `.maybeSingle()` để id không tồn tại (hoặc bị RLS ẩn) trả về `null`,
-   caller chuyển thành `notFound()`.
-
-9. **`src/features/airports/lib/get-airport-related-counts.ts`**
-   (**có điều kiện** — chỉ làm nếu Open question 1 được xác nhận theo
-   hướng "hiển thị số liệu thật") — 3 query `count: "exact", head: true`
-   độc lập trên `seats`, `bookings`, `flights` lọc theo `airport_id`
-   (mỗi bảng đã có index trên `airport_id`, không phải N+1 vì chỉ chạy 1
-   lần cho trang chi tiết, không lặp theo danh sách).
-
-10. **`src/features/airports/actions/create-airport.action.ts`** — Server
-    Action, gọi `requirePermission("airports:manage")` đầu tiên, parse
-    `createAirportSchema`, `insert` vào `airports`, map lỗi qua
-    `airport-errors.ts`, `redirect("/airports/" + id)` khi thành công.
-
-11. **`src/features/airports/actions/update-airport.action.ts`** — Server
-    Action tương tự, `update` theo `id`, `.maybeSingle()` để phân biệt
-    `NOT_FOUND` với lỗi Postgres thật, **không bao giờ ghi field `code`**
-    (schema không có field này).
-
-12. **`src/features/airports/hooks/use-create-airport-form.ts`** và
-    **`use-update-airport-form.ts`** — mirror chính xác
-    `use-create-partner-form.ts`/`use-update-partner-form.ts`
-    (`useForm` + `zodResolver` tự viết + `useTransition` + gọi action).
-
-13. **`src/features/airports/components/airport-form.tsx`** — field dùng
-    chung `code`/`name`/`city`/`country`/`timezone`, `mode: "create" |
-    "edit"`; `code` là input có thể chỉnh sửa chỉ ở `"create"`, là input
-    `disabled readOnly` hiển thị giá trị hiện có ở `"edit"` (mirror
-    `partner-form.tsx`). `timezone` là input text đơn giản (có placeholder
-    ví dụ `"Asia/Dubai"`) — không thêm combobox/dependency mới.
-
-14. **`components/create-airport-form.tsx`** / **`edit-airport-form.tsx`**
-    — mirror `create-partner-form.tsx`/`edit-partner-form.tsx`, hiển thị
-    `Alert` lỗi khi action trả `success: false`.
-
-15. **`components/airports-table.tsx`** — Server Component, cột tối
-    thiểu theo ticket: `code`, `name`, `city`, `country`, `timezone` +
-    cột "Actions" (link "View"). Header sort là `<Link>` (không JS
-    client), mirror `partners-table.tsx`.
-
-16. **`components/airports-filters.tsx`** — Client Component, chỉ có ô
-    tìm kiếm (không có `Select` trạng thái — `airports` không có cột
-    `status`), tìm theo code/name/city.
-
-17. **`components/airports-pagination.tsx`** — mirror
-    `partners-pagination.tsx` 1:1 (Server Component, `<Link>` prev/next).
-
-18. **`components/airport-detail.tsx`** — hiển thị `code`, `name`,
-    `city`, `country`, `timezone`; khối "related counts" theo quyết định
-    ở Open question 1 (số liệu thật hoặc placeholder "Not available
-    yet", **không** hiển thị số `0` giả nếu chọn hướng placeholder — theo
-    đúng lý do đã ghi trong `partner-detail.tsx`); nút "Edit"; **không có
-    nút delete/deactivate nào** (xem Open question 3).
-
-19. **Route pages** dưới `src/app/(admin)/airports/`:
-    - `layout.tsx` — `requirePermission("airports:manage")` +
-      `AppShell`
-    - `page.tsx` (list) — `requirePermission` lần 2 (defense-in-depth,
-      mirror `partners/page.tsx`), parse `searchParams` qua
-      `airportsQuerySchema`, gọi `getAirports`, render
-      filters/table/pagination, empty-state khi `total === 0`
-    - `loading.tsx` — skeleton mirror `partners/loading.tsx`
-    - `new/page.tsx` — `requirePermission` + render `CreateAirportForm`
-    - `[id]/page.tsx` — `requirePermission` + `getAirportById` +
-      `notFound()` khi null + render `AirportDetail`
-    - `[id]/edit/page.tsx` — `requirePermission` + `getAirportById` +
-      `notFound()` + render `EditAirportForm`
-
-20. **`src/config/nav.ts`** — thêm `{ label: "Airports", href:
-    "/airports", permission: "airports:manage" }` vào `NAV_ITEMS`.
-
-21. **Unit tests** (theo `testing.md`, business logic thuần — không mock
-    Supabase): `airport.schema.test.ts` (parse hợp lệ, thiếu field bắt
-    buộc, `code` không hợp lệ, `timezone` không hợp lệ, `code` được
-    uppercase, `update` schema không có field `code` dù input có gửi
-    kèm), `is-valid-timezone.test.ts`,
-    `build-airports-query-filters.test.ts`, `airports-query.schema.test.ts`.
-
-22. **Server Action tests** (mock `requirePermission` + Supabase client,
-    mirror `create-partner.action.test.ts`): `create-airport.action.test.ts`
-    và `update-airport.action.test.ts`, tối thiểu mỗi action gồm: happy
-    path (insert/update + redirect đúng URL), validation-failure path
-    (không gọi Supabase), map lỗi `23505` → `DUPLICATE_CODE`, map lỗi
-    Postgres khác → `INTERNAL_ERROR`, `NOT_FOUND` khi update id không
-    tồn tại, và guard lan truyền redirect `/forbidden` khi
-    `requirePermission` reject (role không hợp lệ **không bao giờ** gọi
-    tới Supabase) — bao phủ các mục test 3, 4, 5, 6, 7, 8, 9, 10 trong
-    yêu cầu ticket.
-
-23. **Route guard tests** — `layout.test.ts`, `page.test.ts` cho
-    list/new/`[id]`/`[id]/edit`, mirror chính xác các file tương ứng của
-    `partners` (guard gọi đúng permission, redirect lan truyền, `notFound()`
-    khi id không tồn tại) — bao phủ mục test 1, 2, 11.
-
-24. **Mở rộng `src/lib/auth/rls.integration.test.ts`** — thêm
-    `describe("airports table", ...)` chạy trên Postgres local thật, xác
-    nhận (không tạo mới) hành vi F05 vẫn đúng sau khi F07 lên: admin và
-    operations_manager `SELECT`/`INSERT`/`UPDATE` được; technician và
-    partner_user `SELECT` được (do policy `using (true)`) nhưng bị từ
-    chối `INSERT`/`UPDATE`; không có `DELETE` policy nào cho vai trò nào.
-    Bao phủ mục test 12 ("Existing RLS/tenant security is not weakened").
-
-25. **Cập nhật tài liệu** — `docs/architecture.md`,
-    `docs/security.md`, `docs/roadmap.md`, `docs/database.md` (chú thích
-    ngắn) như liệt kê ở "Affected files/modules". Làm sau cùng, sau khi
-    code đã ổn định, để mô tả đúng những gì thực sự được xây.
+1. Chuyển 12 giá trị hex đã cho sang định dạng token hiện có và soạn bản
+   thay thế `:root` đầy đủ. Token hiện tại dùng `oklch(...)`; cần quyết
+   định một lần (xem Open Questions) là giữ định dạng đó (convert hex→oklch)
+   hay chuyển token brand mới sang hex, sau đó map: `--background`→#F5F7FA,
+   `--foreground`→#172033, `--card`/`--popover`→#FFFFFF (`--card-foreground`/
+   `--popover-foreground`→#172033), `--primary`→#0F4C81 (`--primary-foreground`
+   →trắng, cần kiểm tra contrast), `--secondary`→#2F6B8A
+   (`--secondary-foreground`→trắng hoặc #172033, chọn giá trị đạt contrast),
+   `--muted-foreground`→#64748B (`--muted` cần một giá trị neutral sáng dẫn
+   xuất, không nằm trong 12 hex đã cho — giữ tông xám nhạt nhất quán với
+   `--background`/`--border`), `--border`/`--input`→#E2E8F0,
+   `--destructive`→#DC2626. Không phụ thuộc task nào; đây là bước soạn/kiểm
+   tra, chưa áp dụng.
+2. Thêm token semantic mới cho Success/Warning/Info (`--success`,
+   `--success-foreground`, `--warning`, `--warning-foreground`, `--info`,
+   `--info-foreground`) vào `:root`, dùng #16A34A / #D97706 / #0284C7 làm
+   nền và chọn màu chữ (`-foreground`) đạt contrast cho từng cái — các
+   token này chưa tồn tại trong shadcn boilerplate hiện tại, cần thêm mới
+   chứ không chỉ remap.
+3. Đăng ký các token mới vào khối `@theme inline` trong `globals.css`
+   (`--color-success: var(--success)`, v.v.) để các class Tailwind như
+   `bg-success`/`text-success-foreground` khả dụng — theo đúng pattern đã
+   dùng cho `--color-destructive`/`--color-muted`/v.v.
+4. Áp dụng cùng bảng màu cho `.dark` nếu dark mode vẫn nằm trong phạm vi
+   (xem Open Questions) — biến thể tối hơn/điều chỉnh của cùng màu
+   brand/semantic, theo đúng pattern khối `.dark` hiện có (ví dụ cách
+   `--destructive` được làm sáng hơn cho dark mode hiện tại).
+5. Quyết định vị trí đặt `Primary Dark` (#0B3558) và triển khai: dùng làm
+   `--primary` cho dark mode, và/hoặc shade hover/active cho brand color
+   chính (codebase đã có tiền lệ dùng `color-mix()` cho pattern "hover: tối/
+   sáng hơn base một chút" trong variant `secondary` của `button.tsx` — nên
+   tái sử dụng convention này thay vì tạo token `--primary-dark` không có
+   trong chuẩn shadcn). Phụ thuộc task 1 (giá trị primary cuối cùng) và
+   task 4 (nếu dùng làm primary cho dark mode).
+6. Thêm variant `success` / `warning` / `info` vào `badgeVariants` trong
+   `src/components/ui/badge.tsx`, theo đúng cấu trúc variant `default`/
+   `secondary`/`destructive` hiện có (nền tint + màu chữ tương ứng, ví dụ
+   `bg-success/10 text-success` giống cách `destructive` đang được style ở
+   độ mờ 10-20%). Phụ thuộc task 2/3 (token phải tồn tại trước).
+7. Remap `STATUS_VARIANT` trong `partner-status-badge.tsx` sang variant
+   semantic mới theo quy tắc Goal 5 (`active`→`success`, `pending`→
+   `warning`, `inactive`→xử lý neutral/muted, `suspended`→cần quyết định rõ,
+   xem Open Questions). Phụ thuộc task 6.
+8. Rà soát `docs/architecture.md` phần F06/F07 và toàn bộ UI liên quan đến
+   status/badge trong các feature khác (`partners-table.tsx`,
+   `partner-detail.tsx`, danh sách/chi tiết `airports` — airports không có
+   cột status theo F07) để xác nhận `PartnerStatusBadge` đúng là component
+   status-indicator duy nhất hiện tại, tránh bỏ sót khi áp dụng Goal 5.
+   (Task chỉ đọc/kiểm tra, có thể chạy song song với task 1-7.)
+9. Thêm field `icon` vào `NavItem` (`src/config/nav.ts`), kiểu dữ liệu theo
+   type icon component của `lucide-react` (ví dụ `LucideIcon`), gán icon
+   cho từng mục hiện có: `Admin Operations`→`LayoutDashboard` (gần nhất vì
+   không có mục "Dashboard" theo đúng nghĩa đen), `Partners`→`Building2`,
+   `Airports`→`Plane`, `Technician Jobs`→`ClipboardList` (gần nhất với
+   "Jobs"), `Partner Portal`→cần quyết định vì `Building2` đã dùng cho
+   `Partners` (xem Open Questions). Không phụ thuộc các task về token.
+10. Render icon trong `sidebar-nav.tsx`, kích thước nhất quán 16-20px
+    (`size-4`/`size-[18px]` theo convention size Tailwind đã dùng trong
+    `button.tsx`/`badge.tsx`), khoảng cách icon/label cố định qua utility
+    `gap-*` sẵn có, `aria-hidden="true"` trên icon vì label text luôn hiện
+    diện song song (Goal 6). Phụ thuộc task 9.
+11. Cập nhật class active/hover trong `sidebar-nav.tsx` để dùng token
+    `primary` mới rõ ràng cho mục active (ví dụ `bg-primary/10 text-primary`
+    thay cho style active hiện tại `bg-muted text-foreground`) và hover
+    state riêng biệt, nhẹ hơn active. Phụ thuộc task 1-4 (giá trị primary
+    cuối cùng) và task 10 (icon đã render sẵn để style active bao trùm cả
+    icon+label).
+12. Thêm icon `LogOut` vào `LogoutButton`
+    (`src/features/auth/components/logout-button.tsx`), kích thước nhất
+    quán với sidebar nav; vì button đã có text "Sign out"/"Signing out..."
+    hiển thị, icon là decorative (`aria-hidden="true"`), không thay thế
+    label.
+13. Kiểm tra khả năng hiển thị focus khi dùng bàn phím trên sidebar link và
+    logout button — xác nhận class `focus-visible:` sẵn có trong cva output
+    của `button.tsx` vẫn áp dụng/giữ nguyên; xác nhận thẻ `<Link>` trong
+    `sidebar-nav.tsx` có ring focus-visible tương đương (hiện chưa có ngoài
+    default của browser). Đây là Goal 6, chỉ thêm mới, không đụng gì khác
+    ngoài focus styling.
+14. Spot-check lại từng component UI dùng token chung (`button.tsx`,
+    `table.tsx`, `card.tsx`, `input.tsx`, `select.tsx`, `dialog.tsx`,
+    `alert.tsx`) sau khi đổi token, trên các trang list/detail/create/edit
+    của partners/airports và trang dashboard/admin placeholder — xác nhận
+    không có gì bị vỡ layout (ví dụ một `dark:` variant hardcode giả định
+    bảng màu gần-grayscale cũ). Không kỳ vọng có thay đổi code ở task này
+    trừ khi phát hiện vấn đề; nếu có, tách thành task nhỏ riêng thay vì sửa
+    ngay tại chỗ.
+15. Mở rộng `src/config/nav.test.ts` (hoặc thêm test nhỏ mới) assert mỗi
+    `NAV_ITEM` đều có `icon` xác định, theo quy tắc testing (config dùng
+    chung mới/thay đổi cần ít nhất một happy-path test). Phụ thuộc task 9.
+16. Thêm/cập nhật test cho mapping variant của `PartnerStatusBadge` (hiện
+    chưa có test) bao phủ cả 4 giá trị `PartnerStatus` map đúng variant
+    semantic dự kiến — theo `testing.md` ("mỗi feature cần happy path cộng
+    edge case") và vì đây là loại pure-mapping logic rẻ để lock lại. Phụ
+    thuộc task 7.
+17. Cập nhật phần F04 trong `docs/architecture.md` với ghi chú ngắn rằng
+    `NavItem` giờ có field `icon`, và thêm ghi chú ngắn (subsection mới hoặc
+    addendum, không phải mục roadmap giả) về nguồn bảng màu token cho người
+    đóng góp sau này. Phụ thuộc việc task 1-11 đã chốt.
+18. Chạy lint và build (`npm run lint`, `npm run build`) theo yêu cầu
+    CLAUDE.md ("chạy lint và build sau thay đổi đáng kể"), và chạy test
+    suite (`npm run test`) vì có test mới/thay đổi ở task 15-16.
 
 ## Dependencies
 
-- Task 1 (types) chặn tất cả các task còn lại (mọi schema/lib/component
-  đều import `Airport` type).
-- Task 2 (timezone validator) chặn Task 3 (schema dùng nó trong
-  `.refine()`).
-- Task 3 (schema) chặn Task 10–14 (action, hook, form đều import schema
-  này).
-- Task 4–5 (query schema + filter builder) chặn Task 7 (`get-airports.ts`
-  dùng cả hai) và Task 15–17 (table/filters/pagination cần shape
-  `AirportsQuery`).
-- Task 6 (error mapping) chặn Task 10–11 (action).
-- Task 7–9 (lib đọc dữ liệu) chặn Task 19 (route pages gọi trực tiếp các
-  hàm này).
-- Task 10–11 (action) chặn Task 12 (hook gọi action) chặn Task 13–14
-  (component dùng hook).
-- Task 13 (`airport-form.tsx` dùng chung) chặn Task 14 (create/edit form
-  cụ thể).
-- Task 15–18 (component hiển thị) chặn Task 19 (page lắp ráp component).
-- Task 19 (route pages) chặn Task 20 (nav item trỏ tới route đã tồn tại)
-  và Task 23 (test route cần page tồn tại để import).
-- Task 21–24 (test) nên viết song song ngay sau task tương ứng đã xong,
-  không dồn hết về cuối, nhưng về mặt phụ thuộc kỹ thuật chúng chặn sau
-  các task mã nguồn tương ứng (2→21 timezone test; 3→21 schema test;
-  5→21 filter test; 10/11→22; 19→23; F05 migration đã có sẵn→24, không
-  phụ thuộc code mới).
-- Task 25 (docs) nên là task cuối cùng, sau khi toàn bộ hành vi đã chốt
-  (đặc biệt phụ thuộc kết quả Open question 1 và 3 để mô tả đúng).
-- **Không có task nào phụ thuộc vào migration hoặc thay đổi RLS/RBAC** —
-  đây là điểm khác biệt quan trọng so với một feature có schema change:
-  không có "pause-for-approval" nào theo diện schema/RLS bị kích hoạt bởi
-  kế hoạch này, với điều kiện các phát hiện ở trên (bảng/RLS/permission
-  đã đủ) được xác nhận đúng trước khi code.
+- Task 2 và 3 chặn task 6 (badge variant cần token tồn tại trước).
+- Task 6 chặn task 7 (badge component cần variant mới trước khi partner
+  badge dùng được).
+- Task 1 (giá trị primary/secondary cuối cùng) chặn task 5 (vị trí đặt
+  primary-dark) và task 11 (style active-state).
+- Task 9 chặn task 10, 12 (render icon cần icon đã gán trước) và task 15
+  (test cần field đã tồn tại).
+- Task 7 chặn task 16 (test cần mapping cuối cùng).
+- Task 1-11 nên hoàn tất trước task 17 (docs mô tả trạng thái đã xong,
+  không phải đang dở).
+- Task 18 chạy sau cùng, sau khi mọi thay đổi code hoàn tất.
 
 ## Risks & edge cases
 
-- **Không có migration, không có thay đổi RLS/RBAC** — đã xác minh trực
-  tiếp bằng cách đọc `supabase/migrations/20260826083747_create_airports_table.sql`
-  (đủ cột `code`/`name`/`city`/`country`/`timezone`, `code` đã `unique
-  not null`) và `supabase/migrations/20260902085338_enable_rls_multi_tenancy.sql`
-  (policy `airports_select_authenticated`/`airports_insert_admin_ops_manager`/
-  `airports_update_admin_ops_manager` đã khớp chính xác mô hình quyền
-  ticket yêu cầu), cùng `src/lib/auth/permissions.ts` (permission
-  `airports:manage` đã tồn tại, đã gán cho `operations_manager`, `admin`
-  bypass qua `hasPermission`). **Vì không có thay đổi nào thuộc 3 diện
-  này, plan này không có mục nào cần dừng lại chờ approval theo cơ chế
-  "schema change / RLS change" của workflow** — chỉ cần dev agent xác
-  nhận lại các phát hiện trên còn đúng tại thời điểm code (schema có thể
-  đã trôi nếu có migration khác chen vào).
-- **`Intl.supportedValuesOf("timeZone")`** phụ thuộc bản build Node có
-  ICU đầy đủ. Node mặc định (kể cả trong Next.js build/deploy chuẩn) có
-  full-ICU, nhưng nếu môi trường triển khai dùng bản Node rút gọn ICU,
-  toàn bộ timezone sẽ bị coi là không hợp lệ một cách âm thầm — cần xác
-  nhận môi trường CI/production trước khi dựa vào hàm này làm nguồn xác
-  thực duy nhất.
-- **Không có DB CHECK constraint nào cho format của `code`** — ticket
-  viết "code uppercase + must match existing DB constraint" nhưng qua
-  kiểm tra, bảng `airports` **không có constraint đó**, chỉ có
-  `unique not null`. Validation format code do đó hoàn toàn nằm ở tầng
-  Zod, không có backstop DB. Nếu chọn regex sai (quá chặt hoặc quá lỏng),
-  sẽ không có DB nào chặn lại — xem Open question 2.
-- **Không có action delete/deactivate** trong phạm vi task list này (xem
-  Open question 3). RLS đã không có `DELETE` policy nào cho bất kỳ role
-  nào trên `airports` (nhất quán với toàn bộ 18 bảng), nên kể cả khi có
-  lỗi lập trình cố tình gọi `.delete()`, DB sẽ tự chặn — nhưng đây là lớp
-  phòng thủ cuối, không thay thế việc không cung cấp UI/action delete.
-- **`airports` là shared reference data với policy `select ... using
-  (true)`** — mọi role `authenticated` (kể cả `technician`,
-  `partner_user`) đã có thể `SELECT` toàn bộ bảng `airports` trực tiếp ở
-  tầng DB. Việc chặn toàn bộ route `/airports*` chỉ cho
-  `admin`/`operations_manager` (mirror F06) là một lựa chọn **hẹp hơn**
-  RLS cho phép — đúng theo nguyên tắc "RLS is the last line of defense,
-  not a substitute for route guard", nhưng cần xác nhận đây đúng là
-  hành vi mong muốn (một `technician` sẽ luôn bị redirect `/forbidden`
-  khi vào `/airports`, dù DB kỹ thuật cho phép đọc).
-- **Race điều kiện khi tạo trùng `code`** — dựa hoàn toàn vào unique
-  constraint DB + map lỗi `23505`, không pre-check bằng `SELECT` trước
-  `INSERT` (tránh TOCTOU), giống hệt cách `partners` xử lý — cần giữ
-  nguyên pattern này, không "tối ưu" bằng cách thêm bước kiểm tra tồn
-  tại trước.
-- **`code` bất biến sau khi tạo** — `updateAirportSchema` không có field
-  `code`; edit form chỉ hiển thị `code` dạng `disabled readOnly`. Không
-  được để lọt bất kỳ đường nào (kể cả form bị can thiệp phía client) làm
-  thay đổi `code` qua action update.
-- **Related counts (nếu triển khai)** đọc trực tiếp vào bảng `seats`,
-  `bookings`, `flights` — các bảng này thuộc các domain feature **chưa
-  triển khai** (Seat Inventory F09, Booking Management F11, Flight
-  Integration F20). F06 (`partner-detail.tsx`) đã cố tình **không** làm
-  điều tương tự với `bookings`/`seats` dù các bảng đó cũng đã tồn tại từ
-  F02, với lý do "feature quản lý domain đó chưa ra mắt" — dù bảng có
-  tồn tại. F07 ticket lại yêu cầu ngược lại ("nếu lấy được sạch sẽ từ
-  schema thì hiển thị"). Đây là mâu thuẫn thực sự với tiền lệ gần nhất
-  mà tôi được yêu cầu mirror — xem Open question 1, cần xác nhận rõ
-  trước khi code Task 9/18.
-- Không có test runner mới cần cài — `vitest` đã có sẵn
-  (`package.json`), dùng đúng cấu hình hiện tại.
+- **Nguy cơ giảm contrast.** Đổi `--secondary` từ neutral gần-trắng
+  (`oklch(0.97 0 0)`) sang teal-blue bão hòa (#2F6B8A) ảnh hưởng mọi
+  component dùng variant `secondary` (button, badge) — `secondary-foreground`
+  cần kiểm tra lại contrast WCAG với nền mới, không chỉ giữ nguyên giá trị
+  gần-trắng cũ.
+- **`--muted` không có hex được chỉ định trong ticket.** 12 màu đã cho
+  không bao gồm giá trị cho nền `--muted` (chỉ có `--muted-foreground` qua
+  "Muted Text" #64748B) — phải suy ra (một neutral sáng nhất quán với
+  `--background`/`--border`), đây là quyết định thiết kế, không phải map
+  trực tiếp.
+- **Trạng thái "inactive" của partner hiện đang hiển thị màu destructive
+  (đỏ).** Quy tắc trong Goal 5 ("neutral/inactive→muted") sẽ đổi màu badge
+  của partner bị deactivate từ đỏ sang xám — một thay đổi ý nghĩa semantic
+  thật sự, nhìn thấy được, dù "chỉ là màu sắc". Đã được nêu rõ, không tự ý
+  áp dụng.
+- **Trạng thái "suspended" của partner không có mapping rõ ràng** trong
+  danh sách success/warning/danger/info/muted của Goal 5 — đoán mò sẽ mâu
+  thuẫn với nguyên tắc "không tự ý thêm/suy diễn phạm vi".
+- **Xung đột icon**: `Building2` được gợi ý cho khái niệm "Partners" chung
+  chung, cũng là lựa chọn hiển nhiên cho "Partner Portal" — nhưng đây là 2
+  nav item khác nhau (`/partners` CRUD nội bộ vs. `/partner` portal dành
+  cho đối tác) — dùng chung 1 icon cho cả hai sẽ gây nhầm lẫn trong sidebar
+  chỉ có 5 mục.
+- **Không có component tooltip nào trong `src/components/ui`.** Nếu sau
+  này có tính năng collapsed-sidebar, yêu cầu "accessible labels/tooltips
+  khi collapsed" sẽ cần thêm shadcn tooltip primitive mới — ngoài phạm vi
+  hiện tại, nhưng cần nêu rõ để không ngầm hứa hẹn điều ticket này không
+  triển khai.
+- **File `globals.css` import base stylesheet của package `shadcn`** (từ
+  npm package `shadcn` v4.19.0) — việc override token phải giữ nguyên ở
+  `:root`/`.dark` trong `globals.css` như hiện tại; không sửa gì bên trong
+  chính package `shadcn`.
+- **Dark mode hiện chưa có cơ chế kích hoạt nào** (không có `next-themes`,
+  không có toggle, không có `ThemeProvider`, không có script gán class
+  `.dark`) — khối CSS `.dark` chỉ tồn tại như scaffold chưa dùng từ lúc
+  setup shadcn ban đầu. Cập nhật nó tốn ít công sức nhưng chưa có hiệu ứng
+  hiển thị nào cho tới khi có toggle.
+- **Vitest đã có sẵn** (`package.json` có `"test": "vitest run"` và các
+  file `.test.ts` theo từng feature) — mô tả "chưa cài test runner" trong
+  `testing.md` đã lỗi thời; các quy tắc coverage tối thiểu trong file đó
+  vẫn áp dụng cho thay đổi này (nav config mới/thay đổi, badge mapping
+  mới/thay đổi).
 
-## Quyết định đã chốt (approved 2026-09-07)
+## Quyết định đã chốt
 
-1. **Related counts**: dùng số liệu thật — Task 9
-   (`get-airport-related-counts.ts`) triển khai 3 query
-   `count: "exact", head: true` trên `seats`/`bookings`/`flights` lọc
-   theo `airport_id`; Task 18 hiển thị số liệu này trên
-   `airport-detail.tsx`.
-2. **Format của `code`**: chữ hoa/số, 2–10 ký tự
-   (`/^[A-Z0-9]{2,10}$/`) trong `createAirportSchema`.
-3. **Delete/Deactivate**: xác nhận không nằm trong phạm vi F07. Không
-   thêm cột trạng thái, không có UI/action xóa/deactivate. Vì không có
-   hành động không thể hoàn tác nào trong phạm vi này, không cần dialog
-   xác nhận (giải quyết luôn mục đã nêu ở dưới về confirmation dialog).
-4. **Cột sort mặc định**: `[code, name, city, country, created_at]`,
-   mặc định `code asc` (giữ nguyên đề xuất của planner, không có phản
-   hồi khác).
+Người dùng đã duyệt kế hoạch với các quyết định sau cho các "Open questions":
+
+1. **Định dạng token**: convert 12 giá trị hex sang `oklch(...)`, giữ nhất
+   quán với toàn bộ token hiện có trong `globals.css`.
+2. **Giá trị nền `--muted`**: dùng một neutral sáng dẫn xuất từ
+   `--background`/`--border` (không giữ nguyên giá trị oklch cũ của
+   shadcn boilerplate).
+3. **Vị trí Primary Dark (#0B3558)**: dùng làm shade hover/active của
+   `--primary` (qua `color-mix()`, theo đúng convention đã có ở variant
+   `secondary` của `button.tsx`), không dùng làm `--primary` riêng cho
+   dark mode.
+4. **Màu status của partner**: `inactive`→`muted` (xám), `suspended`→
+   `warning` (amber) — đúng theo tinh thần "neutral/inactive→muted" của
+   Goal 5. Đây là thay đổi UX có thể nhìn thấy (badge "inactive" đổi từ
+   đỏ sang xám), đã được xác nhận là chủ đích.
+5. **Icon cho 2 nav item không map rõ ràng**: `Admin Operations`→
+   `LayoutDashboard`, `Partner Portal`→`UserCircle` (phân biệt với
+   `Building2` của `Partners`).
+6. **Dark mode**: vẫn cập nhật khối `.dark` theo bảng màu mới như
+   future-proofing (chi phí thấp, dù hiện chưa có toggle/provider nào
+   kích hoạt nó).
+7. **Ghi chú docs**: thêm một đoạn ngắn "cross-cutting UI polish" vào
+   `docs/architecture.md`, không tạo mục `F`-number giả trong
+   `docs/roadmap.md`.
+
+## Open questions
+
+1. **Định dạng giá trị token**: token brand/semantic mới nên biểu diễn
+   dưới dạng `oklch(...)` (khớp mọi token hiện có trong `globals.css`) hay
+   custom property hex thô? Convert hex sang oklch giữ tính nhất quán nội
+   bộ nhưng cần bước convert không được ticket chỉ định; giữ hex đơn giản
+   hơn nhưng trộn lẫn định dạng trong cùng file. Cần quyết định trước khi
+   chốt task 1.
+2. **Giá trị nền `--muted`**: không có trong 12 màu ticket đưa ra. Giá trị
+   neutral sáng nào nên dùng làm nền (ví dụ tint sáng hơn của
+   `--background` hoặc `--border`)? Cần xác nhận thay vì đoán.
+3. **Vị trí đặt Primary Dark (#0B3558)**: dùng làm `--primary` cho dark
+   mode, shade hover/active của primary ở light mode, hay cả hai? Ticket
+   liệt kê nó như một brand color cấp cao nhất nhưng bộ token shadcn không
+   có slot "primary-dark" riêng.
+4. **Màu semantic cho trạng thái `suspended` của partner**: thuộc nhóm nào
+   — `warning` (tạm dừng, cần chú ý) hay nhóm khác? Không nằm trong danh
+   sách success/warning/danger/info/muted rõ ràng của ticket.
+5. **Đổi màu `inactive` từ destructive (đỏ) sang muted (xám)**: xác nhận
+   đây đúng là thay đổi UX mong muốn trước khi triển khai, vì nó thay đổi
+   mức độ "khẩn cấp" khi nhìn vào badge của một partner đã bị deactivate.
+6. **Icon cho 2 nav item không map rõ ràng vào danh sách gợi ý của ticket**:
+   `Admin Operations` (không có mục "Dashboard" đúng nghĩa đen — dùng
+   `LayoutDashboard` có chấp nhận được không, hay có icon khác phù hợp hơn
+   cho trang landing admin chung?) và `Partner Portal` (cần icon khác biệt
+   với `Building2` của `Partners` — ticket không gợi ý cho nhãn này).
+7. **Phạm vi dark mode**: vì khối CSS `.dark` tồn tại trong `globals.css`
+   nhưng chưa từng được kích hoạt trong app (không có toggle/provider), có
+   nên vẫn cập nhật nó theo bảng màu mới như một dạng "future-proofing" hay
+   để nguyên vì nó chưa dùng tới và cập nhật là công sức bỏ vào code chết?
+8. **Việc này có cần một mục ghi chú riêng trong roadmap/architecture
+   docs không** — nó không tương ứng với feature `F` nào trong
+   `docs/roadmap.md`; cần xác nhận một ghi chú ngắn "cross-cutting UI
+   polish" trong `docs/architecture.md` là đủ, hay cần theo dõi theo cách
+   khác.

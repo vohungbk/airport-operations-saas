@@ -45,3 +45,11 @@ describe("getVisibleNavItems", () => {
     expect(visible.map((item) => item.href)).toEqual(["/partner"]);
   });
 });
+
+describe("NAV_ITEMS", () => {
+  it("should have a defined icon for every nav item", () => {
+    for (const item of NAV_ITEMS) {
+      expect(item.icon).toBeDefined();
+    }
+  });
+});

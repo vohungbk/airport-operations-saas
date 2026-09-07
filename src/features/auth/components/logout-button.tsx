@@ -1,5 +1,6 @@
 "use client";
 
+import { LogOut } from "lucide-react";
 import { useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ export function LogoutButton() {
       disabled={isPending}
       onClick={() => startTransition(() => logoutAction())}
     >
+      <LogOut className="size-4" aria-hidden="true" />
       {isPending ? "Signing out..." : "Sign out"}
     </Button>
   );

@@ -1,3 +1,12 @@
+import {
+  Building2,
+  ClipboardList,
+  LayoutDashboard,
+  Plane,
+  UserCircle,
+  type LucideIcon,
+} from "lucide-react";
+
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
 import type { Role } from "@/lib/auth/roles";
 
@@ -5,6 +14,7 @@ export interface NavItem {
   label: string;
   href: string;
   permission: Permission;
+  icon: LucideIcon;
 }
 
 /**
@@ -14,18 +24,35 @@ export interface NavItem {
  * visibility.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Admin Operations", href: "/admin", permission: "dashboards:view" },
-  { label: "Partners", href: "/partners", permission: "partners:manage" },
-  { label: "Airports", href: "/airports", permission: "airports:manage" },
+  {
+    label: "Admin Operations",
+    href: "/admin",
+    permission: "dashboards:view",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Partners",
+    href: "/partners",
+    permission: "partners:manage",
+    icon: Building2,
+  },
+  {
+    label: "Airports",
+    href: "/airports",
+    permission: "airports:manage",
+    icon: Plane,
+  },
   {
     label: "Technician Jobs",
     href: "/technician",
     permission: "jobs:view_assigned",
+    icon: ClipboardList,
   },
   {
     label: "Partner Portal",
     href: "/partner",
     permission: "bookings:view_own_partner",
+    icon: UserCircle,
   },
 ];
 

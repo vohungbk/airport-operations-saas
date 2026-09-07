@@ -5,17 +5,17 @@ interface PartnerStatusBadgeProps {
   status: PartnerStatus;
 }
 
-const STATUS_VARIANT: Record<
+export const STATUS_VARIANT: Record<
   PartnerStatus,
-  "default" | "secondary" | "outline" | "destructive"
+  "success" | "warning" | "muted"
 > = {
-  pending: "secondary",
-  active: "default",
-  suspended: "outline",
-  inactive: "destructive",
+  pending: "warning",
+  active: "success",
+  suspended: "warning",
+  inactive: "muted",
 };
 
-const STATUS_LABEL: Record<PartnerStatus, string> = {
+export const STATUS_LABEL: Record<PartnerStatus, string> = {
   pending: "Pending",
   active: "Active",
   suspended: "Suspended",

@@ -39,6 +39,12 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning: var(--warning);
+  --color-info-foreground: var(--info-foreground);
+  --color-info: var(--info);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -49,23 +55,36 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  /*
+   * Airport Operations color palette (converted from the approved hex
+   * values to oklch to match the existing token format). `--muted` has no
+   * source hex — it's derived as a neutral tint halfway between
+   * `--background` (#F5F7FA) and `--border` (#E2E8F0), per the approved
+   * plan. See docs/architecture.md (F04 addendum) for the source list.
+   */
+  --background: oklch(0.975 0.005 258.325); /* #F5F7FA */
+  --foreground: oklch(0.245 0.039 264.354); /* #172033 */
+  --card: oklch(1 0 0); /* #FFFFFF */
+  --card-foreground: oklch(0.245 0.039 264.354); /* #172033 */
+  --popover: oklch(1 0 0); /* #FFFFFF */
+  --popover-foreground: oklch(0.245 0.039 264.354); /* #172033 */
+  --primary: oklch(0.409 0.106 250.207); /* #0F4C81 */
+  --primary-foreground: oklch(1 0 0); /* #FFFFFF */
+  --secondary: oklch(0.502 0.079 233.978); /* #2F6B8A */
+  --secondary-foreground: oklch(1 0 0); /* #FFFFFF */
+  --muted: oklch(0.952 0.009 256.917); /* derived, see comment above */
+  --muted-foreground: oklch(0.554 0.041 257.417); /* #64748B */
+  --accent: oklch(0.952 0.009 256.917); /* same as --muted, mirrors prior boilerplate */
+  --accent-foreground: oklch(0.245 0.039 264.354); /* #172033 */
+  --destructive: oklch(0.577 0.215 27.325); /* #DC2626 */
+  --success: oklch(0.505 0.17 149.214); /* darkened from spec #16A34A (~#007D24) so text-success on bg-success/10 reaches 4.5:1 AA */
+  --success-foreground: oklch(0.245 0.039 264.354); /* #172033, passes AA on --success */
+  --warning: oklch(0.54 0.157 58.318); /* darkened from spec #D97706 (~#AE5000) so text-warning on bg-warning/10 reaches 4.5:1 AA */
+  --warning-foreground: oklch(0.245 0.039 264.354); /* #172033, passes AA on --warning */
+  --info: oklch(0.522 0.139 241.966); /* darkened from spec #0284C7 (~#0070B2) so text-info on bg-info/10 reaches 4.5:1 AA */
+  --info-foreground: oklch(1 0 0); /* #FFFFFF, best of the two AA-borderline options on --info */
+  --border: oklch(0.929 0.013 255.508); /* #E2E8F0 */
+  --input: oklch(0.929 0.013 255.508); /* #E2E8F0 */
   --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -84,21 +103,35 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  /*
+   * Inert future-proofing: no toggle/provider activates `.dark` anywhere
+   * in the app yet. Brand/semantic colors are brightened/desaturated
+   * variants of the light-mode palette above, following the same
+   * transform already used by the original boilerplate's `--destructive`
+   * (higher lightness, slightly lower chroma, same hue) rather than an
+   * independently-chosen dark brand palette.
+   */
+  --background: oklch(0.145 0.015 258);
+  --foreground: oklch(0.975 0.005 258);
+  --card: oklch(0.205 0.015 258);
+  --card-foreground: oklch(0.975 0.005 258);
+  --popover: oklch(0.205 0.015 258);
+  --popover-foreground: oklch(0.975 0.005 258);
+  --primary: oklch(0.616 0.09 250.207);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.676 0.067 233.978);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.269 0.015 258);
+  --muted-foreground: oklch(0.708 0.02 258);
+  --accent: oklch(0.269 0.015 258);
+  --accent-foreground: oklch(0.975 0.005 258);
   --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.758 0.145 149.214);
+  --success-foreground: oklch(0.975 0.005 258);
+  --warning: oklch(0.783 0.133 58.318);
+  --warning-foreground: oklch(0.975 0.005 258);
+  --info: oklch(0.732 0.118 241.966);
+  --info-foreground: oklch(0.975 0.005 258);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
