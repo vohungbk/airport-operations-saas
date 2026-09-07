@@ -99,6 +99,13 @@ event/completed-record logs and have no `updated_at`.
 | country | text not null | |
 | timezone | text not null | |
 
+> `airports` is unchanged by `F07 — Airport Management` — see `plan.md`
+> (F07). F07 is an application-layer CRUD module on top of this existing
+> schema and F05's existing RLS policies; no column, constraint, or
+> policy was added or modified. `code` format (uppercase alphanumeric,
+> 2-10 chars) is validated in Zod only, not backed by a DB `CHECK`
+> constraint.
+
 ### `seat_categories` (mutable)
 | column | type | notes |
 |---|---|---|

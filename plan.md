@@ -1,439 +1,332 @@
-# Kế hoạch: F06 — Partner Management
+# F07 — Airport Management — Kế hoạch triển khai
 
-## Quyết định đã chốt
+## Summary
 
-Người dùng đã phê duyệt kế hoạch (approve, start implement). Các câu hỏi
-mở được chốt theo phương án mặc định đã nêu trong từng câu hỏi, vì
-người dùng không yêu cầu thay đổi phương án nào:
+Xây dựng module quản lý sân bay nội bộ (`admin`/`operations_manager`) cho
+phép xem danh sách, tạo mới, xem chi tiết và chỉnh sửa các sân bay mà nền
+tảng sử dụng, tại `/airports`, `/airports/new`, `/airports/[id]`,
+`/airports/[id]/edit`. Bảng `airports` đã tồn tại từ F02
+(`supabase/migrations/20260826083747_create_airports_table.sql`) với đầy đủ
+các cột `code` (unique), `name`, `city`, `country`, `timezone`, và F05 đã bật
+RLS + policy `select`/`insert`/`update` đúng khớp với mô hình phân quyền
+ticket yêu cầu (`admin`/`operations_manager` full write, mọi
+`authenticated` user được `select`). Permission `airports:manage` cũng đã
+tồn tại sẵn trong `src/lib/auth/permissions.ts` từ F04. Do đó **F07 không
+cần migration mới, không cần thay đổi RLS, không cần thay đổi permission
+model** — đây thuần là một module CRUD tầng ứng dụng, mirror gần như 1:1
+cấu trúc `src/features/partners` (F06).
 
-1. **`contact_email`** — **bắt buộc** (required), khớp constraint
-   `NOT NULL` hiện có của DB. Không migration nào được thực hiện để
-   nới lỏng cột này.
-2. **`code`** — **immutable** sau khi tạo. Form edit không có field
-   `code` để chỉnh sửa (hiển thị read-only, không đăng ký vào form
-   submission); `updatePartnerSchema` không nhận `code`.
-3. **Toast/success feedback** — **không** thêm dependency `sonner`.
-   Tái sử dụng component `Alert` sẵn có để hiển thị feedback thành
-   công/lỗi inline, theo đúng rule "do not introduce unnecessary
-   dependencies" của `CLAUDE.md`. Task 11 do đó **không** thêm toast
-   primitive nào — chỉ thêm `table`, `select`, `dialog`, `badge`.
-4. **`'suspended'` vs `'inactive'`** — flow "deactivate" (Task 10) chỉ
-   nhắm `status = 'inactive'` như kế hoạch gốc. `'suspended'` vẫn
-   reachable qua field `status` của form edit chung (Task 3/13),
-   không có action riêng.
-5. **Test runner** — xác nhận có sẵn (`vitest`), không cần quyết định
-   thêm.
-6. **Vị trí route** — giữ nguyên `src/app/(admin)/partners/**`, URL
-   `/partners*` (không phải `/admin/partners`).
+Ngoài phạm vi (explicitly out of scope theo ticket): seat inventory/
+categories, booking management, flight management, QR/passport, technician
+operations, finance, AI features, thay đổi auth/RBAC/multi-tenancy hiện có.
 
-## Tóm tắt
+## Affected files/modules
 
-F06 xây dựng module CRUD nội bộ để quản lý các partner cho thuê xe hơi
-(rental-car partners): trang danh sách (`/partners`) có tìm kiếm/lọc/sắp
-xếp/phân trang, trang tạo mới (`/partners/new`), trang chỉnh sửa
-(`/partners/[id]/edit`), và trang chi tiết (`/partners/[id]`). Chỉ
-`admin` và `operations_manager` được phép truy cập các trang này hoặc
-kích hoạt bất kỳ mutation nào; `technician`, `partner_user`, và request
-chưa xác thực phải bị chặn ở phía server, không chỉ ẩn trên UI. Việc
-deactivate là cập nhật status mềm (`status = 'inactive'`) — không bao
-giờ hard delete.
+**Feature module mới** — `src/features/airports/` (hiện chỉ có `.gitkeep`):
+- `types.ts`
+- `schemas/airport.schema.ts`, `schemas/airports-query.schema.ts`
+- `lib/is-valid-timezone.ts`, `lib/build-airports-query-filters.ts`,
+  `lib/get-airports.ts`, `lib/get-airport-by-id.ts`,
+  `lib/get-airport-related-counts.ts` (có điều kiện — xem Open question 1),
+  `lib/airport-errors.ts`
+- `actions/create-airport.action.ts`, `actions/update-airport.action.ts`
+- `hooks/use-create-airport-form.ts`, `hooks/use-update-airport-form.ts`
+- `components/airport-form.tsx`, `components/create-airport-form.tsx`,
+  `components/edit-airport-form.tsx`, `components/airports-table.tsx`,
+  `components/airports-filters.tsx`, `components/airports-pagination.tsx`,
+  `components/airport-detail.tsx`
 
-Phát hiện quan trọng từ bước khảo sát, định hình toàn bộ kế hoạch: bảng
-`partners` **đã có đầy đủ RLS coverage từ F05**
-(`supabase/migrations/20260902085338_enable_rls_multi_tenancy.sql`,
-dòng 222–246) — `admin`/`operations_manager` có SELECT/INSERT/UPDATE
-trên mọi row, `partner_user` chỉ SELECT trên row partner của chính họ
-(`id = current_user_partner_id()`), `technician` không có policy nào
-(mặc định deny → 0 row), và không bảng nào trong schema có DELETE
-policy. **F06 không cần migration mới, không cần policy RLS mới/thay
-đổi** — chỉ cần xây application layer trên nền RLS mà F05 đã thực thi,
-cộng với cổng chặn `requirePermission("partners:manage")` ở server
-(F04 đã có sẵn `partners:manage` trong danh sách permission của
-`operations_manager`; `admin` bypass qua `hasPermission`).
+**Route mới** — `src/app/(admin)/airports/` (chưa tồn tại):
+- `layout.tsx`, `page.tsx`, `loading.tsx`, `new/page.tsx`,
+  `[id]/page.tsx`, `[id]/edit/page.tsx` + các file `*.test.ts` tương ứng
 
-Phạm vi loại trừ rõ ràng (theo ticket): airport management, seat
-categories/inventory, booking management, QR passport, technician/
-cleaning/inspection workflow, finance, flight API, dashboards/KPI/ROI/
-AI, và partner-facing portal. Không đọc bảng `bookings`/`seats` nào
-trong feature này.
+**Cấu hình dùng chung, cần sửa nhỏ**:
+- `src/config/nav.ts` — thêm nav item "Airports"
 
-## Các file/module bị ảnh hưởng
+**Tài liệu cần cập nhật (doc-only, không có schema/RLS thay đổi)**:
+- `docs/architecture.md` — thêm mục mô tả `src/features/airports` (F07),
+  theo đúng khuôn mẫu mục "`src/features/partners` (F06)" hiện có
+- `docs/roadmap.md` — cập nhật trạng thái F07 từ "next" sang "done" kèm mô
+  tả ngắn, theo đúng khuôn mẫu các mục F01–F06 hiện có
+- `docs/database.md` — **không cần sửa nội dung schema** (không có bảng/
+  cột/constraint mới), nhưng nên thêm một dòng chú thích ngắn xác nhận
+  "`airports` table is unchanged by F07 — see plan.md" để người đọc sau
+  này không phải tự đi tra lại, theo đúng tinh thần F06 đã làm với
+  `partners`
+- `docs/security.md` — thêm một mục nhỏ "F07 — Airport Management" mô tả
+  route-level gate (`requirePermission("airports:manage")`), theo đúng
+  khuôn mẫu mục "F06 — Partner Management" hiện có, và nêu rõ **không có
+  policy RLS mới**
 
-**Database / RLS** — không có thay đổi (xem xác nhận ở Task 1):
-- `supabase/migrations/20260902085338_enable_rls_multi_tenancy.sql`
-  (tham chiếu, dòng 222–246: `partners_select_admin_ops_manager`,
-  `partners_select_partner_user`, `partners_insert_admin_ops_manager`,
-  `partners_update_admin_ops_manager`)
-- `supabase/migrations/20260826083744_create_partners_table.sql`
-  (tham chiếu: `name`, `code` unique, `contact_email` not null,
-  `status partner_status default 'pending'`)
-
-**RBAC / permissions** (tham chiếu, không cần đổi — `partners:manage`
-đã tồn tại):
-- `src/lib/auth/permissions.ts`
-- `src/lib/auth/current-user.ts` (`requirePermission`)
-- `src/lib/auth/roles.ts`
-
-**Module feature mới**:
-- `src/features/partners/schemas/partner.schema.ts`,
-  `partners-query.schema.ts` (+ `.test.ts`)
-- `src/features/partners/lib/partner-errors.ts`, `get-partners.ts`,
-  `get-partner-by-id.ts`, `build-partners-query-filters.ts`
-  (+ `.test.ts` cho filter-builder — hàm thuần)
-- `src/features/partners/actions/create-partner.action.ts`,
-  `update-partner.action.ts`, `deactivate-partner.action.ts`
-  (+ `.test.ts` mỗi action)
-- `src/features/partners/hooks/use-create-partner-form.ts`,
-  `use-update-partner-form.ts`
-- `src/features/partners/components/partner-form.tsx`,
-  `create-partner-form.tsx`, `edit-partner-form.tsx`,
-  `partners-table.tsx`, `partners-filters.tsx`,
-  `partners-pagination.tsx`, `partner-status-badge.tsx`,
-  `deactivate-partner-button.tsx`, `partner-detail.tsx`
-- `src/features/partners/types.ts`
-
-**Route mới** (trong route group `(admin)` sẵn có, theo
-`docs/architecture.md`):
-- `src/app/(admin)/partners/layout.tsx` (+ `.test.ts`)
-- `src/app/(admin)/partners/page.tsx` (+ `.test.ts`), `loading.tsx`
-- `src/app/(admin)/partners/new/page.tsx` (+ `.test.ts`)
-- `src/app/(admin)/partners/[id]/page.tsx` (+ `.test.ts`)
-- `src/app/(admin)/partners/[id]/edit/page.tsx` (+ `.test.ts`)
-
-**UI dùng chung (bổ sung shadcn)**:
-- `src/components/ui/table.tsx`, `select.tsx`, `dialog.tsx`,
-  `badge.tsx` (và toast primitive — xem Câu hỏi mở)
-
-**Nav / shell**:
-- `src/config/nav.ts` (thêm `NavItem` mới)
-
-**Bộ test RLS hiện có** (mở rộng, không thay thế):
-- `src/lib/auth/rls.integration.test.ts`, `src/lib/auth/rls-test-support.ts`
-
-**Tài liệu**:
-- `docs/architecture.md`, `docs/roadmap.md`, `docs/security.md` (xem
-  Task 21). `docs/database.md` **không đổi** — không có schema change.
+**Test mở rộng (không phải file mới)**:
+- `src/lib/auth/rls.integration.test.ts` — thêm `describe("airports
+  table", ...)` để xác nhận (không thay đổi) hành vi RLS F05 hiện có
 
 ## Task list
 
-1. **Xác nhận không cần migration** (task tài liệu, không code). Ghi
-   nhận trong commit/PR rằng RLS của `partners` từ F05 (dòng 222–246
-   của `20260902085338_enable_rls_multi_tenancy.sql`) đã thoả đúng mô
-   hình access của F06: `admin`/`operations_manager` full read/write,
-   `partner_user` chỉ đọc row của chính mình, `technician` 0 row,
-   không có DELETE ở đâu cả. Không chạy workflow `db-migration` cho
-   feature này. **Đây là quyết định không được tự ý đảo ngược** — nếu
-   trong lúc implement phát hiện gap thật sự, phải dừng lại và báo
-   theo rule "pause and ask" của workflow đối với thay đổi schema/RLS,
-   không tự thêm policy.
+1. **`src/features/airports/types.ts`** — alias `Airport` từ
+   `Database["public"]["Tables"]["airports"]["Row"]` (generated types).
+   Không có enum trạng thái (khác `partners` — bảng `airports` không có
+   cột `status`), nên không có hằng số tương đương `PARTNER_STATUSES`.
 
-2. **`src/features/partners/types.ts`** — type `Partner` alias từ
-   `Database["public"]["Tables"]["partners"]["Row"]`, `PartnerStatus`
-   alias từ `Database["public"]["Enums"]["partner_status"]`,
-   `PARTNER_STATUSES` lấy từ `Constants.public.Enums.partner_status`
-   (theo đúng pattern `Role`/`ROLES` trong `src/lib/auth/roles.ts`).
-   Không phụ thuộc task nào.
+2. **`src/features/airports/lib/is-valid-timezone.ts`** — hàm thuần
+   `isValidIanaTimezone(value: string): boolean`, dựa trên
+   `Intl.supportedValuesOf("timeZone")`. Không I/O, không phụ thuộc
+   Supabase — test đơn vị theo `testing.md` (input hợp lệ như
+   `"Asia/Dubai"`, input không hợp lệ như `"Not/AZone"`, chuỗi rỗng).
 
-3. **`src/features/partners/schemas/partner.schema.ts`** —
-   `createPartnerSchema` (`name`: bắt buộc, trimmed string; `code`:
-   bắt buộc, trimmed string, uniqueness kiểm tra qua bắt lỗi Postgres
-   `23505` trong action, không pre-check ở schema; `contact_email`:
-   bắt buộc, email hợp lệ — xem Câu hỏi mở về cách diễn đạt "valid when
-   provided" trong ticket; `status`: `z.enum(PARTNER_STATUSES)`, mặc
-   định `'pending'`) và `updatePartnerSchema` (giống vậy nhưng bỏ
-   `code`, vì `code` được coi là immutable sau khi tạo — xem Câu hỏi
-   mở). Phụ thuộc Task 2. Thêm `partner.schema.test.ts` (input hợp lệ,
-   thiếu name, thiếu code, email sai, status sai).
+3. **`src/features/airports/schemas/airport.schema.ts`** —
+   `createAirportSchema` (`code`: `trim()` + `toUpperCase()` transform +
+   regex theo quyết định ở Open question 2, `name`/`city`/`country`:
+   required non-empty, `timezone`: required + `.refine(isValidIanaTimezone,
+   ...)`) và `updateAirportSchema` (giống hệt nhưng **không có field
+   `code`** — `code` bất biến sau khi tạo, mirror chính xác
+   `updatePartnerSchema`). Không pre-check uniqueness của `code` trong
+   schema (tránh race TOCTOU) — để DB unique constraint + mapping lỗi
+   `23505` xử lý, giống `partner.schema.ts`.
 
-4. **`src/features/partners/schemas/partners-query.schema.ts`** —
-   validate `searchParams` của trang danh sách (`q` free text, `status`
-   enum tuỳ chọn, `sort` giới hạn trong allowlist cột rõ ràng — `name`,
-   `code`, `status`, `created_at` — `order` `'asc'|'desc'`,
-   `page`/`page_size` là số nguyên có giới hạn/mặc định hợp lý). Đây
-   là phần tương đương với rule "validate all external input with Zod"
-   của `backend.md` áp dụng cho query string — không bao giờ nội suy
-   giá trị `searchParams` thô vào lệnh `.order()`/`.ilike()` của
-   Supabase. Phụ thuộc Task 2. Thêm `.test.ts` (params hợp lệ, page
-   ngoài phạm vi, cột sort không hợp lệ bị reject/fallback, status
-   không hợp lệ).
+4. **`src/features/airports/schemas/airports-query.schema.ts`** —
+   `partnersQuerySchema`-equivalent cho `/airports`: `q` (tìm theo
+   code/name/city), `sort` (allowlist cột — xem Open question 4), `order`,
+   `page`, `page_size`, dùng `.catch()` cho từng field như bản gốc.
 
-5. **`src/features/partners/lib/build-partners-query-filters.ts`** —
-   hàm thuần chuyển query params đã validate thành
-   `{ search, status, sort, order, range }`, bao gồm escape an toàn
-   input tìm kiếm trước khi dùng trong filter PostgREST
-   `.or("name.ilike....,code.ilike....")` (dấu phẩy/ngoặc trong input
-   thô phải được escape/loại bỏ — cú pháp `or=` của PostgREST coi dấu
-   phẩy là filter separator). Hàm thuần, test được, không import
-   Supabase. Phụ thuộc Task 4. Thêm `.test.ts`.
+5. **`src/features/airports/lib/build-airports-query-filters.ts`** — hàm
+   thuần chuyển `AirportsQuery` thành filter Supabase-ready (bao gồm
+   escape ký tự đặc biệt PostgREST `or=`, tái sử dụng đúng logic
+   `escapePostgrestFilterValue` của `build-partners-query-filters.ts` —
+   nhân bản cục bộ trong feature `airports`, không import chéo từ
+   `features/partners`).
 
-6. **`src/features/partners/lib/get-partners.ts`** và
-   **`get-partner-by-id.ts`** — hàm server-only dùng `createClient()`
-   từ `src/lib/supabase/server.ts`, dùng filter từ Task 5, trả về
-   `{ partners, total }` / `Partner | null`. Select cột tường minh
-   (snake_case), không cần `select("*")` vì row nhỏ.
-   `get-partner-by-id` dùng `.maybeSingle()` để id không tồn tại là
-   `null` bình thường, không throw. Không join `bookings`/`seats` —
-   theo quyết định placeholder (D5). Phụ thuộc Task 2, 5.
+6. **`src/features/airports/lib/airport-errors.ts`** — mirror
+   `partner-errors.ts`: `VALIDATION_ERROR`, `DUPLICATE_CODE` (map từ
+   Postgres `23505` trên unique constraint của `airports.code`),
+   `NOT_FOUND`, `INTERNAL_ERROR`. Không có `CONFLICT`/`ALREADY_INACTIVE`
+   vì không có action deactivate (xem Open question 3).
 
-7. **`src/features/partners/lib/partner-errors.ts`** — map lỗi
-   Supabase/Postgres thành cặp `{ code, message }` ổn định, dùng chung
-   cho cả 3 Server Action: `23505` (unique violation trên
-   `partners_code_key`) → `DUPLICATE_CODE`; row không tồn tại khi
-   update nhắm vào id cũ → `NOT_FOUND`; còn lại → `INTERNAL_ERROR` với
-   message chung chung (không bao giờ để raw Postgres error tới
-   client, theo `code-review-checklist`). Phụ thuộc Task 2.
+7. **`src/features/airports/lib/get-airports.ts`** — server-only, đọc
+   danh sách có search/sort/pagination; **không** tự thêm điều kiện lọc
+   quyền truy cập nào khác — RLS (F05) là ranh giới truy cập, giống
+   `get-partners.ts`.
 
-8. **`src/features/partners/actions/create-partner.action.ts`** —
-   `"use server"`. Gọi `requirePermission("partners:manage")` trước
-   tiên (re-check role ở server, không tin client dù trang đã được
-   gate), rồi `createPartnerSchema.safeParse`, rồi insert qua server
-   Supabase client, map lỗi qua Task 7. Phụ thuộc Task 3, 6 (pattern
-   client), 7. Thêm `.test.ts` theo pattern mock của
-   `login.action.test.ts`: happy path (redirect tới `/partners/[id]`),
-   validation failure (thiếu name / email sai / status sai — không
-   gọi Supabase), duplicate-code failure (`23505` map thành
-   `DUPLICATE_CODE`), và unauthorized (mock `requirePermission` reject/
-   redirect, assert insert không bao giờ được gọi).
+8. **`src/features/airports/lib/get-airport-by-id.ts`** — server-only,
+   `.maybeSingle()` để id không tồn tại (hoặc bị RLS ẩn) trả về `null`,
+   caller chuyển thành `notFound()`.
 
-9. **`src/features/partners/actions/update-partner.action.ts`** —
-   giống Task 8 nhưng cho `updatePartnerSchema`, nhắm vào `id` có sẵn;
-   trả `NOT_FOUND` nếu row không tồn tại. Phụ thuộc Task 3, 7. Thêm
-   `.test.ts` (happy path, validation failure, partner không tồn tại,
-   unauthorized).
+9. **`src/features/airports/lib/get-airport-related-counts.ts`**
+   (**có điều kiện** — chỉ làm nếu Open question 1 được xác nhận theo
+   hướng "hiển thị số liệu thật") — 3 query `count: "exact", head: true`
+   độc lập trên `seats`, `bookings`, `flights` lọc theo `airport_id`
+   (mỗi bảng đã có index trên `airport_id`, không phải N+1 vì chỉ chạy 1
+   lần cho trang chi tiết, không lặp theo danh sách).
 
-10. **`src/features/partners/actions/deactivate-partner.action.ts`** —
-    action riêng (không phải generic status-update) chỉ nhận
-    `partner_id`. Re-check permission, đọc status hiện tại, trả
-    `CONFLICT` nếu đã `'inactive'` thay vì âm thầm no-op, ngược lại
-    set `status = 'inactive'`. Phụ thuộc Task 2, 7. Thêm `.test.ts`
-    (thành công, đã inactive bị reject với `CONFLICT`, partner không
-    tồn tại, unauthorized).
+10. **`src/features/airports/actions/create-airport.action.ts`** — Server
+    Action, gọi `requirePermission("airports:manage")` đầu tiên, parse
+    `createAirportSchema`, `insert` vào `airports`, map lỗi qua
+    `airport-errors.ts`, `redirect("/airports/" + id)` khi thành công.
 
-11. **Bổ sung shadcn UI primitives** — thêm `table`, `select`,
-    `dialog`, `badge` qua `npx shadcn add <component>` (style
-    `components.json` hiện có là `base-nova`, nên các component này
-    sinh ra theo Base UI, nhất quán với `button.tsx`/`field.tsx`).
-    **Toast primitive là câu hỏi mở — xem bên dưới; không thêm
-    `sonner` khi chưa xác nhận.** Không phụ thuộc task khác; có thể
-    làm song song với Task 2–10.
+11. **`src/features/airports/actions/update-airport.action.ts`** — Server
+    Action tương tự, `update` theo `id`, `.maybeSingle()` để phân biệt
+    `NOT_FOUND` với lỗi Postgres thật, **không bao giờ ghi field `code`**
+    (schema không có field này).
 
-12. **`src/features/partners/components/partner-status-badge.tsx`**
-    và **`partner-form.tsx`** — phần presentational.
-    `partner-form.tsx` render các field name/code/contact_email/status
-    dùng chung qua `react-hook-form`'s `register`, có prop
-    `mode: "create" | "edit"` để render `code` là field disabled/
-    read-only ở edit mode (theo quyết định immutability) thay vì ẩn
-    hoàn toàn — để giá trị vẫn hiển thị tham khảo. Phụ thuộc Task 3,
-    11.
+12. **`src/features/airports/hooks/use-create-airport-form.ts`** và
+    **`use-update-airport-form.ts`** — mirror chính xác
+    `use-create-partner-form.ts`/`use-update-partner-form.ts`
+    (`useForm` + `zodResolver` tự viết + `useTransition` + gọi action).
 
-13. **`use-create-partner-form.ts`**, **`use-update-partner-form.ts`**,
-    **`create-partner-form.tsx`**, **`edit-partner-form.tsx`** — theo
-    đúng pattern `useForm` + `useTransition` + Server Action của
-    `use-signup-form.ts`/`signup-form.tsx`. Phụ thuộc Task 3, 8, 9, 12.
+13. **`src/features/airports/components/airport-form.tsx`** — field dùng
+    chung `code`/`name`/`city`/`country`/`timezone`, `mode: "create" |
+    "edit"`; `code` là input có thể chỉnh sửa chỉ ở `"create"`, là input
+    `disabled readOnly` hiển thị giá trị hiện có ở `"edit"` (mirror
+    `partner-form.tsx`). `timezone` là input text đơn giản (có placeholder
+    ví dụ `"Asia/Dubai"`) — không thêm combobox/dependency mới.
 
-14. **`partners-table.tsx`**, **`partners-filters.tsx`**,
-    **`partners-pagination.tsx`** — Server Component nếu có thể
-    (`partners-table`, `partners-pagination` dùng `<Link>` prev/next
-    thuần, không cần client JS cho pagination); `partners-filters.tsx`
-    là Client Component duy nhất cần thiết (`"use client"`) cho ô tìm
-    kiếm + `Select` status, cập nhật URL qua `useRouter`/`usePathname`
-    + `URLSearchParams` (không client-side data fetching — Server
-    Component re-render từ `searchParams` mới, đúng theo
-    `frontend.md`: "no React Query for a page a Server Component can
-    render directly"). Cột "số booking active" render placeholder
-    tĩnh (ví dụ "—" kèm ghi chú "available once Booking Management
-    ships"), không bao giờ là live query (D5). Phụ thuộc Task 6, 11,
-    12.
+14. **`components/create-airport-form.tsx`** / **`edit-airport-form.tsx`**
+    — mirror `create-partner-form.tsx`/`edit-partner-form.tsx`, hiển thị
+    `Alert` lỗi khi action trả `success: false`.
 
-15. **`deactivate-partner-button.tsx`** — `"use client"`, mở `Dialog`
-    shadcn để confirm, gọi `deactivatePartnerAction` qua
-    `useTransition`, hiển thị feedback thành công/lỗi (toast — xem Câu
-    hỏi mở), gọi `router.refresh()` khi thành công. Phụ thuộc Task 10,
-    11.
+15. **`components/airports-table.tsx`** — Server Component, cột tối
+    thiểu theo ticket: `code`, `name`, `city`, `country`, `timezone` +
+    cột "Actions" (link "View"). Header sort là `<Link>` (không JS
+    client), mirror `partners-table.tsx`.
 
-16. **`partner-detail.tsx`** — render thông tin partner/status/liên
-    hệ + block placeholder ghi rõ ràng cho "active bookings" và
-    "seat/inventory summary" (D5), cộng action `Edit`/`Deactivate`.
-    Phụ thuộc Task 2, 12, 15.
+16. **`components/airports-filters.tsx`** — Client Component, chỉ có ô
+    tìm kiếm (không có `Select` trạng thái — `airports` không có cột
+    `status`), tìm theo code/name/city.
 
-17. **`src/config/nav.ts`** — thêm
-    `{ label: "Partners", href: "/partners", permission: "partners:manage" }`
-    vào `NAV_ITEMS`, đúng shape các entry hiện có. Không phụ thuộc,
-    nên làm trước hoặc cùng Task 18.
+17. **`components/airports-pagination.tsx`** — mirror
+    `partners-pagination.tsx` 1:1 (Server Component, `<Link>` prev/next).
 
-18. **Routes**:
-    - `src/app/(admin)/partners/layout.tsx` —
-      `requirePermission("partners:manage")` + `AppShell`, copy cấu
-      trúc `src/app/(admin)/admin/layout.tsx`.
-    - `src/app/(admin)/partners/page.tsx` — gọi `requirePermission`
-      độc lập lần 2 (theo tiền lệ double-guard của F04), parse
-      `searchParams` qua schema Task 4, gọi `get-partners` Task 6,
-      render table/filters/pagination Task 14, empty state khi
-      `total === 0`, link "Add Partner" tới `/partners/new`.
-    - `src/app/(admin)/partners/loading.tsx` — skeleton/loading state
-      cho trang danh sách (Next.js `loading.tsx` Suspense convention).
-    - `src/app/(admin)/partners/new/page.tsx` — guard + render
-      `CreatePartnerForm` Task 13.
-    - `src/app/(admin)/partners/[id]/page.tsx` — guard +
-      `get-partner-by-id`; `notFound()` khi row không tồn tại; render
-      `PartnerDetail` Task 16.
-    - `src/app/(admin)/partners/[id]/edit/page.tsx` — guard +
-      `get-partner-by-id` + `notFound()`; render `EditPartnerForm`
-      Task 13.
-    - Phụ thuộc Task 6, 13, 14, 16, 17.
-    - Thêm `layout.test.ts` + một `page.test.ts` cho mỗi route, đúng
-      pattern `src/app/(admin)/admin/layout.test.ts`/`page.test.ts`:
-      mock `requirePermission`, assert được gọi với
-      `"partners:manage"`, assert guard reject/redirect được propagate
-      chứ không bị nuốt. Đây là cách cover "technician/partner_user/
-      unauthenticated bị chặn" cho các route — logic role đã được unit
-      test ở `current-user.test.ts`, không cần test lại, chỉ cần test
-      layout/page mới wire đúng permission string.
+18. **`components/airport-detail.tsx`** — hiển thị `code`, `name`,
+    `city`, `country`, `timezone`; khối "related counts" theo quyết định
+    ở Open question 1 (số liệu thật hoặc placeholder "Not available
+    yet", **không** hiển thị số `0` giả nếu chọn hướng placeholder — theo
+    đúng lý do đã ghi trong `partner-detail.tsx`); nút "Edit"; **không có
+    nút delete/deactivate nào** (xem Open question 3).
 
-19. **Mở rộng `src/lib/auth/rls.integration.test.ts`** với describe
-    block `partners table`, tái dùng fixture/identity có sẵn từ
-    `rls-test-support.ts` (không cần provisioning mới): admin/
-    ops_manager `SELECT` được cả hai partner đã seed; client
-    `partnerA` chỉ thấy `PARTNER_A_ID` (0 row cho `PARTNER_B_ID`,
-    không phải lỗi); `technician` nhận 0 row trên `partners`; client
-    `partnerA` bị reject khi `INSERT`/`UPDATE` trên `partners`; client
-    `opsManager` `INSERT`/`UPDATE` thành công; anonymous đã được cover
-    ở loop `ALL_18_TABLES` hiện có (xác nhận vẫn pass, không cần case
-    anon mới). Không phụ thuộc code mới, nhưng về logic là validate
-    giả định của Task 1, nên nên làm sớm (có thể song song với Task
-    2–17, trước khi app code hoàn thiện).
+19. **Route pages** dưới `src/app/(admin)/airports/`:
+    - `layout.tsx` — `requirePermission("airports:manage")` +
+      `AppShell`
+    - `page.tsx` (list) — `requirePermission` lần 2 (defense-in-depth,
+      mirror `partners/page.tsx`), parse `searchParams` qua
+      `airportsQuerySchema`, gọi `getAirports`, render
+      filters/table/pagination, empty-state khi `total === 0`
+    - `loading.tsx` — skeleton mirror `partners/loading.tsx`
+    - `new/page.tsx` — `requirePermission` + render `CreateAirportForm`
+    - `[id]/page.tsx` — `requirePermission` + `getAirportById` +
+      `notFound()` khi null + render `AirportDetail`
+    - `[id]/edit/page.tsx` — `requirePermission` + `getAirportById` +
+      `notFound()` + render `EditAirportForm`
 
-20. **`npm run lint`, `npx tsc --noEmit`, `npm test`** sau khi các
-    task trên hoàn tất, theo rule "run lint and build after significant
-    changes" của `CLAUDE.md`.
+20. **`src/config/nav.ts`** — thêm `{ label: "Airports", href:
+    "/airports", permission: "airports:manage" }` vào `NAV_ITEMS`.
 
-21. **Cập nhật tài liệu**:
-    - `docs/architecture.md` — bổ sung bullet `(admin)` group để nói
-      F06 thêm `partners/`, `partners/new/`, `partners/[id]/`,
-      `partners/[id]/edit/` trong `(admin)` route group (có
-      `layout.tsx` guard riêng, URL là `/partners*` vì segment group
-      không đóng góp vào path); thêm bullet shape
-      `src/features/partners` dưới "Feature-Based Organization" theo
-      đúng mẫu bullet `src/features/auth` hiện có.
-    - `docs/roadmap.md` — đánh dấu **F06 — Partner Management: done**
-      với tóm tắt ngắn (list/create/edit/detail pages, gate
-      `requirePermission("partners:manage")`, chỉ soft-deactivation,
-      tái dùng RLS F05 không thêm policy mới), chuyển con trỏ "next"
-      sang F07.
-    - `docs/security.md` — thêm ghi chú ngắn "F06 — Partner
-      Management" dưới phần RBAC: không có RLS policy mới (tái dùng
-      nguyên văn policy `partners_*` của F05), route-level gate
-      (`requirePermission("partners:manage")` ở cả `layout.tsx` và mỗi
-      `page.tsx`), và deactivation chỉ là DB-`status`-only (nhất quán
-      với quy ước "no `ON DELETE CASCADE`... deactivated via `status`"
-      đã ghi trong `docs/database.md`).
-    - `docs/database.md` — **không đổi** (không có migration).
+21. **Unit tests** (theo `testing.md`, business logic thuần — không mock
+    Supabase): `airport.schema.test.ts` (parse hợp lệ, thiếu field bắt
+    buộc, `code` không hợp lệ, `timezone` không hợp lệ, `code` được
+    uppercase, `update` schema không có field `code` dù input có gửi
+    kèm), `is-valid-timezone.test.ts`,
+    `build-airports-query-filters.test.ts`, `airports-query.schema.test.ts`.
+
+22. **Server Action tests** (mock `requirePermission` + Supabase client,
+    mirror `create-partner.action.test.ts`): `create-airport.action.test.ts`
+    và `update-airport.action.test.ts`, tối thiểu mỗi action gồm: happy
+    path (insert/update + redirect đúng URL), validation-failure path
+    (không gọi Supabase), map lỗi `23505` → `DUPLICATE_CODE`, map lỗi
+    Postgres khác → `INTERNAL_ERROR`, `NOT_FOUND` khi update id không
+    tồn tại, và guard lan truyền redirect `/forbidden` khi
+    `requirePermission` reject (role không hợp lệ **không bao giờ** gọi
+    tới Supabase) — bao phủ các mục test 3, 4, 5, 6, 7, 8, 9, 10 trong
+    yêu cầu ticket.
+
+23. **Route guard tests** — `layout.test.ts`, `page.test.ts` cho
+    list/new/`[id]`/`[id]/edit`, mirror chính xác các file tương ứng của
+    `partners` (guard gọi đúng permission, redirect lan truyền, `notFound()`
+    khi id không tồn tại) — bao phủ mục test 1, 2, 11.
+
+24. **Mở rộng `src/lib/auth/rls.integration.test.ts`** — thêm
+    `describe("airports table", ...)` chạy trên Postgres local thật, xác
+    nhận (không tạo mới) hành vi F05 vẫn đúng sau khi F07 lên: admin và
+    operations_manager `SELECT`/`INSERT`/`UPDATE` được; technician và
+    partner_user `SELECT` được (do policy `using (true)`) nhưng bị từ
+    chối `INSERT`/`UPDATE`; không có `DELETE` policy nào cho vai trò nào.
+    Bao phủ mục test 12 ("Existing RLS/tenant security is not weakened").
+
+25. **Cập nhật tài liệu** — `docs/architecture.md`,
+    `docs/security.md`, `docs/roadmap.md`, `docs/database.md` (chú thích
+    ngắn) như liệt kê ở "Affected files/modules". Làm sau cùng, sau khi
+    code đã ổn định, để mô tả đúng những gì thực sự được xây.
 
 ## Dependencies
 
-- Task 1 là điều kiện tiên quyết cho mọi thứ còn lại — nếu RLS thực sự
-  không đủ, dừng lại trước Task 2 và lập kế hoạch lại (sẽ trở thành
-  "pause and ask" schema/RLS change theo rule của workflow).
-- Task 2 → 3, 4 → 5, 6 → {7} → {8, 9, 10} tạo thành chuỗi backend;
-  không phần nào trong chuỗi này phụ thuộc UI.
-- Task 11 (shadcn primitives) không phụ thuộc code nào khác nhưng chặn
-  Task 12, 14, 15 về mặt cấu trúc/hiển thị.
-- Task 12 phụ thuộc 3 + 11; Task 13 phụ thuộc 3, 8, 9, 12; Task 14 phụ
-  thuộc 6, 11, 12; Task 15 phụ thuộc 10, 11; Task 16 phụ thuộc 2, 12,
-  15.
-- Task 17 (nav) độc lập nhưng nên làm trước hoặc cùng Task 18 để khu
-  vực mới reachable từ sidebar.
-- Task 18 (routes) là điểm tích hợp — phụ thuộc 6, 13, 14, 16, 17, và
-  là nơi thêm guard test.
-- Task 19 (RLS integration test) không phụ thuộc code 2–18, có thể làm
-  song song/sớm, nhưng nên chạy lại sau khi Task 18 xong để xác nhận
-  regression.
-- Task 20 chạy sau khi mọi task implementation hoàn tất.
-- Task 21 (docs) chạy cuối cùng, sau khi implementation ổn định, vì nó
-  tài liệu hoá hình dạng cuối cùng.
+- Task 1 (types) chặn tất cả các task còn lại (mọi schema/lib/component
+  đều import `Airport` type).
+- Task 2 (timezone validator) chặn Task 3 (schema dùng nó trong
+  `.refine()`).
+- Task 3 (schema) chặn Task 10–14 (action, hook, form đều import schema
+  này).
+- Task 4–5 (query schema + filter builder) chặn Task 7 (`get-airports.ts`
+  dùng cả hai) và Task 15–17 (table/filters/pagination cần shape
+  `AirportsQuery`).
+- Task 6 (error mapping) chặn Task 10–11 (action).
+- Task 7–9 (lib đọc dữ liệu) chặn Task 19 (route pages gọi trực tiếp các
+  hàm này).
+- Task 10–11 (action) chặn Task 12 (hook gọi action) chặn Task 13–14
+  (component dùng hook).
+- Task 13 (`airport-form.tsx` dùng chung) chặn Task 14 (create/edit form
+  cụ thể).
+- Task 15–18 (component hiển thị) chặn Task 19 (page lắp ráp component).
+- Task 19 (route pages) chặn Task 20 (nav item trỏ tới route đã tồn tại)
+  và Task 23 (test route cần page tồn tại để import).
+- Task 21–24 (test) nên viết song song ngay sau task tương ứng đã xong,
+  không dồn hết về cuối, nhưng về mặt phụ thuộc kỹ thuật chúng chặn sau
+  các task mã nguồn tương ứng (2→21 timezone test; 3→21 schema test;
+  5→21 filter test; 10/11→22; 19→23; F05 migration đã có sẵn→24, không
+  phụ thuộc code mới).
+- Task 25 (docs) nên là task cuối cùng, sau khi toàn bộ hành vi đã chốt
+  (đặc biệt phụ thuộc kết quả Open question 1 và 3 để mô tả đúng).
+- **Không có task nào phụ thuộc vào migration hoặc thay đổi RLS/RBAC** —
+  đây là điểm khác biệt quan trọng so với một feature có schema change:
+  không có "pause-for-approval" nào theo diện schema/RLS bị kích hoạt bởi
+  kế hoạch này, với điều kiện các phát hiện ở trên (bảng/RLS/permission
+  đã đủ) được xác nhận đúng trước khi code.
 
-## Rủi ro & edge case
+## Risks & edge cases
 
-- **PostgREST `.or()` search injection/misparse**: dấu phẩy hoặc ngoặc
-  không escape trong param `q` sẽ phá vỡ hoặc âm thầm đổi filter
-  `name.ilike....,code.ilike....`. Phải xử lý ở Task 5, không để tới
-  Task 6.
-- **Race condition uniqueness của `code`**: hai request tạo cùng lúc
-  cùng `code` — không pre-check bằng `SELECT` rồi `INSERT` (có gap
-  TOCTOU); dựa vào `unique` constraint của DB và bắt lỗi `23505` ở
-  Task 8/error mapper Task 7.
-- **Bẫy "double coverage" của RLS**: vì `admin`/`operations_manager`
-  đã có full DB-level access tới `partners`, dễ có xu hướng bỏ qua
-  check `requirePermission("partners:manage")` ở app-level "vì RLS đã
-  lo rồi". Cả hai lớp đều phải giữ — RLS policy là tuyến phòng thủ
-  cuối theo `docs/security.md`, không thay thế route guard (và RLS
-  một mình không thể tạo redirect `/forbidden` thân thiện hay chặn
-  render trang trước khi query chạy).
-- **Dữ liệu placeholder booking/seat không được trông giống dữ liệu
-  thật.** Nếu cột "active bookings" để trống hoặc hiện `0`, operator
-  có thể hiểu nhầm là "partner này thực sự có 0 booking active" thay
-  vì "feature này chưa được xây". Placeholder phải rõ ràng cả về hình
-  ảnh lẫn text (ví dụ copy "not available yet" tường minh, không phải
-  `0` hay `—` trơn).
-- **`deactivate` vs `suspended`**: `partner_status` có cả `'suspended'`
-  và `'inactive'`. Flow deactivation của ticket nhắm vào `'inactive'`
-  cụ thể; `'suspended'` chỉ reachable qua field status của form edit
-  chung. Cần xác nhận việc phân tách này là chủ ý (xem Câu hỏi mở).
-- **Stale read sau khi deactivate**: trang list/detail là Server
-  Component re-render khi navigate/`router.refresh()` — không có
-  client cache cần invalidate, nên không có rủi ro stale-data ngoài
-  vòng đời request Next.js bình thường, nhưng nút deactivate phải
-  trigger `router.refresh()` (hoặc redirect) để UI không hiện badge
-  `'active'` cũ sau khi deactivate thành công.
-- **Tránh N+1 theo thiết kế**: vì số "active bookings" là placeholder
-  (không phải query thật theo từng row), không có rủi ro N+1 từ trang
-  list — nêu rõ điều này để dev agent không "tiện tay" thêm query đếm
-  `bookings` thật theo từng row sau này mà không xem lại quyết định
-  này.
-- **UX field `code` ở edit mode**: render `disabled` vẫn submit giá
-  trị nếu field không bị loại khỏi form registration; Task 13 phải
-  đảm bảo schema/action của edit thực sự không bao giờ nhận thay đổi
-  `code`, không chỉ ngăn cản về mặt hiển thị.
+- **Không có migration, không có thay đổi RLS/RBAC** — đã xác minh trực
+  tiếp bằng cách đọc `supabase/migrations/20260826083747_create_airports_table.sql`
+  (đủ cột `code`/`name`/`city`/`country`/`timezone`, `code` đã `unique
+  not null`) và `supabase/migrations/20260902085338_enable_rls_multi_tenancy.sql`
+  (policy `airports_select_authenticated`/`airports_insert_admin_ops_manager`/
+  `airports_update_admin_ops_manager` đã khớp chính xác mô hình quyền
+  ticket yêu cầu), cùng `src/lib/auth/permissions.ts` (permission
+  `airports:manage` đã tồn tại, đã gán cho `operations_manager`, `admin`
+  bypass qua `hasPermission`). **Vì không có thay đổi nào thuộc 3 diện
+  này, plan này không có mục nào cần dừng lại chờ approval theo cơ chế
+  "schema change / RLS change" của workflow** — chỉ cần dev agent xác
+  nhận lại các phát hiện trên còn đúng tại thời điểm code (schema có thể
+  đã trôi nếu có migration khác chen vào).
+- **`Intl.supportedValuesOf("timeZone")`** phụ thuộc bản build Node có
+  ICU đầy đủ. Node mặc định (kể cả trong Next.js build/deploy chuẩn) có
+  full-ICU, nhưng nếu môi trường triển khai dùng bản Node rút gọn ICU,
+  toàn bộ timezone sẽ bị coi là không hợp lệ một cách âm thầm — cần xác
+  nhận môi trường CI/production trước khi dựa vào hàm này làm nguồn xác
+  thực duy nhất.
+- **Không có DB CHECK constraint nào cho format của `code`** — ticket
+  viết "code uppercase + must match existing DB constraint" nhưng qua
+  kiểm tra, bảng `airports` **không có constraint đó**, chỉ có
+  `unique not null`. Validation format code do đó hoàn toàn nằm ở tầng
+  Zod, không có backstop DB. Nếu chọn regex sai (quá chặt hoặc quá lỏng),
+  sẽ không có DB nào chặn lại — xem Open question 2.
+- **Không có action delete/deactivate** trong phạm vi task list này (xem
+  Open question 3). RLS đã không có `DELETE` policy nào cho bất kỳ role
+  nào trên `airports` (nhất quán với toàn bộ 18 bảng), nên kể cả khi có
+  lỗi lập trình cố tình gọi `.delete()`, DB sẽ tự chặn — nhưng đây là lớp
+  phòng thủ cuối, không thay thế việc không cung cấp UI/action delete.
+- **`airports` là shared reference data với policy `select ... using
+  (true)`** — mọi role `authenticated` (kể cả `technician`,
+  `partner_user`) đã có thể `SELECT` toàn bộ bảng `airports` trực tiếp ở
+  tầng DB. Việc chặn toàn bộ route `/airports*` chỉ cho
+  `admin`/`operations_manager` (mirror F06) là một lựa chọn **hẹp hơn**
+  RLS cho phép — đúng theo nguyên tắc "RLS is the last line of defense,
+  not a substitute for route guard", nhưng cần xác nhận đây đúng là
+  hành vi mong muốn (một `technician` sẽ luôn bị redirect `/forbidden`
+  khi vào `/airports`, dù DB kỹ thuật cho phép đọc).
+- **Race điều kiện khi tạo trùng `code`** — dựa hoàn toàn vào unique
+  constraint DB + map lỗi `23505`, không pre-check bằng `SELECT` trước
+  `INSERT` (tránh TOCTOU), giống hệt cách `partners` xử lý — cần giữ
+  nguyên pattern này, không "tối ưu" bằng cách thêm bước kiểm tra tồn
+  tại trước.
+- **`code` bất biến sau khi tạo** — `updateAirportSchema` không có field
+  `code`; edit form chỉ hiển thị `code` dạng `disabled readOnly`. Không
+  được để lọt bất kỳ đường nào (kể cả form bị can thiệp phía client) làm
+  thay đổi `code` qua action update.
+- **Related counts (nếu triển khai)** đọc trực tiếp vào bảng `seats`,
+  `bookings`, `flights` — các bảng này thuộc các domain feature **chưa
+  triển khai** (Seat Inventory F09, Booking Management F11, Flight
+  Integration F20). F06 (`partner-detail.tsx`) đã cố tình **không** làm
+  điều tương tự với `bookings`/`seats` dù các bảng đó cũng đã tồn tại từ
+  F02, với lý do "feature quản lý domain đó chưa ra mắt" — dù bảng có
+  tồn tại. F07 ticket lại yêu cầu ngược lại ("nếu lấy được sạch sẽ từ
+  schema thì hiển thị"). Đây là mâu thuẫn thực sự với tiền lệ gần nhất
+  mà tôi được yêu cầu mirror — xem Open question 1, cần xác nhận rõ
+  trước khi code Task 9/18.
+- Không có test runner mới cần cài — `vitest` đã có sẵn
+  (`package.json`), dùng đúng cấu hình hiện tại.
 
-## Câu hỏi mở
+## Quyết định đã chốt (approved 2026-09-07)
 
-1. **`contact_email` bắt buộc hay tuỳ chọn.** Ticket nói "email valid
-   when provided", ngụ ý tuỳ chọn, nhưng `partners.contact_email` là
-   `not null` trong database
-   (`supabase/migrations/20260826083744_create_partners_table.sql`).
-   Kế hoạch này mặc định **bắt buộc** ở cả create và edit để khớp
-   constraint DB. Vui lòng xác nhận trước khi implement Task 3 — nếu
-   thực sự cần tuỳ chọn, cột database cần migration cho phép `null`,
-   là schema change cần qua "pause and ask" gate.
-2. **`code` có immutable không.** Kế hoạch này mặc định **immutable
-   sau khi tạo** (loại khỏi form edit, hiển thị read-only). Vui lòng
-   xác nhận — nếu `code` cần editable, Task 3/9 cần re-check
-   uniqueness (vẫn qua bắt lỗi `23505`, không pre-check) và phần
-   render read-only ở Task 12 bị bỏ.
-3. **Toast/success-feedback phụ thuộc gì.** Codebase hiện chưa có
-   toast primitive nào (`sonner` không có trong `package.json`; chỉ có
-   `Alert`). Ticket yêu cầu rõ toast-style success feedback. Thêm
-   `sonner` (giải pháp toast chuẩn của shadcn) là dependency mới, cần
-   xác nhận trước khi làm Task 11/15, theo rule "do not introduce
-   unnecessary dependencies" của `CLAUDE.md` — phương án thay thế là
-   dùng lại component `Alert` hiện có inline thay vì toast, tránh
-   dependency mới nhưng UX kém hơn yêu cầu.
-4. **Ngữ nghĩa `'suspended'` vs `'inactive'`.** `partner_status` có 4
-   giá trị (`pending`, `active`, `suspended`, `inactive`). Flow
-   "deactivation" (tương đương soft-delete) của ticket được lên kế
-   hoạch nhắm vào `'inactive'` cụ thể, `'suspended'` chỉ reachable qua
-   form edit chung. Xác nhận mapping này đúng ý — nếu `'suspended'`
-   mới là target thật sự của "deactivate" (thay vì/thêm vào
-   `'inactive'`), action riêng ở Task 10 cần đổi.
-5. **Test runner**: xác nhận **không bị block** — `package.json` đã có
-   `"test": "vitest run"` và convention mock sẵn có
-   (`vi.mock("@/lib/supabase/server", ...)`,
-   `vi.mock("next/navigation", ...)`) cộng bộ test tích hợp RLS thật
-   dùng local Supabase (`describe.skipIf(!config)`). Không cần quyết
-   định tooling mới ở đây, khác với lo ngại ban đầu của ticket.
-6. **Xác nhận vị trí route**: kế hoạch này đặt route mới tại
-   `src/app/(admin)/partners/**`, tạo URL `/partners`, `/partners/new`,
-   `/partners/[id]`, `/partners/[id]/edit` — thoả cả ý định nêu trong
-   `docs/architecture.md` (F06 nằm trong `(admin)` group) lẫn path yêu
-   cầu tường minh của ticket. Vui lòng xác nhận đây đúng là cấu trúc
-   mong muốn, không phải literal URL `/admin/partners`.
+1. **Related counts**: dùng số liệu thật — Task 9
+   (`get-airport-related-counts.ts`) triển khai 3 query
+   `count: "exact", head: true` trên `seats`/`bookings`/`flights` lọc
+   theo `airport_id`; Task 18 hiển thị số liệu này trên
+   `airport-detail.tsx`.
+2. **Format của `code`**: chữ hoa/số, 2–10 ký tự
+   (`/^[A-Z0-9]{2,10}$/`) trong `createAirportSchema`.
+3. **Delete/Deactivate**: xác nhận không nằm trong phạm vi F07. Không
+   thêm cột trạng thái, không có UI/action xóa/deactivate. Vì không có
+   hành động không thể hoàn tác nào trong phạm vi này, không cần dialog
+   xác nhận (giải quyết luôn mục đã nêu ở dưới về confirmation dialog).
+4. **Cột sort mặc định**: `[code, name, city, country, created_at]`,
+   mặc định `code asc` (giữ nguyên đề xuất của planner, không có phản
+   hồi khác).

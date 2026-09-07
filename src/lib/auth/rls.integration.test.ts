@@ -1093,4 +1093,213 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       }
     });
   });
+
+  // ===========================================================================
+  // 10. airports table (F07 — Airport Management's app layer sits entirely on
+  // top of this pre-existing F05 RLS coverage; F07 added no new migration/
+  // policy, see plan.md's "F07 — Airport Management" plan, "Quyết định đã
+  // chốt". Unlike `partners`, `airports` is shared reference data: policy
+  // `airports_select_authenticated` uses `using (true)` so every
+  // authenticated role (including `technician`/`partner_user`) can SELECT,
+  // while `airports_insert_admin_ops_manager`/`airports_update_admin_ops_manager`
+  // restrict writes to admin/operations_manager. No `DELETE` policy exists
+  // for any role on this table.
+  // ===========================================================================
+  describe("airports table", () => {
+    const SEEDED_AIRPORT_ID = "a0000000-0000-0000-0000-000000000001"; // DXB
+
+    it("admin can SELECT the seeded airport", async () => {
+      const { data, error } = await adminClient
+        .from("airports")
+        .select("id, code")
+        .eq("id", SEEDED_AIRPORT_ID);
+      expect(error).toBeNull();
+      expect(data).toEqual([{ id: SEEDED_AIRPORT_ID, code: "DXB" }]);
+    });
+
+    it("operations_manager can SELECT the seeded airport", async () => {
+      const { data, error } = await opsClient
+        .from("airports")
+        .select("id, code")
+        .eq("id", SEEDED_AIRPORT_ID);
+      expect(error).toBeNull();
+      expect(data).toEqual([{ id: SEEDED_AIRPORT_ID, code: "DXB" }]);
+    });
+
+    it("technician can SELECT the seeded airport (using (true) grants read to every authenticated role)", async () => {
+      const { data, error } = await technicianClient
+        .from("airports")
+        .select("id, code")
+        .eq("id", SEEDED_AIRPORT_ID);
+      expect(error).toBeNull();
+      expect(data).toEqual([{ id: SEEDED_AIRPORT_ID, code: "DXB" }]);
+    });
+
+    it("partner_user can SELECT the seeded airport (using (true) grants read to every authenticated role)", async () => {
+      const { data, error } = await partnerAClient
+        .from("airports")
+        .select("id, code")
+        .eq("id", SEEDED_AIRPORT_ID);
+      expect(error).toBeNull();
+      expect(data).toEqual([{ id: SEEDED_AIRPORT_ID, code: "DXB" }]);
+    });
+
+    it("technician is rejected (matches zero rows, not an error) on INSERT into airports", async () => {
+      const { data, error } = await technicianClient
+        .from("airports")
+        .insert({
+          code: `RLS-TEST-DENIED-${Date.now()}`.slice(0, 10),
+          name: "Attacker Airport",
+          city: "Nowhere",
+          country: "Nowhere",
+          timezone: "UTC",
+        })
+        .select();
+      expect(error).not.toBeNull();
+      expect(data).toBeFalsy();
+    });
+
+    it("partner_user is rejected on INSERT into airports", async () => {
+      const { error } = await partnerAClient.from("airports").insert({
+        code: `RLSTSTB${Date.now()}`.slice(0, 10),
+        name: "Attacker Airport",
+        city: "Nowhere",
+        country: "Nowhere",
+        timezone: "UTC",
+      });
+      expect(error).not.toBeNull();
+    });
+
+    it("technician is rejected (matches zero rows, not an error) on UPDATE of the seeded airport", async () => {
+      const { data, error } = await technicianClient
+        .from("airports")
+        .update({ name: "Hacked By Technician" })
+        .eq("id", SEEDED_AIRPORT_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: check } = await service
+        .from("airports")
+        .select("name")
+        .eq("id", SEEDED_AIRPORT_ID)
+        .single();
+      expect(check?.name).not.toBe("Hacked By Technician");
+    });
+
+    it("partner_user is rejected (matches zero rows, not an error) on UPDATE of the seeded airport", async () => {
+      const { data, error } = await partnerAClient
+        .from("airports")
+        .update({ name: "Hacked By Partner A" })
+        .eq("id", SEEDED_AIRPORT_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: check } = await service
+        .from("airports")
+        .select("name")
+        .eq("id", SEEDED_AIRPORT_ID)
+        .single();
+      expect(check?.name).not.toBe("Hacked By Partner A");
+    });
+
+    it("operations_manager can INSERT and UPDATE an airport", async () => {
+      const code = `RLSOPS${Date.now()}`.slice(0, 10);
+      const { data: inserted, error: insertError } = await opsClient
+        .from("airports")
+        .insert({
+          code,
+          name: "RLS Test Ops Airport",
+          city: "Test City",
+          country: "Test Country",
+          timezone: "UTC",
+        })
+        .select("id")
+        .single();
+      expect(insertError).toBeNull();
+      expect(inserted?.id).toBeDefined();
+
+      const { error: updateError } = await opsClient
+        .from("airports")
+        .update({ city: "Updated Test City" })
+        .eq("id", inserted!.id);
+      expect(updateError).toBeNull();
+
+      if (inserted) {
+        await service.from("airports").delete().eq("id", inserted.id);
+      }
+    });
+
+    it("admin can INSERT an airport (unlike operations_manager-only tables elsewhere, both roles are allowed here)", async () => {
+      const code = `RLSADM${Date.now()}`.slice(0, 10);
+      const { data, error } = await adminClient
+        .from("airports")
+        .insert({
+          code,
+          name: "RLS Test Admin Airport",
+          city: "Test City",
+          country: "Test Country",
+          timezone: "UTC",
+        })
+        .select("id")
+        .single();
+      expect(error).toBeNull();
+      expect(data?.id).toBeDefined();
+
+      if (data) {
+        await service.from("airports").delete().eq("id", data.id);
+      }
+    });
+
+    it("a duplicate code is rejected by the DB's unique constraint (23505), proving RLS-adjacent uniqueness still holds after F07", async () => {
+      const { error } = await opsClient.from("airports").insert({
+        code: "DXB",
+        name: "Duplicate DXB Attempt",
+        city: "Dubai",
+        country: "United Arab Emirates",
+        timezone: "Asia/Dubai",
+      });
+      expect(error).not.toBeNull();
+      expect(error?.code).toBe("23505");
+    });
+
+    it("no role has a DELETE policy on airports (technician's delete matches zero rows, not an error, and the seeded row survives)", async () => {
+      // No DELETE policy exists for `airports` -> RLS's default USING(false)
+      // filters every row out of scope silently (same "matches zero rows,
+      // not an error" outcome as an UPDATE with no matching policy
+      // elsewhere in this suite), rather than surfacing a hard error.
+      const { data, error } = await technicianClient
+        .from("airports")
+        .delete()
+        .eq("id", SEEDED_AIRPORT_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: check } = await service
+        .from("airports")
+        .select("id")
+        .eq("id", SEEDED_AIRPORT_ID)
+        .maybeSingle();
+      expect(check?.id).toBe(SEEDED_AIRPORT_ID);
+    });
+
+    it("no role has a DELETE policy on airports (admin's delete also matches zero rows - no DELETE policy exists for any role, admin included)", async () => {
+      const { data, error } = await adminClient
+        .from("airports")
+        .delete()
+        .eq("id", SEEDED_AIRPORT_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: check } = await service
+        .from("airports")
+        .select("id")
+        .eq("id", SEEDED_AIRPORT_ID)
+        .maybeSingle();
+      expect(check?.id).toBe(SEEDED_AIRPORT_ID);
+    });
+  });
 });

@@ -348,6 +348,41 @@ already-inactive target with a `CONFLICT` error rather than silently
 no-oping. No DELETE is ever issued against `partners` from application
 code, matching the "no DELETE policy exists" fact above.
 
+### F07 — Airport Management
+
+The `/airports*` routes (`src/app/(admin)/airports/**`) are an
+application-layer CRUD module sitting entirely on top of F05's existing
+`airports_*` RLS policies (see the per-table rules above) — **F07
+introduced no new migration and no new/changed RLS policy**. F05's
+coverage already matched F07's access model: admin/operations_manager
+full SELECT/INSERT/UPDATE, every other `authenticated` role
+SELECT-only (`using (true)` — `airports` is shared reference data), no
+DELETE policy for any role. Re-verified by re-reading the migration
+before implementation, per the same precedent as F06.
+
+Note that this route-level gate is **narrower** than what RLS alone
+would allow: RLS lets any `authenticated` user (including `technician`,
+`partner_user`) `SELECT` the `airports` table directly, but
+`requirePermission("airports:manage")` restricts the entire `/airports*`
+UI to admin/operations_manager — a `technician` is redirected to
+`/forbidden` even though the DB would technically permit a read. This is
+intentional: "RLS is the last line of defense, not a substitute for the
+route/action guard" applies in both directions — a route guard is
+allowed to be stricter than the RLS floor, not just as permissive as it.
+
+**Route-level gate**: `requirePermission("airports:manage")` runs in
+both `src/app/(admin)/airports/layout.tsx` and independently in every
+`page.tsx` under it (list/new/detail/edit), plus again at the top of
+every airports Server Action (`create-airport.action.ts`,
+`update-airport.action.ts`).
+
+**No delete/deactivate**: F07 has no status column and no
+delete/deactivate action in scope — no DELETE is ever issued against
+`airports` from application code, matching the "no DELETE policy exists"
+fact above; there is also no soft-delete convention here (unlike
+`partners`' `status = 'inactive'` pattern), since nothing irreversible
+exists in this feature.
+
 ## Secrets
 
 - `SUPABASE_SERVICE_ROLE_KEY` / the newer secret key (`sb_secret_...`)

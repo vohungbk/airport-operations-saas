@@ -73,4 +73,15 @@ F31 Portfolio Polish
   `requirePermission("partners:manage")` on the route layout, every page,
   and every Server Action. Reuses F05's existing `partners_*` RLS
   policies as-is — no new migration or policy.
-- **F07 — Airport Management**: next.
+- **F07 — Airport Management**: done. Internal CRUD for airport locations
+  at `/airports`, `/airports/new`, `/airports/[id]`, `/airports/[id]/edit`
+  (`src/app/(admin)/airports/**`, `src/features/airports`): mirrors F06's
+  `partners` module 1:1 — searchable/sortable/paginated list (default
+  sort `code asc`), create/edit forms (`code` immutable after creation,
+  validated as uppercase alphanumeric 2-10 chars), a detail page showing
+  real seat/booking/flight related counts (not a placeholder, since those
+  tables and their `airport_id` columns already exist from F02). No
+  status column and no delete/deactivate action — nothing irreversible in
+  this feature's scope. Gated by `requirePermission("airports:manage")`
+  on the route layout, every page, and every Server Action. Reuses F05's
+  existing `airports_*` RLS policies as-is — no new migration or policy.

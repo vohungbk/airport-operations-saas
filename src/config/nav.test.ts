@@ -17,19 +17,19 @@ describe("getVisibleNavItems", () => {
     }
   });
 
-  it("should show all 4 area links to admin (full system access)", () => {
+  it("should show all 5 area links to admin (full system access)", () => {
     const visible = getVisibleNavItems("admin");
 
     expect(visible.map((item) => item.href).sort()).toEqual(
-      ["/admin", "/partner", "/partners", "/technician"].sort(),
+      ["/admin", "/airports", "/partner", "/partners", "/technician"].sort(),
     );
   });
 
-  it("should show the admin and partners links to operations_manager", () => {
+  it("should show the admin, partners, and airports links to operations_manager", () => {
     const visible = getVisibleNavItems("operations_manager");
 
     expect(visible.map((item) => item.href).sort()).toEqual(
-      ["/admin", "/partners"].sort(),
+      ["/admin", "/airports", "/partners"].sort(),
     );
   });
 

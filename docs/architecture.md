@@ -51,7 +51,12 @@ concerns without affecting the URL structure:
   (`requirePermission("partners:manage")`, independent of the sibling
   `admin/layout.tsx`). Route group segments don't contribute to the URL,
   so these resolve to `/partners`, `/partners/new`, `/partners/[id]`,
-  `/partners/[id]/edit`, not `/admin/partners*`.
+  `/partners/[id]/edit`, not `/admin/partners*`. Since F07: the `(admin)`
+  group also has an `airports/` subtree, mirroring `partners/` 1:1
+  (`airports/page.tsx`, `airports/new/page.tsx`, `airports/[id]/page.tsx`,
+  `airports/[id]/edit/page.tsx`, `airports/layout.tsx` guarded by
+  `requirePermission("airports:manage")`) — resolving to `/airports`,
+  `/airports/new`, `/airports/[id]`, `/airports/[id]/edit`.
 - `forbidden` — top-level `page.tsx` (outside any route group) rendered
   for both "authenticated but not permitted" and "invalid/missing
   profile." Deliberately does not call `requireAuth()` itself (redirect
@@ -196,6 +201,61 @@ the top of every Server Action):
   (shadcn) + `deactivatePartnerAction` call; `router.refresh()` on
   success is what keeps the detail page's status badge from showing a
   stale `'active'` value (no client cache to invalidate otherwise).
+
+### `src/features/airports` (F07)
+
+Mirrors `src/features/partners` (F06) 1:1 as a plain CRUD module —
+`airports` has no status column, so there is no deactivate action, no
+`AIRPORT_STATUSES`, and no confirmation dialog anywhere in this feature.
+Gated end-to-end by `requirePermission("airports:manage")` (route
+layout/pages, and again at the top of every Server Action):
+
+- `types.ts` — `Airport` aliased from the generated Supabase types.
+- `lib/is-valid-timezone.ts` — pure `isValidIanaTimezone()` backed by
+  `Intl.supportedValuesOf("timeZone")`, used by `schemas/airport.schema.ts`'s
+  `.refine()` on the `timezone` field.
+- `schemas/airport.schema.ts` — `createAirportSchema` (`code`: trimmed +
+  uppercased + `/^[A-Z0-9]{2,10}$/`; `name`/`city`/`country`: required;
+  `timezone`: required + valid IANA zone) and `updateAirportSchema` (same
+  minus `code` — `code` is immutable after creation, never part of the
+  edit schema). `schemas/airports-query.schema.ts` validates the list
+  page's `searchParams` (`q`, an explicit `sort` column allowlist —
+  `code`/`name`/`city`/`country`/`created_at`, default `code asc` —
+  `order`, `page`/`page_size`), falling back to safe defaults via
+  `.catch()` per field.
+- `lib/build-airports-query-filters.ts` — pure function turning a
+  validated query into `{ search, sort, order, range }`, with its own
+  local copy of the PostgREST `or=`-filter escaping helper (not imported
+  from `features/partners` — no cross-feature import). `lib/get-airports.ts`
+  / `lib/get-airport-by-id.ts` are the only server-only Supabase readers
+  for the airport row itself — RLS (F05) is the tenant/role boundary,
+  these never add their own access filter. `lib/get-airport-related-counts.ts`
+  runs 3 independent `count: "exact", head: true` queries against
+  `seats`/`bookings`/`flights` filtered by `airport_id` for the detail
+  page — unlike `partner-detail.tsx`'s placeholder blocks, F07 shows real
+  counts by decision (see plan.md's "Quyết định đã chốt" #1), even though
+  Seat Inventory (F09)/Booking Management (F11)/Flight Integration (F20)
+  haven't shipped their own feature UIs yet. `lib/airport-errors.ts` maps
+  Postgres errors (`23505` on `airports_code_key` → `DUPLICATE_CODE`) to
+  the shared `{ code, message }` shape from `backend.md`.
+- `actions/create-airport.action.ts` / `update-airport.action.ts` — each
+  re-checks `requirePermission("airports:manage")` before touching the
+  database. No delete/deactivate action exists in this feature.
+- `hooks/use-create-airport-form.ts` / `use-update-airport-form.ts` +
+  `components/create-airport-form.tsx` / `edit-airport-form.tsx` — the
+  same `useForm` + `useTransition` + Server Action pattern as
+  `src/features/partners`, sharing field rendering through
+  `components/airport-form.tsx` (`mode: "create" | "edit"`; `code` is a
+  registered editable input only in `"create"` mode, a disabled
+  read-only display in `"edit"` mode; `timezone` is a plain text input).
+- `components/airports-table.tsx` / `airports-pagination.tsx` — Server
+  Components; sorting/pagination are plain `<Link>` navigation against
+  new `searchParams`, no client JS. `components/airports-filters.tsx` is
+  the one Client Component the list page needs (search input only — no
+  status `Select`, unlike `partners-filters.tsx`).
+- `components/airport-detail.tsx` — no delete/deactivate button, no
+  status badge; renders the real related-counts cards from
+  `getAirportRelatedCounts`.
 
 ## Supabase Architecture
 
