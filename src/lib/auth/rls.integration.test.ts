@@ -1302,4 +1302,297 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(check?.id).toBe(SEEDED_AIRPORT_ID);
     });
   });
+  // ===========================================================================
+  // F08: seat_categories table. No migration was added for F08 - these tests
+  // prove the F05 policies still hold for the new admin UI: shared reference
+  // data (`using (true)` SELECT for every authenticated role), writes
+  // restricted to admin/operations_manager, and no DELETE policy for anyone.
+  // ===========================================================================
+  describe("seat_categories table", () => {
+    const SEEDED_CATEGORY_ID = "c0000000-0000-0000-0000-000000000001"; // Infant Carrier
+    const createdCategoryIds: string[] = [];
+
+    const newCategory = (label: string) => ({
+      name: `RLS Test ${label} ${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      description: "F08 RLS test fixture",
+      min_child_age: 0,
+      max_child_age: 12,
+      safety_standard: "UN R129 (i-Size)",
+    });
+
+    afterAll(async () => {
+      if (createdCategoryIds.length > 0) {
+        await service
+          .from("seat_categories")
+          .delete()
+          .in("id", createdCategoryIds);
+      }
+    });
+
+    it("admin can SELECT the seeded seat category", async () => {
+      const { data, error } = await adminClient
+        .from("seat_categories")
+        .select("id, name")
+        .eq("id", SEEDED_CATEGORY_ID);
+      expect(error).toBeNull();
+      expect(data).toEqual([{ id: SEEDED_CATEGORY_ID, name: "Infant Carrier" }]);
+    });
+
+    it("operations_manager can SELECT the seeded seat category", async () => {
+      const { data, error } = await opsClient
+        .from("seat_categories")
+        .select("id")
+        .eq("id", SEEDED_CATEGORY_ID);
+      expect(error).toBeNull();
+      expect(data).toEqual([{ id: SEEDED_CATEGORY_ID }]);
+    });
+
+    it("technician can SELECT the seeded seat category (shared reference data)", async () => {
+      const { data, error } = await technicianClient
+        .from("seat_categories")
+        .select("id")
+        .eq("id", SEEDED_CATEGORY_ID);
+      expect(error).toBeNull();
+      expect(data).toEqual([{ id: SEEDED_CATEGORY_ID }]);
+    });
+
+    it("partner_user can SELECT the seeded seat category (shared reference data)", async () => {
+      const { data, error } = await partnerAClient
+        .from("seat_categories")
+        .select("id")
+        .eq("id", SEEDED_CATEGORY_ID);
+      expect(error).toBeNull();
+      expect(data).toEqual([{ id: SEEDED_CATEGORY_ID }]);
+    });
+
+    it("admin can INSERT and UPDATE a seat category", async () => {
+      const { data: inserted, error: insertError } = await adminClient
+        .from("seat_categories")
+        .insert(newCategory("Admin"))
+        .select("id")
+        .single();
+      expect(insertError).toBeNull();
+      expect(inserted?.id).toBeDefined();
+      if (inserted) createdCategoryIds.push(inserted.id);
+
+      const { data: updated, error: updateError } = await adminClient
+        .from("seat_categories")
+        .update({ safety_standard: "Updated Standard" })
+        .eq("id", inserted!.id)
+        .select("safety_standard");
+      expect(updateError).toBeNull();
+      expect(updated).toEqual([{ safety_standard: "Updated Standard" }]);
+    });
+
+    it("operations_manager can INSERT and UPDATE a seat category", async () => {
+      const { data: inserted, error: insertError } = await opsClient
+        .from("seat_categories")
+        .insert(newCategory("Ops"))
+        .select("id")
+        .single();
+      expect(insertError).toBeNull();
+      expect(inserted?.id).toBeDefined();
+      if (inserted) createdCategoryIds.push(inserted.id);
+
+      const { data: updated, error: updateError } = await opsClient
+        .from("seat_categories")
+        .update({ is_active: false })
+        .eq("id", inserted!.id)
+        .select("is_active");
+      expect(updateError).toBeNull();
+      expect(updated).toEqual([{ is_active: false }]);
+    });
+
+    it("technician is rejected on INSERT into seat_categories", async () => {
+      const payload = newCategory("TechDenied");
+      const { error } = await technicianClient
+        .from("seat_categories")
+        .insert(payload);
+      expect(error).not.toBeNull();
+
+      const { data: check } = await service
+        .from("seat_categories")
+        .select("id")
+        .eq("name", payload.name);
+      expect(check).toEqual([]);
+    });
+
+    it("partner_user is rejected on INSERT into seat_categories", async () => {
+      const payload = newCategory("PartnerDenied");
+      const { error } = await partnerAClient
+        .from("seat_categories")
+        .insert(payload);
+      expect(error).not.toBeNull();
+
+      const { data: check } = await service
+        .from("seat_categories")
+        .select("id")
+        .eq("name", payload.name);
+      expect(check).toEqual([]);
+    });
+
+    it("technician UPDATE of a seat category matches zero rows and leaves the row unchanged", async () => {
+      const { data, error } = await technicianClient
+        .from("seat_categories")
+        .update({ name: "Hacked By Technician" })
+        .eq("id", SEEDED_CATEGORY_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: check } = await service
+        .from("seat_categories")
+        .select("name")
+        .eq("id", SEEDED_CATEGORY_ID)
+        .single();
+      expect(check?.name).toBe("Infant Carrier");
+    });
+
+    it("partner_user UPDATE of a seat category matches zero rows and leaves the row unchanged", async () => {
+      const { data, error } = await partnerAClient
+        .from("seat_categories")
+        .update({ is_active: false })
+        .eq("id", SEEDED_CATEGORY_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: check } = await service
+        .from("seat_categories")
+        .select("is_active")
+        .eq("id", SEEDED_CATEGORY_ID)
+        .single();
+      expect(check?.is_active).toBe(true);
+    });
+
+    it("anonymous client sees no seat categories", async () => {
+      const { data } = await anonClient
+        .from("seat_categories")
+        .select("id")
+        .eq("id", SEEDED_CATEGORY_ID);
+      expect(data ?? []).toEqual([]);
+    });
+
+    it("rejects max_child_age < min_child_age with a CHECK violation (23514) even for admin", async () => {
+      const { error } = await adminClient.from("seat_categories").insert({
+        ...newCategory("BadAge"),
+        min_child_age: 24,
+        max_child_age: 12,
+      });
+      expect(error).not.toBeNull();
+      expect(error?.code).toBe("23514");
+    });
+
+    it("rejects an UPDATE that makes max_child_age < min_child_age with 23514", async () => {
+      const { data: inserted } = await adminClient
+        .from("seat_categories")
+        .insert(newCategory("BadAgeUpdate"))
+        .select("id")
+        .single();
+      expect(inserted?.id).toBeDefined();
+      if (inserted) createdCategoryIds.push(inserted.id);
+
+      const { error } = await adminClient
+        .from("seat_categories")
+        .update({ min_child_age: 50, max_child_age: 10 })
+        .eq("id", inserted!.id);
+      expect(error?.code).toBe("23514");
+    });
+
+    it("no role has a DELETE policy: admin delete matches zero rows and the seeded row survives", async () => {
+      const { data, error } = await adminClient
+        .from("seat_categories")
+        .delete()
+        .eq("id", SEEDED_CATEGORY_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: check } = await service
+        .from("seat_categories")
+        .select("id")
+        .eq("id", SEEDED_CATEGORY_ID)
+        .maybeSingle();
+      expect(check?.id).toBe(SEEDED_CATEGORY_ID);
+    });
+
+    it("no role has a DELETE policy: operations_manager and technician deletes also match zero rows", async () => {
+      for (const client of [opsClient, technicianClient]) {
+        const { data, error } = await client
+          .from("seat_categories")
+          .delete()
+          .eq("id", SEEDED_CATEGORY_ID)
+          .select();
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+      }
+    });
+
+    it("hard delete of a category referenced by a seat is blocked by FK RESTRICT (23503) even via service role", async () => {
+      const { data: seat } = await service
+        .from("seats")
+        .select("id, category_id")
+        .eq("id", SEAT_A_ID)
+        .single();
+      expect(seat?.category_id).toBeDefined();
+
+      const { error } = await service
+        .from("seat_categories")
+        .delete()
+        .eq("id", seat!.category_id);
+      expect(error?.code).toBe("23503");
+
+      const { data: check } = await service
+        .from("seat_categories")
+        .select("id")
+        .eq("id", seat!.category_id)
+        .maybeSingle();
+      expect(check?.id).toBe(seat!.category_id);
+    });
+
+    it("updating a category (including deactivation) leaves seats.category_id relationships intact", async () => {
+      const { data: inserted } = await adminClient
+        .from("seat_categories")
+        .insert(newCategory("SeatLink"))
+        .select("id")
+        .single();
+      expect(inserted?.id).toBeDefined();
+      if (inserted) createdCategoryIds.push(inserted.id);
+
+      // Snapshot the seeded seat's category, point it at the new category
+      // via service role, then restore it in a finally block.
+      const { data: before } = await service
+        .from("seats")
+        .select("category_id")
+        .eq("id", SEAT_A_ID)
+        .single();
+      const originalCategoryId = before!.category_id;
+
+      try {
+        const { error: linkError } = await service
+          .from("seats")
+          .update({ category_id: inserted!.id })
+          .eq("id", SEAT_A_ID);
+        expect(linkError).toBeNull();
+
+        const { error: updateError } = await adminClient
+          .from("seat_categories")
+          .update({ name: `${newCategory("Renamed").name}`, is_active: false })
+          .eq("id", inserted!.id);
+        expect(updateError).toBeNull();
+
+        const { data: after } = await service
+          .from("seats")
+          .select("category_id")
+          .eq("id", SEAT_A_ID)
+          .single();
+        expect(after?.category_id).toBe(inserted!.id);
+      } finally {
+        await service
+          .from("seats")
+          .update({ category_id: originalCategoryId })
+          .eq("id", SEAT_A_ID);
+      }
+    });
+  });
 });

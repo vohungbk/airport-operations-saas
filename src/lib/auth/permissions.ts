@@ -9,6 +9,7 @@ import type { Role } from "@/lib/auth/roles";
 export type Permission =
   | "airports:manage"
   | "partners:manage"
+  | "seat_categories:manage"
   | "seats:manage"
   | "bookings:manage"
   | "technicians:manage"
@@ -38,6 +39,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<Role, "admin">, Permission[]> =
     operations_manager: [
       "airports:manage",
       "partners:manage",
+      "seat_categories:manage",
       "seats:manage",
       "bookings:manage",
       "technicians:manage",

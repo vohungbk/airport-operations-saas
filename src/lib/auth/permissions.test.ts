@@ -6,6 +6,7 @@ import type { Permission } from "@/lib/auth/permissions";
 const ALL_PERMISSIONS: Permission[] = [
   "airports:manage",
   "partners:manage",
+  "seat_categories:manage",
   "seats:manage",
   "bookings:manage",
   "technicians:manage",
@@ -50,6 +51,12 @@ describe("hasPermission", () => {
       }
     });
 
+    it("should return true for seat_categories:manage", () => {
+      expect(hasPermission("operations_manager", "seat_categories:manage")).toBe(
+        true,
+      );
+    });
+
     it("should return false for a permission that belongs to another role", () => {
       expect(hasPermission("operations_manager", "jobs:view_assigned")).toBe(
         false,
@@ -62,6 +69,10 @@ describe("hasPermission", () => {
       for (const permission of ROLE_PERMISSIONS.technician) {
         expect(hasPermission("technician", permission)).toBe(true);
       }
+    });
+
+    it("should return false for seat_categories:manage", () => {
+      expect(hasPermission("technician", "seat_categories:manage")).toBe(false);
     });
 
     it("should return false for finance:view, which technician does not hold", () => {
@@ -80,6 +91,12 @@ describe("hasPermission", () => {
       for (const permission of ROLE_PERMISSIONS.partner_user) {
         expect(hasPermission("partner_user", permission)).toBe(true);
       }
+    });
+
+    it("should return false for seat_categories:manage", () => {
+      expect(hasPermission("partner_user", "seat_categories:manage")).toBe(
+        false,
+      );
     });
 
     it("should return false for a manager-only permission", () => {

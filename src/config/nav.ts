@@ -1,4 +1,5 @@
 import {
+  Armchair,
   Building2,
   ClipboardList,
   LayoutDashboard,
@@ -41,6 +42,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/airports",
     permission: "airports:manage",
     icon: Plane,
+  },
+  {
+    label: "Seat Categories",
+    href: "/seat-categories",
+    permission: "seat_categories:manage",
+    icon: Armchair,
   },
   {
     label: "Technician Jobs",

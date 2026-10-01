@@ -124,7 +124,7 @@ to redirect back into the app.
   | role | permissions |
   |---|---|
   | `admin` | all (bypass, no explicit list) |
-  | `operations_manager` | `airports:manage`, `partners:manage`, `seats:manage`, `bookings:manage`, `technicians:manage`, `cleaning:manage`, `inspections:manage`, `incidents:view`, `finance:view`, `dashboards:view` |
+  | `operations_manager` | `airports:manage`, `partners:manage`, `seat_categories:manage`, `seats:manage`, `bookings:manage`, `technicians:manage`, `cleaning:manage`, `inspections:manage`, `incidents:view`, `finance:view`, `dashboards:view` |
   | `technician` | `jobs:view_assigned`, `jobs:update_assigned`, `installation:perform`, `cleaning:create`, `inspections:create`, `incidents:report` |
   | `partner_user` | `bookings:view_own_partner`, `seats:view_own_partner`, `operations:view_own_partner`, `finance:view_own_partner` |
 
@@ -382,6 +382,26 @@ delete/deactivate action in scope — no DELETE is ever issued against
 fact above; there is also no soft-delete convention here (unlike
 `partners`' `status = 'inactive'` pattern), since nothing irreversible
 exists in this feature.
+
+### F08 — Seat Category Management
+
+The `/seat-categories*` routes (`src/app/(admin)/seat-categories/**`) sit
+on top of F05's existing `seat_categories_*` RLS policies —
+**F08 introduced no new migration and no new/changed RLS policy**
+(SELECT for any `authenticated` user, INSERT/UPDATE for
+admin/operations_manager, no DELETE policy). As with `/airports*`, the
+route gate is stricter than the RLS floor.
+
+**Permission**: `seat_categories:manage` (admin via short-circuit,
+`operations_manager` explicitly; `technician`/`partner_user` never). It
+runs in `layout.tsx`, independently in every `page.tsx`, and at the top of
+every Server Action (create, update, set-active).
+
+**No delete**: deactivation is `is_active = false` only; no DELETE is
+ever issued (`seats.category_id` and `bookings.seat_category_id` are
+`ON DELETE RESTRICT`). `name` has no unique constraint, so duplicate names
+are checked case-insensitively in the Server Actions (best effort; can
+race under concurrent writes).
 
 ## Secrets
 

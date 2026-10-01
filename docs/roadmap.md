@@ -85,3 +85,17 @@ F31 Portfolio Polish
   this feature's scope. Gated by `requirePermission("airports:manage")`
   on the route layout, every page, and every Server Action. Reuses F05's
   existing `airports_*` RLS policies as-is — no new migration or policy.
+
+- **F08 — Seat Category Management**: done. Internal CRUD for child-seat
+  categories at `/seat-categories`, `/seat-categories/new`,
+  `/seat-categories/[id]`, `/seat-categories/[id]/edit`
+  (`src/app/(admin)/seat-categories/**`, `src/features/seat-categories`):
+  mirrors F07 — searchable (name/safety standard), sortable, status-
+  filterable, paginated list, create/edit forms (ages in months,
+  `max >= min`), and a detail page with a real seat count
+  (`seats.category_id`). Soft Activate/Deactivate via `is_active`, never a
+  hard delete. Case-insensitive duplicate-name check at app level (no
+  unique constraint exists). New permission `seat_categories:manage`
+  (admin, operations_manager) gates the route layout, every page, and
+  every Server Action. Reuses F05's existing `seat_categories_*` RLS
+  policies as-is — no new migration or policy.
