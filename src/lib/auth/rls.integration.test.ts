@@ -2,6 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
+import {
+  ACTIVE_BOOKING_STATUSES,
+  BOOKING_STATUSES,
+  getAllowedManualTransitions,
+  isBookingEditable,
+  isReasonRequired,
+} from "@/features/bookings/lib/booking-status";
 import { syncUserProfile } from "@/features/auth/lib/sync-user-profile";
 import {
   PARTNER_A_ID,
@@ -374,10 +381,9 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       .from("technician_jobs")
       .delete()
       .in("id", [fixtureIds.jobOwn, fixtureIds.jobOther].filter(Boolean));
-    await service
-      .from("booking_events")
-      .delete()
-      .in("id", [fixtureIds.eventA, fixtureIds.eventB].filter(Boolean));
+    // booking_events is append-only for every role since F11 (immutability
+    // trigger), so the eventA/eventB fixtures cannot be deleted here; they
+    // stay until `supabase db reset`.
     await service
       .from("incidents")
       .delete()
@@ -2561,6 +2567,934 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         .single();
       expect(check?.model).not.toBe("Cross Tenant Edit");
       expect(check?.status).toBe("available");
+    });
+  });
+  // ===========================================================================
+  // F11: booking management (RPCs, guard trigger, append-only booking_events)
+  // ===========================================================================
+  describe("bookings (F11)", () => {
+    const CATEGORY_1 = "c0000000-0000-0000-0000-000000000001";
+    const CATEGORY_2 = "c0000000-0000-0000-0000-000000000002";
+    const DXB = "a0000000-0000-0000-0000-000000000001";
+    // Fresh seats are created per run, so these fixed windows never collide
+    // with seeded bookings (2026-09) or earlier runs.
+    const T = (day: number, hour = 8) =>
+      `2031-03-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:00:00Z`;
+
+    const uniq = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    let otherAirportId: string;
+    let inactivePartnerId: string;
+    let seat1: string;
+    let seat2: string;
+    let seat3: string;
+    let seatQuarantined: string;
+    let seatCategory2: string;
+    let seatOtherAirport: string;
+    const createdSeatIds: string[] = [];
+
+    async function newSeat(
+      overrides: Partial<Database["public"]["Tables"]["seats"]["Insert"]> = {},
+    ): Promise<string> {
+      const { data, error } = await service
+        .from("seats")
+        .insert({
+          serial_number: `RLS-F11-${uniq()}`,
+          manufacturer: "Britax",
+          model: "F11 Test",
+          category_id: CATEGORY_1,
+          airport_id: DXB,
+          manufacture_date: "2025-01-15",
+          purchase_date: "2025-02-01",
+          max_rental_cycles: 100,
+          ...overrides,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      createdSeatIds.push(data.id);
+      return data.id;
+    }
+
+    interface CreateOverrides {
+      p_partner_id?: string;
+      p_airport_id?: string;
+      p_seat_category_id?: string;
+      p_pickup_at?: string;
+      p_return_at?: string;
+      p_daily_rate?: number;
+      p_assigned_seat_id?: string;
+      p_notes?: string;
+    }
+
+    function createArgs(o: CreateOverrides = {}) {
+      return {
+        p_partner_id: PARTNER_A_ID,
+        p_airport_id: DXB,
+        p_seat_category_id: CATEGORY_1,
+        p_pickup_at: T(1),
+        p_return_at: T(3),
+        p_daily_rate: 75,
+        ...o,
+      };
+    }
+
+    async function createAs(
+      client: SupabaseClient<Database>,
+      o: CreateOverrides = {},
+    ) {
+      return client.rpc("create_booking", createArgs(o));
+    }
+
+    async function createOk(o: CreateOverrides = {}) {
+      const { data, error } = await createAs(opsClient, o);
+      if (error) throw error;
+      return data;
+    }
+
+    async function eventsOf(bookingId: string) {
+      const { data, error } = await service
+        .from("booking_events")
+        .select("from_status, to_status, user_id, notes, metadata, created_at")
+        .eq("booking_id", bookingId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    }
+
+    const eventTypes = (events: { metadata: unknown }[]) =>
+      events.map((e) => (e.metadata as { event_type: string }).event_type);
+
+    beforeAll(async () => {
+      const code = `T${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      const airport = await service
+        .from("airports")
+        .insert({
+          code,
+          name: "F11 RLS Test Airport",
+          city: "Sharjah",
+          country: "United Arab Emirates",
+          timezone: "Asia/Dubai",
+        })
+        .select("id")
+        .single();
+      if (airport.error) throw airport.error;
+      otherAirportId = airport.data.id;
+
+      const partner = await service
+        .from("partners")
+        .insert({
+          name: `F11 Suspended ${uniq()}`,
+          code: `F11${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+          contact_email: "f11@test.local",
+          status: "suspended",
+        })
+        .select("id")
+        .single();
+      if (partner.error) throw partner.error;
+      inactivePartnerId = partner.data.id;
+
+      seat1 = await newSeat();
+      seat2 = await newSeat();
+      seat3 = await newSeat();
+      seatQuarantined = await newSeat();
+      seatCategory2 = await newSeat({ category_id: CATEGORY_2 });
+      seatOtherAirport = await newSeat({ airport_id: otherAirportId });
+
+      const { error } = await opsClient.rpc("change_seat_status", {
+        p_seat_id: seatQuarantined,
+        p_to_status: "quarantine",
+        p_reason: "F11 test",
+      });
+      if (error) throw error;
+    }, 60_000);
+
+    afterAll(async () => {
+      // Bookings (and their append-only events) cannot be deleted; they stay
+      // until `supabase db reset`. Seats can be: the FK action nulls
+      // bookings.assigned_seat_id / booking_events.seat_id.
+      if (createdSeatIds.length > 0) {
+        await service
+          .from("seat_status_history")
+          .delete()
+          .in("seat_id", createdSeatIds);
+        await service.from("seats").delete().in("id", createdSeatIds);
+      }
+      if (otherAirportId) {
+        await service.from("airports").delete().eq("id", otherAirportId);
+      }
+      if (inactivePartnerId) {
+        await service.from("partners").delete().eq("id", inactivePartnerId);
+      }
+    });
+
+    // ----- Create + numbering + events --------------------------------------
+
+    it("operations_manager can create a booking: pending, generated number, exactly one created event", async () => {
+      const booking = await createOk();
+
+      expect(booking.status).toBe("pending");
+      expect(booking.booking_number).toMatch(/^BK-\d{5}$/);
+      expect(Number(booking.booking_number.slice(3))).toBeGreaterThan(20);
+
+      const events = await eventsOf(booking.id);
+      expect(events).toHaveLength(1);
+      expect(events[0].from_status).toBeNull();
+      expect(events[0].to_status).toBe("pending");
+      expect(events[0].user_id).toBe(identities.opsManager.id);
+      expect(eventTypes(events)).toEqual(["created"]);
+    });
+
+    it("admin can create a booking, and booking numbers are unique and increasing", async () => {
+      const first = await createAs(adminClient);
+      const second = await createAs(adminClient);
+
+      expect(first.error).toBeNull();
+      expect(second.error).toBeNull();
+      expect(Number(second.data!.booking_number.slice(3))).toBeGreaterThan(
+        Number(first.data!.booking_number.slice(3)),
+      );
+    });
+
+    it("rejects return before pickup, a negative rate, an inactive partner and an unknown airport", async () => {
+      const cases: CreateOverrides[] = [
+        { p_pickup_at: T(5), p_return_at: T(4) },
+        { p_daily_rate: -1 },
+        { p_partner_id: inactivePartnerId },
+        { p_airport_id: "a9999999-9999-4999-8999-999999999999" },
+      ];
+
+      for (const c of cases) {
+        const { error } = await createAs(opsClient, c);
+        expect(error?.code).toBe("22023");
+      }
+    });
+
+    // ----- Read / role boundaries -------------------------------------------
+
+    it("admin and operations_manager can read any partner's booking", async () => {
+      const booking = await createOk({ p_partner_id: PARTNER_B_ID });
+
+      for (const client of [adminClient, opsClient]) {
+        const { data } = await client.from("bookings").select("id").eq("id", booking.id);
+        expect(data).toHaveLength(1);
+      }
+    });
+
+    it("partner A sees its own new booking but not partner B's, in list and by id", async () => {
+      const own = await createOk({ p_partner_id: PARTNER_A_ID });
+      const other = await createOk({ p_partner_id: PARTNER_B_ID });
+
+      const { data: list } = await partnerAClient.from("bookings").select("id, partner_id");
+      expect(list!.some((b) => b.id === own.id)).toBe(true);
+      expect(list!.every((b) => b.partner_id === PARTNER_A_ID)).toBe(true);
+
+      const { data: byId } = await partnerAClient.from("bookings").select("id").eq("id", other.id);
+      expect(byId).toEqual([]);
+
+      const { data: events } = await partnerAClient
+        .from("booking_events")
+        .select("id")
+        .eq("booking_id", other.id);
+      expect(events).toEqual([]);
+    });
+
+    it("partner_user cannot create or modify bookings (RPC, direct insert and direct update)", async () => {
+      const { error: rpcError } = await createAs(partnerAClient);
+      expect(rpcError?.code).toBe("42501");
+
+      const { error: insertError } = await partnerAClient.from("bookings").insert({
+        booking_number: `BK-F11-${uniq()}`,
+        partner_id: PARTNER_A_ID,
+        airport_id: DXB,
+        seat_category_id: CATEGORY_1,
+        pickup_at: T(1),
+        return_at: T(2),
+        daily_rate: 1,
+      });
+      expect(insertError).not.toBeNull();
+
+      const own = await createOk({ p_partner_id: PARTNER_A_ID });
+      const { data: updated } = await partnerAClient
+        .from("bookings")
+        .update({ notes: "partner edit" })
+        .eq("id", own.id)
+        .select();
+      expect(updated).toEqual([]);
+
+      const { error: statusError } = await partnerAClient.rpc("change_booking_status", {
+        p_booking_id: own.id,
+        p_to_status: "confirmed",
+      });
+      expect(statusError?.code).toBe("42501");
+    });
+
+    it("a partner_user with NULL partner_id and an inactive user get zero rows", async () => {
+      await createOk();
+
+      const nullPartner = await partnerNullClient.from("bookings").select("id");
+      expect(nullPartner.data ?? []).toEqual([]);
+
+      const inactive = await inactiveClient.from("bookings").select("id");
+      expect(inactive.data ?? []).toEqual([]);
+    });
+
+    it("anonymous and inactive callers cannot call the booking RPCs", async () => {
+      const anon = await createAs(anonClient);
+      expect(anon.error).not.toBeNull();
+
+      const inactive = await createAs(inactiveClient);
+      expect(inactive.error?.code).toBe("42501");
+    });
+
+    it("technician sees only bookings they are assigned to, and cannot create", async () => {
+      const mine = await createOk();
+      const notMine = await createOk();
+      const { error: assignError } = await service
+        .from("bookings")
+        .update({ assigned_technician_id: identities.technician.id })
+        .eq("id", mine.id);
+      expect(assignError).toBeNull();
+
+      const { data } = await technicianClient
+        .from("bookings")
+        .select("id")
+        .in("id", [mine.id, notMine.id]);
+      expect(data?.map((b) => b.id)).toEqual([mine.id]);
+
+      const { error } = await createAs(technicianClient);
+      expect(error?.code).toBe("42501");
+    });
+
+    it("denies direct INSERT into bookings for client roles, while create_booking still works", async () => {
+      const row = {
+        booking_number: `BK-F11-${uniq()}`,
+        partner_id: PARTNER_A_ID,
+        airport_id: DXB,
+        seat_category_id: CATEGORY_1,
+        pickup_at: T(1),
+        return_at: T(2),
+        daily_rate: 1,
+      };
+
+      for (const client of [adminClient, opsClient]) {
+        const { error } = await client.from("bookings").insert(row);
+        expect(error?.code).toBe("55000");
+      }
+
+      const { error: serviceError } = await service.from("bookings").insert(row);
+      expect(serviceError?.code).toBe("55000");
+
+      const { error } = await createAs(adminClient);
+      expect(error).toBeNull();
+    });
+
+    it("rejects null pickup or return times in create_booking and update_booking (22023)", async () => {
+      const nullPickup = await opsClient.rpc("create_booking", {
+        ...createArgs(),
+        p_pickup_at: null as unknown as string,
+      });
+      expect(nullPickup.error?.code).toBe("22023");
+
+      const booking = await createOk();
+      const nullReturn = await opsClient.rpc("update_booking", {
+        p_booking_id: booking.id,
+        p_expected_updated_at: booking.updated_at,
+        p_pickup_at: booking.pickup_at,
+        p_return_at: null as unknown as string,
+      });
+      expect(nullReturn.error?.code).toBe("22023");
+    });
+
+    it("pins that unguarded columns stay directly editable on a terminal booking (terminal rules apply to the RPC path only)", async () => {
+      const booking = await createOk();
+      await opsClient.rpc("change_booking_status", {
+        p_booking_id: booking.id,
+        p_to_status: "cancelled",
+        p_reason: "x",
+      });
+
+      const { error } = await opsClient
+        .from("bookings")
+        .update({ notes: "edited after cancel", vehicle: "V" })
+        .eq("id", booking.id);
+      expect(error).toBeNull();
+
+      const viaRpc = await opsClient.rpc("update_booking", {
+        p_booking_id: booking.id,
+        p_expected_updated_at: booking.updated_at,
+        p_pickup_at: booking.pickup_at,
+        p_return_at: booking.return_at,
+      });
+      expect(viaRpc.error).not.toBeNull();
+    });
+
+    // ----- Seat rules -------------------------------------------------------
+
+    it("assigns an available seat without changing seats.status", async () => {
+      const booking = await createOk({
+        p_assigned_seat_id: seat1,
+        p_pickup_at: T(10),
+        p_return_at: T(12),
+      });
+
+      expect(booking.assigned_seat_id).toBe(seat1);
+      const { data: seat } = await service.from("seats").select("status").eq("id", seat1).single();
+      expect(seat?.status).toBe("available");
+    });
+
+    it("rejects a seat that is not available (BK001), the wrong category (BK003) or another airport (BK003)", async () => {
+      const notAvailable = await createAs(opsClient, { p_assigned_seat_id: seatQuarantined });
+      expect(notAvailable.error?.code).toBe("BK001");
+
+      const wrongCategory = await createAs(opsClient, { p_assigned_seat_id: seatCategory2 });
+      expect(wrongCategory.error?.code).toBe("BK003");
+
+      const wrongAirport = await createAs(opsClient, { p_assigned_seat_id: seatOtherAirport });
+      expect(wrongAirport.error?.code).toBe("BK003");
+
+      const missing = await createAs(opsClient, {
+        p_assigned_seat_id: "e9999999-9999-4999-8999-999999999999",
+      });
+      expect(missing.error?.code).toBe("BK005");
+    });
+
+    it("rejects overlapping bookings on one seat (BK002) but allows touching endpoints", async () => {
+      await createOk({ p_assigned_seat_id: seat2, p_pickup_at: T(10), p_return_at: T(12) });
+
+      const overlap = await createAs(opsClient, {
+        p_assigned_seat_id: seat2,
+        p_pickup_at: T(11),
+        p_return_at: T(13),
+      });
+      expect(overlap.error?.code).toBe("BK002");
+
+      const touchingAfter = await createAs(opsClient, {
+        p_assigned_seat_id: seat2,
+        p_pickup_at: T(12),
+        p_return_at: T(14),
+      });
+      expect(touchingAfter.error).toBeNull();
+
+      const touchingBefore = await createAs(opsClient, {
+        p_assigned_seat_id: seat2,
+        p_pickup_at: T(8),
+        p_return_at: T(10),
+      });
+      expect(touchingBefore.error).toBeNull();
+    });
+
+    it("frees the seat for that period once the booking is cancelled", async () => {
+      const seat = await newSeat();
+      const first = await createOk({ p_assigned_seat_id: seat, p_pickup_at: T(20), p_return_at: T(22) });
+
+      const blocked = await createAs(opsClient, {
+        p_assigned_seat_id: seat,
+        p_pickup_at: T(20),
+        p_return_at: T(22),
+      });
+      expect(blocked.error?.code).toBe("BK002");
+
+      const { error: cancelError } = await opsClient.rpc("change_booking_status", {
+        p_booking_id: first.id,
+        p_to_status: "cancelled",
+        p_reason: "test",
+      });
+      expect(cancelError).toBeNull();
+
+      const again = await createAs(opsClient, {
+        p_assigned_seat_id: seat,
+        p_pickup_at: T(20),
+        p_return_at: T(22),
+      });
+      expect(again.error).toBeNull();
+    });
+
+    it("lets exactly one of two concurrent create_booking calls win the same seat", async () => {
+      const seat = await newSeat();
+      const args = { p_assigned_seat_id: seat, p_pickup_at: T(24), p_return_at: T(26) };
+
+      const results = await Promise.all([createAs(opsClient, args), createAs(adminClient, args)]);
+
+      expect(results.filter((r) => r.error === null)).toHaveLength(1);
+      const loser = results.find((r) => r.error !== null);
+      expect(loser?.error?.code).toBe("BK002");
+    });
+
+    it("get_available_seats lists free seats and excludes booked, quarantined and mismatched ones", async () => {
+      const seat = await newSeat();
+      await createOk({ p_assigned_seat_id: seat, p_pickup_at: T(15), p_return_at: T(17) });
+
+      const { data, error } = await opsClient.rpc("get_available_seats", {
+        p_airport_id: DXB,
+        p_seat_category_id: CATEGORY_1,
+        p_pickup_at: T(15),
+        p_return_at: T(17),
+      });
+      expect(error).toBeNull();
+      const ids = data!.map((s) => s.id);
+      expect(ids).toContain(seat3);
+      expect(ids).not.toContain(seat);
+      expect(ids).not.toContain(seatQuarantined);
+      expect(ids).not.toContain(seatCategory2);
+      expect(ids).not.toContain(seatOtherAirport);
+
+      const asPartner = await partnerAClient.rpc("get_available_seats", {
+        p_airport_id: DXB,
+        p_seat_category_id: CATEGORY_1,
+        p_pickup_at: T(15),
+        p_return_at: T(17),
+      });
+      expect(asPartner.data ?? []).toEqual([]);
+    });
+
+    // ----- Status transitions -----------------------------------------------
+
+    it("records a valid transition with from/to status, user, reason and event type", async () => {
+      const booking = await createOk();
+
+      const confirm = await opsClient.rpc("change_booking_status", {
+        p_booking_id: booking.id,
+        p_to_status: "confirmed",
+      });
+      expect(confirm.error).toBeNull();
+
+      const noShow = await opsClient.rpc("change_booking_status", {
+        p_booking_id: booking.id,
+        p_to_status: "no_show",
+        p_reason: "  Did not arrive  ",
+      });
+      expect(noShow.error).toBeNull();
+
+      const events = await eventsOf(booking.id);
+      expect(eventTypes(events)).toEqual(["created", "status_changed", "status_changed"]);
+      expect(events[2]).toMatchObject({
+        from_status: "confirmed",
+        to_status: "no_show",
+        user_id: identities.opsManager.id,
+        notes: "Did not arrive",
+      });
+    });
+
+    it("rejects invalid transitions (pending to no_show, terminal to anything) and writes no event", async () => {
+      const booking = await createOk();
+
+      const pendingNoShow = await opsClient.rpc("change_booking_status", {
+        p_booking_id: booking.id,
+        p_to_status: "no_show",
+        p_reason: "x",
+      });
+      expect(pendingNoShow.error?.code).toBe("55000");
+
+      await opsClient.rpc("change_booking_status", {
+        p_booking_id: booking.id,
+        p_to_status: "cancelled",
+        p_reason: "x",
+      });
+      const eventsBefore = (await eventsOf(booking.id)).length;
+
+      const fromTerminal = await opsClient.rpc("change_booking_status", {
+        p_booking_id: booking.id,
+        p_to_status: "confirmed",
+      });
+      expect(fromTerminal.error?.code).toBe("55000");
+
+      const workflowOwned = await opsClient.rpc("change_booking_status", {
+        p_booking_id: booking.id,
+        p_to_status: "completed",
+        p_reason: "x",
+      });
+      expect(workflowOwned.error?.code).toBe("55000");
+
+      expect(await eventsOf(booking.id)).toHaveLength(eventsBefore);
+    });
+
+    it("requires a reason to cancel or mark no-show (22023) and reports a missing booking as P0002", async () => {
+      const booking = await createOk();
+
+      const noReason = await opsClient.rpc("change_booking_status", {
+        p_booking_id: booking.id,
+        p_to_status: "cancelled",
+        p_reason: "   ",
+      });
+      expect(noReason.error?.code).toBe("22023");
+
+      const missing = await opsClient.rpc("change_booking_status", {
+        p_booking_id: "f9999999-9999-4999-8999-999999999999",
+        p_to_status: "confirmed",
+      });
+      expect(missing.error?.code).toBe("P0002");
+    });
+
+    // ----- Guard trigger ----------------------------------------------------
+
+    it("blocks direct PATCH of status, assigned_seat_id, partner_id, booking_number and daily_rate (55000)", async () => {
+      const booking = await createOk();
+      const patches = [
+        { status: "confirmed" as const },
+        { assigned_seat_id: seat3 },
+        { partner_id: PARTNER_B_ID },
+        { booking_number: `BK-X-${uniq()}` },
+        { daily_rate: 1 },
+        { pickup_at: T(2) },
+      ];
+
+      for (const patch of patches) {
+        const { error } = await opsClient.from("bookings").update(patch).eq("id", booking.id);
+        expect(error?.code).toBe("55000");
+      }
+
+      const { data } = await service.from("bookings").select("status, partner_id, daily_rate").eq("id", booking.id).single();
+      expect(data).toMatchObject({ status: "pending", partner_id: PARTNER_A_ID, daily_rate: 75 });
+    });
+
+    it("still allows direct update of unguarded columns (notes) and records an updated event", async () => {
+      const booking = await createOk();
+
+      const { error } = await opsClient.from("bookings").update({ notes: "direct note" }).eq("id", booking.id);
+      expect(error).toBeNull();
+
+      const events = await eventsOf(booking.id);
+      expect(eventTypes(events)).toEqual(["created", "updated"]);
+    });
+
+    // ----- update_booking ---------------------------------------------------
+
+    it("update_booking changes the seat, records seat_changed and rejects a stale expected_updated_at (BK004)", async () => {
+      const seat = await newSeat();
+      const booking = await createOk({ p_pickup_at: T(18), p_return_at: T(19) });
+
+      const updated = await opsClient.rpc("update_booking", {
+        p_booking_id: booking.id,
+        p_expected_updated_at: booking.updated_at,
+        p_pickup_at: booking.pickup_at,
+        p_return_at: booking.return_at,
+        p_assigned_seat_id: seat,
+      });
+      expect(updated.error).toBeNull();
+      expect(updated.data!.assigned_seat_id).toBe(seat);
+      expect(eventTypes(await eventsOf(booking.id))).toEqual(["created", "seat_changed"]);
+
+      const stale = await opsClient.rpc("update_booking", {
+        p_booking_id: booking.id,
+        p_expected_updated_at: booking.updated_at,
+        p_pickup_at: booking.pickup_at,
+        p_return_at: booking.return_at,
+        p_notes: "late edit",
+      });
+      expect(stale.error?.code).toBe("BK004");
+    });
+
+    it("update_booking rejects a terminal booking (55000) and a conflicting new period (BK002)", async () => {
+      const seat = await newSeat();
+      await createOk({ p_assigned_seat_id: seat, p_pickup_at: T(27), p_return_at: T(28) });
+      const mine = await createOk({ p_assigned_seat_id: seat, p_pickup_at: T(28), p_return_at: T(29) });
+
+      const conflict = await opsClient.rpc("update_booking", {
+        p_booking_id: mine.id,
+        p_expected_updated_at: mine.updated_at,
+        p_pickup_at: T(27, 12),
+        p_return_at: T(29),
+        p_assigned_seat_id: seat,
+      });
+      expect(conflict.error?.code).toBe("BK002");
+
+      const cancelled = await opsClient.rpc("change_booking_status", {
+        p_booking_id: mine.id,
+        p_to_status: "cancelled",
+        p_reason: "x",
+      });
+      const { data: fresh } = await service.from("bookings").select("updated_at").eq("id", mine.id).single();
+      expect(cancelled.error).toBeNull();
+
+      const terminal = await opsClient.rpc("update_booking", {
+        p_booking_id: mine.id,
+        p_expected_updated_at: fresh!.updated_at,
+        p_pickup_at: mine.pickup_at,
+        p_return_at: mine.return_at,
+      });
+      expect(terminal.error?.code).toBe("55000");
+    });
+
+    it("writes the events of one update_booking in a stable order: seat_changed, then updated (oldest first)", async () => {
+      const seat = await newSeat();
+      const booking = await createOk({ p_pickup_at: T(30), p_return_at: T(31) });
+
+      const { error } = await opsClient.rpc("update_booking", {
+        p_booking_id: booking.id,
+        p_expected_updated_at: booking.updated_at,
+        p_pickup_at: booking.pickup_at,
+        p_return_at: booking.return_at,
+        p_assigned_seat_id: seat,
+        p_notes: "order check",
+      });
+      expect(error).toBeNull();
+
+      const events = await eventsOf(booking.id);
+      expect(eventTypes(events)).toEqual(["created", "seat_changed", "updated"]);
+
+      // Compare the raw strings: they keep microseconds, Date would round to ms.
+      const times = events.map((e) => e.created_at);
+      expect(new Set(times).size).toBe(times.length);
+      expect([...times].sort()).toEqual(times);
+    });
+
+    // ----- Drift: booking-status.ts must match the SQL behaviour ------------
+
+    // Only these statuses are reachable by a client; assigned, in_progress and
+    // completed belong to later workflows and cannot be produced here.
+    const REACHABLE = ["pending", "confirmed", "cancelled", "no_show"] as const;
+
+    async function bookingIn(
+      status: (typeof REACHABLE)[number],
+      o: CreateOverrides = {},
+    ) {
+      const booking = await createOk(o);
+      const steps: [string, string][] =
+        status === "pending"
+          ? []
+          : status === "confirmed"
+            ? [["confirmed", ""]]
+            : status === "cancelled"
+              ? [["cancelled", "drift"]]
+              : [["confirmed", ""], ["no_show", "drift"]];
+
+      for (const [to, reason] of steps) {
+        const { error } = await opsClient.rpc("change_booking_status", {
+          p_booking_id: booking.id,
+          p_to_status: to as Database["public"]["Enums"]["booking_status"],
+          p_reason: reason,
+        });
+        if (error) throw error;
+      }
+      return booking;
+    }
+
+    it("matches the TypeScript transition table and reason rule for every status pair", async () => {
+      for (const from of REACHABLE) {
+        for (const to of BOOKING_STATUSES) {
+          const booking = await bookingIn(from);
+          const withReason = await opsClient.rpc("change_booking_status", {
+            p_booking_id: booking.id,
+            p_to_status: to,
+            p_reason: "drift probe",
+          });
+          const allowed = (getAllowedManualTransitions(from) as string[]).includes(to);
+
+          expect(withReason.error === null, `${from} -> ${to}`).toBe(allowed);
+
+          if (allowed) {
+            const again = await bookingIn(from);
+            const noReason = await opsClient.rpc("change_booking_status", {
+              p_booking_id: again.id,
+              p_to_status: to,
+            });
+            expect(noReason.error === null, `${from} -> ${to} without reason`).toBe(
+              !isReasonRequired(to),
+            );
+          }
+        }
+      }
+    }, 120_000);
+
+    it("matches the TypeScript editable and active-status rules", async () => {
+      for (const status of REACHABLE) {
+        const seat = await newSeat();
+        const booking = await bookingIn(status, {
+          p_assigned_seat_id: seat,
+          p_pickup_at: T(10),
+          p_return_at: T(12),
+        });
+
+        const { data: fresh } = await service
+          .from("bookings")
+          .select("updated_at")
+          .eq("id", booking.id)
+          .single();
+        const update = await opsClient.rpc("update_booking", {
+          p_booking_id: booking.id,
+          p_expected_updated_at: fresh!.updated_at,
+          p_pickup_at: booking.pickup_at,
+          p_return_at: booking.return_at,
+          p_assigned_seat_id: seat,
+        });
+        expect(update.error === null, `editable: ${status}`).toBe(
+          isBookingEditable(status),
+        );
+
+        const overlap = await createAs(opsClient, {
+          p_assigned_seat_id: seat,
+          p_pickup_at: T(11),
+          p_return_at: T(13),
+        });
+        const holdsSeat = (ACTIVE_BOOKING_STATUSES as readonly string[]).includes(status);
+        expect(overlap.error?.code === "BK002", `active: ${status}`).toBe(holdsSeat);
+      }
+    }, 120_000);
+
+    // ----- booking_events is server-written and append-only -----------------
+
+    it("denies direct INSERT into booking_events for every client role", async () => {
+      const booking = await createOk();
+      const row = { booking_id: booking.id, to_status: "confirmed" as const };
+
+      for (const client of [adminClient, opsClient, technicianClient, partnerAClient]) {
+        const { error } = await client.from("booking_events").insert(row);
+        expect(error).not.toBeNull();
+      }
+      expect(await eventsOf(booking.id)).toHaveLength(1);
+    });
+
+    it("denies UPDATE and DELETE on booking_events, even for the service role", async () => {
+      const booking = await createOk();
+
+      const update = await service
+        .from("booking_events")
+        .update({ notes: "tampered" })
+        .eq("booking_id", booking.id)
+        .select();
+      expect(update.error?.code).toBe("55000");
+
+      const del = await service.from("booking_events").delete().eq("booking_id", booking.id);
+      expect(del.error?.code).toBe("55000");
+
+      const userUpdate = await opsClient
+        .from("booking_events")
+        .update({ notes: "tampered" })
+        .eq("booking_id", booking.id)
+        .select();
+      expect(userUpdate.data ?? []).toEqual([]);
+    });
+
+    it("lets a referenced seat be deleted (FK SET NULL is not blocked by the guards)", async () => {
+      const seat = await newSeat();
+      const booking = await createOk({ p_assigned_seat_id: seat, p_pickup_at: T(5), p_return_at: T(6) });
+
+      await service.from("seat_status_history").delete().eq("seat_id", seat);
+      const { error } = await service.from("seats").delete().eq("id", seat);
+      expect(error).toBeNull();
+
+      const { data } = await service.from("bookings").select("assigned_seat_id").eq("id", booking.id).single();
+      expect(data?.assigned_seat_id).toBeNull();
+    });
+
+    // ----- List filtering at the database level (QA) ------------------------
+
+    it("filters the booking list by status, partner, airport, booking number and pickup range in the database", async () => {
+      const a = await createOk({ p_partner_id: PARTNER_A_ID, p_pickup_at: T(20), p_return_at: T(21) });
+      const b = await createOk({ p_partner_id: PARTNER_B_ID, p_pickup_at: T(25), p_return_at: T(26) });
+      const { error: cancelError } = await opsClient.rpc("change_booking_status", {
+        p_booking_id: b.id,
+        p_to_status: "cancelled",
+        p_reason: "filter test",
+      });
+      expect(cancelError).toBeNull();
+
+      const ids = async (
+        q: PromiseLike<{ data: { id: string }[] | null; error: unknown }>,
+      ) => {
+        const { data, error } = await q;
+        expect(error).toBeNull();
+        return (data ?? []).map((r) => r.id);
+      };
+
+      const byStatus = await ids(
+        opsClient.from("bookings").select("id").eq("status", "cancelled").in("id", [a.id, b.id]),
+      );
+      expect(byStatus).toEqual([b.id]);
+
+      const byPartner = await ids(
+        opsClient.from("bookings").select("id").eq("partner_id", PARTNER_A_ID).in("id", [a.id, b.id]),
+      );
+      expect(byPartner).toEqual([a.id]);
+
+      const byAirport = await ids(
+        opsClient.from("bookings").select("id").eq("airport_id", otherAirportId).in("id", [a.id, b.id]),
+      );
+      expect(byAirport).toEqual([]);
+
+      const byNumber = await ids(
+        opsClient.from("bookings").select("id").ilike("booking_number", a.booking_number),
+      );
+      expect(byNumber).toEqual([a.id]);
+
+      const byRange = await ids(
+        opsClient
+          .from("bookings")
+          .select("id")
+          .gte("pickup_at", T(24, 0))
+          .lte("pickup_at", T(26, 0))
+          .in("id", [a.id, b.id]),
+      );
+      expect(byRange).toEqual([b.id]);
+    });
+
+    it("returns zero rows when a partner_user filters by another partner's id (filter cannot widen RLS)", async () => {
+      const b = await createOk({ p_partner_id: PARTNER_B_ID, p_pickup_at: T(27), p_return_at: T(28) });
+      const { data, error } = await partnerAClient
+        .from("bookings")
+        .select("id")
+        .eq("partner_id", PARTNER_B_ID)
+        .eq("id", b.id);
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+    });
+
+    // ----- Seat/booking consistency (QA) --------------------------------------
+
+    it("keeps the assigned seat on a booking when the seat is later quarantined, and rejects new bookings on it (BK001)", async () => {
+      const seat = await newSeat();
+      const booking = await createOk({
+        p_assigned_seat_id: seat,
+        p_pickup_at: T(14),
+        p_return_at: T(15),
+      });
+
+      const { error } = await opsClient.rpc("change_seat_status", {
+        p_seat_id: seat,
+        p_to_status: "quarantine",
+        p_reason: "consistency test",
+      });
+      expect(error).toBeNull();
+
+      const { data: still } = await opsClient
+        .from("bookings")
+        .select("assigned_seat_id, status")
+        .eq("id", booking.id)
+        .single();
+      expect(still).toMatchObject({ assigned_seat_id: seat, status: "pending" });
+
+      const blocked = await createAs(opsClient, {
+        p_assigned_seat_id: seat,
+        p_pickup_at: T(16),
+        p_return_at: T(17),
+      });
+      expect(blocked.error?.code).toBe("BK001");
+    });
+
+    // ----- Regression -------------------------------------------------------
+
+    it("keeps seeded bookings readable and their notes editable, and F09 change_seat_status working", async () => {
+      const { count } = await adminClient.from("bookings").select("id", { count: "exact", head: true });
+      expect(count).toBeGreaterThanOrEqual(20);
+
+      const { data: seeded } = await adminClient
+        .from("bookings")
+        .select("booking_number")
+        .eq("id", BOOKING_A_ID)
+        .single();
+      expect(seeded?.booking_number).toBe("BK-00002");
+
+      const { error } = await opsClient.from("bookings").update({ notes: `seed note ${uniq()}` }).eq("id", BOOKING_A_ID);
+      expect(error).toBeNull();
+
+      const seat = await newSeat();
+      const { error: seatError } = await opsClient.rpc("change_seat_status", {
+        p_seat_id: seat,
+        p_to_status: "quarantine",
+        p_reason: "regression",
+      });
+      expect(seatError).toBeNull();
     });
   });
 });
