@@ -1116,6 +1116,39 @@ export type Database = {
     }
     Functions: {
       booking_partner_id: { Args: { p_booking_id: string }; Returns: string }
+      change_seat_status: {
+        Args: {
+          p_reason: string
+          p_seat_id: string
+          p_to_status: Database["public"]["Enums"]["seat_status"]
+        }
+        Returns: {
+          airport_id: string
+          category_id: string
+          created_at: string
+          id: string
+          last_cleaned_at: string | null
+          last_inspected_at: string | null
+          manufacture_date: string
+          manufacturer: string
+          max_rental_cycles: number
+          model: string
+          public_token: string
+          purchase_date: string
+          quarantine_reason: string | null
+          rental_cycles: number
+          retired_at: string | null
+          serial_number: string
+          status: Database["public"]["Enums"]["seat_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "seats"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       current_user_partner_id: { Args: never; Returns: string }
       current_user_role: {
         Args: never
