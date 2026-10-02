@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { hasPermission, ROLE_PERMISSIONS } from "@/lib/auth/permissions";
+import {
+  hasAnyPermission,
+  hasPermission,
+  ROLE_PERMISSIONS,
+} from "@/lib/auth/permissions";
 import type { Permission } from "@/lib/auth/permissions";
 
 const ALL_PERMISSIONS: Permission[] = [
@@ -106,5 +110,33 @@ describe("hasPermission", () => {
     it("should return false for a technician-only permission", () => {
       expect(hasPermission("partner_user", "jobs:view_assigned")).toBe(false);
     });
+  });
+});
+
+describe("hasAnyPermission", () => {
+  it("should be true when the role holds at least one listed permission", () => {
+    expect(
+      hasAnyPermission("partner_user", [
+        "bookings:manage",
+        "bookings:view_own_partner",
+      ]),
+    ).toBe(true);
+  });
+
+  it("should be false when the role holds none of them", () => {
+    expect(
+      hasAnyPermission("technician", [
+        "bookings:manage",
+        "bookings:view_own_partner",
+      ]),
+    ).toBe(false);
+  });
+
+  it("should be false for an empty list, even for non-admin roles", () => {
+    expect(hasAnyPermission("operations_manager", [])).toBe(false);
+  });
+
+  it("should let admin through any non-empty list", () => {
+    expect(hasAnyPermission("admin", ["finance:view"])).toBe(true);
   });
 });

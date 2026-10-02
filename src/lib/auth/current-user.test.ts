@@ -27,6 +27,7 @@ vi.mock("next/navigation", () => ({
 
 import {
   getCurrentUser,
+  requireAnyPermission,
   requireAuth,
   requirePermission,
   requireRole,
@@ -256,6 +257,68 @@ describe("requirePermission", () => {
     });
 
     const user = await requirePermission("finance:view");
+
+    expect(user.role).toBe("admin");
+  });
+});
+
+describe("requireAnyPermission", () => {
+  beforeEach(resetMocks);
+
+  const BOOKING_PERMISSIONS = [
+    "bookings:manage",
+    "bookings:view_own_partner",
+  ] as const;
+
+  it("should redirect to /login when there is no session", async () => {
+    getAuthUserMock.mockResolvedValue(null);
+
+    await expect(requireAnyPermission(BOOKING_PERMISSIONS)).rejects.toThrow(
+      "REDIRECT:/login",
+    );
+  });
+
+  it("should return the user when their role holds only one of the listed permissions", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({
+      data: { ...ACTIVE_ROW, role: "partner_user" },
+      error: null,
+    });
+
+    const user = await requireAnyPermission(BOOKING_PERMISSIONS);
+
+    expect(user.role).toBe("partner_user");
+  });
+
+  it("should redirect to /forbidden when the role holds none of the listed permissions", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: ACTIVE_ROW, error: null });
+
+    await expect(requireAnyPermission(BOOKING_PERMISSIONS)).rejects.toThrow(
+      "REDIRECT:/forbidden",
+    );
+  });
+
+  it("should redirect to /forbidden when the permission list is empty", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({
+      data: { ...ACTIVE_ROW, role: "admin" },
+      error: null,
+    });
+
+    await expect(requireAnyPermission([])).rejects.toThrow(
+      "REDIRECT:/forbidden",
+    );
+  });
+
+  it("should let admin through without an explicit grant", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({
+      data: { ...ACTIVE_ROW, role: "admin" },
+      error: null,
+    });
+
+    const user = await requireAnyPermission(BOOKING_PERMISSIONS);
 
     expect(user.role).toBe("admin");
   });

@@ -220,8 +220,7 @@ export type Database = {
           gross_revenue?: number | null
           id?: string
           incident_status?:
-            | Database["public"]["Enums"]["incident_status"]
-            | null
+            Database["public"]["Enums"]["incident_status"] | null
           notes?: string | null
           paid_days?: number
           partner_id: string
@@ -252,8 +251,7 @@ export type Database = {
           gross_revenue?: number | null
           id?: string
           incident_status?:
-            | Database["public"]["Enums"]["incident_status"]
-            | null
+            Database["public"]["Enums"]["incident_status"] | null
           notes?: string | null
           paid_days?: number
           partner_id?: string
@@ -1115,7 +1113,62 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assert_booking_seat_assignable: {
+        Args: {
+          p_airport_id: string
+          p_check_status: boolean
+          p_exclude_booking_id: string
+          p_pickup_at: string
+          p_return_at: string
+          p_seat_category_id: string
+          p_seat_id: string
+        }
+        Returns: undefined
+      }
       booking_partner_id: { Args: { p_booking_id: string }; Returns: string }
+      change_booking_status: {
+        Args: {
+          p_booking_id: string
+          p_reason?: string
+          p_to_status: Database["public"]["Enums"]["booking_status"]
+        }
+        Returns: {
+          actual_arrival_at: string | null
+          airport_id: string
+          assigned_seat_id: string | null
+          assigned_technician_id: string | null
+          booking_number: string
+          child_age_band: string | null
+          child_height: number | null
+          created_at: string
+          daily_rate: number
+          estimated_arrival_at: string | null
+          external_booking_number: string | null
+          flight_id: string | null
+          gross_revenue: number | null
+          id: string
+          incident_status: Database["public"]["Enums"]["incident_status"] | null
+          notes: string | null
+          paid_days: number
+          partner_id: string
+          partner_share: number | null
+          pickup_at: string
+          platform_share: number | null
+          return_at: string
+          scheduled_arrival_at: string | null
+          seat_category_id: string
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
+          vehicle: string | null
+          vehicle_bay: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       change_seat_status: {
         Args: {
           p_reason: string
@@ -1149,13 +1202,140 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      current_user_partner_id: { Args: never; Returns: string }
+      create_booking: {
+        Args: {
+          p_airport_id: string
+          p_assigned_seat_id?: string
+          p_child_age_band?: string
+          p_child_height?: number
+          p_daily_rate: number
+          p_external_booking_number?: string
+          p_notes?: string
+          p_partner_id: string
+          p_pickup_at: string
+          p_return_at: string
+          p_seat_category_id: string
+          p_vehicle?: string
+          p_vehicle_bay?: string
+        }
+        Returns: {
+          actual_arrival_at: string | null
+          airport_id: string
+          assigned_seat_id: string | null
+          assigned_technician_id: string | null
+          booking_number: string
+          child_age_band: string | null
+          child_height: number | null
+          created_at: string
+          daily_rate: number
+          estimated_arrival_at: string | null
+          external_booking_number: string | null
+          flight_id: string | null
+          gross_revenue: number | null
+          id: string
+          incident_status: Database["public"]["Enums"]["incident_status"] | null
+          notes: string | null
+          paid_days: number
+          partner_id: string
+          partner_share: number | null
+          pickup_at: string
+          platform_share: number | null
+          return_at: string
+          scheduled_arrival_at: string | null
+          seat_category_id: string
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
+          vehicle: string | null
+          vehicle_bay: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      current_user_partner_id: {
+        Args: never
+        Returns: string
+      }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
-      is_admin_or_ops_manager: { Args: never; Returns: boolean }
+      generate_booking_number: {
+        Args: never
+        Returns: string
+      }
+      get_available_seats: {
+        Args: {
+          p_airport_id: string
+          p_exclude_booking_id?: string
+          p_pickup_at: string
+          p_return_at: string
+          p_seat_category_id: string
+        }
+        Returns: {
+          id: string
+          serial_number: string
+        }[]
+      }
+      is_admin_or_ops_manager: {
+        Args: never
+        Returns: boolean
+      }
       is_internal_user: { Args: never; Returns: boolean }
+      update_booking: {
+        Args: {
+          p_assigned_seat_id?: string
+          p_booking_id: string
+          p_child_age_band?: string
+          p_child_height?: number
+          p_expected_updated_at: string
+          p_external_booking_number?: string
+          p_notes?: string
+          p_pickup_at: string
+          p_return_at: string
+          p_vehicle?: string
+          p_vehicle_bay?: string
+        }
+        Returns: {
+          actual_arrival_at: string | null
+          airport_id: string
+          assigned_seat_id: string | null
+          assigned_technician_id: string | null
+          booking_number: string
+          child_age_band: string | null
+          child_height: number | null
+          created_at: string
+          daily_rate: number
+          estimated_arrival_at: string | null
+          external_booking_number: string | null
+          flight_id: string | null
+          gross_revenue: number | null
+          id: string
+          incident_status: Database["public"]["Enums"]["incident_status"] | null
+          notes: string | null
+          paid_days: number
+          partner_id: string
+          partner_share: number | null
+          pickup_at: string
+          platform_share: number | null
+          return_at: string
+          scheduled_arrival_at: string | null
+          seat_category_id: string
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
+          vehicle: string | null
+          vehicle_bay: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       booking_status:
@@ -1167,11 +1347,7 @@ export type Database = {
         | "cancelled"
         | "no_show"
       flight_status:
-        | "scheduled"
-        | "delayed"
-        | "landed"
-        | "cancelled"
-        | "diverted"
+        "scheduled" | "delayed" | "landed" | "cancelled" | "diverted"
       incident_severity: "low" | "medium" | "high" | "critical"
       incident_status: "open" | "investigating" | "resolved" | "closed"
       inspection_result: "pass" | "conditional_pass" | "fail"
@@ -1187,10 +1363,7 @@ export type Database = {
         | "retired"
       settlement_status: "draft" | "pending_approval" | "approved" | "paid"
       technician_job_status:
-        | "assigned"
-        | "in_progress"
-        | "completed"
-        | "cancelled"
+        "assigned" | "in_progress" | "completed" | "cancelled"
       user_role: "admin" | "operations_manager" | "technician" | "partner_user"
     }
     CompositeTypes: {
@@ -1207,12 +1380,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1234,13 +1407,12 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1259,13 +1431,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1284,13 +1455,12 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1303,11 +1473,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1363,4 +1533,3 @@ export const Constants = {
     },
   },
 } as const
-

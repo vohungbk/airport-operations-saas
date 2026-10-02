@@ -301,6 +301,32 @@ Server Action). Routes: `/seats`, `/seats/new`, `/seats/[id]`,
 - Id schemas use `z.guid()` because seeded dev ids are not RFC UUID
   variants.
 
+### `src/features/bookings` (F11)
+
+Mirrors `src/features/seats` (F09). Routes under
+`src/app/(dashboard)/bookings/**`: `/bookings`, `/bookings/new`,
+`/bookings/[id]`, `/bookings/[id]/edit`. Guards: `requireAnyPermission`
+(list/detail, so `partner_user` can view) and `requirePermission("bookings:manage")`
+(new, edit, all actions).
+
+- `types.ts`, `schemas/booking.schema.ts` (create, update,
+  change-status, available-seats), `schemas/bookings-query.schema.ts`.
+  Numeric and optional fields stay strings in the schema so the form
+  values equal the schema output; `lib/booking-rpc-args.ts` converts them.
+- `lib/booking-time.ts` (pure, `Intl` only): wall-clock time at the
+  airport <-> UTC. `lib/booking-status.ts` (labels, active statuses, manual
+  transitions kept in sync with `change_booking_status()`),
+  `lib/booking-errors.ts`.
+- `lib/get-bookings.ts` (one nested select for partner, airport, seat,
+  category; `PGRST103` handled), `get-booking-by-id.ts`,
+  `get-booking-events.ts` (read-only; seat serials resolved with one `in`
+  query), `get-booking-form-options.ts`.
+- `actions/create-booking`, `update-booking`, `change-booking-status`
+  (always via RPC, never a direct write) and `get-available-seats`
+  (read-only seat picker data).
+- Date filters use the selected airport's timezone (UTC when no airport is
+  selected).
+
 ## Supabase Architecture
 
 Three integration points, matching the current Supabase SSR guidance for

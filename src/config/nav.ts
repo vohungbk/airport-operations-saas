@@ -1,6 +1,7 @@
 import {
   Armchair,
   Boxes,
+  CalendarCheck,
   Building2,
   ClipboardList,
   LayoutDashboard,
@@ -9,13 +10,18 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { hasPermission, type Permission } from "@/lib/auth/permissions";
+import {
+  BOOKINGS_ACCESS_PERMISSIONS,
+  hasAnyPermission,
+  type Permission,
+} from "@/lib/auth/permissions";
 import type { Role } from "@/lib/auth/roles";
 
 export interface NavItem {
   label: string;
   href: string;
-  permission: Permission;
+  /** A single permission, or a list where holding any one is enough. */
+  permission: Permission | readonly Permission[];
   icon: LucideIcon;
 }
 
@@ -57,6 +63,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Boxes,
   },
   {
+    label: "Bookings",
+    href: "/bookings",
+    permission: BOOKINGS_ACCESS_PERMISSIONS,
+    icon: CalendarCheck,
+  },
+  {
     label: "Technician Jobs",
     href: "/technician",
     permission: "jobs:view_assigned",
@@ -75,6 +87,14 @@ export const NAV_ITEMS: NavItem[] = [
  * Server Components compute this and pass the filtered list down; client
  * components never re-derive it.
  */
+export function getNavItemPermissions(item: NavItem): readonly Permission[] {
+  return typeof item.permission === "string"
+    ? [item.permission]
+    : item.permission;
+}
+
 export function getVisibleNavItems(role: Role): NavItem[] {
-  return NAV_ITEMS.filter((item) => hasPermission(role, item.permission));
+  return NAV_ITEMS.filter((item) =>
+    hasAnyPermission(role, getNavItemPermissions(item)),
+  );
 }
