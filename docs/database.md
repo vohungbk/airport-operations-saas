@@ -162,6 +162,19 @@ Index: `seat_id`. This table's column list was not specified in the
 original ticket's required-fields section — it is a proposed schema
 (see plan.md open question 2).
 
+**F09 additions** (`20260930090000_seat_status_history_trigger_and_change_seat_status.sql`):
+`seats` has an `AFTER INSERT` trigger and an `AFTER UPDATE OF status`
+trigger (`record_seats_status_insert`/`record_seats_status_update`)
+calling `public.record_seat_status_change()`, which appends the history
+row (initial row has `from_status` null). Manual status changes go
+through `public.change_seat_status(uuid, seat_status, text)`; see
+`docs/security.md` (F09) for the allowed transitions and error codes.
+A `BEFORE UPDATE` trigger (`guard_seats_update`, function
+`public.guard_seat_update()`) makes `serial_number` and `public_token`
+immutable, makes `retired` terminal, and rejects status, `retired_at` and
+`quarantine_reason` changes made outside `change_seat_status()` (SQLSTATE
+`55000`). Rollback SQL is in a comment at the bottom of the migration file.
+
 ### `flights` (mutable, shared reference data)
 | column | type | notes |
 |---|---|---|

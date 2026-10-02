@@ -274,6 +274,33 @@ layout/pages, and again at the top of every Server Action):
   status badge; renders the real related-counts cards from
   `getAirportRelatedCounts`.
 
+### `src/features/seats` (F09)
+
+Mirrors `src/features/seat-categories` (F08). Gated end-to-end by
+`requirePermission("seats:manage")` (route layout, every page, every
+Server Action). Routes: `/seats`, `/seats/new`, `/seats/[id]`,
+`/seats/[id]/edit` under `src/app/(admin)/seats/**`.
+
+- `types.ts`, `schemas/seat.schema.ts` (create, `buildUpdateSeatSchema`,
+  change-status), `schemas/seats-query.schema.ts` (`q`, `airport_id`,
+  `category_id`, `status`, sort allowlist, pagination).
+- `lib/build-seats-query-filters.ts` (pure; reuses
+  `seat-categories/lib/escape-ilike`), `lib/get-seats.ts` (one nested
+  select for category + airport, no N+1; `PGRST103` handled like F08),
+  `lib/get-seat-by-id.ts`, `lib/get-seat-status-history.ts` (read-only),
+  `lib/get-seat-form-options.ts`, `lib/seat-status.ts` (labels and the
+  manual transition table, kept in sync with `change_seat_status()`),
+  `lib/seat-errors.ts`.
+- `actions/create-seat.action.ts`, `update-seat.action.ts`,
+  `change-seat-status.action.ts` (calls the `change_seat_status` RPC; never
+  a direct status update). No delete action.
+- UI: Server Components for table/pagination/detail/history; client
+  components only for filters, forms, and the change-status dialog. Only
+  serializable props cross the boundary (status strings, option arrays).
+  The status badge always shows an icon plus a text label.
+- Id schemas use `z.guid()` because seeded dev ids are not RFC UUID
+  variants.
+
 ## Supabase Architecture
 
 Three integration points, matching the current Supabase SSR guidance for

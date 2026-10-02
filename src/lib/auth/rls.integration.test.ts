@@ -1595,4 +1595,972 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       }
     });
   });
+
+  // ===========================================================================
+  // F09: seats + seat_status_history, guard trigger and change_seat_status()
+  // ===========================================================================
+  describe("seats table (F09)", () => {
+    const SEEDED_CATEGORY_ID = "c0000000-0000-0000-0000-000000000001";
+    const SECOND_CATEGORY_ID = "c0000000-0000-0000-0000-000000000002";
+    const SEEDED_AIRPORT_ID = "a0000000-0000-0000-0000-000000000001";
+    const MISSING_ID = "e9999999-9999-4999-8999-999999999999";
+
+    type SeatInsert = Database["public"]["Tables"]["seats"]["Insert"];
+
+    let secondAirportId: string;
+    const createdSeatIds: string[] = [];
+
+    const uniq = () =>
+      `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const newSeat = (
+      label: string,
+      overrides: Partial<SeatInsert> = {},
+    ): SeatInsert => ({
+      serial_number: `RLS-F09-${label}-${uniq()}`,
+      manufacturer: "Britax",
+      model: "RLS Test Model",
+      category_id: SEEDED_CATEGORY_ID,
+      airport_id: SEEDED_AIRPORT_ID,
+      manufacture_date: "2025-01-15",
+      purchase_date: "2025-02-01",
+      max_rental_cycles: 100,
+      ...overrides,
+    });
+
+    /** Inserts through a real user session so the INSERT trigger sees auth.uid(). */
+    async function createSeatAs(
+      client: SupabaseClient<Database>,
+      label: string,
+      overrides: Partial<SeatInsert> = {},
+    ): Promise<string> {
+      const { data, error } = await client
+        .from("seats")
+        .insert(newSeat(label, overrides))
+        .select("id")
+        .single();
+      if (error) throw error;
+      createdSeatIds.push(data.id);
+      return data.id;
+    }
+
+    async function historyOf(seatId: string) {
+      const { data, error } = await service
+        .from("seat_status_history")
+        .select("from_status, to_status, changed_by, reason")
+        .eq("seat_id", seatId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    }
+
+    beforeAll(async () => {
+      const code = `T${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      const { data, error } = await service
+        .from("airports")
+        .insert({
+          code,
+          name: "F09 RLS Test Airport",
+          city: "Sharjah",
+          country: "United Arab Emirates",
+          timezone: "Asia/Dubai",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      secondAirportId = data.id;
+    });
+
+    afterAll(async () => {
+      if (createdSeatIds.length > 0) {
+        // History is append-only for users; the service role cleans up fixtures.
+        await service
+          .from("seat_status_history")
+          .delete()
+          .in("seat_id", createdSeatIds);
+        await service.from("seats").delete().in("id", createdSeatIds);
+      }
+      if (secondAirportId) {
+        await service.from("airports").delete().eq("id", secondAirportId);
+      }
+    });
+
+    // ----- View -------------------------------------------------------------
+
+    it("admin can view seats, including seats nobody has booked", async () => {
+      const { data, error } = await adminClient
+        .from("seats")
+        .select("id, serial_number")
+        .in("id", [SEAT_A_ID, SEAT_B_ID]);
+      expect(error).toBeNull();
+      expect(data?.map((s) => s.id).sort()).toEqual([SEAT_A_ID, SEAT_B_ID].sort());
+
+      const { count } = await adminClient
+        .from("seats")
+        .select("id", { count: "exact", head: true });
+      expect(count).toBeGreaterThanOrEqual(40);
+    });
+
+    it("operations_manager can view seats", async () => {
+      const { data, error } = await opsClient
+        .from("seats")
+        .select("id")
+        .in("id", [SEAT_A_ID, SEAT_B_ID]);
+      expect(error).toBeNull();
+      expect(data?.map((s) => s.id).sort()).toEqual([SEAT_A_ID, SEAT_B_ID].sort());
+    });
+
+    it("seat detail query returns the seat with category and airport names", async () => {
+      const { data, error } = await adminClient
+        .from("seats")
+        .select(
+          "id, serial_number, category:seat_categories(id, name), airport:airports(id, code, name)",
+        )
+        .eq("id", SEAT_A_ID)
+        .maybeSingle();
+      expect(error).toBeNull();
+      expect(data?.id).toBe(SEAT_A_ID);
+      expect(data?.airport).toMatchObject({ code: "DXB" });
+      expect(data?.category?.name).toEqual(expect.any(String));
+    });
+
+    it("seat detail query returns null for a missing seat id", async () => {
+      const { data, error } = await adminClient
+        .from("seats")
+        .select("id")
+        .eq("id", MISSING_ID)
+        .maybeSingle();
+      expect(error).toBeNull();
+      expect(data).toBeNull();
+    });
+
+    it("seat detail query returns null for a seat RLS hides from the caller", async () => {
+      const { data, error } = await partnerAClient
+        .from("seats")
+        .select("id")
+        .eq("id", SEAT_B_ID)
+        .maybeSingle();
+      expect(error).toBeNull();
+      expect(data).toBeNull();
+    });
+
+    // ----- Partner / technician visibility -----------------------------------
+
+    it("partner_user can see a seat assigned to their own partner's booking", async () => {
+      const { data } = await partnerAClient
+        .from("seats")
+        .select("id")
+        .eq("id", SEAT_A_ID);
+      expect(data).toEqual([{ id: SEAT_A_ID }]);
+    });
+
+    it("partner_user cannot see another partner's seat", async () => {
+      const { data, error } = await partnerAClient
+        .from("seats")
+        .select("id")
+        .eq("id", SEAT_B_ID);
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: reverse } = await partnerBClient
+        .from("seats")
+        .select("id")
+        .eq("id", SEAT_A_ID);
+      expect(reverse).toEqual([]);
+    });
+
+    it("partner_user sees only seats assigned to their own partner's bookings, never unrelated inventory", async () => {
+      const { data: ownBookings } = await service
+        .from("bookings")
+        .select("assigned_seat_id")
+        .eq("partner_id", PARTNER_A_ID)
+        .not("assigned_seat_id", "is", null);
+      const allowed = new Set(ownBookings?.map((b) => b.assigned_seat_id));
+
+      const { data, error } = await partnerAClient.from("seats").select("id");
+      expect(error).toBeNull();
+      expect(data!.length).toBeGreaterThan(0);
+      expect(data!.length).toBeLessThan(40);
+      for (const seat of data!) {
+        expect(allowed.has(seat.id)).toBe(true);
+      }
+    });
+
+    it("partner_user with no partner_id sees no seats", async () => {
+      const { data, error } = await partnerNullClient.from("seats").select("id");
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+    });
+
+    it("technician sees no seat outside their own job's booking", async () => {
+      const { data, error } = await technicianClient.from("seats").select("id");
+      expect(error).toBeNull();
+      expect(data!.map((s) => s.id)).not.toContain(SEAT_B_ID);
+      for (const seat of data!) {
+        expect(seat.id).toBe(SEAT_A_ID);
+      }
+    });
+
+    it("anonymous client sees no seats", async () => {
+      const { data } = await anonClient.from("seats").select("id");
+      expect(data ?? []).toEqual([]);
+    });
+
+    // ----- Create -------------------------------------------------------------
+
+    it("admin can create a seat with DB defaults for status, rental_cycles and public_token", async () => {
+      const id = await createSeatAs(adminClient, "Admin");
+      const { data } = await service
+        .from("seats")
+        .select("status, rental_cycles, public_token, retired_at, quarantine_reason")
+        .eq("id", id)
+        .single();
+      expect(data?.status).toBe("available");
+      expect(data?.rental_cycles).toBe(0);
+      expect(data?.public_token.length).toBeGreaterThan(0);
+      expect(data?.retired_at).toBeNull();
+      expect(data?.quarantine_reason).toBeNull();
+    });
+
+    it("operations_manager can create a seat", async () => {
+      const id = await createSeatAs(opsClient, "Ops");
+      const { data } = await opsClient
+        .from("seats")
+        .select("id")
+        .eq("id", id)
+        .single();
+      expect(data?.id).toBe(id);
+    });
+
+    it("technician is rejected on INSERT into seats", async () => {
+      const payload = newSeat("TechDenied");
+      const { error } = await technicianClient.from("seats").insert(payload);
+      expect(error?.code).toBe("42501");
+
+      const { data } = await service
+        .from("seats")
+        .select("id")
+        .eq("serial_number", payload.serial_number);
+      expect(data).toEqual([]);
+    });
+
+    it("partner_user is rejected on INSERT into seats", async () => {
+      const payload = newSeat("PartnerDenied");
+      const { error } = await partnerAClient.from("seats").insert(payload);
+      expect(error?.code).toBe("42501");
+
+      const { data } = await service
+        .from("seats")
+        .select("id")
+        .eq("serial_number", payload.serial_number);
+      expect(data).toEqual([]);
+    });
+
+    it("technician UPDATE of a seat matches zero rows and leaves the seat unchanged", async () => {
+      const { data, error } = await technicianClient
+        .from("seats")
+        .update({ model: "Hacked By Technician" })
+        .eq("id", SEAT_A_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: check } = await service
+        .from("seats")
+        .select("model")
+        .eq("id", SEAT_A_ID)
+        .single();
+      expect(check?.model).not.toBe("Hacked By Technician");
+    });
+
+    it("partner_user UPDATE of a seat matches zero rows and leaves the seat unchanged", async () => {
+      const { data, error } = await partnerAClient
+        .from("seats")
+        .update({ model: "Hacked By Partner" })
+        .eq("id", SEAT_A_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: check } = await service
+        .from("seats")
+        .select("model")
+        .eq("id", SEAT_A_ID)
+        .single();
+      expect(check?.model).not.toBe("Hacked By Partner");
+    });
+
+    // ----- Uniqueness and CHECK constraints -----------------------------------
+
+    it("rejects a duplicate serial_number with 23505 mentioning serial_number", async () => {
+      const first = newSeat("DupSerial");
+      const { data: inserted, error: firstError } = await adminClient
+        .from("seats")
+        .insert(first)
+        .select("id")
+        .single();
+      expect(firstError).toBeNull();
+      createdSeatIds.push(inserted!.id);
+
+      const { error } = await opsClient
+        .from("seats")
+        .insert(newSeat("DupSerial2", { serial_number: first.serial_number }));
+      expect(error?.code).toBe("23505");
+      expect(`${error?.message} ${error?.details}`).toContain("serial_number");
+    });
+
+    it("rejects a duplicate public_token with 23505 mentioning public_token", async () => {
+      const id = await createSeatAs(adminClient, "DupTokenSource");
+      const { data: source } = await service
+        .from("seats")
+        .select("public_token")
+        .eq("id", id)
+        .single();
+
+      const { error } = await adminClient
+        .from("seats")
+        .insert(newSeat("DupToken", { public_token: source!.public_token }));
+      expect(error?.code).toBe("23505");
+      expect(`${error?.message} ${error?.details}`).toContain("public_token");
+    });
+
+    it("rejects max_rental_cycles = 0 on INSERT with a CHECK violation (23514)", async () => {
+      const { error } = await adminClient
+        .from("seats")
+        .insert(newSeat("BadMax", { max_rental_cycles: 0 }));
+      expect(error?.code).toBe("23514");
+    });
+
+    it("rejects a negative max_rental_cycles on INSERT with 23514", async () => {
+      const { error } = await adminClient
+        .from("seats")
+        .insert(newSeat("NegMax", { max_rental_cycles: -5 }));
+      expect(error?.code).toBe("23514");
+    });
+
+    it("rejects a negative rental_cycles on INSERT with 23514", async () => {
+      const { error } = await adminClient
+        .from("seats")
+        .insert(newSeat("NegCycles", { rental_cycles: -1 }));
+      expect(error?.code).toBe("23514");
+    });
+
+    it("rejects an UPDATE that sets max_rental_cycles to 0 with 23514", async () => {
+      const id = await createSeatAs(adminClient, "BadMaxUpdate");
+      const { error } = await adminClient
+        .from("seats")
+        .update({ max_rental_cycles: 0 })
+        .eq("id", id);
+      expect(error?.code).toBe("23514");
+    });
+
+    it("rejects an unknown category or airport with an FK violation (23503)", async () => {
+      const badCategory = await adminClient
+        .from("seats")
+        .insert(newSeat("BadCat", { category_id: MISSING_ID }));
+      expect(badCategory.error?.code).toBe("23503");
+
+      const badAirport = await adminClient
+        .from("seats")
+        .insert(newSeat("BadAirport", { airport_id: MISSING_ID }));
+      expect(badAirport.error?.code).toBe("23503");
+    });
+
+    // ----- Filtering ------------------------------------------------------------
+
+    it("combines airport, category and status filters with AND at the database level", async () => {
+      const matchId = await createSeatAs(opsClient, "FilterMatch", {
+        airport_id: secondAirportId,
+        category_id: SEEDED_CATEGORY_ID,
+      });
+      const otherAirportId = await createSeatAs(opsClient, "FilterOtherAirport", {
+        airport_id: SEEDED_AIRPORT_ID,
+        category_id: SEEDED_CATEGORY_ID,
+      });
+      const otherCategoryId = await createSeatAs(opsClient, "FilterOtherCat", {
+        airport_id: secondAirportId,
+        category_id: SECOND_CATEGORY_ID,
+      });
+      const otherStatusId = await createSeatAs(opsClient, "FilterOtherStatus", {
+        airport_id: secondAirportId,
+        category_id: SEEDED_CATEGORY_ID,
+      });
+      const ids = [matchId, otherAirportId, otherCategoryId, otherStatusId];
+
+      for (const id of [matchId, otherAirportId, otherCategoryId]) {
+        const { error } = await opsClient.rpc("change_seat_status", {
+          p_seat_id: id,
+          p_to_status: "quarantine",
+          p_reason: "filter test",
+        });
+        expect(error).toBeNull();
+      }
+
+      const { data, error } = await adminClient
+        .from("seats")
+        .select("id")
+        .in("id", ids)
+        .eq("airport_id", secondAirportId)
+        .eq("category_id", SEEDED_CATEGORY_ID)
+        .eq("status", "quarantine");
+      expect(error).toBeNull();
+      expect(data).toEqual([{ id: matchId }]);
+
+      const { data: byAirportOnly } = await adminClient
+        .from("seats")
+        .select("id")
+        .in("id", ids)
+        .eq("airport_id", secondAirportId);
+      expect(byAirportOnly?.map((s) => s.id).sort()).toEqual(
+        [matchId, otherCategoryId, otherStatusId].sort(),
+      );
+    });
+
+    it("searches seats by serial_number with ilike", async () => {
+      const id = await createSeatAs(adminClient, "SearchMe");
+      const { data: seat } = await service
+        .from("seats")
+        .select("serial_number")
+        .eq("id", id)
+        .single();
+
+      const { data } = await adminClient
+        .from("seats")
+        .select("id")
+        .or(`serial_number.ilike."%${seat!.serial_number.slice(4, 18)}%"`);
+      expect(data?.map((s) => s.id)).toContain(id);
+    });
+
+    // ----- Edit (guard trigger leaves ordinary columns alone) -----------------
+
+    it("allows edit-form style column updates as operations_manager without writing history", async () => {
+      const id = await createSeatAs(adminClient, "EditOk");
+      const { data, error } = await opsClient
+        .from("seats")
+        .update({
+          manufacturer: "Chicco",
+          model: "Edited Model",
+          manufacture_date: "2024-06-01",
+          purchase_date: "2024-07-01",
+          max_rental_cycles: 250,
+          category_id: SECOND_CATEGORY_ID,
+          airport_id: secondAirportId,
+        })
+        .eq("id", id)
+        .select("manufacturer, model, max_rental_cycles, category_id, airport_id");
+      expect(error).toBeNull();
+      expect(data).toEqual([
+        {
+          manufacturer: "Chicco",
+          model: "Edited Model",
+          max_rental_cycles: 250,
+          category_id: SECOND_CATEGORY_ID,
+          airport_id: secondAirportId,
+        },
+      ]);
+      // Only the creation row; a non-status edit writes no history.
+      expect(await historyOf(id)).toHaveLength(1);
+    });
+
+    // ----- Guard trigger ----------------------------------------------------------
+
+    describe("guard trigger on direct UPDATE", () => {
+      let seatId: string;
+
+      beforeAll(async () => {
+        seatId = await createSeatAs(adminClient, "Guard");
+      });
+
+      const attempts: [string, Database["public"]["Tables"]["seats"]["Update"]][] = [
+        ["status", { status: "quarantine" }],
+        ["serial_number", { serial_number: "CHANGED-SERIAL" }],
+        ["public_token", { public_token: "changed-token" }],
+        ["retired_at", { retired_at: "2026-01-01T00:00:00Z" }],
+        ["quarantine_reason", { quarantine_reason: "sneaky" }],
+      ];
+
+      it.each(attempts)(
+        "should reject a direct UPDATE of %s as operations_manager with 55000",
+        async (_column, patch) => {
+          const { error } = await opsClient
+            .from("seats")
+            .update(patch)
+            .eq("id", seatId);
+          expect(error?.code).toBe("55000");
+        },
+      );
+
+      it("should reject a direct UPDATE of status as admin with 55000", async () => {
+        const { error } = await adminClient
+          .from("seats")
+          .update({ status: "retired" })
+          .eq("id", seatId);
+        expect(error?.code).toBe("55000");
+      });
+
+      it("should leave the seat untouched and write no history after rejected direct updates", async () => {
+        const { data } = await service
+          .from("seats")
+          .select("status, serial_number, retired_at, quarantine_reason")
+          .eq("id", seatId)
+          .single();
+        expect(data?.status).toBe("available");
+        expect(data?.serial_number).not.toBe("CHANGED-SERIAL");
+        expect(data?.retired_at).toBeNull();
+        expect(data?.quarantine_reason).toBeNull();
+        expect(await historyOf(seatId)).toHaveLength(1);
+      });
+    });
+
+    // ----- change_seat_status() + history trigger ----------------------------------
+
+    it("INSERT trigger writes the first history row with from_status null, to_status available and changed_by", async () => {
+      const id = await createSeatAs(opsClient, "HistoryInsert");
+      expect(await historyOf(id)).toEqual([
+        {
+          from_status: null,
+          to_status: "available",
+          changed_by: identities.opsManager.id,
+          reason: null,
+        },
+      ]);
+    });
+
+    it("change_seat_status writes a history row with from, to, changed_by and reason", async () => {
+      const id = await createSeatAs(adminClient, "Rpc");
+
+      const { data, error } = await opsClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "quarantine",
+        p_reason: "  Cracked shell  ",
+      });
+      expect(error).toBeNull();
+      expect(data).toMatchObject({
+        id,
+        status: "quarantine",
+        quarantine_reason: "Cracked shell",
+      });
+
+      const history = await historyOf(id);
+      expect(history).toHaveLength(2);
+      expect(history[1]).toEqual({
+        from_status: "available",
+        to_status: "quarantine",
+        changed_by: identities.opsManager.id,
+        reason: "Cracked shell",
+      });
+    });
+
+    it("moving a seat out of quarantine clears quarantine_reason and records the change", async () => {
+      const id = await createSeatAs(adminClient, "Release");
+      await opsClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "quarantine",
+        p_reason: "inspection pending",
+      });
+
+      const { data, error } = await adminClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "available",
+        p_reason: "cleared after review",
+      });
+      expect(error).toBeNull();
+      expect(data).toMatchObject({ status: "available", quarantine_reason: null });
+
+      const history = await historyOf(id);
+      expect(history.map((h) => [h.from_status, h.to_status])).toEqual([
+        [null, "available"],
+        ["available", "quarantine"],
+        ["quarantine", "available"],
+      ]);
+      expect(history[2]).toMatchObject({
+        changed_by: identities.admin.id,
+        reason: "cleared after review",
+      });
+    });
+
+    it("retiring a seat sets retired_at and records the change with a null reason when none is given", async () => {
+      const id = await createSeatAs(adminClient, "Retire");
+
+      const { data, error } = await opsClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "retired",
+        p_reason: "",
+      });
+      expect(error).toBeNull();
+      expect(data?.status).toBe("retired");
+      expect(data?.retired_at).not.toBeNull();
+
+      const history = await historyOf(id);
+      expect(history.at(-1)).toEqual({
+        from_status: "available",
+        to_status: "retired",
+        changed_by: identities.opsManager.id,
+        reason: null,
+      });
+    });
+
+    it("a retired seat cannot leave retired through the RPC (55000)", async () => {
+      const id = await createSeatAs(adminClient, "RetiredTerminal");
+      await adminClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "retired",
+        p_reason: "",
+      });
+
+      for (const target of ["available", "quarantine", "retired"] as const) {
+        const { error } = await adminClient.rpc("change_seat_status", {
+          p_seat_id: id,
+          p_to_status: target,
+          p_reason: "try again",
+        });
+        expect(error?.code).toBe("55000");
+      }
+      const { data } = await service
+        .from("seats")
+        .select("status")
+        .eq("id", id)
+        .single();
+      expect(data?.status).toBe("retired");
+    });
+
+    it("a retired seat cannot leave retired through a direct UPDATE (55000)", async () => {
+      const id = await createSeatAs(adminClient, "RetiredDirect");
+      await adminClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "retired",
+        p_reason: "",
+      });
+
+      const { error } = await adminClient
+        .from("seats")
+        .update({ status: "available" })
+        .eq("id", id);
+      expect(error?.code).toBe("55000");
+    });
+
+    it("change_seat_status returns P0002 for a seat that does not exist", async () => {
+      const { error } = await adminClient.rpc("change_seat_status", {
+        p_seat_id: MISSING_ID,
+        p_to_status: "retired",
+        p_reason: "",
+      });
+      expect(error?.code).toBe("P0002");
+    });
+
+    it("change_seat_status returns 55000 for a transition that is not allowed", async () => {
+      const id = await createSeatAs(adminClient, "BadTransition");
+
+      const sameStatus = await adminClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "available",
+        p_reason: "",
+      });
+      expect(sameStatus.error?.code).toBe("55000");
+
+      const operational = await adminClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "in_use",
+        p_reason: "",
+      });
+      expect(operational.error?.code).toBe("55000");
+
+      expect(await historyOf(id)).toHaveLength(1);
+    });
+
+    it("change_seat_status returns 22023 when quarantining without a reason", async () => {
+      const id = await createSeatAs(adminClient, "NoReason");
+
+      for (const reason of ["", "   "]) {
+        const { error } = await adminClient.rpc("change_seat_status", {
+          p_seat_id: id,
+          p_to_status: "quarantine",
+          p_reason: reason,
+        });
+        expect(error?.code).toBe("22023");
+      }
+
+      const { data } = await service
+        .from("seats")
+        .select("status")
+        .eq("id", id)
+        .single();
+      expect(data?.status).toBe("available");
+      expect(await historyOf(id)).toHaveLength(1);
+    });
+
+    it("technician calling change_seat_status changes nothing and writes no history", async () => {
+      const id = await createSeatAs(adminClient, "TechRpc");
+
+      const { error } = await technicianClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "quarantine",
+        p_reason: "technician attempt",
+      });
+      expect(error).not.toBeNull();
+
+      const { data } = await service
+        .from("seats")
+        .select("status, quarantine_reason")
+        .eq("id", id)
+        .single();
+      expect(data).toEqual({ status: "available", quarantine_reason: null });
+      expect(await historyOf(id)).toHaveLength(1);
+    });
+
+    it("partner_user calling change_seat_status changes nothing and writes no history", async () => {
+      const id = await createSeatAs(adminClient, "PartnerRpc");
+
+      const { error } = await partnerAClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "quarantine",
+        p_reason: "partner attempt",
+      });
+      expect(error).not.toBeNull();
+
+      const { data } = await service
+        .from("seats")
+        .select("status")
+        .eq("id", id)
+        .single();
+      expect(data?.status).toBe("available");
+      expect(await historyOf(id)).toHaveLength(1);
+    });
+
+    it("anonymous client cannot execute change_seat_status", async () => {
+      const id = await createSeatAs(adminClient, "AnonRpc");
+
+      const { error } = await anonClient.rpc("change_seat_status", {
+        p_seat_id: id,
+        p_to_status: "retired",
+        p_reason: "",
+      });
+      expect(error).not.toBeNull();
+
+      const { data } = await service
+        .from("seats")
+        .select("status")
+        .eq("id", id)
+        .single();
+      expect(data?.status).toBe("available");
+    });
+
+    // ----- seat_status_history: append-only and access ------------------------------
+
+    describe("seat_status_history", () => {
+      let seatId: string;
+
+      beforeAll(async () => {
+        seatId = await createSeatAs(adminClient, "History");
+        const { error } = await opsClient.rpc("change_seat_status", {
+          p_seat_id: seatId,
+          p_to_status: "quarantine",
+          p_reason: "history fixture",
+        });
+        if (error) throw error;
+      });
+
+      it("admin and operations_manager can read history rows", async () => {
+        for (const client of [adminClient, opsClient]) {
+          const { data, error } = await client
+            .from("seat_status_history")
+            .select("id, to_status")
+            .eq("seat_id", seatId);
+          expect(error).toBeNull();
+          expect(data).toHaveLength(2);
+        }
+      });
+
+      it("UPDATE of a history row matches zero rows and leaves it unchanged (append-only)", async () => {
+        for (const client of [adminClient, opsClient]) {
+          const { data, error } = await client
+            .from("seat_status_history")
+            .update({ reason: "tampered", to_status: "retired" })
+            .eq("seat_id", seatId)
+            .select();
+          expect(error).toBeNull();
+          expect(data).toEqual([]);
+        }
+
+        const history = await historyOf(seatId);
+        expect(history.map((h) => h.to_status)).toEqual([
+          "available",
+          "quarantine",
+        ]);
+        expect(history[1].reason).toBe("history fixture");
+      });
+
+      it("DELETE of a history row matches zero rows and the rows survive (append-only)", async () => {
+        for (const client of [adminClient, opsClient]) {
+          const { data, error } = await client
+            .from("seat_status_history")
+            .delete()
+            .eq("seat_id", seatId)
+            .select();
+          expect(error).toBeNull();
+          expect(data).toEqual([]);
+        }
+        expect(await historyOf(seatId)).toHaveLength(2);
+      });
+
+      it("technician cannot read or insert history rows", async () => {
+        const { data, error } = await technicianClient
+          .from("seat_status_history")
+          .select("id")
+          .eq("seat_id", seatId);
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+
+        const insert = await technicianClient
+          .from("seat_status_history")
+          .insert({ seat_id: seatId, to_status: "retired" });
+        expect(insert.error?.code).toBe("42501");
+        expect(await historyOf(seatId)).toHaveLength(2);
+      });
+
+      it("partner_user cannot read or insert history rows", async () => {
+        const { data, error } = await partnerAClient
+          .from("seat_status_history")
+          .select("id")
+          .eq("seat_id", seatId);
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+
+        const insert = await partnerAClient
+          .from("seat_status_history")
+          .insert({ seat_id: seatId, to_status: "retired" });
+        expect(insert.error?.code).toBe("42501");
+        expect(await historyOf(seatId)).toHaveLength(2);
+      });
+
+      it("partner_user cannot read history of a seat assigned to their own booking (cross-tenant boundary)", async () => {
+        const { data, error } = await partnerAClient
+          .from("seat_status_history")
+          .select("id")
+          .eq("seat_id", SEAT_A_ID);
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+      });
+
+      it("anonymous client sees no history rows", async () => {
+        const { data } = await anonClient
+          .from("seat_status_history")
+          .select("id")
+          .eq("seat_id", seatId);
+        expect(data ?? []).toEqual([]);
+      });
+    });
+
+    // ----- Delete protection ---------------------------------------------------------
+
+    it("no role has a DELETE policy on seats: admin, operations_manager and technician deletes match zero rows", async () => {
+      const id = await createSeatAs(adminClient, "NoDelete");
+
+      for (const client of [adminClient, opsClient, technicianClient]) {
+        const { data, error } = await client
+          .from("seats")
+          .delete()
+          .eq("id", id)
+          .select();
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+      }
+
+      const { data: check } = await service
+        .from("seats")
+        .select("id")
+        .eq("id", id)
+        .maybeSingle();
+      expect(check?.id).toBe(id);
+    });
+
+    it("hard delete of a seat with history is blocked by FK RESTRICT (23503) even via service role", async () => {
+      const id = await createSeatAs(adminClient, "FkHistory");
+
+      const { error } = await service.from("seats").delete().eq("id", id);
+      expect(error?.code).toBe("23503");
+      expect(error?.message).toContain("seat_status_history");
+    });
+
+    it("hard delete of a seat referenced by a cleaning record is blocked by FK RESTRICT (23503)", async () => {
+      const id = await createSeatAs(adminClient, "FkCleaning");
+      // Remove the history row so the cleaning record is the only reference.
+      await service.from("seat_status_history").delete().eq("seat_id", id);
+
+      const { data: cleaning, error: insertError } = await service
+        .from("cleaning_records")
+        .insert({
+          seat_id: id,
+          booking_id: BOOKING_A_ID,
+          employee_id: identities.technician.id,
+          started_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      expect(insertError).toBeNull();
+
+      try {
+        const { error } = await service.from("seats").delete().eq("id", id);
+        expect(error?.code).toBe("23503");
+        expect(error?.message).toContain("cleaning_records");
+      } finally {
+        await service.from("cleaning_records").delete().eq("id", cleaning!.id);
+      }
+    });
+
+    it("hard delete of a seat referenced by an inspection record is blocked by FK RESTRICT (23503)", async () => {
+      const id = await createSeatAs(adminClient, "FkInspection");
+      await service.from("seat_status_history").delete().eq("seat_id", id);
+
+      const { data: inspection, error: insertError } = await service
+        .from("inspection_records")
+        .insert({
+          seat_id: id,
+          booking_id: BOOKING_A_ID,
+          inspector_id: identities.technician.id,
+          inspection_type: "pre_rental",
+          result: "pass",
+        })
+        .select("id")
+        .single();
+      expect(insertError).toBeNull();
+
+      try {
+        const { error } = await service.from("seats").delete().eq("id", id);
+        expect(error?.code).toBe("23503");
+        expect(error?.message).toContain("inspection_records");
+      } finally {
+        await service
+          .from("inspection_records")
+          .delete()
+          .eq("id", inspection!.id);
+      }
+    });
+
+    // ----- Cross-tenant ---------------------------------------------------------------
+
+    it("partner_user cannot mutate or change the status of a seat belonging to another partner's booking", async () => {
+      const { data, error } = await partnerAClient
+        .from("seats")
+        .update({ model: "Cross Tenant Edit" })
+        .eq("id", SEAT_B_ID)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { error: rpcError } = await partnerAClient.rpc(
+        "change_seat_status",
+        { p_seat_id: SEAT_B_ID, p_to_status: "retired", p_reason: "" },
+      );
+      expect(rpcError?.code).toBe("P0002");
+
+      const { data: check } = await service
+        .from("seats")
+        .select("model, status")
+        .eq("id", SEAT_B_ID)
+        .single();
+      expect(check?.model).not.toBe("Cross Tenant Edit");
+      expect(check?.status).toBe("available");
+    });
+  });
 });

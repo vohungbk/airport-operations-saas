@@ -99,3 +99,16 @@ F31 Portfolio Polish
   (admin, operations_manager) gates the route layout, every page, and
   every Server Action. Reuses F05's existing `seat_categories_*` RLS
   policies as-is — no new migration or policy.
+
+- **F09 — Seat Inventory Management**: done. Internal management of
+  individual child seats at `/seats`, `/seats/new`, `/seats/[id]`,
+  `/seats/[id]/edit` (`src/app/(admin)/seats/**`, `src/features/seats`):
+  searchable (serial number, public token), filterable (airport, category,
+  status, combined), sortable, paginated list; create/edit forms
+  (`serial_number` immutable, `public_token` DB-generated); detail page
+  with read-only status history. Manual status changes
+  (`available <-> quarantine`, `available | quarantine -> retired`) go
+  through a new `change_seat_status()` function, and a trigger on `seats`
+  writes `seat_status_history` for every status change. Gated by the
+  existing `seats:manage` permission. No delete. One new migration; no
+  existing RLS policy changed.

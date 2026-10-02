@@ -403,6 +403,67 @@ ever issued (`seats.category_id` and `bookings.seat_category_id` are
 are checked case-insensitively in the Server Actions (best effort; can
 race under concurrent writes).
 
+### F09 — Seat Inventory Management
+
+The `/seats*` routes (`src/app/(admin)/seats/**`) are gated by the
+existing `seats:manage` permission (admin via short-circuit,
+`operations_manager` explicitly; `technician`/`partner_user` never). It
+runs in `layout.tsx`, independently in every `page.tsx`, and at the top of
+every Server Action (create, update, change status). No RBAC change.
+
+**One new migration, no policy change**
+(`20260930090000_seat_status_history_trigger_and_change_seat_status.sql`).
+No existing policy was changed, no UPDATE/DELETE policy was added to
+`seat_status_history` (still append-only), and no service-role client is
+used.
+
+- **`public.record_seat_status_change()` trigger function** (`SECURITY
+  DEFINER`, `set search_path = ''`, fully schema-qualified, returns
+  `trigger` so it is not callable over RPC; execute revoked from `public`
+  and `anon`). Fired `AFTER INSERT` and `AFTER UPDATE OF status` (only
+  when the value actually changes) on `public.seats`. It writes the
+  `seat_status_history` row (`from_status` null on insert,
+  `changed_by = auth.uid()` resolved through `public.users` so a missing
+  profile gives NULL instead of an FK failure, `reason` from the
+  transaction-local setting `app.seat_status_reason`). Reason for
+  `SECURITY DEFINER`: the history write must not depend on the caller
+  holding a history INSERT policy, so no status change can ever skip its
+  audit row. The `seats` write itself is still authorized by seats RLS.
+- **`public.guard_seat_update()` trigger function** (`BEFORE UPDATE`
+  on `public.seats`, `SECURITY INVOKER` since it reads no tables, `set
+  search_path = ''`, returns `trigger` so it is not callable over RPC;
+  execute revoked from `public`/`anon`). RLS cannot restrict columns, so
+  this closes the gap where a `seats:manage` user could PATCH `status`
+  directly and skip the transition rules. It rejects (SQLSTATE `55000`):
+  any change to `serial_number` or `public_token`; any status change away
+  from `retired`; any status change, and any change to `retired_at` or
+  `quarantine_reason`, made outside `change_seat_status()`. The RPC marks
+  its transaction with `set_config('app.seat_status_change', 'on', true)`
+  (separate from the reason setting `app.seat_status_reason`); an unset or
+  blank value means reject. This relies on PostgREST not exposing
+  `set_config`; callers cannot run arbitrary SQL through the API. INSERT
+  and updates of other columns are unaffected.
+- **`public.change_seat_status(p_seat_id, p_to_status, p_reason)`**
+  (`SECURITY INVOKER`, so seats RLS applies; `set search_path = ''`;
+  execute revoked from `public`/`anon`, granted to `authenticated`). Locks
+  the row `FOR UPDATE` and allows only: `available -> quarantine`
+  (reason required, sets `quarantine_reason`), `quarantine -> available`
+  (clears `quarantine_reason`), `available | quarantine -> retired` (sets
+  `retired_at`, terminal). Error codes: `P0002` not found (also what a
+  caller RLS hides the seat from receives), `55000` invalid transition,
+  `22023` missing reason. Operational statuses (`reserved`, `in_use`,
+  `cleaning`, `inspection`) are not manually reachable; later workflows
+  own them and the trigger still records their history.
+
+**Input rules enforced in the Server Actions**: `public_token` is never
+user-supplied (DB default), `status`/`rental_cycles` are not accepted by
+the create/update schemas, `serial_number` is immutable after create,
+retired seats cannot be edited, an inactive `category_id` is rejected on
+create (on update only the seat's current category is accepted), and a
+duplicate serial is caught by a
+pre-check plus the UNIQUE constraint (`23505` -> `DUPLICATE_SERIAL`).
+**No delete**: `seats` has no DELETE policy and no delete action exists.
+
 ## Secrets
 
 - `SUPABASE_SERVICE_ROLE_KEY` / the newer secret key (`sb_secret_...`)

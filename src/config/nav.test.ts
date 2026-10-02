@@ -17,7 +17,7 @@ describe("getVisibleNavItems", () => {
     }
   });
 
-  it("should show all 6 area links to admin (full system access)", () => {
+  it("should show all 7 area links to admin (full system access)", () => {
     const visible = getVisibleNavItems("admin");
 
     expect(visible.map((item) => item.href).sort()).toEqual(
@@ -27,16 +27,17 @@ describe("getVisibleNavItems", () => {
         "/partner",
         "/partners",
         "/seat-categories",
+        "/seats",
         "/technician",
       ].sort(),
     );
   });
 
-  it("should show the admin, partners, airports, and seat categories links to operations_manager", () => {
+  it("should show the admin, partners, airports, seat categories, and seats links to operations_manager", () => {
     const visible = getVisibleNavItems("operations_manager");
 
     expect(visible.map((item) => item.href).sort()).toEqual(
-      ["/admin", "/airports", "/partners", "/seat-categories"].sort(),
+      ["/admin", "/airports", "/partners", "/seat-categories", "/seats"].sort(),
     );
   });
 
