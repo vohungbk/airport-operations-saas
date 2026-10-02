@@ -1,168 +1,182 @@
-# Kế hoạch: F09 — Seat Inventory Management
+# Kế hoạch: Booking Management (user gọi là "F10")
 
-## Tóm tắt
+Trạng thái: **CHỜ DUYỆT**. Chưa có file source nào bị sửa.
 
-> Trạng thái: đã cập nhật theo khuyến nghị; **chờ duyệt rõ ràng** trước khi sang Bước 2.
+Lưu ý số hiệu: `docs/roadmap.md` ghi F10 = Permanent QR Passport, F11 = Booking Management, F12 = Booking State Machine, F13 = Booking Timeline. Yêu cầu của user gom một phần F12 (ma trận trạng thái) và F13 (lịch sử event chỉ đọc). Plan này làm mức tối thiểu cho hai phần đó, theo tiền lệ F09.
 
-Xây module nội bộ quản lý từng ghế trẻ em (`seats`) tại `/seats`,
-`/seats/new`, `/seats/[id]`, `/seats/[id]/edit`. Sao chép 1:1 mẫu F06/F07/F08:
-route group `(admin)`, `src/features/seats`, Server Actions + Zod + React Hook
-Form, `requirePermission("seats:manage")` ở layout, page và từng action.
+## 1. Phạm vi
 
-Ngoài phạm vi (không làm): booking, QR passport (F10), technician job,
-installation/cleaning/inspection/incident, finance, flight, AI, auth/RBAC/
-tenancy mới, nút xóa ghế.
+Làm:
+- `/bookings`: danh sách phân trang server-side, tìm theo `booking_number`, lọc `status` / `airport_id` / khoảng ngày, sắp xếp.
+- `/bookings/[id]`: chi tiết + lịch sử `booking_events` chỉ đọc.
+- `/bookings/new`, `/bookings/[id]/edit`: React Hook Form + Zod, validate lại ở server.
+- Kiểm tra ghế (availability) và đổi trạng thái có kiểm soát.
+- Mọi ghi (create / update / status) đi qua RPC trong DB (atomic). Mọi event do DB ghi.
 
-## Phát hiện quan trọng từ schema/RLS thực tế
+Không làm: QR passport, technician job, installation, cleaning, inspection, incident, flight integration (`flight_id`, cột arrival chỉ hiển thị), finance (`paid_days`, `gross_revenue`, `partner_share`, `platform_share`), AI, notifications, auth/RBAC/tenancy mới, nút xóa (không có policy DELETE).
 
-- `seats` có nhiều cột NOT NULL ngoài ticket: `manufacturer`, `model`,
-  `manufacture_date`, `purchase_date`, `max_rental_cycles` (> 0). Form tạo
-  ghế phải có các trường này.
-- `public_token`: `text not null unique default gen_random_uuid()::text`.
-  Định dạng thật do F10 quyết định. => F09 **không cho nhập tay**; để DB tự
-  sinh khi tạo, chỉ hiển thị (và tìm kiếm) token. Không có rủi ro trùng token
-  do người dùng nhập; test "duplicate public token" sẽ là test RLS/DB
-  integration (unique constraint) + test mapping lỗi `23505`.
-- `serial_number` có `unique` ở DB => khác F08, có thể dựa vào constraint
-  (race-safe): pre-check ở app để báo lỗi sớm + map `23505` → `DUPLICATE_SERIAL`.
-- `seat_status` enum: `available, reserved, in_use, cleaning, inspection,
-  quarantine, retired`. Không tạo enum mới.
-- Chưa có tài liệu nào định nghĩa bảng chuyển trạng thái (state machine thuộc
-  F11/F12/F16–F18). `seat_status_history`: `seat_id, from_status (null ở dòng
-  đầu), to_status, changed_by, reason, created_at`; RLS chỉ có SELECT/INSERT
-  cho admin/ops, **không có UPDATE/DELETE** (append-only đã đúng).
-- `seats` **không có policy DELETE** => không thể hard-delete qua API; mọi FK
-  tới `seats` là RESTRICT hoặc SET NULL. => Không có nút xóa, không cần
-  migration cho việc này; thêm test chứng minh.
-- Phạm vi tenant: seats không có `partner_id`; partner/technician chỉ thấy ghế
-  qua `bookings.assigned_seat_id` (policy F05 đã có, đã đúng, không đổi).
-  `/seats` là trang quản trị: layout yêu cầu `seats:manage` (admin + ops
-  manager), technician/partner_user bị chuyển sang `/forbidden`. UI cho
-  technician/partner xem ghế thuộc F15/F21, không làm ở F09.
-- Quyền `seats:manage` và `seats:view_own_partner` **đã tồn tại** trong
-  `permissions.ts` => không đổi RBAC.
-- `airports`/`seat_categories` đọc được bởi mọi `authenticated` (reference
-  data, không nhạy cảm) => join lấy tên không tạo đường bypass tenant.
+## 2. Phát hiện từ codebase
 
-## Quyết định đã chốt (theo các khuyến nghị)
+Bảng `bookings` (`20260826083803_create_bookings_table.sql`):
+- `booking_number` text NOT NULL UNIQUE; `partner_id`, `airport_id`, `seat_category_id` NOT NULL (FK RESTRICT).
+- `pickup_at`, `return_at` timestamptz NOT NULL, CHECK `return_at >= pickup_at`.
+- `assigned_seat_id` FK seats (SET NULL, nullable); `daily_rate` numeric NOT NULL, không default.
+- `status` `booking_status` default `pending`.
+- Không có sequence sinh `booking_number`, không có chống trùng ghế theo thời gian, không có CHECK ghế khớp category/airport, không có nguồn giá.
 
-1. **Ghi `seat_status_history` thế nào cho nguyên tử?** PostgREST không có
-   transaction nhiều câu lệnh.
-   - **ĐÃ CHỌN A**: migration thêm trigger `AFTER INSERT / AFTER UPDATE OF
-     status` trên `seats` (SECURITY DEFINER, `search_path=''`) tự ghi history
-     (`from_status`, `to_status`, `changed_by = auth.uid()`, `reason` lấy từ
-     `set_config('app.seat_status_reason', ..., true)` do hàm đổi trạng thái
-     đặt), cộng hàm `change_seat_status(p_seat_id, p_to_status, p_reason)`
-     SECURITY INVOKER (RLS vẫn áp dụng). Đảm bảo mọi chuyển trạng thái,
-     kể cả của F16–F18 sau này, đều có history.
-   - B (đã loại): không migration; update rồi insert history không atomic.
-2. **ĐÃ CHỐT — chuyển trạng thái thủ công (minimal, không phát minh luật mới):** chỉ cho
-   admin/ops thực hiện các chuyển kiểu "quản lý kho":
-   `available → quarantine` (bắt buộc `reason`, ghi `quarantine_reason`),
-   `quarantine → available`, và `available|quarantine → retired` (ghi
-   `retired_at`, trạng thái cuối, không đổi lại). Các trạng thái vận hành
-   (`reserved`, `in_use`, `cleaning`, `inspection`) do workflow tương lai sở
-   hữu: UI không cho chọn. Trạng thái không thể sửa qua form edit thông
-   thường.
-3. **ĐÃ CHỐT — trường sửa được ở `/seats/[id]/edit`:** `manufacturer`, `model`,
-   `manufacture_date`, `purchase_date`, `max_rental_cycles` (≥ `rental_cycles`
-   hiện tại), `category_id`, `airport_id`. **Không sửa:** `serial_number`,
-   `public_token`, `status`, `rental_cycles`, `last_*`, `quarantine_reason`,
-   `retired_at`. Ghế `retired` thì chỉ xem (không sửa).
-4. **ĐÃ CHỐT — icon sidebar:** `Armchair` đã dùng cho Seat Categories; đề xuất `Boxes`
-   (Lucide, đã có sẵn trong `lucide-react`) cho "Seats" để phân biệt.
+Enum:
+- `booking_status`: `pending`, `confirmed`, `assigned`, `in_progress`, `completed`, `cancelled`, `no_show`.
+- `user_role`: `admin`, `operations_manager`, `technician`, `partner_user`.
 
-## Danh sách task (theo thứ tự phụ thuộc)
+Bảng `booking_events`: `booking_id`, `seat_id`, `user_id`, `from_status` (nullable), `to_status` (NOT NULL), `notes`, `metadata` jsonb, `created_at`. Không có `event_type`, nên loại event (`created` / `updated` / `status_changed` / `seat_changed`) đặt trong `metadata.event_type`.
 
-### Task 1 — Migration (quyết định 1 = A) — NHẠY CẢM
-- `supabase/migrations/<ts>_seat_status_history_trigger.sql`: trigger ghi
-  history khi INSERT seat và khi `status` đổi; hàm `change_seat_status`
-  (SECURITY INVOKER) kiểm tra chuyển trạng thái hợp lệ (bảng ở quyết định 2),
-  khóa dòng `FOR UPDATE`, đặt `retired_at`/`quarantine_reason`; có rollback
-  comment; `revoke execute ... from public, anon`, grant cho `authenticated`.
-- Không đổi policy hiện có, không thêm policy UPDATE/DELETE cho history, không
-  service-role. Cập nhật `docs/security.md` (lý do + bảng policy) và
-  `docs/database.md`. Regenerate `src/types/database.types.ts`.
+Không có ma trận chuyển trạng thái. Hành vi hiện tại: `bookings.status` là cột thường, admin/ops UPDATE tự do. Sẽ ghi vào docs.
 
-### Task 2 — Nền tảng feature `src/features/seats`
-- `types.ts`, `schemas/seat.schema.ts` (create/update/status-change, Zod),
-  `schemas/seats-query.schema.ts` (q, airport_id, category_id, status, sort,
-  order, page, page_size), `lib/build-seats-query-filters.ts`,
-  `lib/seat-errors.ts` (`VALIDATION_ERROR`, `DUPLICATE_SERIAL`,
-  `INVALID_TRANSITION`, `FORBIDDEN`, `NOT_FOUND`, `INTERNAL_ERROR`),
-  `lib/seat-status.ts` (nhãn, mapping variant, bảng transition — thuần, test
-  được).
-- Tái dùng `escape-ilike` của seat-categories (import, không sao chép).
+RLS hiện có (`20260902085338_enable_rls_multi_tenancy.sql`):
+- `bookings` SELECT: admin/ops tất cả; technician theo gán; partner_user theo `partner_id = current_user_partner_id()`. INSERT/UPDATE chỉ admin/ops. Không DELETE.
+- `booking_events` SELECT theo booking; INSERT cho admin/ops và technician; không UPDATE/DELETE.
+- `seats`: partner_user chỉ thấy ghế đang gán cho booking của partner mình.
 
-### Task 3 — Truy vấn (Server-only, không N+1)
-- `lib/get-seats.ts`: một query nested select
-  `category:seat_categories(id,name), airport:airports(id,code,name)`,
-  `count: "exact"`, filter airport/category/status kết hợp AND, tìm kiếm
-  `serial_number`/`public_token` ilike, order + tie-breaker `id`, xử lý
-  `PGRST103` (page vượt phạm vi) như F08.
-- `lib/get-seat-by-id.ts`, `lib/get-seat-status-history.ts` (đọc-only,
-  `order created_at desc`, nested `changed_by_user:users(full_name)`),
-  `lib/get-seat-form-options.ts` (airports + categories đang `is_active` cho
-  dropdown).
+RBAC (`src/lib/auth/permissions.ts`): chỉ có `bookings:manage` (ops; admin bypass) và `bookings:view_own_partner` (partner_user). `requirePermission` chỉ nhận một permission.
 
-### Task 4 — Server Actions (đều `requirePermission("seats:manage")`)
-- `create-seat.action.ts` (không gửi `public_token`/`status`/`rental_cycles`
-  từ client; pre-check serial + map `23505`), `update-seat.action.ts` (schema
-  không có trường bị cấm; từ chối khi ghế `retired`; `.maybeSingle()` →
-  `NOT_FOUND`), `change-seat-status.action.ts` (gọi RPC; map lỗi transition).
+Lỗ hổng cần xử lý:
+1. Partner không có quyền create/update booking trong RBAC lẫn RLS.
+2. Admin/ops/technician INSERT `booking_events` tùy ý qua PostgREST, vi phạm yêu cầu "event chỉ do server tạo".
+3. RLS không giới hạn cột: admin/ops PATCH thẳng `status`, `assigned_seat_id`, `partner_id`, `booking_number`, cột finance. Cần guard trigger (giống `guard_seat_update()` của F09).
+4. `seats` không có `partner_id`, nên không có "restricted inventory" thật. Đáp ứng bằng RLS `seats` + gán ghế chỉ qua RPC + không lộ booking của partner khác trong thông báo lỗi.
+5. Partner không đọc được `users`, nên tên staff trong event là `null`. UI hiển thị nhãn chung.
+6. `change_seat_status()` (F09) không cho `available -> reserved` và guard khóa `seats.status`.
 
-### Task 5 — UI (Server Components mặc định, client boundary nhỏ)
-- `components/`: `seats-table` (responsive, cột: Serial, Category, Airport,
-  Status, Public token, Created), `seats-filters` (q, airport, category,
-  status, sort), `seats-pagination`, `seat-status-badge` (nhãn chữ luôn hiển
-  thị + icon, không chỉ dựa vào màu: available→success, reserved/in_use→info,
-  cleaning/inspection→warning, quarantine→destructive, retired→muted),
-  `seat-form`, `create-seat-form`, `edit-seat-form`, `seat-detail`,
-  `seat-status-history` (read-only), `change-seat-status-dialog`.
-- `hooks/use-create-seat-form.ts`, `use-update-seat-form.ts`,
-  `use-change-seat-status-form.ts` (React Hook Form + Zod resolver sẵn có).
+## 3. Quyết định cần user chốt (bắt buộc trước khi implement)
 
-### Task 6 — Routes `src/app/(admin)/seats/`
-- `layout.tsx`, `page.tsx`, `loading.tsx`, `error.tsx`, `new/page.tsx`,
-  `[id]/page.tsx`, `[id]/edit/page.tsx`; mỗi page gọi lại `requirePermission`.
-  Empty state, error state, loading state.
+Khuyến nghị nằm ở đầu mỗi mục.
 
-### Task 7 — Nav + docs
-- `src/config/nav.ts`: thêm "Seats" `/seats`, `seats:manage`, icon theo quyết
-  định 4; cập nhật `nav.test.ts` nếu cần. Cập nhật `docs/architecture.md`,
-  `docs/security.md`, `docs/roadmap.md` (F09 done), không sửa phần khác.
+1. **Partner tạo/sửa booking?** Khuyến nghị A: không, partner chỉ xem. `/bookings/new` và `/edit` chỉ admin/ops. Không đổi RBAC/RLS. B: cho phép, cần permission mới và policy/RPC mới (rủi ro cao, vi phạm `docs/security.md` nếu tự thêm).
+2. **`booking_events`:** DROP hai policy INSERT (`booking_events_insert_admin_ops_manager`, `booking_events_insert_technician`); event chỉ do trigger `SECURITY DEFINER` ghi; thêm trigger chặn UPDATE/DELETE mọi vai trò. Rủi ro: F15 (technician workflow) sau này phải ghi event qua RPC/trigger.
+3. **Ma trận chuyển trạng thái thủ công (tối thiểu):** `pending -> confirmed`, `pending -> cancelled`, `confirmed -> cancelled`, `confirmed -> no_show`. Terminal: `cancelled`, `no_show`, `completed`. `assigned`, `in_progress`, `completed` thuộc các workflow sau. Cần xác nhận có cho `pending -> no_show` không, và `reason` có bắt buộc khi `cancelled` / `no_show` không.
+4. **Ghế:** khuyến nghị F11 không đổi `seats.status`. "Khả dụng" = ghế `status = 'available'`, cùng `airport_id` và `category_id` với booking, không có booking active khác chồng thời gian. Active = `pending`, `confirmed`, `assigned`, `in_progress`. Cần chốt đầu mút khoảng chồng (A kết thúc đúng lúc B bắt đầu có xung đột không).
+5. **`booking_number`:** sequence + hàm trong DB, dạng `BK-` + số đệm, bắt đầu sau 20 (seed dùng `BK-00001..20`). Người dùng không nhập tay. Cần chốt định dạng.
+6. **`daily_rate`:** admin/ops nhập tay khi tạo, chỉ đọc sau đó. Cần xác nhận.
+7. **Timezone `pickup_at`/`return_at`:** diễn giải theo `airports.timezone`, lưu UTC, hiển thị theo tz sân bay, dùng `Intl` (không thêm dependency).
+8. **Sửa booking:** cho sửa khi `pending`/`confirmed`; terminal chỉ xem. Dùng `expected_updated_at` chống ghi đè đồng thời. Có cho đổi `seat_category_id` không (nếu đổi thì bỏ gán ghế)? Khuyến nghị: chỉ đọc.
+9. **Ghế tùy chọn khi tạo:** cho tạo booking không ghế, gán sau qua edit.
+10. **Điều kiện tạo:** partner `status = 'active'`, category `is_active = true`.
+11. **Route group:** `/bookings` đặt trong `(dashboard)` (đã có `AppShell` + `requireAuth()`), layout con chỉ guard.
+12. **Helper any-of:** thêm `requireAnyPermission` vào `src/lib/auth/current-user.ts` và hỗ trợ any-of trong `src/config/nav.ts` (thay đổi nhỏ trên F04, không phải kiến trúc RBAC mới).
+13. **Lọc ngày:** theo `pickup_at`. Không thêm lọc partner cho admin/ops (ngoài yêu cầu).
 
-### Task 8 — Tests (theo `testing.md` + 16 mục của ticket)
-- Unit (vitest, không mock DB): schemas (invalid data, biên), query schema,
-  filter builder, bảng transition, status badge mapping, error mapping,
-  `get-seats` (mock supabase như F08), actions (mock supabase: happy path +
-  validation + forbidden cho technician/partner, duplicate serial).
-- Integration (khối `seats` trong `rls.integration.test.ts`, chạy thật trên
-  Supabase local, cần `npx supabase start`): admin/ops xem/tạo/sửa; duplicate
-  `serial_number` và `public_token` bị từ chối (23505); dữ liệu sai bị CHECK
-  từ chối; technician/partner không INSERT/UPDATE; partner A không thấy ghế
-  của partner B; lọc kết hợp; đổi trạng thái tạo history (from/to/changed_by/
-  reason); history không UPDATE/DELETE được; DELETE seat bị từ chối/không
-  hiệu lực và FK RESTRICT chặn khi có tham chiếu; cross-tenant bị chặn.
+## 4. Danh sách task (theo thứ tự phụ thuộc)
 
-### Task 9 — Verification
-- `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build`. Kiểm tra
-  thủ công ranh giới Server→Client (không truyền hàm/icon qua props — bài học
-  từ log 2026-09-07).
+### Task 1. Migration nền tảng DB [MIGRATION + RLS + BẢO MẬT]
+`supabase/migrations/<ts>_booking_numbering_event_log_and_guards.sql` (có khối rollback trong comment).
+- Sequence + hàm sinh `booking_number`.
+- Trigger `SECURITY DEFINER` (`search_path = ''`) ghi `booking_events` khi AFTER INSERT và AFTER UPDATE các cột theo dõi. Ngữ cảnh lấy từ `set_config('app.booking_event_*', ..., true)`. `metadata.event_type` + giá trị trước/sau. `user_id` qua `public.users` như F09.
+- BEFORE UPDATE guard trên `bookings`: chặn đổi `status`, `assigned_seat_id`, `partner_id`, `booking_number`, `airport_id`, `seat_category_id`, `pickup_at`, `return_at`, `daily_rate`, cột finance ngoài RPC (cờ `app.booking_change`). Không chặn `assigned_technician_id`, `flight_id`, `incident_status`. Mã lỗi `55000`.
+- Trigger BEFORE UPDATE/DELETE trên `booking_events` luôn từ chối.
+- DROP hai policy INSERT của `booking_events`, ghi lý do trong comment.
+- Phụ thuộc: quyết định 2, 3, 5.
 
-## File ảnh hưởng
+### Task 2. Migration RPC [MIGRATION + BẢO MẬT]
+`supabase/migrations/<ts>_booking_rpcs.sql`.
+- `create_booking`, `update_booking`, `change_booking_status`: `SECURITY INVOKER`, `search_path = ''`, revoke `public`/`anon`, grant `authenticated`.
+- Một giao dịch: khóa `FOR UPDATE` booking và dòng ghế, kiểm tra, ghi, đặt cờ guard, event qua trigger.
+- Kiểm tra: partner active, airport tồn tại, category active, `return_at >= pickup_at`, ghế (tồn tại, `available`, cùng airport/category, không chồng booking active khác, loại trừ chính booking khi update).
+- Mã lỗi: ghế không khả dụng, xung đột lịch, sai category/airport, booking terminal; cộng `P0002`, `55000`, `22023`. Không lộ booking của partner khác.
+- `change_booking_status`: kiểm ma trận, ghi event `status_changed`.
+- `get_available_seats(...)` (SELECT, INVOKER) dùng cùng điều kiện để UI chọn ghế mà không nhân đôi logic.
+- Phụ thuộc: Task 1.
 
-- Mới: `src/features/seats/**`, `src/app/(admin)/seats/**`, migration .
-- Sửa: `src/config/nav.ts` (+test), `src/types/database.types.ts` ,
-  `src/lib/auth/rls.integration.test.ts` (+`rls-test-support.ts` nếu cần dữ
-  liệu seed), `docs/{architecture,security,database,roadmap}.md`.
-- Không đổi: `permissions.ts`, RLS policy hiện có, auth, F06–F08.
+### Task 3. Regenerate types
+`npx supabase gen types typescript --local > src/types/database.types.ts`. Chặn mọi task app.
 
-## Rủi ro / giới hạn đã biết
+### Task 4. Nền module `src/features/bookings`
+- `types.ts`, `lib/booking-status.ts` (nhãn, active, bảng chuyển; SQL là nguồn thật), `lib/booking-errors.ts` (`mapBookingError`, mã: `VALIDATION_ERROR`, `NOT_FOUND`, `FORBIDDEN`, `INVALID_TRANSITION`, `SEAT_UNAVAILABLE`, `SEAT_CONFLICT`, `SEAT_CATEGORY_MISMATCH`, `INTERNAL_ERROR`).
+- `schemas/booking.schema.ts`, `schemas/bookings-query.schema.ts` (snake_case; update không có `status`, `booking_number`, `partner_id`, finance/flight/technician).
+- `lib/build-bookings-query-filters.ts` (tái dùng `escape-ilike` của `seat-categories`), `lib/build-bookings-href.ts`.
+- Phụ thuộc: Task 2, 3.
 
-- Migration + trigger là thay đổi bảo mật/DB: sẽ dừng xin duyệt lần nữa nếu
-  phát sinh khác với plan.
-- Không có jsdom/RTL: component không có test render.
-- Bảng chuyển trạng thái thủ công là tối thiểu; F12/F16–F18 sẽ mở rộng.
-- `public_token` placeholder UUID cho đến F10.
-- Test integration cần Docker + Supabase local; suite thường skip khi thiếu.
+### Task 5. Truy vấn (server-only, không N+1)
+- `get-bookings.ts`: một nested select (partner, airport, seat, category), `count: "exact"`, tìm ilike, lọc status/airport/ngày, sort + tie-breaker `id`, xử lý `PGRST103`. RLS là ranh giới tenant.
+- `get-booking-by-id.ts`, `get-booking-events.ts` (chỉ đọc), `get-booking-form-options.ts` (chỉ admin/ops).
+- Phụ thuộc: Task 4.
+
+### Task 6. Server Actions
+- `create-booking.action.ts`, `update-booking.action.ts`, `change-booking-status.action.ts`: kiểm `bookings:manage`, Zod `safeParse`, gọi RPC, map lỗi, redirect. Không nhận `status` tùy ý ở create/update. Không service-role, không `.update({status})` trực tiếp.
+- Phụ thuộc: Task 2, 4, 5.
+
+### Task 7. RBAC helper + nav (có thể song song với Task 4-6)
+- `requireAnyPermission` trong `current-user.ts` (+ test), nav any-of trong `nav.ts` (+ `nav.test.ts`). Mục "Bookings" không trùng với admin. Icon lucide.
+
+### Task 8. UI
+- Components: `bookings-table` (responsive), `bookings-filters`, `bookings-pagination`, `booking-status-badge` (icon + chữ, theo `SeatStatusBadge`), `booking-detail`, `booking-events-timeline` (chỉ đọc), `booking-form`, `create-booking-form`, `edit-booking-form`, `change-booking-status-dialog`.
+- Hooks: `use-create-booking-form`, `use-update-booking-form`, `use-change-booking-status-form` (RHF + `src/lib/validation/zod-resolver.ts`). Logic nằm trong hook.
+- Edit được: `pickup_at`, `return_at`, `assigned_seat_id`, `external_booking_number`, `child_age_band`, `child_height`, `vehicle`, `vehicle_bay`, `notes`. Chỉ đọc: số booking, partner, airport, category, status (nút riêng), `daily_rate`, finance, flight, technician, `incident_status`.
+- Loading / empty / error; Tailwind + `cn()`; không inline style; lucide only.
+- Phụ thuộc: Task 4, 5, 6.
+
+### Task 9. Routes
+- `src/app/(dashboard)/bookings/`: `layout.tsx` (guard any-of), `page.tsx`, `loading.tsx`, `error.tsx`, `new/page.tsx`, `[id]/page.tsx`, `[id]/edit/page.tsx`. Mỗi page gọi lại guard; `new`/`edit` cần `bookings:manage`. Xử lý not found.
+- Phụ thuộc: Task 6, 7, 8.
+
+### Task 10. Docs
+- `docs/security.md` (RPC, guard, policy bị DROP và lý do, ma trận, mã lỗi), `docs/database.md` (hàm, trigger, sequence, `metadata.event_type`), `docs/architecture.md`, `docs/roadmap.md`. Ghi hành vi cũ "không có ma trận".
+
+### Task 11. Tests (vitest)
+Unit: schemas, query schema, filter builder, href builder, ma trận trạng thái, badge, `mapBookingError`, `get-bookings` (mock: lọc, phân trang, `PGRST103`), `get-booking-by-id`, actions (happy path, validation fail, forbidden, lỗi RPC), guard layout/page, `nav.test.ts`, `requireAnyPermission`.
+
+Integration (khối mới trong `src/lib/auth/rls.integration.test.ts`, cần `npx supabase start`):
+- Admin/ops xem và tạo OK; partnerA thấy booking của A, không thấy của B (list và theo id); partnerA không INSERT/UPDATE; partnerNull 0 dòng; anon và inactive bị từ chối; technician chỉ booking được gán.
+- Tạo: sinh `booking_number`, đúng 1 event `created`; input sai bị từ chối.
+- Ghế: không `available`, sai category/airport, xung đột thời gian đều bị từ chối; hai `create_booking` đồng thời cùng ghế thì đúng một thành công.
+- Trạng thái: hợp lệ ghi event (`from_status`, `to_status`, `user_id`, `notes`, `metadata.event_type`); không hợp lệ bị từ chối và không ghi event.
+- PATCH trực tiếp `status` / `assigned_seat_id` / `partner_id` / `booking_number` bị guard chặn; đổi ghế ghi `seat_changed`.
+- `booking_events`: INSERT trực tiếp bị từ chối; UPDATE/DELETE bị từ chối; partner không thấy event của partner khác.
+- Regression migration: seed 20 booking vẫn đọc được, update `notes` vẫn chạy, `change_seat_status` F09 vẫn chạy, policy F05 khác không đổi.
+- Lưu ý: suite integration bị skip nếu thiếu Supabase local/Docker. Sẽ báo rõ trong kết quả.
+
+### Task 12. Verification
+`npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build`, `npx supabase db reset` rồi chạy integration.
+
+## 5. Thứ tự
+
+Quyết định -> Task 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 8 -> 9 -> 11 -> 12. Task 7 song song với 4-6 nhưng phải xong trước Task 9. Task 10 sau Task 2.
+
+## 6. File ảnh hưởng
+
+Mới: 2 migration; `src/features/bookings/**`; `src/app/(dashboard)/bookings/**`.
+Sửa: `src/types/database.types.ts`, `src/lib/auth/current-user.ts` (+test), `src/config/nav.ts` (+test), `src/lib/auth/rls.integration.test.ts`, `docs/{security,database,architecture,roadmap}.md`.
+Không đổi: `permissions.ts` (trừ khi chọn 1B), migration cũ, F06-F09, policy RLS khác. `supabase/seed.sql` chỉ sửa nếu sequence không tránh được seed.
+
+## 7. Cờ cảnh báo
+
+- **Migration:** có (Task 1, 2). Cần duyệt trước khi chạy `db reset`.
+- **RLS / bảo mật:** DROP 2 policy INSERT của `booking_events`; trigger bất biến; guard trigger; RPC `SECURITY INVOKER`; trigger `SECURITY DEFINER`; không service-role.
+- **Breaking:** INSERT trực tiếp `booking_events` và PATCH trực tiếp các cột bị guard sẽ thất bại (hiện `src/` không có code nào làm vậy). Commit phải có `BREAKING CHANGE:` ở footer.
+- **Dữ liệu cũ:** 20 booking seed là `confirmed`, mỗi booking một ghế riêng, không xung đột. Trigger AFTER INSERT sẽ tạo event `created` lúc seed (`user_id` null).
+
+## 8. Rủi ro / edge case
+
+- Race ghế: khóa `FOR UPDATE` trên dòng ghế tuần tự hóa theo ghế. Booking không ghế không cần khóa.
+- Race sửa đồng thời: khóa booking + `expected_updated_at`.
+- `booking_events.to_status` NOT NULL: event "updated" lặp status hiện tại. Timeline phân biệt bằng `metadata.event_type`.
+- Tên staff `null` với partner; FK `SET NULL` nên UI chịu được `seat` null.
+- `partner_user.partner_id` null: 0 dòng, hiển thị empty state.
+- Technician bị chặn ở route; RLS vẫn cho đọc booking được gán.
+- Sai timezone làm lệch hiển thị và khoảng chồng.
+- `daily_rate` nhập tay có rủi ro nhập sai.
+
+## 9. Câu hỏi mở (cần trả lời)
+
+1. Xác nhận số hiệu feature (roadmap ghi F11) và mức gom F12/F13 tối thiểu như trên?
+2. Partner chỉ xem (khuyến nghị) hay được tạo/sửa?
+3. Ma trận ở quyết định 3 có đúng không? `pending -> no_show`? `reason` bắt buộc khi hủy/no-show?
+4. Không đổi `seats.status` khi gán ghế; đầu mút khoảng chồng có tính xung đột không?
+5. Định dạng `booking_number`?
+6. `daily_rate` nhập tay lúc tạo, chỉ đọc sau đó?
+7. Timezone theo `airports.timezone`?
+8. Có cho đổi `seat_category_id` sau khi tạo?
+9. Cho tạo booking không ghế?
+10. Chấp nhận DROP policy INSERT `booking_events` và trigger chặn UPDATE/DELETE mọi vai trò?
+11. Chấp nhận helper any-of trong `current-user.ts` và `nav.ts`?
+
+Nếu bạn đồng ý với tất cả khuyến nghị, chỉ cần trả lời "approved" kèm các điểm cần đổi.
