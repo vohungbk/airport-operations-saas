@@ -79,3 +79,20 @@ export function hasPermission(role: Role, permission: Permission): boolean {
 
   return ROLE_PERMISSIONS[role].includes(permission);
 }
+
+/**
+ * Any-of variant of `hasPermission` (same `admin` short-circuit): true when
+ * the role holds at least one of the listed permissions.
+ */
+export function hasAnyPermission(
+  role: Role,
+  permissions: readonly Permission[],
+): boolean {
+  return permissions.some((permission) => hasPermission(role, permission));
+}
+
+/** Who may enter `/bookings`: managers, and partner users (view-only). */
+export const BOOKINGS_ACCESS_PERMISSIONS = [
+  "bookings:manage",
+  "bookings:view_own_partner",
+] as const satisfies readonly Permission[];

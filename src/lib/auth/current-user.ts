@@ -3,7 +3,11 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth/session";
-import { hasPermission, type Permission } from "@/lib/auth/permissions";
+import {
+  hasAnyPermission,
+  hasPermission,
+  type Permission,
+} from "@/lib/auth/permissions";
 import type { Role } from "@/lib/auth/roles";
 import { FORBIDDEN_ROUTE, LOGIN_ROUTE } from "@/lib/constants/routes";
 
@@ -95,6 +99,23 @@ export async function requirePermission(
   const user = await requireAuth();
 
   if (!hasPermission(user.role, permission)) {
+    redirect(FORBIDDEN_ROUTE);
+  }
+
+  return user;
+}
+
+/**
+ * Any-of variant for routes shared by roles with different permissions
+ * (e.g. `/bookings`: `bookings:manage` or `bookings:view_own_partner`).
+ * `admin` still passes through `hasPermission()`'s own short-circuit.
+ */
+export async function requireAnyPermission(
+  permissions: readonly Permission[],
+): Promise<AppUser> {
+  const user = await requireAuth();
+
+  if (!hasAnyPermission(user.role, permissions)) {
     redirect(FORBIDDEN_ROUTE);
   }
 
