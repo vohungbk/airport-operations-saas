@@ -112,3 +112,19 @@ F31 Portfolio Polish
   writes `seat_status_history` for every status change. Gated by the
   existing `seats:manage` permission. No delete. One new migration; no
   existing RLS policy changed.
+
+- **F11 — Booking Management**: done (also covers the minimum of F12 and
+  F13: a manual status matrix and a read-only event timeline). Bookings at
+  `/bookings`, `/bookings/new`, `/bookings/[id]`, `/bookings/[id]/edit`
+  (`src/app/(dashboard)/bookings/**`, `src/features/bookings`):
+  searchable, filterable (status, airport, pickup date range), sortable,
+  paginated list; create/edit forms with a seat picker (availability and
+  overlap checks); detail page with a read-only timeline. `admin` and
+  `operations_manager` manage bookings; `partner_user` is view-only (own
+  partner via RLS); `technician` is forbidden. All writes go through RPCs
+  (`create_booking`, `update_booking`, `change_booking_status`); events are
+  written by a trigger and are append-only. Manual transitions:
+  `pending -> confirmed | cancelled`, `confirmed -> cancelled | no_show`.
+  Two migrations; DROPS the two `booking_events` INSERT policies (see
+  `docs/security.md` F11). Not included: QR passport (F10), technician
+  workflow, flight integration, finance, deleting bookings.

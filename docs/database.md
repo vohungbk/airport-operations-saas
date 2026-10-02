@@ -218,6 +218,19 @@ Indexes: `flight_number`, `airport_id`.
 Indexes: `partner_id`, `status`, `pickup_at`, `return_at`,
 `assigned_seat_id`, `assigned_technician_id`, `flight_id`.
 
+**F11 additions** (`20261002070734_booking_numbering_event_log_and_guards.sql`,
+`20261002070738_booking_rpcs.sql`): sequence `public.booking_number_seq`
+(starts at 21; the seed uses `BK-00001..BK-00020`) and
+`public.generate_booking_number()` returning `'BK-' || 5-digit padded
+number`. Triggers on `bookings`: `record_bookings_event_insert` and
+`record_bookings_event_update` (function `record_booking_event()`, writes
+`booking_events`) and `guard_bookings_update` (function
+`guard_booking_update()`, see `docs/security.md` F11). Functions:
+`create_booking`, `update_booking`, `change_booking_status`,
+`get_available_seats`, `assert_booking_seat_assignable`. Seed inserts now
+also produce one `created` event per booking (`user_id` null). Rollback SQL
+is in a comment at the bottom of each migration file.
+
 ### `booking_events` (immutable log)
 | column | type | notes |
 |---|---|---|
@@ -230,6 +243,14 @@ Indexes: `partner_id`, `status`, `pickup_at`, `return_at`,
 | metadata | jsonb | nullable |
 
 Indexes: `booking_id`, `created_at`.
+
+**F11**: the table has no `event_type` column; the type is stored in
+`metadata.event_type` (`created`, `updated`, `status_changed`,
+`seat_changed`). `updated` events carry `metadata.changes` as
+`{field: {from, to}}`; `seat_changed` carries `from_seat_id`/`to_seat_id`.
+Because `to_status` is NOT NULL, `updated` and `seat_changed` events repeat
+the current status. The table is append-only for every role (trigger) and
+has no INSERT policy: rows are written only by `record_booking_event()`.
 
 ### `technician_jobs` (mutable)
 | column | type | notes |

@@ -464,6 +464,118 @@ duplicate serial is caught by a
 pre-check plus the UNIQUE constraint (`23505` -> `DUPLICATE_SERIAL`).
 **No delete**: `seats` has no DELETE policy and no delete action exists.
 
+### F11 — Booking Management
+
+The `/bookings*` routes live under `src/app/(dashboard)/bookings/**`
+(the `(dashboard)` layout already provides `AppShell`). The list and
+detail routes are gated by `requireAnyPermission(["bookings:manage",
+"bookings:view_own_partner"])` in `layout.tsx` and again in each page;
+`technician` is forbidden. `/bookings/new` and `/bookings/[id]/edit`, and
+every Server Action (create, update, change status, available seats),
+require `bookings:manage` (admin and `operations_manager`). **`partner_user`
+is view-only**: RLS already limits it to its own partner's bookings
+(`bookings_select_partner_user`) and gives it no INSERT/UPDATE policy; the
+UI hides the edit/status controls. No RBAC permission was added; the any-of
+helper `requireAnyPermission()` (`src/lib/auth/current-user.ts`) and any-of
+nav items (`src/config/nav.ts`) are small additions to F04.
+
+**Two new migrations** (`20261002070734_booking_numbering_event_log_and_guards.sql`,
+`20261002070738_booking_rpcs.sql`). No service-role client is used.
+
+- **DROPPED policies**: `booking_events_insert_admin_ops_manager` and
+  `booking_events_insert_technician`. Reason: the audit log must only be
+  written by the server. Before this, any admin/ops/assigned technician
+  could INSERT arbitrary events over PostgREST. `booking_events` is now
+  written only by the `SECURITY DEFINER` trigger function
+  `record_booking_event()` (`set search_path = ''`, returns `trigger`, so
+  it is not callable over RPC; execute revoked from `public`/`anon`).
+  Consequence for later work (F15 technician workflow): events must be
+  written through an RPC or trigger, not a direct INSERT. The SELECT
+  policies are unchanged.
+- **Append-only**: `prevent_booking_event_mutation()` (`BEFORE UPDATE`
+  and `BEFORE DELETE` on `booking_events`) rejects every UPDATE and DELETE
+  for every role, including `service_role` (SQLSTATE `55000`). One
+  exception: a nested trigger (`pg_trigger_depth() > 1`) that only nulls
+  `seat_id`/`user_id`, i.e. the existing `ON DELETE SET NULL` FK actions,
+  so deleting a seat or user is not blocked. A direct client UPDATE runs at
+  depth 1 and is still rejected.
+- **Guard trigger** `guard_booking_update()` (`BEFORE UPDATE` on
+  `bookings`, `SECURITY INVOKER`, returns `trigger`). RLS cannot restrict
+  columns, so without it admin/ops could PATCH the protected columns
+  directly. It rejects (`55000`) changes to `status`, `assigned_seat_id`,
+  `partner_id`, `booking_number`, `airport_id`, `seat_category_id`,
+  `pickup_at`, `return_at`, `daily_rate`, `paid_days`, `gross_revenue`,
+  `partner_share` and `platform_share` unless the transaction set
+  `app.booking_change = 'on'` (done only inside the booking RPCs; relies on
+  PostgREST not exposing `set_config`). Not protected: `assigned_technician_id`,
+  `flight_id`, `incident_status`, arrival timestamps, `external_booking_number`,
+  `child_*`, `vehicle*`, `notes`. Future finance code (F22) must set the
+  same signal from its own function. The `ON DELETE SET NULL` of
+  `assigned_seat_id` (nested trigger) is allowed.
+- **Insert guard** `guard_booking_insert()` (`BEFORE INSERT` on
+  `bookings`): client roles can insert only inside `create_booking()`
+  (signal `app.booking_change`); a direct INSERT fails with `55000`. The
+  INSERT policy `bookings_insert_admin_ops_manager` is unchanged. Owner
+  roles (`postgres`, `supabase_admin`) are exempt so the seed and
+  migrations work; PostgREST never uses them. A future `SECURITY DEFINER`
+  function owned by `postgres` that inserts into `bookings` also skips
+  this guard, so it must set the signal and enforce its own rules.
+- **Nested-trigger exemption** (the `ON DELETE SET NULL` carve-outs in the
+  guard and the append-only trigger) relies on there being **no DELETE
+  policy on `seats` (or `users`) for client roles**. If one is ever added,
+  re-check this: a client could otherwise unassign a seat by deleting it.
+  `TRUNCATE` on `booking_events` is also rejected by trigger.
+- **Terminal/stale rules apply to the RPC path only**: the unguarded
+  columns (`notes`, `vehicle`, `vehicle_bay`, `child_*`,
+  `external_booking_number`) can still be PATCHed directly by admin/ops on
+  a terminal booking, and without `expected_updated_at`. This is accepted;
+  the change is still logged as an `updated` event. An integration test
+  pins the behaviour.
+- **Finance columns** (`paid_days`, `gross_revenue`, `partner_share`,
+  `platform_share`) are not selected by the booking queries, so the UI
+  never receives them; RLS cannot hide columns, so a partner calling
+  PostgREST directly can still read them on its own bookings.
+- **RPCs** (all `SECURITY INVOKER`, `set search_path = ''`, execute
+  revoked from `public`/`anon`, granted to `authenticated`; each starts
+  with an explicit admin/ops check using `coalesce(is_admin_or_ops_manager(), false)`
+  because the helper returns NULL for inactive callers): `create_booking`,
+  `update_booking`, `change_booking_status`, `get_available_seats`, plus
+  the helper `assert_booking_seat_assignable` and `generate_booking_number`
+  (`SECURITY DEFINER`, only reads the sequence; a caller can at most burn a
+  number).
+- **State matrix** (before F11 there was none: `bookings.status` was a plain
+  column admin/ops could set freely): `pending -> confirmed | cancelled`,
+  `confirmed -> cancelled | no_show`. `pending -> no_show` is not allowed.
+  `assigned`, `in_progress` and `completed` belong to later workflows;
+  `cancelled`, `no_show`, `completed` are terminal. A reason is required for
+  `cancelled` and `no_show` and is stored as the event notes. Only `pending`
+  and `confirmed` bookings can be edited.
+- **Seat rules**: seat `status = 'available'`, same `airport_id` and
+  `category_id` as the booking, and no overlapping active booking
+  (`pending`, `confirmed`, `assigned`, `in_progress`; touching endpoints are
+  not a conflict). The seat row is locked `FOR UPDATE` so two concurrent
+  assignments of one seat are serialized. Assigning a seat does not change
+  `seats.status`. There is no per-partner seat ownership in the schema
+  (`seats` has no `partner_id`), so "restricted inventory" is limited to
+  the existing seats RLS plus assigning seats only through the RPCs.
+  Error messages never name another partner's booking.
+- **Error codes**: `42501` not admin/ops, `P0002` not found, `22023`
+  invalid input (including null pickup/return) or missing reason, `55000` invalid state/transition or
+  guard violation, `BK001` seat not available, `BK002` seat time conflict,
+  `BK003` seat category/airport mismatch, `BK004` stale
+  `expected_updated_at`, `BK005` seat not found. Mapped to the action error codes `FORBIDDEN`,
+  `NOT_FOUND`, `VALIDATION_ERROR`, `INVALID_TRANSITION`, `SEAT_UNAVAILABLE`,
+  `SEAT_CONFLICT`, `SEAT_CATEGORY_MISMATCH`, `SEAT_NOT_FOUND`, `STALE_DATA`.
+- **Breaking**: direct INSERT into `booking_events` and direct PATCH of the
+  guarded `bookings` columns now fail. Nothing in `src/` did either.
+
+**Input rules enforced in the Server Actions**: `status`, `booking_number`,
+finance, flight and technician fields are not accepted by the schemas;
+`daily_rate` is entered at create and read-only afterwards; partner,
+airport and category are read-only on edit; times are typed as wall-clock
+time at the airport and converted to UTC with `airports.timezone`.
+**No delete**: `bookings` has no DELETE policy and no delete action exists.
+
 ## Secrets
 
 - `SUPABASE_SERVICE_ROLE_KEY` / the newer secret key (`sb_secret_...`)
