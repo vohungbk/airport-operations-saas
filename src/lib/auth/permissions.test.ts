@@ -140,3 +140,15 @@ describe("hasAnyPermission", () => {
     expect(hasAnyPermission("admin", ["finance:view"])).toBe(true);
   });
 });
+
+describe("seat access scope (CO-F04-S09)", () => {
+  it("should not let technician or partner_user manage seats, so /seats* stays admin and operations only", () => {
+    expect(hasPermission("technician", "seats:manage")).toBe(false);
+    expect(hasPermission("partner_user", "seats:manage")).toBe(false);
+  });
+
+  it("should give only partner_user the own-partner seat view permission", () => {
+    expect(hasPermission("partner_user", "seats:view_own_partner")).toBe(true);
+    expect(hasPermission("technician", "seats:view_own_partner")).toBe(false);
+  });
+});
