@@ -621,6 +621,24 @@ time at the airport and converted to UTC with `airports.timezone`.
   retryable message and re-throws Next.js redirect errors so a
   successful sign-in still navigates.
 
+## Seat access scope (CO-F04-S09)
+
+- Scope is enforced by `seats` RLS, not by the app: `technician` reads
+  only seats on bookings with one of their own jobs, and `partner_user`
+  reads only seats on their own partner's bookings. A `partner_user`
+  with no `partner_id` reads nothing. `seat_status_history` is
+  admin/operations only.
+- The policies do not look at booking or job status, so a seat on a
+  cancelled booking or a finished job stays readable by that partner or
+  technician. The spec does not define a cutoff yet.
+- `/seats*` is guarded by `seats:manage`, so `technician` and
+  `partner_user` are sent to `/forbidden`. `seats:view_own_partner`
+  exists in the permission model but no route uses it yet; a read-only
+  seat view for these roles is not built.
+- Covered by the "seat access scope (CO-F04-S09)" integration tests in
+  `src/lib/auth/rls.integration.test.ts` (read by id and by list, allowed
+  and cross-partner/cross-job denied).
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.
