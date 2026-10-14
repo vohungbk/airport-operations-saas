@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Plane,
   UserCircle,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -61,6 +62,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/seats",
     permission: "seats:manage",
     icon: Boxes,
+  },
+  {
+    label: "Technicians",
+    href: "/technicians",
+    permission: "technicians:manage",
+    icon: Users,
   },
   {
     label: "Bookings",
