@@ -1812,6 +1812,80 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(data ?? []).toEqual([]);
     });
 
+    // ----- CO-F04-S09: seat access scope (read by id and by list) ---------------
+
+    describe("seat access scope (CO-F04-S09)", () => {
+      it("partner_user can read a seat on their own partner's booking by id", async () => {
+        const { data, error } = await partnerAClient
+          .from("seats")
+          .select("id")
+          .eq("id", SEAT_A_ID)
+          .maybeSingle();
+
+        expect(error).toBeNull();
+        expect(data?.id).toBe(SEAT_A_ID);
+      });
+
+      it("partner_user cannot read another partner's seat by id", async () => {
+        const asPartnerA = await partnerAClient
+          .from("seats")
+          .select("id")
+          .eq("id", SEAT_B_ID)
+          .maybeSingle();
+        const asPartnerB = await partnerBClient
+          .from("seats")
+          .select("id")
+          .eq("id", SEAT_A_ID)
+          .maybeSingle();
+
+        expect(asPartnerA.error).toBeNull();
+        expect(asPartnerA.data).toBeNull();
+        expect(asPartnerB.error).toBeNull();
+        expect(asPartnerB.data).toBeNull();
+      });
+
+      it("partner_user list never includes another partner's seat", async () => {
+        const { data, error } = await partnerBClient.from("seats").select("id");
+
+        expect(error).toBeNull();
+        expect(data!.map((s) => s.id)).toContain(SEAT_B_ID);
+        expect(data!.map((s) => s.id)).not.toContain(SEAT_A_ID);
+      });
+
+      it("partner_user with no partner_id cannot read a seat by id", async () => {
+        const { data, error } = await partnerNullClient
+          .from("seats")
+          .select("id")
+          .eq("id", SEAT_A_ID)
+          .maybeSingle();
+
+        expect(error).toBeNull();
+        expect(data).toBeNull();
+      });
+
+      it("technician can read the seat of an assigned job by id", async () => {
+        const { data, error } = await technicianClient
+          .from("seats")
+          .select("id")
+          .eq("id", SEAT_A_ID)
+          .maybeSingle();
+
+        expect(error).toBeNull();
+        expect(data?.id).toBe(SEAT_A_ID);
+      });
+
+      it("technician cannot read a seat outside their assigned jobs by id", async () => {
+        const { data, error } = await technicianClient
+          .from("seats")
+          .select("id")
+          .eq("id", SEAT_B_ID)
+          .maybeSingle();
+
+        expect(error).toBeNull();
+        expect(data).toBeNull();
+      });
+    });
+
     // ----- Create -------------------------------------------------------------
 
     it("admin can create a seat with DB defaults for status, rental_cycles and public_token", async () => {
