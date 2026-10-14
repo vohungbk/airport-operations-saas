@@ -48,6 +48,8 @@ demand instead of being inlined here:
 - @.claude/rules/testing.md — unit vs. integration test guidance and
   minimum coverage expectations
 - @.claude/rules/git-commit.md — Conventional Commit format and rules
+- @.claude/rules/git-workflow.md — branch naming, PR requirements, worktrees
+- @.claude/rules/web-security.md — secrets, tenant isolation, input and access checks
 
 ## Feature Roadmap
 

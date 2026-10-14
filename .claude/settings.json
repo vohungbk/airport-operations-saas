@@ -1,4 +1,35 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh repo view:*)",
+      "Read(./**)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run test:*)",
+      "Bash(npx tsc --noEmit:*)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/.env)",
+      "Read(secrets/**)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Edit(secrets/**)",
+      "Bash(git push --force:*)",
+      "Bash(git push origin main:*)",
+      "Bash(rm -rf:*)",
+      "Bash(supabase db reset:*)",
+      "Bash(supabase db push:*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
