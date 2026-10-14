@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { loginAction } from "@/features/auth/actions/login.action";
+import { submitLogin } from "@/features/auth/lib/login-errors";
 import { loginSchema, type LoginInput } from "@/features/auth/schemas/login.schema";
 
 export function useLoginForm() {
@@ -18,9 +19,9 @@ export function useLoginForm() {
   const onSubmit = form.handleSubmit((values) => {
     setFormError(null);
     startTransition(async () => {
-      const result = await loginAction(values);
-      if (result?.error) {
-        setFormError(result.error);
+      const error = await submitLogin(loginAction, values);
+      if (error) {
+        setFormError(error);
       }
     });
   });
