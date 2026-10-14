@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { getPublicEnv } from "@/lib/config/env";
 import {
   AUTH_ONLY_ROUTES,
   DASHBOARD_ROUTE,
@@ -35,11 +36,12 @@ function withRefreshedCookies(
  * requests to a login/signup page are sent to the dashboard.
  */
 export async function updateSession(request: NextRequest) {
+  const { supabase_url, supabase_publishable_key } = getPublicEnv();
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabase_url,
+    supabase_publishable_key,
     {
       cookies: {
         getAll() {

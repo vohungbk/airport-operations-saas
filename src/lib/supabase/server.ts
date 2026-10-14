@@ -1,17 +1,20 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+import { getPublicEnv } from "@/lib/config/env";
+
 /**
  * Server-side Supabase client for use in Server Components, Server Actions,
  * and Route Handlers. Cookie writes are wrapped in try/catch because Server
  * Components cannot set cookies — the session-refresh proxy handles that.
  */
 export async function createClient() {
+  const { supabase_url, supabase_publishable_key } = getPublicEnv();
   const cookieStore = await cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabase_url,
+    supabase_publishable_key,
     {
       cookies: {
         getAll() {

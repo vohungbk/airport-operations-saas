@@ -588,6 +588,23 @@ time at the airport and converted to UTC with `airports.timezone`.
   expose — it carries the same low privilege as the legacy anon key, and
   access is enforced by RLS, not by keeping the key secret.
 
+## Configuration check (CP-F01-S05)
+
+- `src/lib/config/env.ts` validates the required environment variables
+  with Zod (`getPublicEnv()`): `NEXT_PUBLIC_SUPABASE_URL` must be a valid
+  URL and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` must be non-empty.
+- `src/instrumentation.ts` calls it when the server starts, so a missing
+  or invalid variable fails at startup with a `ConfigurationError`. The
+  Supabase clients and the session proxy use the same function instead of
+  `process.env.X!`.
+- The error message lists variable names only — never their values.
+- `NEXT_PUBLIC_*` variables are bundled into the browser. Never put a
+  secret or the service-role key behind that prefix; a test fails if a
+  `NEXT_PUBLIC_*SECRET*` or `NEXT_PUBLIC_*SERVICE_ROLE*` name appears in
+  `src`.
+- Before this change `src/proxy.ts` silently skipped session refresh when
+  the variables were unset. That fallback was removed on purpose.
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.
