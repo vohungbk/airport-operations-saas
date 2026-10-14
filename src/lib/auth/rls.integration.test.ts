@@ -2859,7 +2859,12 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       const own = await createOk({ p_partner_id: PARTNER_A_ID });
       const other = await createOk({ p_partner_id: PARTNER_B_ID });
 
-      const { data: list } = await partnerAClient.from("bookings").select("id, partner_id");
+      // Newest first: older runs leave bookings behind, and PostgREST caps an
+      // unordered list at max_rows, which could hide the booking just created.
+      const { data: list } = await partnerAClient
+        .from("bookings")
+        .select("id, partner_id")
+        .order("created_at", { ascending: false });
       expect(list!.some((b) => b.id === own.id)).toBe(true);
       expect(list!.every((b) => b.partner_id === PARTNER_A_ID)).toBe(true);
 
