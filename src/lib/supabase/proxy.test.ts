@@ -81,4 +81,13 @@ describe("updateSession", () => {
 
     expect(response.headers.get("location")).toBeNull();
   });
+
+  it("should throw a configuration error when the Supabase URL is missing", async () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "";
+
+    await expect(updateSession(makeRequest("/dashboard"))).rejects.toThrow(
+      "NEXT_PUBLIC_SUPABASE_URL",
+    );
+    expect(getClaimsMock).not.toHaveBeenCalled();
+  });
 });
