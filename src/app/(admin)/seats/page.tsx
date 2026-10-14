@@ -8,6 +8,7 @@ import { seatsQuerySchema } from "@/features/seats/schemas/seats-query.schema";
 import { SeatsFilters } from "@/features/seats/components/seats-filters";
 import { SeatsPagination } from "@/features/seats/components/seats-pagination";
 import { SeatsTable } from "@/features/seats/components/seats-table";
+import { PageEmpty } from "@/components/shared/page-state";
 
 interface SeatsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -52,10 +53,9 @@ export default async function SeatsPage({ searchParams }: SeatsPageProps) {
       />
 
       {total === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No seats found. Try adjusting the search or filters, or add a new
-          seat.
-        </p>
+        <PageEmpty
+          message="No seats found. Try adjusting the search or filters, or add a new seat."
+        />
       ) : (
         <>
           <SeatsTable seats={seats} query={query} />

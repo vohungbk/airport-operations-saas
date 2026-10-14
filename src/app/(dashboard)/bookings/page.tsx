@@ -12,6 +12,7 @@ import { bookingsQuerySchema } from "@/features/bookings/schemas/bookings-query.
 import { BookingsFilters } from "@/features/bookings/components/bookings-filters";
 import { BookingsPagination } from "@/features/bookings/components/bookings-pagination";
 import { BookingsTable } from "@/features/bookings/components/bookings-table";
+import { PageEmpty } from "@/components/shared/page-state";
 
 interface BookingsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -60,11 +61,13 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
       />
 
       {total === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {canManage
-            ? "No bookings found. Try adjusting the search or filters, or add a new booking."
-            : "No bookings found. Try adjusting the search or filters."}
-        </p>
+        <PageEmpty
+          message={
+            canManage
+              ? "No bookings found. Try adjusting the search or filters, or add a new booking."
+              : "No bookings found. Try adjusting the search or filters."
+          }
+        />
       ) : (
         <>
           <BookingsTable bookings={bookings} query={query} />

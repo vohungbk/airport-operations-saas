@@ -158,6 +158,24 @@ semantic tokens (and their `-foreground` pairs) registered in
 `badgeVariants` (`src/components/ui/badge.tsx`). `.dark` was updated too,
 as inert future-proofing — no toggle/provider activates it yet.
 
+#### CP-F01-S02 — design tokens and shared page states
+
+- **Color tokens only.** All color comes from semantic tokens defined in
+  `src/app/globals.css` (`:root` and `.dark`) and registered in
+  `@theme inline`. Components use utilities such as `bg-primary`,
+  `text-muted-foreground` or `bg-overlay`. Raw hex, `rgb()`, `oklch()`
+  and Tailwind palette colors (`bg-red-500`, `bg-black`) are not allowed
+  outside `globals.css`; `src/app/design-tokens.test.ts` enforces this.
+- **New token:** `--overlay` (modal backdrop), used by `DialogOverlay`.
+  `--ring` and `--sidebar-*` now follow the brand palette.
+- **Shared page states** live in `src/components/shared`:
+  `PageLoading`, `PageEmpty`, `PageSuccess`, `PageForbidden`,
+  `PageNotFound` (`page-state.tsx`, Server Components) and `PageError`
+  (`page-error.tsx`, client boundary with a retry button). Feature
+  `loading.tsx`, `error.tsx`, list empty states, `forbidden/page.tsx`
+  and `not-found.tsx` use these instead of hand-written markup.
+  `Alert` gained a `success` variant for `PageSuccess`.
+
 ### `src/features/partners` (F06)
 
 Follows the same shape as `src/features/auth`, gated end-to-end by

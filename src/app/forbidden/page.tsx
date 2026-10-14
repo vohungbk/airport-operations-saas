@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PageForbidden } from "@/components/shared/page-state";
 import { getAuthUser } from "@/lib/auth/session";
 import { LOGIN_ROUTE } from "@/lib/constants/routes";
 import { LogoutButton } from "@/features/auth/components/logout-button";
@@ -34,15 +35,16 @@ export default async function ForbiddenPage({
   const isConfirmProfileFailure = reason === "confirm_profile_failed";
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        {isConfirmProfileFailure ? "Account setup incomplete" : "Access denied"}
-      </h1>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        {isConfirmProfileFailure
+    <PageForbidden
+      title={
+        isConfirmProfileFailure ? "Account setup incomplete" : undefined
+      }
+      description={
+        isConfirmProfileFailure
           ? "Your email was confirmed, but we couldn't finish setting up your account. Please sign out and sign up again, or contact your administrator if this keeps happening."
-          : "You don't have permission to view this page. If you think this is a mistake, contact your administrator."}
-      </p>
+          : undefined
+      }
+    >
       {user ? (
         <LogoutButton />
       ) : (
@@ -53,6 +55,6 @@ export default async function ForbiddenPage({
           Sign in
         </Link>
       )}
-    </div>
+    </PageForbidden>
   );
 }

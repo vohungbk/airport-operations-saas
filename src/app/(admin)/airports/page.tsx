@@ -7,6 +7,7 @@ import { airportsQuerySchema } from "@/features/airports/schemas/airports-query.
 import { AirportsFilters } from "@/features/airports/components/airports-filters";
 import { AirportsPagination } from "@/features/airports/components/airports-pagination";
 import { AirportsTable } from "@/features/airports/components/airports-table";
+import { PageEmpty } from "@/components/shared/page-state";
 
 interface AirportsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -37,9 +38,9 @@ export default async function AirportsPage({ searchParams }: AirportsPageProps) 
       <AirportsFilters q={query.q} sort={query.sort} order={query.order} />
 
       {total === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No airports found. Try adjusting the search, or add a new airport.
-        </p>
+        <PageEmpty
+          message="No airports found. Try adjusting the search, or add a new airport."
+        />
       ) : (
         <>
           <AirportsTable airports={airports} query={query} />
