@@ -1,0 +1,35 @@
+#!/bin/bash
+# post-checkout hook — branch naming enforcement
+
+BRANCH_NAME=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+# Skip if not a branch checkout (could be file checkout)
+if [ $? -ne 0 ]; then
+  exit 0
+fi
+
+# Exempt branches
+EXEMPT_PATTERN="^(main|master|develop|staging|production)$"
+if [[ "$BRANCH_NAME" =~ $EXEMPT_PATTERN ]]; then
+  exit 0
+fi
+
+# Allowed pattern: type/optional-issue-number-description
+# Examples: feat/add-search, fix/42-auth-timeout, hotfix/critical-bug
+ALLOWED_PATTERN="^(feat|fix|hotfix|refactor|perf|test|docs|chore|security)\/([0-9]+-)?[a-z0-9-]+$"
+
+if [[ ! "$BRANCH_NAME" =~ $ALLOWED_PATTERN ]]; then
+  echo ""
+  echo "⚠️  Branch name '$BRANCH_NAME' does not follow naming convention."
+  echo ""
+  echo "Expected format: <type>/<optional-issue>-<description>"
+  echo "  Types: feat, fix, hotfix, refactor, perf, test, docs, chore, security"
+  echo "  Examples: feat/add-search, fix/42-auth-timeout, security/patch-xss"
+  echo ""
+  echo "This is a warning only — the branch was created."
+  echo "Consider renaming: git branch -m <new-name>"
+  echo ""
+fi
+
+# Exit 0 intentionally — we warn but don't block
+exit 0
