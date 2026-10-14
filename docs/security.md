@@ -639,6 +639,24 @@ time at the airport and converted to UTC with `airports.timezone`.
   `src/lib/auth/rls.integration.test.ts` (read by id and by list, allowed
   and cross-partner/cross-job denied).
 
+## Technician list (FO-F01-S01)
+
+- `/technicians` and `/technicians/[id]` are guarded by
+  `technicians:manage` (admin and operations_manager) in the layout and
+  on every page. Other roles are sent to `/forbidden`.
+- A technician is a `public.users` row with `role = 'technician'`; there
+  is no separate technicians table. Access is enforced by the existing
+  `users` RLS (`users_select_admin_ops_manager`, `users_select_self`),
+  so a `technician` lists only themselves and a `partner_user` lists
+  none. Covered by the "technician list access (FO-F01-S01)" tests in
+  `src/lib/auth/rls.integration.test.ts`.
+- Only `id, full_name, email, is_active, created_at` are selected.
+- The search value is optional, trimmed and limited to 100 characters.
+  The client form and the server page use the same Zod schema; an
+  over-long value shows an error and is not applied. The value is
+  escaped for `ilike` and quoted for PostgREST before it reaches `.or()`.
+- The per-technician job list is not built yet (Job List, FO-F01-S02).
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.
