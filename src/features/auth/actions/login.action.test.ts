@@ -14,6 +14,8 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+import { AuthApiError, AuthRetryableFetchError } from "@supabase/supabase-js";
+
 import { loginAction } from "@/features/auth/actions/login.action";
 
 describe("loginAction", () => {
@@ -67,5 +69,63 @@ describe("loginAction", () => {
     expect(result).toEqual({
       error: "Please confirm your email address before signing in.",
     });
+  });
+
+  it("should return a network message instead of invalid credentials when Supabase cannot be reached", async () => {
+    signInWithPasswordMock.mockResolvedValue({
+      error: new AuthRetryableFetchError("fetch failed", 0),
+    });
+
+    const result = await loginAction({
+      email: "user@example.com",
+      password: "test-value-password",
+    });
+
+    expect(result.error).toContain("could not reach the sign-in service");
+    expect(result.error).not.toBe("Invalid email or password.");
+  });
+
+  it("should allow signing in again after a network failure", async () => {
+    signInWithPasswordMock
+      .mockResolvedValueOnce({
+        error: new AuthRetryableFetchError("fetch failed", 0),
+      })
+      .mockResolvedValueOnce({ error: null });
+
+    const input = { email: "user@example.com", password: "password123" };
+    const first = await loginAction(input);
+
+    expect(first.error).toBeTruthy();
+    await expect(loginAction(input)).rejects.toThrow("REDIRECT:/dashboard");
+  });
+
+  it("should return a rate-limit message when Supabase reports too many requests", async () => {
+    signInWithPasswordMock.mockResolvedValue({
+      error: new AuthApiError(
+        "Request rate limit reached",
+        429,
+        "over_request_rate_limit",
+      ),
+    });
+
+    const result = await loginAction({
+      email: "user@example.com",
+      password: "test-value-password",
+    });
+
+    expect(result).toEqual({
+      error: "Too many sign-in attempts. Wait a moment and try again.",
+    });
+  });
+
+  it("should return a generic message instead of throwing when Supabase throws unexpectedly", async () => {
+    signInWithPasswordMock.mockRejectedValue(new Error("boom"));
+
+    const result = await loginAction({
+      email: "user@example.com",
+      password: "test-value-password",
+    });
+
+    expect(result).toEqual({ error: "Something went wrong. Try again." });
   });
 });

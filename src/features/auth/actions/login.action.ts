@@ -1,23 +1,17 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import type { AuthError } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/server";
 import { DASHBOARD_ROUTE } from "@/lib/constants/routes";
+import {
+  LOGIN_ERROR_MESSAGES,
+  mapLoginError,
+} from "@/features/auth/lib/login-errors";
 import { loginSchema } from "@/features/auth/schemas/login.schema";
 
 export interface LoginActionResult {
   error: string;
-}
-
-function mapLoginError(error: AuthError): string {
-  if (error.code === "email_not_confirmed") {
-    return "Please confirm your email address before signing in.";
-  }
-
-  // Never distinguish "wrong password" from "no such account" here.
-  return "Invalid email or password.";
 }
 
 export async function loginAction(
@@ -29,11 +23,18 @@ export async function loginAction(
     return { error: "Enter a valid email and password." };
   }
 
+  // A configuration error from `createClient()` should surface as such,
+  // and `redirect()` throws, so both stay outside the try/catch below.
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
-  if (error) {
-    return { error: mapLoginError(error) };
+  try {
+    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+
+    if (error) {
+      return { error: mapLoginError(error) };
+    }
+  } catch {
+    return { error: LOGIN_ERROR_MESSAGES.unexpected };
   }
 
   redirect(DASHBOARD_ROUTE);

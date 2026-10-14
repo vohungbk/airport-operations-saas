@@ -605,6 +605,22 @@ time at the airport and converted to UTC with `airports.timezone`.
 - Before this change `src/proxy.ts` silently skipped session refresh when
   the variables were unset. That fallback was removed on purpose.
 
+## Sign-in failure handling (CP-F03-S08)
+
+- `src/features/auth/lib/login-errors.ts` maps Supabase Auth errors to
+  user-facing sign-in messages: network failure (`AuthRetryableFetchError`),
+  rate limit (`over_request_rate_limit` / HTTP 429), unconfirmed email,
+  and a single generic "Invalid email or password." that never
+  distinguishes a wrong password from an unknown account.
+- Rate limiting is enforced by Supabase Auth (`[auth.rate_limit]` in
+  `supabase/config.toml`). The app does not add its own lockout; it only
+  reports the limit. A custom policy is still to be determined.
+- `loginAction` returns a generic message instead of throwing on
+  unexpected errors. The client wrapper `submitLogin` turns a failed
+  Server Action call (for example the browser being offline) into a
+  retryable message and re-throws Next.js redirect errors so a
+  successful sign-in still navigates.
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.
