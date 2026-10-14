@@ -12,7 +12,13 @@ The ticket already has acceptance criteria (AC). Do not rewrite stories or ACs.
 1. Parse the issue number from `$ARGUMENTS`.
 2. Run `gh issue view <number> --repo vohungbk/airport-operations-saas`.
 3. Extract: story, every AC (ID + text), assumptions, dependency, test scenarios.
-4. Check the branch with `git branch --show-current`. It must match `<type>/<issue>-<slug>`, not `main`. If not, stop and tell the user to run `make worktree-new <branch>`.
+4. Check the branch with `git branch --show-current`. Do not use a worktree.
+   - If it already matches `<type>/<issue>-<slug>` for this issue, continue on it.
+   - If it is `main` (or another exempt branch from `.claude/rules/git-workflow.md`), create the branch in the current checkout: `git switch -c <type>/<issue>-<slug>`.
+     - `<type>`: `feat` for a Story/Feature, `fix` for a Bug, `chore` for a Task. Use the allowed types in `.claude/rules/git-workflow.md`.
+     - `<slug>`: short kebab-case from the ticket title, without the ticket code prefix.
+     - Stop and ask first if the working tree has uncommitted changes.
+   - If it is another unrelated branch, stop and ask the user which branch to use.
 5. Check each AC is testable. If an AC is vague or missing, ask the user. Do not guess.
 
 ## Phase 2: Explore and plan
@@ -40,11 +46,11 @@ Stop after the plan. Ask: "Approve this plan?"
 5. Run `/simplify` and apply the fixes.
 6. Run `/verify --build` at the end and show the exit codes. Run it after steps 4 and 5, because they change the code.
 7. Right after step 6 is green, start the dev server for the user to review. Do not ask first.
-   - Run it in the background from the worktree root: `npm run dev` (runs `next dev` on port 3000).
+   - Run it in the background from the repo root: `npm run dev` (runs `next dev` on port 3000).
    - Check that port 3000 is free first (`lsof -i :3000`). Check that the server answers HTTP 200 on `http://localhost:3000`.
    - If the feature needs a logged-in user, use a seeded test user from the project's seed files. Do not hardcode credentials or commit temporary helpers.
    - Give the user the URL, the pages and states to check, and anything known to be missing (for example a page that 404s because another feature owns it).
-   - Tell the user how to stop it: `pkill -f "next dev"`. Keep it running until the user is done. Stop it before `npm run build` or removing the worktree.
+   - Tell the user how to stop it: `pkill -f "next dev"`. Keep it running until the user is done. Stop it before `npm run build`.
 8. Do not commit or push unless the user asks. Wait for the user's review first, unless they already asked to commit and open the PR. Commit format follows `.claude/rules/git-commit.md`: `feat(<scope>): <subject>`, tests in a separate `test(<scope>)` commit.
 
 ## Output
