@@ -588,6 +588,54 @@ describe.skipIf(!config)("F05 RLS integration", () => {
   });
 
   // ===========================================================================
+  // FO-F01-S01: technician list reads `users` with role = 'technician'
+  // ===========================================================================
+  describe("technician list access (FO-F01-S01)", () => {
+    it("admin and operations_manager can list technician users", async () => {
+      for (const client of [adminClient, opsClient]) {
+        const { data, error } = await client
+          .from("users")
+          .select("id")
+          .eq("role", "technician");
+
+        expect(error).toBeNull();
+        expect(data!.map((u) => u.id)).toContain(identities.technician.id);
+      }
+    });
+
+    it("technician listing technician users sees only themselves", async () => {
+      const { data, error } = await technicianClient
+        .from("users")
+        .select("id")
+        .eq("role", "technician");
+
+      expect(error).toBeNull();
+      expect(data).toEqual([{ id: identities.technician.id }]);
+    });
+
+    it("partner_user listing technician users sees none", async () => {
+      for (const client of [partnerAClient, partnerNullClient]) {
+        const { data, error } = await client
+          .from("users")
+          .select("id")
+          .eq("role", "technician");
+
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+      }
+    });
+
+    it("anonymous client listing technician users sees none", async () => {
+      const { data } = await anonClient
+        .from("users")
+        .select("id")
+        .eq("role", "technician");
+
+      expect(data ?? []).toEqual([]);
+    });
+  });
+
+  // ===========================================================================
   // 3. Role boundaries
   // ===========================================================================
   describe("role boundaries", () => {
