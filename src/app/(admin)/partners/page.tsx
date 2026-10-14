@@ -7,6 +7,7 @@ import { partnersQuerySchema } from "@/features/partners/schemas/partners-query.
 import { PartnersFilters } from "@/features/partners/components/partners-filters";
 import { PartnersPagination } from "@/features/partners/components/partners-pagination";
 import { PartnersTable } from "@/features/partners/components/partners-table";
+import { PageEmpty } from "@/components/shared/page-state";
 
 interface PartnersPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -43,10 +44,9 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
       />
 
       {total === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No partners found. Try adjusting the search or filters, or add a
-          new partner.
-        </p>
+        <PageEmpty
+          message="No partners found. Try adjusting the search or filters, or add a new partner."
+        />
       ) : (
         <>
           <PartnersTable partners={partners} query={query} />

@@ -8,9 +8,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // hover shade approximates the "Primary Dark" (#0B3558) brand
-        // color as a color-mix() of --primary, matching the secondary
-        // variant's existing darken-on-hover convention below.
+        // hover shade is the "Primary Dark" brand color, derived as a
+        // color-mix() of --primary, matching the secondary variant's
+        // existing darken-on-hover convention below.
         default:
           "bg-primary text-primary-foreground hover:bg-[color-mix(in_oklch,var(--primary),black_20%)]",
         outline:

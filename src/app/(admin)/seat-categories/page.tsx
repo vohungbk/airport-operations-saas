@@ -7,6 +7,7 @@ import { seatCategoriesQuerySchema } from "@/features/seat-categories/schemas/se
 import { SeatCategoriesFilters } from "@/features/seat-categories/components/seat-categories-filters";
 import { SeatCategoriesPagination } from "@/features/seat-categories/components/seat-categories-pagination";
 import { SeatCategoriesTable } from "@/features/seat-categories/components/seat-categories-table";
+import { PageEmpty } from "@/components/shared/page-state";
 
 interface SeatCategoriesPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -47,10 +48,9 @@ export default async function SeatCategoriesPage({
       />
 
       {total === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No seat categories found. Try adjusting the search or filter, or add
-          a new seat category.
-        </p>
+        <PageEmpty
+          message="No seat categories found. Try adjusting the search or filter, or add a new seat category."
+        />
       ) : (
         <>
           <SeatCategoriesTable seatCategories={seatCategories} query={query} />
