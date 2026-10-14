@@ -1,7 +1,7 @@
 ---
 description: Read a GitHub ticket and plan against its ACs; implement after the user types approve
 argument-hint: <issue-number or issue URL>
-allowed-tools: Bash(gh issue view:*), Bash(git status), Bash(git branch:*), Bash(git log:*), Bash(git diff:*), Read, Grep, Glob, Edit, Write, Bash(npm run:*), Bash(npx tsc --noEmit:*), Bash(lsof:*), Bash(curl:*), Bash(pkill:*)
+allowed-tools: Bash(gh issue view:*), Bash(git status), Bash(git branch:*), Bash(git switch:*), Bash(git pull:*), Bash(git log:*), Bash(git diff:*), Read, Grep, Glob, Edit, Write, Bash(npm run:*), Bash(npx tsc --noEmit:*), Bash(lsof:*), Bash(curl:*), Bash(pkill:*)
 ---
 
 Implement ticket: $ARGUMENTS
@@ -9,17 +9,21 @@ Implement ticket: $ARGUMENTS
 The ticket already has acceptance criteria (AC). Do not rewrite stories or ACs.
 
 ## Phase 1: Read the ticket
-1. Parse the issue number from `$ARGUMENTS`.
-2. Run `gh issue view <number> --repo vohungbk/airport-operations-saas`.
-3. Extract: story, every AC (ID + text), assumptions, dependency, test scenarios.
-4. Check the branch with `git branch --show-current`. Do not use a worktree.
+1. Sync `main` first, before anything else:
+   - Run `git status --short` and `git branch --show-current`.
+   - If the working tree has uncommitted changes, stop and ask the user. Do not stash, discard or carry them over silently.
+   - If the current branch already matches `<type>/<issue>-<slug>` for this issue, skip the sync and continue on it.
+   - Otherwise run `git switch main` then `git pull --ff-only`. If the pull cannot fast-forward, stop and tell the user.
+2. Parse the issue number from `$ARGUMENTS`.
+3. Run `gh issue view <number> --repo vohungbk/airport-operations-saas`.
+4. Extract: story, every AC (ID + text), assumptions, dependency, test scenarios.
+5. Check the branch with `git branch --show-current`. Do not use a worktree.
    - If it already matches `<type>/<issue>-<slug>` for this issue, continue on it.
-   - If it is `main` (or another exempt branch from `.claude/rules/git-workflow.md`), create the branch in the current checkout: `git switch -c <type>/<issue>-<slug>`.
+   - If it is `main` (synced in step 1), create the branch from it in the current checkout: `git switch -c <type>/<issue>-<slug>`.
      - `<type>`: `feat` for a Story/Feature, `fix` for a Bug, `chore` for a Task. Use the allowed types in `.claude/rules/git-workflow.md`.
      - `<slug>`: short kebab-case from the ticket title, without the ticket code prefix.
-     - Stop and ask first if the working tree has uncommitted changes.
    - If it is another unrelated branch, stop and ask the user which branch to use.
-5. Check each AC is testable. If an AC is vague or missing, ask the user. Do not guess.
+6. Check each AC is testable. If an AC is vague or missing, ask the user. Do not guess.
 
 ## Phase 2: Explore and plan
 1. Explore the repo for the code each AC touches. Follow `.claude/rules/frontend.md`, `.claude/rules/backend.md` and `CLAUDE.md`.
