@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   Building2,
   ClipboardList,
+  ListChecks,
   LayoutDashboard,
   Plane,
   UserCircle,
@@ -13,6 +14,7 @@ import {
 
 import {
   BOOKINGS_ACCESS_PERMISSIONS,
+  JOBS_ACCESS_PERMISSIONS,
   hasAnyPermission,
   type Permission,
 } from "@/lib/auth/permissions";
@@ -74,6 +76,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/bookings",
     permission: BOOKINGS_ACCESS_PERMISSIONS,
     icon: CalendarCheck,
+  },
+  {
+    label: "Jobs",
+    href: "/jobs",
+    permission: JOBS_ACCESS_PERMISSIONS,
+    icon: ListChecks,
   },
   {
     label: "Technician Jobs",
