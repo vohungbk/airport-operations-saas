@@ -1,41 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Airport Operations SaaS
 
-## Getting Started
+A multi-tenant airport operations SaaS for managing child-seat rental
+operations at airports. Rental-car partners, airports, seat inventory and
+bookings are managed in one place, with tenant isolation enforced by the
+database.
 
-First, run the development server:
+## Stack
+
+- Next.js (App Router, Server Components by default) and TypeScript
+- Tailwind CSS and shadcn/ui
+- Supabase (Auth, PostgreSQL) with database-level Row Level Security
+- Zod for input validation
+- Vitest for tests
+
+## Getting started
+
+### Prerequisites
+
+- Node.js and npm
+- Docker (only to run Supabase locally)
+
+### Setup
+
+```bash
+npm install
+cp .env.example .env.local
+```
+
+Fill in `.env.local`. The app checks these variables when the server
+starts and stops with a clear configuration error if one is missing or
+invalid:
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (http or https) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key |
+
+Only `NEXT_PUBLIC_*` values are sent to the browser. Never put a secret or
+the service-role key behind that prefix.
+
+### Local Supabase
+
+```bash
+npx supabase start       # start the local stack (needs Docker)
+npx supabase db reset    # apply migrations and supabase/seed.sql
+npx supabase stop
+```
+
+`npx supabase start` prints the local API URL and keys to use in
+`.env.local`. Studio runs at http://127.0.0.1:54323.
+
+### Run the app
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Start the development server |
+| `npm run build` | Production build |
+| `npm run start` | Run the production build |
+| `npm run lint` | ESLint |
+| `npm run test` | Vitest |
 
-## Learn More
+Run `npm run lint`, `npm run test` and `npm run build` before opening a
+pull request.
 
-To learn more about Next.js, take a look at the following resources:
+## Project structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```text
+src/app/          Routes (route groups: (auth), (admin), (dashboard), (partner), (technician))
+src/features/     Feature modules: actions, components, hooks, lib, schemas
+src/components/   Shared UI (ui/ = shadcn/ui, layout/ = app shell and navigation)
+src/lib/          Auth, Supabase clients, config, shared helpers
+src/config/       Static app configuration (navigation)
+supabase/         Migrations and seed data
+docs/             Architecture, database, security and roadmap
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Documentation
 
-## Deploy on Vercel
+- [Architecture](docs/architecture.md)
+- [Database](docs/database.md)
+- [Security](docs/security.md)
+- [Roadmap](docs/roadmap.md) (feature list and status)
+- [Git hooks](docs/git-hooks.md)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Claude Code Harness
+## Claude Code harness
 
 - Rules: `.claude/rules/` (git workflow, security, frontend, backend, testing)
 - Git hooks: `.githooks/` (installed by `npm install` via `scripts/setup-git-hooks.sh`, see `docs/git-hooks.md`)
