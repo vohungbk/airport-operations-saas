@@ -49,8 +49,8 @@ function SortHeader({ query, column }: { query: JobsQuery; column: JobsSortColum
 }
 
 /**
- * Server Component. Rows are not links yet: Job detail ships with
- * FO-F01-S03, so there is no page to open.
+ * Server Component. The booking number links to the job detail page, so
+ * a row can be opened from the keyboard.
  */
 export function JobsTable({ jobs, query }: JobsTableProps) {
   return (
@@ -68,7 +68,12 @@ export function JobsTable({ jobs, query }: JobsTableProps) {
         {jobs.map((job) => (
           <TableRow key={job.id}>
             <TableCell className="font-medium">
-              {job.booking?.booking_number ?? "—"}
+              <Link
+                href={`/jobs/${job.id}`}
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                {job.booking?.booking_number ?? "View job"}
+              </Link>
             </TableCell>
             <TableCell>{job.technician?.full_name ?? "—"}</TableCell>
             <TableCell>
