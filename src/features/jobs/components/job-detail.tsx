@@ -15,6 +15,8 @@ interface JobDetailProps {
   eventsTruncated: boolean;
   /** Transitions the current user may make; empty hides the control. */
   allowedStatuses: JobTargetStatus[];
+  /** Matching workflow screen; null hides the "Record work" link. */
+  workRecordHref: string | null;
 }
 
 function formatDateTime(value: string | null): string {
@@ -39,6 +41,7 @@ export function JobDetail({
   events,
   eventsTruncated,
   allowedStatuses,
+  workRecordHref,
 }: JobDetailProps) {
   const { booking } = job;
 
@@ -52,6 +55,11 @@ export function JobDetail({
           <JobStatusBadge status={job.status} />
         </div>
         <div className="flex items-center gap-2">
+          {workRecordHref && (
+            <Link href={workRecordHref} className={buttonVariants()}>
+              Record work
+            </Link>
+          )}
           {allowedStatuses.length > 0 && (
             <ChangeJobStatusDialog
               // New form state when the status moves, so the defaults match.
