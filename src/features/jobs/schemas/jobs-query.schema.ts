@@ -19,6 +19,12 @@ const JOBS_DEFAULT_PAGE_SIZE = 20;
 const JOBS_MAX_PAGE_SIZE = 100;
 
 /**
+ * `z.guid()` rather than `z.uuid()`: seeded ids are not RFC-variant
+ * UUIDs (same choice as the other features' id schemas).
+ */
+export const jobIdSchema = z.guid();
+
+/**
  * `searchParams` is user-editable URL state — garbled values fall back
  * to safe defaults via `.catch()` instead of failing the page. An
  * over-long `q` is rejected by `parseJobsQuery` first, so it produces a
