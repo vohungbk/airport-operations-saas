@@ -38,7 +38,7 @@ describe("JobDetailPage", () => {
   });
 
   it("should guard the page with the jobs access permissions", async () => {
-    getJobByIdMock.mockResolvedValue({ id: "j-1", status: "assigned" });
+    getJobByIdMock.mockResolvedValue({ id: "j-1", status: "assigned", job_type: "installation" });
 
     await JobDetailPage({ params: Promise.resolve({ id: "j-1" }) });
 
@@ -66,7 +66,7 @@ describe("JobDetailPage", () => {
   });
 
   it("should offer a technician only the work transitions", async () => {
-    getJobByIdMock.mockResolvedValue({ id: "j-1", status: "assigned" });
+    getJobByIdMock.mockResolvedValue({ id: "j-1", status: "assigned", job_type: "installation" });
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
@@ -80,7 +80,7 @@ describe("JobDetailPage", () => {
       id: "user-2",
       role: "operations_manager",
     });
-    getJobByIdMock.mockResolvedValue({ id: "j-1", status: "in_progress" });
+    getJobByIdMock.mockResolvedValue({ id: "j-1", status: "in_progress", job_type: "installation" });
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
@@ -90,12 +90,27 @@ describe("JobDetailPage", () => {
   });
 
   it("should offer nothing for a completed job", async () => {
-    getJobByIdMock.mockResolvedValue({ id: "j-1", status: "completed" });
+    getJobByIdMock.mockResolvedValue({ id: "j-1", status: "completed", job_type: "installation" });
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
     });
 
     expect(element.props.allowedStatuses).toEqual([]);
+  });
+
+  it("should not offer Record work while no workflow screen is available", async () => {
+    getJobByIdMock.mockResolvedValue({
+      id: "j-1",
+      status: "in_progress",
+      job_type: "installation",
+      technician: { id: "user-1" },
+    });
+
+    const element = await JobDetailPage({
+      params: Promise.resolve({ id: "j-1" }),
+    });
+
+    expect(element.props.workRecordHref).toBeNull();
   });
 });
