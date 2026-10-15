@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +18,8 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
+import { JobStatusErrorAlert } from "@/features/jobs/components/job-status-error-alert";
+import { isJobUnavailableError } from "@/features/jobs/lib/job-errors";
 import { useChangeJobStatusForm } from "@/features/jobs/hooks/use-change-job-status-form";
 import {
   JOB_STATUS_LABEL,
@@ -62,6 +63,8 @@ export function ChangeJobStatusDialog({
   } = form;
   const target = watch("to_status");
   const reasonRequired = isJobReasonRequired(target);
+  // The job is out of reach (e.g. unassigned): confirming again cannot work.
+  const unavailable = isJobUnavailableError(result?.error);
 
   return (
     <Dialog
@@ -84,11 +87,8 @@ export function ChangeJobStatusDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {result && !result.success && (
-            <Alert variant="destructive">
-              <AlertTitle>Could not update status</AlertTitle>
-              <AlertDescription>{result.error?.message}</AlertDescription>
-            </Alert>
+          {result && !result.success && result.error && (
+            <JobStatusErrorAlert error={result.error} />
           )}
 
           <Field data-invalid={!!errors.to_status}>
@@ -135,13 +135,15 @@ export function ChangeJobStatusDialog({
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant={reasonRequired ? "destructive" : "default"}
-              disabled={isPending}
-            >
-              {isPending ? "Saving..." : "Confirm"}
-            </Button>
+            {!unavailable && (
+              <Button
+                type="submit"
+                variant={reasonRequired ? "destructive" : "default"}
+                disabled={isPending}
+              >
+                {isPending ? "Saving..." : "Confirm"}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>
