@@ -2,6 +2,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 
 import {
+  NETWORK_ERROR,
   isJobUnavailableError,
   mapJobError,
 } from "@/features/jobs/lib/job-errors";
@@ -29,6 +30,17 @@ describe("mapJobError", () => {
     expect(mapJobError(pgError("P0002")).message).not.toMatch(/exist/i);
   });
 
+  it("should tell the user the latest status is shown when the job is stale", () => {
+    const error = mapJobError(pgError("JB004"));
+
+    expect(error.code).toBe("STALE_DATA");
+    expect(error.message).toContain("latest status is shown");
+  });
+
+  it("should report a forbidden state when the caller may not do the action", () => {
+    expect(mapJobError(pgError("42501")).code).toBe("FORBIDDEN");
+  });
+
   it("should not expose the raw database message", () => {
     expect(mapJobError(pgError("XX000")).message).not.toContain("raw");
   });
@@ -44,6 +56,10 @@ describe("isJobUnavailableError", () => {
     for (const code of ["JB004", "55000", "22023", "XX000"]) {
       expect(isJobUnavailableError(mapJobError(pgError(code)))).toBe(false);
     }
+  });
+
+  it("should be false for a network error so the user can retry", () => {
+    expect(isJobUnavailableError(NETWORK_ERROR)).toBe(false);
   });
 
   it("should be false when there is no error", () => {

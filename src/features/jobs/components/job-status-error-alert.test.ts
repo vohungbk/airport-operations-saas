@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 
 import { JobStatusErrorAlert } from "@/features/jobs/components/job-status-error-alert";
 
-function render(code: "NOT_FOUND" | "FORBIDDEN" | "STALE_DATA", message: string) {
+function render(
+  code: "NOT_FOUND" | "FORBIDDEN" | "STALE_DATA" | "NETWORK_ERROR",
+  message: string,
+) {
   return renderToStaticMarkup(
     createElement(JobStatusErrorAlert, { error: { code, message } }),
   );
@@ -26,6 +29,19 @@ describe("JobStatusErrorAlert", () => {
     expect(render("FORBIDDEN", "You do not have permission to do this.")).toContain(
       'href="/jobs"',
     );
+  });
+
+  it("should say the user no longer has access when the action is forbidden", () => {
+    expect(render("FORBIDDEN", "You do not have permission to do this.")).toContain(
+      "You no longer have access to this action",
+    );
+  });
+
+  it("should keep the form usable after a network error", () => {
+    const html = render("NETWORK_ERROR", "Could not reach the server.");
+
+    expect(html).toContain("Could not update status");
+    expect(html).not.toContain('href="/jobs"');
   });
 
   it("should not offer the job list for an error a retry can fix", () => {

@@ -947,7 +947,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         "cancelled",
         "changed my mind",
       );
-      expect(denied.error?.code).toBe("55000");
+      expect(denied.error?.code).toBe("42501");
 
       const noReason = await rpc(opsClient, jobId, "assigned", "cancelled");
       expect(noReason.error?.code).toBe("22023");
@@ -966,6 +966,50 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         .select("to_status, notes")
         .eq("technician_job_id", jobId);
       expect(events).toEqual([{ to_status: "cancelled", notes: "Booking changed" }]);
+    });
+
+    it("rejects the second of two managers acting on the same job and keeps the first change (JB004)", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+
+      // Both managers loaded the job while it was "assigned".
+      const first = await rpc(opsClient, jobId, "assigned", "in_progress");
+      expect(first.error).toBeNull();
+
+      const second = await rpc(adminClient, jobId, "assigned", "cancelled", "late");
+      expect(second.error?.code).toBe("JB004");
+
+      const { data } = await service
+        .from("technician_jobs")
+        .select("status")
+        .eq("id", jobId)
+        .single();
+      expect(data!.status).toBe("in_progress");
+
+      const { data: events } = await service
+        .from("technician_job_events")
+        .select("to_status")
+        .eq("technician_job_id", jobId);
+      expect(events).toEqual([{ to_status: "in_progress" }]);
+    });
+
+    it("allows the same user to retry with the status now shown after a conflict", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+      await rpc(opsClient, jobId, "assigned", "in_progress");
+
+      const stale = await rpc(adminClient, jobId, "assigned", "cancelled", "late");
+      expect(stale.error?.code).toBe("JB004");
+
+      const retry = await rpc(adminClient, jobId, "in_progress", "cancelled", "late");
+      expect(retry.error).toBeNull();
+      expect(retry.data!.status).toBe("cancelled");
     });
 
     it("technician cannot change another technician's job (reported as not found)", async () => {
