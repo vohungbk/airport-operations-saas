@@ -695,6 +695,30 @@ time at the airport and converted to UTC with `airports.timezone`.
   with a column allowlist; it is not part of this story.
 - Read-only. Updating the job status is FO-F01-S05.
 
+## Create and assign job (FO-F01-S04)
+
+- Route `/jobs/new` and `createJobAction` both require `technicians:manage`
+  (admin, operations_manager). The `/jobs` layout also admits technicians,
+  so the page and the action each add their own guard; hiding the
+  "Create job" link is not an access check.
+- Input is validated with Zod (`create-job.schema.ts`) on the client and the
+  server. The action inserts only `job_type`, `technician_id` and
+  `booking_id`; `status` and timestamps come from column defaults.
+- RLS is unchanged: `technician_jobs_insert_admin_ops_manager` is the
+  boundary. A technician or partner_user insert is denied.
+- Values RLS cannot judge are checked by the `guard_technician_jobs_insert`
+  trigger (`SECURITY DEFINER`): `JB001` when the assignee is not an active
+  technician (E2, blocked rather than flagged), `JB002` when the booking is
+  not pending/confirmed/assigned/in_progress. A partial unique index on
+  `(booking_id, job_type)` for open jobs rejects a duplicate (`23505`).
+- Errors are mapped to a stable code (`TECHNICIAN_INACTIVE`,
+  `BOOKING_NOT_ACTIVE`, `DUPLICATE_JOB`, ...); raw database errors are not
+  returned.
+- Creating a job does not change the booking (no `assigned_technician_id` or
+  status update).
+- Covered by the "job create access (FO-F01-S04)" tests in
+  `src/lib/auth/rls.integration.test.ts`.
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.

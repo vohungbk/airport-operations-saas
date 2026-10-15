@@ -727,6 +727,84 @@ describe.skipIf(!config)("F05 RLS integration", () => {
   });
 
   // ===========================================================================
+  // FO-F01-S04: creating a job is admin/operations_manager only; the insert
+  // guard blocks a non-technician/inactive assignee and a duplicate open job.
+  // ===========================================================================
+  describe("job create access (FO-F01-S04)", () => {
+    const createdJobIds: string[] = [];
+
+    afterAll(async () => {
+      if (createdJobIds.length > 0) {
+        await service.from("technician_jobs").delete().in("id", createdJobIds);
+      }
+    });
+
+    it("operations_manager can create a job and it defaults to assigned", async () => {
+      const { data, error } = await opsClient
+        .from("technician_jobs")
+        .insert({
+          booking_id: BOOKING_A_ID,
+          technician_id: identities.technician.id,
+          job_type: "cleaning",
+        })
+        .select("id, status, job_type")
+        .single();
+
+      expect(error).toBeNull();
+      expect(data).toMatchObject({ status: "assigned", job_type: "cleaning" });
+      createdJobIds.push(data!.id);
+    });
+
+    it("technician cannot create a job", async () => {
+      const { data, error } = await technicianClient
+        .from("technician_jobs")
+        .insert({
+          booking_id: BOOKING_A_ID,
+          technician_id: identities.technician.id,
+          job_type: "inspection",
+        })
+        .select("id");
+
+      expect(error).not.toBeNull();
+      expect(data).toBeNull();
+    });
+
+    it("partner_user cannot create a job on their own partner's booking", async () => {
+      const { data, error } = await partnerAClient
+        .from("technician_jobs")
+        .insert({
+          booking_id: BOOKING_A_ID,
+          technician_id: identities.technician.id,
+          job_type: "inspection",
+        })
+        .select("id");
+
+      expect(error).not.toBeNull();
+      expect(data).toBeNull();
+    });
+
+    it("insert is rejected when the assignee is not an active technician (JB001)", async () => {
+      const { error } = await opsClient.from("technician_jobs").insert({
+        booking_id: BOOKING_B_ID,
+        technician_id: identities.inactive.id,
+        job_type: "installation",
+      });
+
+      expect(error?.code).toBe("JB001");
+    });
+
+    it("insert is rejected when an open job of the same type exists (23505)", async () => {
+      const { error } = await opsClient.from("technician_jobs").insert({
+        booking_id: BOOKING_A_ID,
+        technician_id: identities.technician.id,
+        job_type: "installation",
+      });
+
+      expect(error?.code).toBe("23505");
+    });
+  });
+
+  // ===========================================================================
   // FO-F01-S01: technician list reads `users` with role = 'technician'
   // ===========================================================================
   describe("technician list access (FO-F01-S01)", () => {

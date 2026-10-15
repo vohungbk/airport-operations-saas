@@ -1,3 +1,4 @@
+import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
@@ -12,6 +13,11 @@ vi.mock("@/features/jobs/lib/get-jobs", () => ({ getJobs: getJobsMock }));
 
 vi.mock("@/features/jobs/lib/get-technician-options", () => ({
   getTechnicianOptions: getTechnicianOptionsMock,
+}));
+
+// Client component that needs the app router; irrelevant to these assertions.
+vi.mock("@/features/jobs/components/jobs-filters", () => ({
+  JobsFilters: () => null,
 }));
 
 import JobsPage from "@/app/(dashboard)/jobs/page";
@@ -81,5 +87,21 @@ describe("JobsPage", () => {
     expect(getJobsMock).toHaveBeenCalledWith(
       expect.objectContaining({ technician_id: undefined }),
     );
+  });
+
+  it("should show the Create job link for managers", async () => {
+    requireAnyPermissionMock.mockResolvedValue(OPS);
+
+    const html = renderToStaticMarkup(await render());
+
+    expect(html).toContain('href="/jobs/new"');
+  });
+
+  it("should hide the Create job link from a technician", async () => {
+    requireAnyPermissionMock.mockResolvedValue(TECHNICIAN);
+
+    const html = renderToStaticMarkup(await render());
+
+    expect(html).not.toContain('href="/jobs/new"');
   });
 });
