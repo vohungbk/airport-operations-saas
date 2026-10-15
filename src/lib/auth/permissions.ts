@@ -102,3 +102,13 @@ export const JOBS_ACCESS_PERMISSIONS = [
   "technicians:manage",
   "jobs:view_assigned",
 ] as const satisfies readonly Permission[];
+
+/**
+ * Who may change a job's status: technicians (own jobs, scoped by RLS) and
+ * managers (any job). Cancelling is further limited to managers in the
+ * database function.
+ */
+export const JOB_STATUS_UPDATE_PERMISSIONS = [
+  "jobs:update_assigned",
+  "technicians:manage",
+] as const satisfies readonly Permission[];

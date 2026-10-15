@@ -1010,6 +1010,75 @@ export type Database = {
           },
         ]
       }
+      technician_job_events: {
+        Row: {
+          created_at: string
+          from_status: Database["public"]["Enums"]["technician_job_status"] | null
+          from_technician_id: string | null
+          id: string
+          notes: string | null
+          technician_job_id: string
+          to_status: Database["public"]["Enums"]["technician_job_status"]
+          to_technician_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_status?:
+            | Database["public"]["Enums"]["technician_job_status"]
+            | null
+          from_technician_id?: string | null
+          id?: string
+          notes?: string | null
+          technician_job_id: string
+          to_status: Database["public"]["Enums"]["technician_job_status"]
+          to_technician_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_status?:
+            | Database["public"]["Enums"]["technician_job_status"]
+            | null
+          from_technician_id?: string | null
+          id?: string
+          notes?: string | null
+          technician_job_id?: string
+          to_status?: Database["public"]["Enums"]["technician_job_status"]
+          to_technician_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technician_job_events_technician_job_id_fkey"
+            columns: ["technician_job_id"]
+            isOneToOne: false
+            referencedRelation: "technician_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_job_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_job_events_from_technician_id_fkey"
+            columns: ["from_technician_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_job_events_to_technician_id_fkey"
+            columns: ["to_technician_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technician_jobs: {
         Row: {
           assigned_at: string
@@ -1201,6 +1270,34 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "seats"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      change_technician_job_status: {
+        Args: {
+          p_from_status: Database["public"]["Enums"]["technician_job_status"]
+          p_job_id: string
+          p_reason?: string
+          p_to_status: Database["public"]["Enums"]["technician_job_status"]
+        }
+        Returns: {
+          assigned_at: string
+          booking_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          installation_notes: string | null
+          job_type: Database["public"]["Enums"]["technician_job_type"]
+          started_at: string | null
+          status: Database["public"]["Enums"]["technician_job_status"]
+          technician_id: string
+          updated_at: string
+          vehicle_bay: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "technician_jobs"
           isOneToOne: true
           isSetofReturn: false
         }

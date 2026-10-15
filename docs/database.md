@@ -271,6 +271,22 @@ Insert guard trigger `guard_technician_jobs_insert`: the technician must be
 an active `technician` user (`JB001`) and the booking must be active
 (`JB002`).
 
+### `technician_job_events` (immutable log)
+| column | type | notes |
+|---|---|---|
+| technician_job_id | uuid not null, FK → technician_jobs.id ON DELETE RESTRICT | |
+| user_id | uuid, FK → users.id ON DELETE SET NULL | who made the change |
+| from_status | technician_job_status | nullable |
+| to_status | technician_job_status not null | |
+| from_technician_id / to_technician_id | uuid, FK → users.id ON DELETE SET NULL | assignee before and after |
+| notes | text | reason (required to cancel) |
+| created_at | timestamptz not null default now() | |
+
+Index: `(technician_job_id, created_at)`. Written only by the
+`record_technician_jobs_event_update` trigger on `technician_jobs` when
+`status` or `technician_id` changes. Status changes use
+`change_technician_job_status(job, from_status, to_status, reason)`.
+
 ### `installations` (immutable log)
 | column | type | notes |
 |---|---|---|

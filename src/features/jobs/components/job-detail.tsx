@@ -2,12 +2,19 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { ChangeJobStatusDialog } from "@/features/jobs/components/change-job-status-dialog";
+import { JobEventsTimeline } from "@/features/jobs/components/job-events-timeline";
 import { JobStatusBadge } from "@/features/jobs/components/job-status-badge";
+import type { JobTargetStatus } from "@/features/jobs/lib/job-status";
 import { JOB_TYPE_LABEL } from "@/features/jobs/lib/job-type";
-import type { JobDetailItem } from "@/features/jobs/types";
+import type { JobDetailItem, JobEventItem } from "@/features/jobs/types";
 
 interface JobDetailProps {
   job: JobDetailItem;
+  events: JobEventItem[];
+  eventsTruncated: boolean;
+  /** Transitions the current user may make; empty hides the control. */
+  allowedStatuses: JobTargetStatus[];
 }
 
 function formatDateTime(value: string | null): string {
@@ -24,10 +31,15 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * Read-only. Updating the job status is a separate story (FO-F01-S05),
- * so there are no actions here besides going back to the list.
+ * The only edit here is the status, through the dialog and the database
+ * function behind it. Everything else is read-only.
  */
-export function JobDetail({ job }: JobDetailProps) {
+export function JobDetail({
+  job,
+  events,
+  eventsTruncated,
+  allowedStatuses,
+}: JobDetailProps) {
   const { booking } = job;
 
   return (
@@ -39,9 +51,21 @@ export function JobDetail({ job }: JobDetailProps) {
           </h1>
           <JobStatusBadge status={job.status} />
         </div>
-        <Link href="/jobs" className={buttonVariants({ variant: "outline" })}>
-          Back to jobs
-        </Link>
+        <div className="flex items-center gap-2">
+          {allowedStatuses.length > 0 && (
+            <ChangeJobStatusDialog
+              // New form state when the status moves, so the defaults match.
+              key={job.status}
+              jobId={job.id}
+              jobLabel={booking?.booking_number ?? "job"}
+              currentStatus={job.status}
+              allowedStatuses={allowedStatuses}
+            />
+          )}
+          <Link href="/jobs" className={buttonVariants({ variant: "outline" })}>
+            Back to jobs
+          </Link>
+        </div>
       </div>
 
       <section className="flex flex-col gap-3">
@@ -88,6 +112,8 @@ export function JobDetail({ job }: JobDetailProps) {
           </dl>
         </section>
       )}
+
+      <JobEventsTimeline events={events} truncated={eventsTruncated} />
     </div>
   );
 }
