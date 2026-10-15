@@ -18,12 +18,16 @@ interface JobStatusErrorAlertProps {
  */
 export function JobStatusErrorAlert({ error }: JobStatusErrorAlertProps) {
   const unavailable = isJobUnavailableError(error);
+  const title =
+    error.code === "FORBIDDEN"
+      ? "You no longer have access to this action"
+      : unavailable
+        ? "This job is no longer available"
+        : "Could not update status";
 
   return (
     <Alert variant="destructive">
-      <AlertTitle>
-        {unavailable ? "This job is no longer available" : "Could not update status"}
-      </AlertTitle>
+      <AlertTitle>{title}</AlertTitle>
       <AlertDescription className="flex flex-col items-start gap-3">
         {error.message}
         {unavailable && (
