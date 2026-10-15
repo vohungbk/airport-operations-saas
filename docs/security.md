@@ -733,6 +733,7 @@ time at the airport and converted to UTC with `airports.timezone`.
   `in_progress` -> `completed` (sets `completed_at`), `assigned` or
   `in_progress` -> `cancelled` (admin/ops only, reason required).
   `completed` and `cancelled` are terminal. An invalid change is `55000`;
+  cancelling without being admin/ops is `42501` (forbidden, since FO-F01-S08);
   a job that changed since it was loaded is `JB004`.
 - `guard_technician_jobs_update` closes the column gap of
   `technician_jobs_update_technician`: `status`, `started_at` and
@@ -784,6 +785,29 @@ time at the airport and converted to UTC with `airports.timezone`.
   notification to the technician.
 - Covered by the "job unassignment (FO-F01-S07)" tests in
   `src/lib/auth/rls.integration.test.ts`. No migration or policy change.
+
+## Job errors (FO-F01-S08)
+
+- **Conflict**: a status change carries the status the user saw
+  (`p_from_status`). When another user changed the job first the database
+  returns `JB004` (`STALE_DATA`) and nothing is overwritten. The UI refreshes
+  the job, keeps the dialog open and re-syncs the form to the status now
+  shown, so the user can review and retry. Creating a duplicate open job is
+  `23505` (`DUPLICATE_JOB`).
+- **Network failure**: `runJobAction()` turns a failed Server Action call
+  into a `NETWORK_ERROR` result instead of an error-boundary page, so the
+  dialog or form stays open with the user's input. Next redirect and
+  not-found signals are re-thrown. There is no automatic retry.
+- **Revoked permission or assignment**: page and action guards still
+  redirect to `/forbidden`. Inside a screen that is already open, the job
+  RPC rejects with `42501` (`FORBIDDEN`: e.g. a manager whose role was
+  revoked trying to cancel) or `P0002` (`NOT_FOUND`: unassigned, see
+  FO-F01-S07). The alert shows a forbidden or unavailable state and hides
+  Confirm.
+- Messages never include database details or other users' names.
+- Covered by the conflict and forbidden tests in
+  `src/lib/auth/rls.integration.test.ts` and the unit tests of
+  `run-job-action.ts`, `job-errors.ts` and `job-status-error-alert.tsx`.
 
 ## Public QR Passport
 

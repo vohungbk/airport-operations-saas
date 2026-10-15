@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { createJobAction } from "@/features/jobs/actions/create-job.action";
 import type { JobActionResult } from "@/features/jobs/lib/job-errors";
+import { runJobAction } from "@/features/jobs/lib/run-job-action";
 import {
   createJobSchema,
   type CreateJobInput,
@@ -26,7 +27,7 @@ export function useCreateJobForm() {
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
     startTransition(async () => {
-      setResult(await createJobAction(values));
+      setResult(await runJobAction(() => createJobAction(values)));
     });
   });
 

@@ -62,8 +62,6 @@ export function JobDetail({
           )}
           {allowedStatuses.length > 0 && (
             <ChangeJobStatusDialog
-              // New form state when the status moves, so the defaults match.
-              key={job.status}
               jobId={job.id}
               jobLabel={booking?.booking_number ?? "job"}
               currentStatus={job.status}

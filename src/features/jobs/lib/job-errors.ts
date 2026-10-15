@@ -14,6 +14,7 @@ export interface JobActionError {
     | "NOT_FOUND"
     | "INVALID_TRANSITION"
     | "STALE_DATA"
+    | "NETWORK_ERROR"
     | "INTERNAL_ERROR";
   message: string;
 }
@@ -62,7 +63,15 @@ const INVALID_TRANSITION_ERROR: JobActionError = {
 
 const STALE_DATA_ERROR: JobActionError = {
   code: "STALE_DATA",
-  message: "This job was changed by someone else. Reload the page and try again.",
+  message:
+    "This job was changed by someone else. The latest status is shown; review it and try again.",
+};
+
+/** Raised on the client when the call itself failed; never from the database. */
+export const NETWORK_ERROR: JobActionError = {
+  code: "NETWORK_ERROR",
+  message:
+    "Could not reach the server. Your input is kept; check your connection and try again.",
 };
 
 const INTERNAL_ERROR: JobActionError = {
