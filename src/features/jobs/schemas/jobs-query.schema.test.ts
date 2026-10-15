@@ -5,7 +5,7 @@ import {
   JOB_SEARCH_MAX_LENGTH,
   JOB_SEARCH_TOO_LONG_MESSAGE,
 } from "@/features/jobs/lib/job-search";
-import { parseJobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
+import { jobIdSchema, parseJobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
 
 const TECHNICIAN_ID = "d0000000-0000-0000-0000-000000000001";
 
@@ -81,5 +81,14 @@ describe("getJobSearchError", () => {
     expect(
       getJobSearchError(` ${"a".repeat(JOB_SEARCH_MAX_LENGTH)} `),
     ).toBeNull();
+  });
+});
+
+describe("jobIdSchema", () => {
+  it("should accept a guid and reject other strings", () => {
+    expect(
+      jobIdSchema.safeParse("e0000000-0000-0000-0000-000000000001").success,
+    ).toBe(true);
+    expect(jobIdSchema.safeParse("not-an-id").success).toBe(false);
   });
 });

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
+import { JOB_DETAIL_SELECT } from "@/features/jobs/lib/get-job-by-id";
 import { JOB_LIST_SELECT as JOB_LIST_QUERY_SELECT } from "@/features/jobs/lib/get-jobs";
 import {
   ACTIVE_BOOKING_STATUSES,
@@ -656,6 +657,72 @@ describe.skipIf(!config)("F05 RLS integration", () => {
 
       const anon = await anonClient.from("technician_jobs").select("id");
       expect(anon.data ?? []).toEqual([]);
+    });
+  });
+
+  // ===========================================================================
+  // FO-F01-S03: job detail reads one technician_jobs row with minimal embeds
+  // ===========================================================================
+  describe("job detail access (FO-F01-S03)", () => {
+    it("technician can read the detail of their own job by id", async () => {
+      const { data, error } = await technicianClient
+        .from("technician_jobs")
+        .select(JOB_DETAIL_SELECT)
+        .eq("id", fixtureIds.jobOwn)
+        .maybeSingle();
+
+      expect(error).toBeNull();
+      expect((data as { id: string } | null)?.id).toBe(fixtureIds.jobOwn);
+    });
+
+    it("technician cannot read another technician's job detail by id", async () => {
+      const { data, error } = await technicianClient
+        .from("technician_jobs")
+        .select(JOB_DETAIL_SELECT)
+        .eq("id", fixtureIds.jobOther)
+        .maybeSingle();
+
+      expect(error).toBeNull();
+      expect(data).toBeNull();
+    });
+
+    it("admin and operations_manager can read any job's detail", async () => {
+      for (const client of [adminClient, opsClient]) {
+        for (const id of [fixtureIds.jobOwn, fixtureIds.jobOther]) {
+          const { data, error } = await client
+            .from("technician_jobs")
+            .select(JOB_DETAIL_SELECT)
+            .eq("id", id)
+            .maybeSingle();
+
+          expect(error).toBeNull();
+          expect(data).not.toBeNull();
+        }
+      }
+    });
+
+    it("job detail returns no pricing, revenue share or partner columns", async () => {
+      const { data } = await opsClient
+        .from("technician_jobs")
+        .select(JOB_DETAIL_SELECT)
+        .eq("id", fixtureIds.jobOwn)
+        .single();
+
+      const booking = (data as unknown as { booking: Record<string, unknown> })
+        .booking;
+
+      for (const column of [
+        "daily_rate",
+        "paid_days",
+        "gross_revenue",
+        "partner_share",
+        "platform_share",
+        "partner_id",
+        "notes",
+      ]) {
+        expect(booking).not.toHaveProperty(column);
+      }
+      expect(booking).toHaveProperty("booking_number");
     });
   });
 
