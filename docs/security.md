@@ -676,6 +676,25 @@ time at the airport and converted to UTC with `airports.timezone`.
 - Rows do not link anywhere yet: Job detail (FO-F01-S03) and job
   creation (FO-F01-S04) are separate stories.
 
+## Job detail (FO-F01-S03)
+
+- `/jobs/[id]` uses the same any-of guard as `/jobs`
+  (`technicians:manage` or `jobs:view_assigned`). A job outside the
+  caller's RLS scope (another technician's) or a malformed id returns
+  `null` and renders `notFound()`, so it looks the same as a missing id.
+- The query selects an explicit column list: job status and timestamps,
+  vehicle bay, installation notes, and from the booking only the booking
+  number, pickup and return time, vehicle, child age band and height,
+  airport code and name, and the assigned seat serial and category. It
+  never selects `daily_rate`, `paid_days`, `gross_revenue`,
+  `partner_share`, `platform_share`, `partner_id`,
+  `external_booking_number` or booking `notes`.
+- Known gap: RLS limits rows, not columns. A technician already has
+  SELECT on their own bookings' full rows, so calling the API directly
+  could still read the pricing columns. Closing that needs a view or RPC
+  with a column allowlist; it is not part of this story.
+- Read-only. Updating the job status is FO-F01-S05.
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.
