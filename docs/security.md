@@ -753,6 +753,22 @@ time at the airport and converted to UTC with `airports.timezone`.
 - Creating a job does not write an event; the first event is the first
   change. Booking status is not changed by a job status change.
 
+## Open work record (FO-F01-S06)
+
+- `/jobs/[id]` shows a "Record work" link to the workflow screen that
+  matches the job type (`/jobs/[id]/installation`, `/cleaning`,
+  `/inspection`). `getWorkRecordHref()` offers it only when the workflow
+  screen is available, the job is `assigned` or `in_progress`, the job is
+  assigned to the signed-in user, and the user holds the matching permission
+  (`installation:perform`, `cleaning:create`, `inspections:create`).
+- Hiding the link is not an access check. Each workflow screen (FO-F02 to
+  FO-F04) must guard itself with its own permission and rely on RLS for the
+  job scope.
+- Every workflow is `available: false` in `WORK_RECORD_WORKFLOWS` until its
+  screen exists; the story that ships a screen flips its flag.
+- No database change, no new input: the href is built from constants and the
+  validated job id.
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.
