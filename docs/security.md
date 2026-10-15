@@ -267,7 +267,7 @@ rows* a statement touches, not diff old-vs-new column values within an
 | `seat_status_history` | admin/operations_manager only | admin/operations_manager only (INSERT scaffolding, no writer yet) | Append-only log |
 | `bookings` | admin/operations_manager: all. technician: assigned to them (via `assigned_technician_id` or `technician_jobs`). partner_user: own partner | admin/operations_manager only | Cancellation is an UPDATE (`status = 'cancelled'`), already covered |
 | `booking_events` | same shape as `bookings` (joins through `booking_id`) | admin/operations_manager, plus technician limited to bookings assigned to them | Append-only log |
-| `technician_jobs` | admin/operations_manager: all. technician: own jobs. partner_user: jobs on their partner's bookings (via `booking_partner_id()`) | INSERT: admin/operations_manager. UPDATE: admin/operations_manager, or technician limited to their own row (`technician_id = auth.uid()`) | Technician UPDATE stops reassigning `technician_id` to someone else, but does not stop changing `booking_id` — a known, deliberately deferred gap (F14/F15) |
+| `technician_jobs` | admin/operations_manager: all. technician: own jobs. partner_user: jobs on their partner's bookings (via `booking_partner_id()`) | INSERT: admin/operations_manager. UPDATE: admin/operations_manager, or technician limited to their own row (`technician_id = auth.uid()`) | Technician UPDATE stops reassigning `technician_id` to someone else. `booking_id` is immutable and status columns change only through `change_technician_job_status()` (FO-F01-S05 guard trigger) |
 | `installations` | admin/operations_manager: all. technician: own job. partner_user: their partner's bookings (two-hop join) | technician (own job) + admin/operations_manager | Append-only log |
 | `cleaning_records` | admin/operations_manager: all. technician: `employee_id = auth.uid()`. partner_user: their partner's bookings (`booking_id` non-null only) | technician (`employee_id = auth.uid()`) + admin/operations_manager | Append-only log; a `booking_id is null` row is invisible to every `partner_user` |
 | `inspection_records` | same shape as `cleaning_records`, `inspector_id` instead of `employee_id` | same shape | Append-only log |
@@ -693,7 +693,7 @@ time at the airport and converted to UTC with `airports.timezone`.
   SELECT on their own bookings' full rows, so calling the API directly
   could still read the pricing columns. Closing that needs a view or RPC
   with a column allowlist; it is not part of this story.
-- Read-only. Updating the job status is FO-F01-S05.
+- Read-only apart from the status control added in FO-F01-S05 (see below).
 
 ## Create and assign job (FO-F01-S04)
 
@@ -718,6 +718,40 @@ time at the airport and converted to UTC with `airports.timezone`.
   status update).
 - Covered by the "job create access (FO-F01-S04)" tests in
   `src/lib/auth/rls.integration.test.ts`.
+
+## Update job status (FO-F01-S05)
+
+- The status control on `/jobs/[id]` and `changeJobStatusAction` require
+  `jobs:update_assigned` (technician) or `technicians:manage` (admin, ops).
+  The page hides the control when the user has no permitted transition; the
+  database function is the enforcing authority.
+- Status changes go only through `change_technician_job_status()`
+  (SECURITY INVOKER, row lock). `technician_jobs` RLS still applies, so a
+  technician cannot see or change another technician's job (reported as
+  not found, `P0002`).
+- Transitions: `assigned` -> `in_progress` (sets `started_at`),
+  `in_progress` -> `completed` (sets `completed_at`), `assigned` or
+  `in_progress` -> `cancelled` (admin/ops only, reason required).
+  `completed` and `cancelled` are terminal. An invalid change is `55000`;
+  a job that changed since it was loaded is `JB004`.
+- `guard_technician_jobs_update` closes the column gap of
+  `technician_jobs_update_technician`: `status`, `started_at` and
+  `completed_at` cannot be PATCHed directly, `booking_id` is immutable, and
+  `technician_id` can only be changed by admin/ops to an active technician
+  (`JB001`). Other columns (e.g. `installation_notes`) stay editable by the
+  assigned technician.
+- `technician_job_events` is the audit log (status and assignee changes). It
+  has RLS enabled in the migration that creates it: admin/ops read all, a
+  technician reads events of their own jobs, partner users have no access.
+  There is no INSERT/UPDATE/DELETE policy; rows are written by the
+  `record_technician_job_event()` SECURITY DEFINER trigger and
+  `prevent_technician_job_event_mutation()` blocks UPDATE, DELETE and
+  TRUNCATE (except the FK `set null` action when a user is deleted).
+- Covered by the "job status update (FO-F01-S05)" tests in
+  `src/lib/auth/rls.integration.test.ts`, including cross-technician and
+  partner_user denial on the events table.
+- Creating a job does not write an event; the first event is the first
+  change. Booking status is not changed by a job status change.
 
 ## Public QR Passport
 

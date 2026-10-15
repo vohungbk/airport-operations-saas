@@ -48,3 +48,17 @@ export interface JobDetailItem {
     } | null;
   } | null;
 }
+
+/** One entry of the job history: a status and/or assignee change. */
+export interface JobEventItem {
+  id: string;
+  from_status: JobStatus | null;
+  to_status: JobStatus;
+  status_changed: boolean;
+  technician_changed: boolean;
+  from_technician_name: string | null;
+  to_technician_name: string | null;
+  notes: string | null;
+  created_at: string;
+  actor_name: string | null;
+}
