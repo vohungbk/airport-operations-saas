@@ -21,7 +21,7 @@ describe("getVisibleNavItems", () => {
     }
   });
 
-  it("should show all 9 area links to admin (full system access)", () => {
+  it("should show all 10 area links to admin (full system access)", () => {
     const visible = getVisibleNavItems("admin");
 
     expect(visible.map((item) => item.href).sort()).toEqual(
@@ -29,6 +29,7 @@ describe("getVisibleNavItems", () => {
         "/admin",
         "/airports",
         "/bookings",
+        "/jobs",
         "/partner",
         "/partners",
         "/seat-categories",
@@ -39,7 +40,7 @@ describe("getVisibleNavItems", () => {
     );
   });
 
-  it("should show the admin, partners, airports, seat categories, seats, technicians, and bookings links to operations_manager", () => {
+  it("should show the admin, partners, airports, seat categories, seats, technicians, jobs, and bookings links to operations_manager", () => {
     const visible = getVisibleNavItems("operations_manager");
 
     expect(visible.map((item) => item.href).sort()).toEqual(
@@ -47,6 +48,7 @@ describe("getVisibleNavItems", () => {
         "/admin",
         "/airports",
         "/bookings",
+        "/jobs",
         "/partners",
         "/seat-categories",
         "/seats",
@@ -55,10 +57,12 @@ describe("getVisibleNavItems", () => {
     );
   });
 
-  it("should show only the technician link to technician", () => {
+  it("should show the jobs and technician links to technician", () => {
     const visible = getVisibleNavItems("technician");
 
-    expect(visible.map((item) => item.href)).toEqual(["/technician"]);
+    expect(visible.map((item) => item.href).sort()).toEqual(
+      ["/jobs", "/technician"].sort(),
+    );
   });
 
   it("should show the partner portal and bookings links to partner_user", () => {

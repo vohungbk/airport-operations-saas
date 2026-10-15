@@ -657,6 +657,25 @@ time at the airport and converted to UTC with `airports.timezone`.
   escaped for `ilike` and quoted for PostgREST before it reaches `.or()`.
 - The per-technician job list is not built yet (Job List, FO-F01-S02).
 
+## Job list (FO-F01-S02)
+
+- `/jobs` is guarded by `technicians:manage` or `jobs:view_assigned`
+  (`JOBS_ACCESS_PERMISSIONS`) in the layout and on the page.
+  `partner_user` is sent to `/forbidden`.
+- Rows are scoped by the existing `technician_jobs` RLS: admin and
+  operations_manager read every job, a `technician` reads only their own.
+  The page hides the technician filter from technicians and ignores a
+  `technician_id` in the URL for them; RLS would return nothing for
+  another technician's id anyway.
+- One nested select returns the job with its booking number and
+  technician name (no per-row lookups). Search matches the booking
+  number through the embedded booking, is optional, trimmed, limited to
+  100 characters on the client and the server, and escaped for `ilike`.
+- Covered by the "job list access (FO-F01-S02)" tests in
+  `src/lib/auth/rls.integration.test.ts`.
+- Rows do not link anywhere yet: Job detail (FO-F01-S03) and job
+  creation (FO-F01-S04) are separate stories.
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.

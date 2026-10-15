@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
+import { JOB_LIST_SELECT as JOB_LIST_QUERY_SELECT } from "@/features/jobs/lib/get-jobs";
 import {
   ACTIVE_BOOKING_STATUSES,
   BOOKING_STATUSES,
@@ -584,6 +585,77 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         .eq("id", identities.partnerB.id)
         .single();
       expect(check?.full_name).not.toBe("Hacked By Partner A");
+    });
+  });
+
+  // ===========================================================================
+  // FO-F01-S02: job list reads technician_jobs with booking/technician embeds
+  // ===========================================================================
+  describe("job list access (FO-F01-S02)", () => {
+    const JOB_LIST_SELECT = JOB_LIST_QUERY_SELECT;
+
+    it("admin and operations_manager see every job with its booking number and technician", async () => {
+      for (const client of [adminClient, opsClient]) {
+        const { data, error } = await client
+          .from("technician_jobs")
+          .select(JOB_LIST_SELECT)
+          .in("id", [fixtureIds.jobOwn, fixtureIds.jobOther]);
+
+        expect(error).toBeNull();
+        expect(data).toHaveLength(2);
+        for (const job of data!) {
+          expect((job as { booking: { booking_number: string } }).booking.booking_number).toMatch(/^BK-/);
+        }
+      }
+    });
+
+    it("filters jobs by booking number through the embedded booking", async () => {
+      const { data: booking } = await service
+        .from("bookings")
+        .select("booking_number")
+        .eq("id", BOOKING_A_ID)
+        .single();
+
+      const { data, error } = await opsClient
+        .from("technician_jobs")
+        .select(JOB_LIST_SELECT)
+        .in("id", [fixtureIds.jobOwn, fixtureIds.jobOther])
+        .ilike("booking.booking_number", booking!.booking_number);
+
+      expect(error).toBeNull();
+      expect(data!.map((job) => job.id)).toEqual([fixtureIds.jobOwn]);
+    });
+
+    it("technician list query returns only their own job", async () => {
+      const { data, error } = await technicianClient
+        .from("technician_jobs")
+        .select(JOB_LIST_SELECT);
+
+      expect(error).toBeNull();
+      expect(data!.map((job) => job.id)).toContain(fixtureIds.jobOwn);
+      expect(data!.map((job) => job.id)).not.toContain(fixtureIds.jobOther);
+    });
+
+    it("technician filtering by another technician's id gets no jobs", async () => {
+      const { data, error } = await technicianClient
+        .from("technician_jobs")
+        .select(JOB_LIST_SELECT)
+        .eq("technician_id", OTHER_TECHNICIAN_ID);
+
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+    });
+
+    it("partner_user and anonymous clients cannot list jobs outside their own partner's bookings", async () => {
+      const { data, error } = await partnerAClient
+        .from("technician_jobs")
+        .select(JOB_LIST_SELECT);
+
+      expect(error).toBeNull();
+      expect(data!.map((job) => job.id)).not.toContain(fixtureIds.jobOther);
+
+      const anon = await anonClient.from("technician_jobs").select("id");
+      expect(anon.data ?? []).toEqual([]);
     });
   });
 

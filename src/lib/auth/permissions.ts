@@ -96,3 +96,9 @@ export const BOOKINGS_ACCESS_PERMISSIONS = [
   "bookings:manage",
   "bookings:view_own_partner",
 ] as const satisfies readonly Permission[];
+
+/** Who may enter `/jobs`: managers (all jobs) and technicians (own jobs). */
+export const JOBS_ACCESS_PERMISSIONS = [
+  "technicians:manage",
+  "jobs:view_assigned",
+] as const satisfies readonly Permission[];
