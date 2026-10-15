@@ -48,9 +48,11 @@ const DUPLICATE_JOB_ERROR: JobActionError = {
   message: "An open job of this type already exists for this booking.",
 };
 
+// One message for "does not exist" and "no longer assigned to you": RLS
+// hides both the same way, and it must not reveal that the job exists.
 const NOT_FOUND_ERROR: JobActionError = {
   code: "NOT_FOUND",
-  message: "Job not found.",
+  message: "This job was not found or is no longer assigned to you.",
 };
 
 const INVALID_TRANSITION_ERROR: JobActionError = {
@@ -67,6 +69,16 @@ const INTERNAL_ERROR: JobActionError = {
   code: "INTERNAL_ERROR",
   message: "Something went wrong. Please try again.",
 };
+
+/**
+ * True when the job is out of the caller's reach (unassigned, hidden by RLS
+ * or the role no longer allows it), so retrying the same action is pointless.
+ */
+export function isJobUnavailableError(
+  error: JobActionError | undefined,
+): boolean {
+  return error?.code === "NOT_FOUND" || error?.code === "FORBIDDEN";
+}
 
 /**
  * `JB001` inactive/non-technician assignee and `JB002` inactive booking are

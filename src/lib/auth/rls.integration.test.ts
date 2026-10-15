@@ -1174,6 +1174,116 @@ describe.skipIf(!config)("F05 RLS integration", () => {
   });
 
   // ===========================================================================
+  // FO-F01-S07: a technician who is unassigned while viewing a job loses
+  // access at once: the next action is rejected and the job leaves the list.
+  // ===========================================================================
+  describe("job unassignment (FO-F01-S07)", () => {
+    let jobId: string;
+
+    beforeAll(async () => {
+      const { data, error } = await service
+        .from("technician_jobs")
+        .insert({
+          booking_id: BOOKING_A_ID,
+          technician_id: identities.technician.id,
+          job_type: "inspection",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      jobId = data.id;
+    });
+
+    // Events are append-only, so the job is not deleted; close it so the
+    // open-job unique index does not collide on the next run.
+    afterAll(async () => {
+      await opsClient.rpc("change_technician_job_status", {
+        p_job_id: jobId,
+        p_from_status: "assigned",
+        p_to_status: "cancelled",
+        p_reason: "test cleanup",
+      });
+    });
+
+    it("technician sees the job in the list and detail while it is assigned to them", async () => {
+      const list = await technicianClient
+        .from("technician_jobs")
+        .select("id")
+        .eq("id", jobId);
+      expect(list.data).toHaveLength(1);
+
+      const detail = await technicianClient
+        .from("technician_jobs")
+        .select(JOB_DETAIL_SELECT)
+        .eq("id", jobId)
+        .maybeSingle();
+      expect(detail.data).not.toBeNull();
+    });
+
+    it("rejects the next action, hides the job and its history once the job is unassigned", async () => {
+      const reassign = await opsClient
+        .from("technician_jobs")
+        .update({ technician_id: OTHER_TECHNICIAN_ID })
+        .eq("id", jobId);
+      expect(reassign.error).toBeNull();
+
+      // The status change is rejected as "not found" (no existence leak).
+      const action = await technicianClient.rpc("change_technician_job_status", {
+        p_job_id: jobId,
+        p_from_status: "assigned",
+        p_to_status: "in_progress",
+      });
+      expect(action.error?.code).toBe("P0002");
+
+      // The job left the technician's list and detail.
+      const list = await technicianClient
+        .from("technician_jobs")
+        .select("id")
+        .eq("id", jobId);
+      expect(list.error).toBeNull();
+      expect(list.data).toEqual([]);
+
+      const detail = await technicianClient
+        .from("technician_jobs")
+        .select(JOB_DETAIL_SELECT)
+        .eq("id", jobId)
+        .maybeSingle();
+      expect(detail.data).toBeNull();
+
+      // A direct edit changes nothing either.
+      const edit = await technicianClient
+        .from("technician_jobs")
+        .update({ installation_notes: "still mine?" })
+        .eq("id", jobId)
+        .select("id");
+      expect(edit.data ?? []).toEqual([]);
+
+      const events = await technicianClient
+        .from("technician_job_events")
+        .select("id")
+        .eq("technician_job_id", jobId);
+      expect(events.data ?? []).toEqual([]);
+
+      const { data: unchanged } = await service
+        .from("technician_jobs")
+        .select("status, installation_notes")
+        .eq("id", jobId)
+        .single();
+      expect(unchanged).toEqual({ status: "assigned", installation_notes: null });
+    });
+
+    it("keeps the job with the technician it was reassigned to", async () => {
+      const { data } = await service
+        .from("technician_jobs")
+        .select("technician_id")
+        .eq("id", jobId)
+        .single();
+
+      expect(data!.technician_id).toBe(OTHER_TECHNICIAN_ID);
+    });
+  });
+
+  // ===========================================================================
   // FO-F01-S01: technician list reads `users` with role = 'technician'
   // ===========================================================================
   describe("technician list access (FO-F01-S01)", () => {

@@ -769,6 +769,22 @@ time at the airport and converted to UTC with `airports.timezone`.
 - No database change, no new input: the href is built from constants and the
   validated job id.
 
+## Handle unassignment (FO-F01-S07)
+
+- When a technician is unassigned while a job is open, RLS removes the job
+  at once: it leaves their list and detail, their status change is rejected
+  (`P0002`) and a direct edit changes zero rows. The job history is hidden
+  from them too (`technician_job_events_select_technician` follows the
+  current assignee).
+- The UI says the same thing for "does not exist" and "no longer assigned
+  to you" (`NOT_FOUND`): RLS cannot tell them apart and the message must not
+  reveal that a job exists. The status dialog then points to the job list
+  and hides Confirm; `/jobs/[id]` shows a job-specific not-found page.
+- No push or polling: the list updates on the next request. There is no
+  notification to the technician.
+- Covered by the "job unassignment (FO-F01-S07)" tests in
+  `src/lib/auth/rls.integration.test.ts`. No migration or policy change.
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.
