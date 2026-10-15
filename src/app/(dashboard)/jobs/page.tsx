@@ -1,6 +1,9 @@
+import Link from "next/link";
+
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { hasPermission, JOBS_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
 import { PageEmpty } from "@/components/shared/page-state";
 import { getJobs } from "@/features/jobs/lib/get-jobs";
 import { getTechnicianOptions } from "@/features/jobs/lib/get-technician-options";
@@ -20,31 +23,38 @@ interface JobsPageProps {
  */
 export default async function JobsPage({ searchParams }: JobsPageProps) {
   const user = await requireAnyPermission(JOBS_ACCESS_PERMISSIONS);
-  const canFilterByTechnician = hasPermission(user.role, "technicians:manage");
+  const canManageJobs = hasPermission(user.role, "technicians:manage");
 
   const { query: parsed, search_error } = parseJobsQuery(await searchParams);
   // A technician only ever sees their own jobs; the filter does not apply.
-  const query = canFilterByTechnician
+  const query = canManageJobs
     ? parsed
     : { ...parsed, technician_id: undefined };
 
   const [{ jobs, total }, technicians] = await Promise.all([
     getJobs(query),
-    canFilterByTechnician ? getTechnicianOptions() : Promise.resolve(null),
+    canManageJobs ? getTechnicianOptions() : Promise.resolve(null),
   ]);
 
   const hasFilters = Boolean(query.q || query.status || query.technician_id);
   const emptyMessage = hasFilters
     ? "No jobs match the search or filters."
-    : canFilterByTechnician
+    : canManageJobs
       ? "No jobs yet."
       : "No jobs are assigned to you yet.";
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        Jobs
-      </h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Jobs
+        </h1>
+        {canManageJobs && (
+          <Link href="/jobs/new" className={buttonVariants()}>
+            Create job
+          </Link>
+        )}
+      </div>
 
       <JobsFilters query={query} technicians={technicians} />
 

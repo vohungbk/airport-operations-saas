@@ -1,4 +1,5 @@
 import type { JobStatus } from "@/features/jobs/lib/job-status";
+import type { JobType } from "@/features/jobs/lib/job-type";
 
 /** One row of the job list: the job plus its booking and technician. */
 export interface JobListItem {
@@ -25,6 +26,7 @@ export interface TechnicianOption {
 export interface JobDetailItem {
   id: string;
   status: JobStatus;
+  job_type: JobType;
   assigned_at: string;
   started_at: string | null;
   completed_at: string | null;

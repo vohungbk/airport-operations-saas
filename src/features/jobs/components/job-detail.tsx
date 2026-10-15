@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
 import { JobStatusBadge } from "@/features/jobs/components/job-status-badge";
+import { JOB_TYPE_LABEL } from "@/features/jobs/lib/job-type";
 import type { JobDetailItem } from "@/features/jobs/types";
 
 interface JobDetailProps {
@@ -46,6 +47,7 @@ export function JobDetail({ job }: JobDetailProps) {
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium text-foreground">Job</h2>
         <dl className="grid gap-4 sm:grid-cols-2">
+          <Detail label="Job type">{JOB_TYPE_LABEL[job.job_type]}</Detail>
           <Detail label="Technician">{job.technician?.full_name ?? "-"}</Detail>
           <Detail label="Assigned">{formatDateTime(job.assigned_at)}</Detail>
           <Detail label="Started">{formatDateTime(job.started_at)}</Detail>

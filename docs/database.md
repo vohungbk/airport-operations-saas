@@ -262,8 +262,14 @@ has no INSERT policy: rows are written only by `record_booking_event()`.
 | vehicle_bay | text | nullable |
 | status | technician_job_status not null default 'assigned' | |
 | installation_notes | text | nullable |
+| job_type | technician_job_type not null default 'installation' | `installation`, `cleaning`, `inspection` |
 
-Indexes: `technician_id`, `status`, `booking_id`.
+Indexes: `technician_id`, `status`, `booking_id`, unique
+`(booking_id, job_type)` where status is `assigned` or `in_progress`.
+
+Insert guard trigger `guard_technician_jobs_insert`: the technician must be
+an active `technician` user (`JB001`) and the booking must be active
+(`JB002`).
 
 ### `installations` (immutable log)
 | column | type | notes |

@@ -1018,6 +1018,7 @@ export type Database = {
           created_at: string
           id: string
           installation_notes: string | null
+          job_type: Database["public"]["Enums"]["technician_job_type"]
           started_at: string | null
           status: Database["public"]["Enums"]["technician_job_status"]
           technician_id: string
@@ -1031,6 +1032,7 @@ export type Database = {
           created_at?: string
           id?: string
           installation_notes?: string | null
+          job_type?: Database["public"]["Enums"]["technician_job_type"]
           started_at?: string | null
           status?: Database["public"]["Enums"]["technician_job_status"]
           technician_id: string
@@ -1044,6 +1046,7 @@ export type Database = {
           created_at?: string
           id?: string
           installation_notes?: string | null
+          job_type?: Database["public"]["Enums"]["technician_job_type"]
           started_at?: string | null
           status?: Database["public"]["Enums"]["technician_job_status"]
           technician_id?: string
@@ -1362,6 +1365,7 @@ export type Database = {
         | "quarantine"
         | "retired"
       settlement_status: "draft" | "pending_approval" | "approved" | "paid"
+      technician_job_type: "installation" | "cleaning" | "inspection"
       technician_job_status:
         "assigned" | "in_progress" | "completed" | "cancelled"
       user_role: "admin" | "operations_manager" | "technician" | "partner_user"
@@ -1529,6 +1533,7 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      technician_job_type: ["installation", "cleaning", "inspection"],
       user_role: ["admin", "operations_manager", "technician", "partner_user"],
     },
   },
