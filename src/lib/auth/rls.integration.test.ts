@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
@@ -801,6 +801,375 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       });
 
       expect(error?.code).toBe("23505");
+    });
+  });
+
+  // ===========================================================================
+  // FO-F01-S05: job status goes only through change_technician_job_status();
+  // every status/assignee change is logged in the append-only
+  // technician_job_events.
+  // ===========================================================================
+  describe("job status update (FO-F01-S05)", () => {
+    const openedJobIds: string[] = [];
+
+    async function createJob(
+      technicianId: string,
+      bookingId: string,
+      jobType: "cleaning" | "inspection",
+    ) {
+      const { data, error } = await service
+        .from("technician_jobs")
+        .insert({
+          booking_id: bookingId,
+          technician_id: technicianId,
+          job_type: jobType,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      openedJobIds.push(data.id);
+      return data.id;
+    }
+
+    const rpc = (
+      client: SupabaseClient<Database>,
+      jobId: string,
+      from: "assigned" | "in_progress" | "completed" | "cancelled",
+      to: "in_progress" | "completed" | "cancelled" | "assigned",
+      reason?: string,
+    ) =>
+      client.rpc("change_technician_job_status", {
+        p_job_id: jobId,
+        p_from_status: from,
+        p_to_status: to,
+        p_reason: reason,
+      });
+
+    // Events are append-only, so test jobs are never deleted; move any job
+    // left open to a terminal state so the open-job unique index does not
+    // collide on the next run.
+    afterEach(async () => {
+      for (const id of openedJobIds.splice(0)) {
+        const { data } = await service
+          .from("technician_jobs")
+          .select("status")
+          .eq("id", id)
+          .single();
+        if (data && ["assigned", "in_progress"].includes(data.status)) {
+          await rpc(opsClient, id, data.status, "cancelled", "test cleanup");
+        }
+      }
+    });
+
+    it("technician can start their own job and the start time and event are recorded", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+
+      const { data, error } = await rpc(
+        technicianClient,
+        jobId,
+        "assigned",
+        "in_progress",
+      );
+
+      expect(error).toBeNull();
+      expect(data).toMatchObject({ status: "in_progress" });
+      expect(data!.started_at).not.toBeNull();
+
+      const { data: events } = await service
+        .from("technician_job_events")
+        .select("from_status, to_status, user_id")
+        .eq("technician_job_id", jobId);
+      expect(events).toEqual([
+        {
+          from_status: "assigned",
+          to_status: "in_progress",
+          user_id: identities.technician.id,
+        },
+      ]);
+    });
+
+    it("technician can complete their job in progress and completed is terminal", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+      await rpc(technicianClient, jobId, "assigned", "in_progress");
+
+      const done = await rpc(technicianClient, jobId, "in_progress", "completed");
+      expect(done.error).toBeNull();
+      expect(done.data!.completed_at).not.toBeNull();
+
+      const again = await rpc(technicianClient, jobId, "completed", "in_progress");
+      expect(again.error?.code).toBe("55000");
+    });
+
+    it("rejects a transition that skips a step (assigned to completed)", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+
+      const { error } = await rpc(technicianClient, jobId, "assigned", "completed");
+
+      expect(error?.code).toBe("55000");
+    });
+
+    it("rejects a change when the job moved on since it was loaded (JB004)", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+      await rpc(technicianClient, jobId, "assigned", "in_progress");
+
+      const { error } = await rpc(technicianClient, jobId, "assigned", "in_progress");
+
+      expect(error?.code).toBe("JB004");
+    });
+
+    it("technician cannot cancel a job; operations_manager can, with a reason", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+
+      const denied = await rpc(
+        technicianClient,
+        jobId,
+        "assigned",
+        "cancelled",
+        "changed my mind",
+      );
+      expect(denied.error?.code).toBe("55000");
+
+      const noReason = await rpc(opsClient, jobId, "assigned", "cancelled");
+      expect(noReason.error?.code).toBe("22023");
+
+      const ok = await rpc(
+        opsClient,
+        jobId,
+        "assigned",
+        "cancelled",
+        "Booking changed",
+      );
+      expect(ok.error).toBeNull();
+
+      const { data: events } = await service
+        .from("technician_job_events")
+        .select("to_status, notes")
+        .eq("technician_job_id", jobId);
+      expect(events).toEqual([{ to_status: "cancelled", notes: "Booking changed" }]);
+    });
+
+    it("technician cannot change another technician's job (reported as not found)", async () => {
+      const jobId = await createJob(
+        OTHER_TECHNICIAN_ID,
+        BOOKING_B_ID,
+        "cleaning",
+      );
+
+      const { error } = await rpc(technicianClient, jobId, "assigned", "in_progress");
+
+      expect(error?.code).toBe("P0002");
+      const { data } = await service
+        .from("technician_jobs")
+        .select("status")
+        .eq("id", jobId)
+        .single();
+      expect(data!.status).toBe("assigned");
+    });
+
+    it("partner_user cannot change a job status", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+
+      const { error } = await rpc(partnerAClient, jobId, "assigned", "in_progress");
+
+      expect(error).not.toBeNull();
+      const { data } = await service
+        .from("technician_jobs")
+        .select("status")
+        .eq("id", jobId)
+        .single();
+      expect(data!.status).toBe("assigned");
+    });
+
+    it("blocks a direct update of status, booking and technician by the technician", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+
+      const status = await technicianClient
+        .from("technician_jobs")
+        .update({ status: "completed" })
+        .eq("id", jobId);
+      expect(status.error?.code).toBe("55000");
+
+      const booking = await technicianClient
+        .from("technician_jobs")
+        .update({ booking_id: BOOKING_B_ID })
+        .eq("id", jobId);
+      expect(booking.error?.code).toBe("55000");
+
+      const assignee = await technicianClient
+        .from("technician_jobs")
+        .update({ technician_id: OTHER_TECHNICIAN_ID })
+        .eq("id", jobId);
+      expect(assignee.error).not.toBeNull();
+    });
+
+    it("still lets the technician edit non-protected fields directly", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+
+      const { error } = await technicianClient
+        .from("technician_jobs")
+        .update({ installation_notes: "Seat fitted" })
+        .eq("id", jobId);
+
+      expect(error).toBeNull();
+    });
+
+    it("operations_manager can reassign to an active technician and the change is logged", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+
+      const { error } = await opsClient
+        .from("technician_jobs")
+        .update({ technician_id: OTHER_TECHNICIAN_ID })
+        .eq("id", jobId);
+      expect(error).toBeNull();
+
+      const { data: events } = await service
+        .from("technician_job_events")
+        .select("from_technician_id, to_technician_id, from_status, to_status")
+        .eq("technician_job_id", jobId);
+      expect(events).toEqual([
+        {
+          from_technician_id: identities.technician.id,
+          to_technician_id: OTHER_TECHNICIAN_ID,
+          from_status: "assigned",
+          to_status: "assigned",
+        },
+      ]);
+    });
+
+    it("rejects reassigning a job to a user who is not an active technician (JB001)", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+
+      const { error } = await opsClient
+        .from("technician_jobs")
+        .update({ technician_id: identities.inactive.id })
+        .eq("id", jobId);
+
+      expect(error?.code).toBe("JB001");
+    });
+
+    it("technician reads the history of their own job; zero rows for another technician's job, a partner_user or anonymous", async () => {
+      const ownId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+      const otherId = await createJob(
+        OTHER_TECHNICIAN_ID,
+        BOOKING_B_ID,
+        "cleaning",
+      );
+      await rpc(technicianClient, ownId, "assigned", "in_progress");
+      await rpc(opsClient, otherId, "assigned", "in_progress");
+
+      const own = await technicianClient
+        .from("technician_job_events")
+        .select("id")
+        .eq("technician_job_id", ownId);
+      expect(own.error).toBeNull();
+      expect(own.data).toHaveLength(1);
+
+      const other = await technicianClient
+        .from("technician_job_events")
+        .select("id")
+        .eq("technician_job_id", otherId);
+      expect(other.error).toBeNull();
+      expect(other.data).toEqual([]);
+
+      for (const client of [partnerAClient, partnerBClient, anonClient]) {
+        const { data } = await client
+          .from("technician_job_events")
+          .select("id")
+          .in("technician_job_id", [ownId, otherId]);
+        expect(data ?? []).toEqual([]);
+      }
+
+      const ops = await opsClient
+        .from("technician_job_events")
+        .select("id")
+        .in("technician_job_id", [ownId, otherId]);
+      expect(ops.data).toHaveLength(2);
+    });
+
+    it("job events cannot be inserted, updated or deleted by any role", async () => {
+      const jobId = await createJob(
+        identities.technician.id,
+        BOOKING_A_ID,
+        "inspection",
+      );
+      await rpc(technicianClient, jobId, "assigned", "in_progress");
+      const { data: event } = await service
+        .from("technician_job_events")
+        .select("id")
+        .eq("technician_job_id", jobId)
+        .single();
+
+      for (const client of [opsClient, adminClient, technicianClient]) {
+        const insert = await client.from("technician_job_events").insert({
+          technician_job_id: jobId,
+          to_status: "completed",
+        });
+        expect(insert.error).not.toBeNull();
+
+        const update = await client
+          .from("technician_job_events")
+          .update({ notes: "tampered" })
+          .eq("id", event!.id)
+          .select("id");
+        expect(update.data ?? []).toEqual([]);
+
+        const del = await client
+          .from("technician_job_events")
+          .delete()
+          .eq("id", event!.id)
+          .select("id");
+        expect(del.data ?? []).toEqual([]);
+      }
+
+      const direct = await service
+        .from("technician_job_events")
+        .update({ notes: "tampered" })
+        .eq("id", event!.id);
+      expect(direct.error?.code).toBe("55000");
     });
   });
 
