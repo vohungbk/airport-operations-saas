@@ -293,10 +293,15 @@ Index: `(technician_job_id, created_at)`. Written only by the
 | technician_job_id | uuid not null, FK → technician_jobs.id ON DELETE RESTRICT | |
 | seat_verified / category_verified / installation_completed | boolean not null default false | |
 | vehicle_location / photo_path / notes | text | nullable |
-| completed_at | timestamptz | nullable |
-| created_by | uuid, FK → users.id ON DELETE SET NULL | nullable |
+| completed_at | timestamptz | nullable; the installation time |
+| created_by | uuid, FK → users.id ON DELETE SET NULL | nullable; set by the guard trigger |
+| seat_id | uuid, FK → seats.id ON DELETE RESTRICT | nullable (rows that predate it); set by the guard trigger from the booking's seat |
 
-No indexes beyond the primary key (none required by the spec).
+Unique index `(technician_job_id)`: one installation per job. Insert guard
+trigger `guard_installations_insert`: the job must be an `installation` job
+(`JB005`) and active (`JB006`), the booking must have a seat that is
+`available` or `reserved` (`JB007`), and `completed_at` cannot be in the
+future (`22023`). It also sets `seat_id` and `created_by`.
 
 ### `cleaning_records` (immutable log)
 | column | type | notes |

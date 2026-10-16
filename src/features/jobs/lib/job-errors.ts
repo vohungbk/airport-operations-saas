@@ -15,6 +15,9 @@ export interface JobActionError {
     | "INVALID_TRANSITION"
     | "STALE_DATA"
     | "NETWORK_ERROR"
+    | "ALREADY_RECORDED"
+    | "JOB_NOT_ELIGIBLE"
+    | "SEAT_NOT_ELIGIBLE"
     | "INTERNAL_ERROR";
   message: string;
 }
@@ -51,7 +54,7 @@ const DUPLICATE_JOB_ERROR: JobActionError = {
 
 // One message for "does not exist" and "no longer assigned to you": RLS
 // hides both the same way, and it must not reveal that the job exists.
-const NOT_FOUND_ERROR: JobActionError = {
+export const NOT_FOUND_ERROR: JobActionError = {
   code: "NOT_FOUND",
   message: "This job was not found or is no longer assigned to you.",
 };

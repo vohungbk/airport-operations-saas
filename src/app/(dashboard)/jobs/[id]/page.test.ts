@@ -99,11 +99,26 @@ describe("JobDetailPage", () => {
     expect(element.props.allowedStatuses).toEqual([]);
   });
 
-  it("should not offer Record work while no workflow screen is available", async () => {
+  it("should offer Record work to the assigned technician of an installation job", async () => {
     getJobByIdMock.mockResolvedValue({
       id: "j-1",
       status: "in_progress",
       job_type: "installation",
+      technician: { id: "user-1" },
+    });
+
+    const element = await JobDetailPage({
+      params: Promise.resolve({ id: "j-1" }),
+    });
+
+    expect(element.props.workRecordHref).toBe("/jobs/j-1/installation");
+  });
+
+  it("should not offer Record work while the cleaning screen is not available", async () => {
+    getJobByIdMock.mockResolvedValue({
+      id: "j-1",
+      status: "in_progress",
+      job_type: "cleaning",
       technician: { id: "user-1" },
     });
 

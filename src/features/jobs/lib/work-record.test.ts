@@ -50,8 +50,12 @@ describe("getWorkRecordHref", () => {
     ).toBe("/jobs/j-1/installation");
   });
 
-  it("should return null while no workflow screen is available", () => {
-    for (const jobType of ["installation", "cleaning", "inspection"] as const) {
+  it("should offer the installation screen with the default registry", () => {
+    expect(getWorkRecordHref(job(), TECHNICIAN)).toBe("/jobs/j-1/installation");
+  });
+
+  it("should return null while the cleaning and inspection screens are not available", () => {
+    for (const jobType of ["cleaning", "inspection"] as const) {
       expect(
         getWorkRecordHref(job({ job_type: jobType }), TECHNICIAN),
       ).toBeNull();
@@ -61,6 +65,7 @@ describe("getWorkRecordHref", () => {
   it("should return null when the workflow of this job type is not available", () => {
     const onlyCleaning: WorkRecordWorkflows = {
       ...WORK_RECORD_WORKFLOWS,
+      installation: { ...WORK_RECORD_WORKFLOWS.installation, available: false },
       cleaning: { ...WORK_RECORD_WORKFLOWS.cleaning, available: true },
     };
 

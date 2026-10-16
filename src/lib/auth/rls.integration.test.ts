@@ -1328,6 +1328,239 @@ describe.skipIf(!config)("F05 RLS integration", () => {
   });
 
   // ===========================================================================
+  // FO-F02-S01: recording an installation. RLS limits who may insert; the
+  // guard trigger validates the job and seat and sets seat_id/created_by.
+  // ===========================================================================
+  describe("record installation (FO-F02-S01)", () => {
+    // Bookings without an open installation job in the shared fixtures:
+    // 4 is partner A's (seat 4), 3 is partner B's (seat 3).
+    const BOOKING_C_ID = "f0000000-0000-0000-0000-000000000004";
+    const SEAT_C_ID = "e0000000-0000-0000-0000-000000000004";
+    const BOOKING_D_ID = "f0000000-0000-0000-0000-000000000003";
+    const installedAt = () => new Date(Date.now() - 60_000).toISOString();
+
+    async function createInstallationJob(
+      technicianId: string,
+      bookingId: string,
+      jobType: "installation" | "cleaning" = "installation",
+      status: "assigned" | "completed" = "assigned",
+    ) {
+      const { data, error } = await service
+        .from("technician_jobs")
+        .insert({
+          booking_id: bookingId,
+          technician_id: technicianId,
+          job_type: jobType,
+          status,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
+    }
+
+    // No status change is made through the RPC, so these jobs have no events
+    // and can be removed; a leftover job would also make the booking's seat
+    // visible to the technician in other suites.
+    const createdJobIds: string[] = [];
+    const track = (id: string) => {
+      createdJobIds.push(id);
+      return id;
+    };
+
+    afterEach(async () => {
+      for (const id of createdJobIds.splice(0)) {
+        await service.from("installations").delete().eq("technician_job_id", id);
+        await service.from("technician_jobs").delete().eq("id", id);
+      }
+    });
+
+    it("technician records an installation on their job and the server sets seat and author", async () => {
+      const jobId = track(
+        await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { data, error } = await technicianClient
+        .from("installations")
+        .insert({
+          technician_job_id: jobId,
+          completed_at: installedAt(),
+          notes: "Fitted",
+          installation_completed: true,
+          // Forged values must be overwritten by the guard trigger.
+          created_by: OTHER_TECHNICIAN_ID,
+          seat_id: SEAT_A_ID,
+        })
+        .select("seat_id, created_by, installation_completed")
+        .single();
+
+      expect(error).toBeNull();
+      expect(data).toEqual({
+        seat_id: SEAT_C_ID,
+        created_by: identities.technician.id,
+        installation_completed: true,
+      });
+    });
+
+    it("rejects a second installation for the same job (23505)", async () => {
+      const jobId = track(
+        await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const first = await technicianClient
+        .from("installations")
+        .insert({ technician_job_id: jobId, completed_at: installedAt() });
+      expect(first.error).toBeNull();
+
+      const second = await technicianClient
+        .from("installations")
+        .insert({ technician_job_id: jobId, completed_at: installedAt() });
+
+      expect(second.error?.code).toBe("23505");
+    });
+
+    it("technician cannot record an installation on another technician's job", async () => {
+      const jobId = track(
+        await createInstallationJob(OTHER_TECHNICIAN_ID, BOOKING_D_ID),
+      );
+
+      const { error } = await technicianClient
+        .from("installations")
+        .insert({ technician_job_id: jobId, completed_at: installedAt() });
+
+      expect(error).not.toBeNull();
+      const { data } = await service
+        .from("installations")
+        .select("id")
+        .eq("technician_job_id", jobId);
+      expect(data).toEqual([]);
+    });
+
+    it("partner_user cannot record an installation, even on their own partner's booking", async () => {
+      const jobId = track(
+        await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { error } = await partnerAClient
+        .from("installations")
+        .insert({ technician_job_id: jobId, completed_at: installedAt() });
+
+      expect(error).not.toBeNull();
+    });
+
+    it("rejects an installation on a job that is not an installation job (JB005)", async () => {
+      const jobId = track(
+        await createInstallationJob(
+          identities.technician.id,
+          BOOKING_C_ID,
+          "cleaning",
+        ),
+      );
+
+      const { error } = await technicianClient
+        .from("installations")
+        .insert({ technician_job_id: jobId, completed_at: installedAt() });
+
+      expect(error?.code).toBe("JB005");
+    });
+
+    it("rejects an installation on a job that is no longer active (JB006)", async () => {
+      const jobId = track(
+        await createInstallationJob(
+          identities.technician.id,
+          BOOKING_C_ID,
+          "installation",
+          "completed",
+        ),
+      );
+
+      const { error } = await technicianClient
+        .from("installations")
+        .insert({ technician_job_id: jobId, completed_at: installedAt() });
+
+      expect(error?.code).toBe("JB006");
+    });
+
+    it("rejects an installation when the seat is in a status that does not allow it (JB007)", async () => {
+      const jobId = track(
+        await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const quarantine = await adminClient.rpc("change_seat_status", {
+        p_seat_id: SEAT_C_ID,
+        p_to_status: "quarantine",
+        p_reason: "installation test",
+      });
+      expect(quarantine.error).toBeNull();
+
+      const { error } = await technicianClient
+        .from("installations")
+        .insert({ technician_job_id: jobId, completed_at: installedAt() });
+
+      await adminClient.rpc("change_seat_status", {
+        p_seat_id: SEAT_C_ID,
+        p_to_status: "available",
+        p_reason: "installation test",
+      });
+      expect(error?.code).toBe("JB007");
+    });
+
+    it("rejects an installation time in the future (22023)", async () => {
+      const jobId = track(
+        await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { error } = await technicianClient.from("installations").insert({
+        technician_job_id: jobId,
+        completed_at: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+
+      expect(error?.code).toBe("22023");
+    });
+
+    it("keeps a recorded installation: it is readable by the technician and ops and cannot be changed or removed", async () => {
+      const jobId = track(
+        await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const created = await technicianClient
+        .from("installations")
+        .insert({ technician_job_id: jobId, completed_at: installedAt() })
+        .select("id")
+        .single();
+      const installationId = created.data!.id;
+
+      for (const client of [technicianClient, opsClient]) {
+        const { data } = await client
+          .from("installations")
+          .select("id")
+          .eq("id", installationId);
+        expect(data).toHaveLength(1);
+      }
+
+      for (const client of [technicianClient, opsClient, adminClient]) {
+        const update = await client
+          .from("installations")
+          .update({ notes: "tampered" })
+          .eq("id", installationId)
+          .select("id");
+        expect(update.data ?? []).toEqual([]);
+
+        const del = await client
+          .from("installations")
+          .delete()
+          .eq("id", installationId)
+          .select("id");
+        expect(del.data ?? []).toEqual([]);
+      }
+
+      const { data: row } = await service
+        .from("installations")
+        .select("notes")
+        .eq("id", installationId)
+        .single();
+      expect(row!.notes).toBeNull();
+    });
+  });
+
+  // ===========================================================================
   // FO-F01-S01: technician list reads `users` with role = 'technician'
   // ===========================================================================
   describe("technician list access (FO-F01-S01)", () => {

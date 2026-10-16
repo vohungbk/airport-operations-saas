@@ -596,6 +596,7 @@ export type Database = {
           installation_completed: boolean
           notes: string | null
           photo_path: string | null
+          seat_id: string | null
           seat_verified: boolean
           technician_job_id: string
           vehicle_location: string | null
@@ -609,6 +610,7 @@ export type Database = {
           installation_completed?: boolean
           notes?: string | null
           photo_path?: string | null
+          seat_id?: string | null
           seat_verified?: boolean
           technician_job_id: string
           vehicle_location?: string | null
@@ -622,6 +624,7 @@ export type Database = {
           installation_completed?: boolean
           notes?: string | null
           photo_path?: string | null
+          seat_id?: string | null
           seat_verified?: boolean
           technician_job_id?: string
           vehicle_location?: string | null
@@ -639,6 +642,13 @@ export type Database = {
             columns: ["technician_job_id"]
             isOneToOne: false
             referencedRelation: "technician_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installations_seat_id_fkey"
+            columns: ["seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
             referencedColumns: ["id"]
           },
         ]

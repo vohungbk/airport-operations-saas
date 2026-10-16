@@ -112,3 +112,13 @@ export const JOB_STATUS_UPDATE_PERMISSIONS = [
   "jobs:update_assigned",
   "technicians:manage",
 ] as const satisfies readonly Permission[];
+
+/**
+ * Who may open the installation record screen and record an installation:
+ * technicians (own jobs, scoped by RLS) and managers. The link on the job
+ * detail is offered only to the assigned technician.
+ */
+export const INSTALLATION_RECORD_PERMISSIONS = [
+  "installation:perform",
+  "technicians:manage",
+] as const satisfies readonly Permission[];
