@@ -809,6 +809,30 @@ time at the airport and converted to UTC with `airports.timezone`.
   `src/lib/auth/rls.integration.test.ts` and the unit tests of
   `run-job-action.ts`, `job-errors.ts` and `job-status-error-alert.tsx`.
 
+## Record installation (FO-F02-S01)
+
+- `/jobs/[id]/installation` and `recordInstallationAction` require
+  `installation:perform` (technician) or `technicians:manage` (admin, ops).
+  The "Record work" link is offered only to the assigned technician; hiding
+  it is not an access check.
+- RLS is unchanged: the assigned technician or admin/ops may insert; a
+  technician cannot record on another technician's job, a partner user
+  cannot insert at all. There is no UPDATE or DELETE policy, so a recorded
+  installation is an immutable log row.
+- The guard trigger `guard_installations_insert` (SECURITY DEFINER) checks
+  values RLS cannot: job type and status, the seat of the booking and its
+  status, and the time not being in the future. It overwrites `seat_id` and
+  `created_by`, so the client cannot forge them. A direct insert through
+  PostgREST goes through the same trigger.
+- The Server Action takes the airport timezone and the seat from the
+  database (the time is wall-clock at the airport, the submitted seat must be
+  the booking's seat) and inserts only `technician_job_id`, `completed_at`,
+  `notes` and `installation_completed`.
+- One installation per job (unique index); there is no edit or correction
+  path. Recording does not change the seat or the job status.
+- Covered by the "record installation (FO-F02-S01)" tests in
+  `src/lib/auth/rls.integration.test.ts`.
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.

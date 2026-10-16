@@ -22,7 +22,7 @@ export const WORK_RECORD_WORKFLOWS: WorkRecordWorkflows = {
   installation: {
     permission: "installation:perform",
     segment: "installation",
-    available: false,
+    available: true,
   },
   cleaning: {
     permission: "cleaning:create",
