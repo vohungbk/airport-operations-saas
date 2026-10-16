@@ -18,7 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
-import { JobStatusErrorAlert } from "@/features/jobs/components/job-status-error-alert";
+import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
 import { isJobUnavailableError } from "@/features/jobs/lib/job-errors";
 import { useChangeJobStatusForm } from "@/features/jobs/hooks/use-change-job-status-form";
 import {
@@ -88,7 +88,7 @@ export function ChangeJobStatusDialog({
           </DialogHeader>
 
           {result && !result.success && result.error && (
-            <JobStatusErrorAlert error={result.error} />
+            <JobActionErrorAlert error={result.error} />
           )}
 
           <Field data-invalid={!!errors.to_status}>

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { INSTALLATION_RECORD_PERMISSIONS } from "@/lib/auth/permissions";
 import { buttonVariants } from "@/components/ui/button";
-import { PageEmpty } from "@/components/shared/page-state";
+import { PageEmpty, PageForbidden } from "@/components/shared/page-state";
 import { utcToZonedLocalInput } from "@/features/bookings/lib/booking-time";
 import { InstallationForm } from "@/features/installations/components/installation-form";
 import { InstallationRecord } from "@/features/installations/components/installation-record";
@@ -15,9 +15,9 @@ interface InstallationPageProps {
 }
 
 /**
- * RLS scopes the row: a technician gets `null` (so `notFound()`) for a job
- * that is not theirs. A job that is not an installation job is not found
- * either. Once recorded, the installation is shown read-only.
+ * RLS scopes the row: a technician gets `null` (so the forbidden state) for
+ * a job that is not theirs. A job that is not an installation job is not
+ * found. Once recorded, the installation is shown read-only.
  */
 export default async function InstallationPage({
   params,
@@ -27,7 +27,22 @@ export default async function InstallationPage({
   const { id } = await params;
   const context = await getInstallationContext(id);
 
-  if (!context || context.job.job_type !== "installation") {
+  // RLS hides a job that is not the user's the same way as a missing one,
+  // so the forbidden state must not say which of the two it is.
+  if (!context) {
+    return (
+      <PageForbidden
+        title="You cannot record this installation"
+        description="This job was not found or is not assigned to you. Only the assigned technician or an internal role can record it."
+      >
+        <Link href="/jobs" className={buttonVariants({ variant: "outline" })}>
+          Back to jobs
+        </Link>
+      </PageForbidden>
+    );
+  }
+
+  if (context.job.job_type !== "installation") {
     notFound();
   }
 
