@@ -1435,6 +1435,31 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(data).toEqual([]);
     });
 
+    it.each([
+      ["admin", () => adminClient],
+      ["ops", () => opsClient],
+    ])(
+      "%s can record an installation on a job assigned to a technician",
+      async (_role, getClient) => {
+        const jobId = track(
+          await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+        );
+
+        const { data, error } = await getClient()
+          .from("installations")
+          .insert({
+            technician_job_id: jobId,
+            completed_at: installedAt(),
+            installation_completed: true,
+          })
+          .select("technician_job_id")
+          .single();
+
+        expect(error).toBeNull();
+        expect(data?.technician_job_id).toBe(jobId);
+      },
+    );
+
     it("partner_user cannot record an installation, even on their own partner's booking", async () => {
       const jobId = track(
         await createInstallationJob(identities.technician.id, BOOKING_C_ID),
