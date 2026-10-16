@@ -2,18 +2,18 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { JobStatusErrorAlert } from "@/features/jobs/components/job-status-error-alert";
+import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
 
 function render(
   code: "NOT_FOUND" | "FORBIDDEN" | "STALE_DATA" | "NETWORK_ERROR",
   message: string,
 ) {
   return renderToStaticMarkup(
-    createElement(JobStatusErrorAlert, { error: { code, message } }),
+    createElement(JobActionErrorAlert, { error: { code, message } }),
   );
 }
 
-describe("JobStatusErrorAlert", () => {
+describe("JobActionErrorAlert", () => {
   it("should point back to the job list when the job is no longer available", () => {
     const html = render(
       "NOT_FOUND",
@@ -49,5 +49,17 @@ describe("JobStatusErrorAlert", () => {
 
     expect(html).toContain("Could not update status");
     expect(html).not.toContain('href="/jobs"');
+  });
+
+  it("should use the given title for an error a retry can fix", () => {
+    const html = renderToStaticMarkup(
+      createElement(JobActionErrorAlert, {
+        error: { code: "NETWORK_ERROR", message: "Could not reach the server." },
+        fallbackTitle: "Could not record installation",
+      }),
+    );
+
+    expect(html).toContain("Could not record installation");
+    expect(html).not.toContain("Could not update status");
   });
 });

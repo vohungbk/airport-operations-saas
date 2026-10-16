@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Field,
@@ -11,6 +10,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
 import { useRecordInstallationForm } from "@/features/installations/hooks/use-record-installation-form";
 
 interface InstallationFormProps {
@@ -49,11 +49,11 @@ export function InstallationForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-      {result && !result.success && (
-        <Alert variant="destructive">
-          <AlertTitle>Could not record installation</AlertTitle>
-          <AlertDescription>{result.error?.message}</AlertDescription>
-        </Alert>
+      {result && !result.success && result.error && (
+        <JobActionErrorAlert
+          error={result.error}
+          fallbackTitle="Could not record installation"
+        />
       )}
 
       <input type="hidden" {...register("job_id")} />

@@ -74,10 +74,16 @@ describe("InstallationPage", () => {
     expect(getContextMock).not.toHaveBeenCalled();
   });
 
-  it("should call notFound when the job is missing or outside the user's scope", async () => {
+  it("should show the forbidden state with a link to the jobs when the job is not the user's", async () => {
     getContextMock.mockResolvedValue(null);
 
-    await expect(render()).rejects.toThrow("NOT_FOUND");
+    const html = await render();
+
+    expect(html).toContain("You cannot record this installation");
+    expect(html).toContain("not found or is not assigned to you");
+    expect(html).toContain('href="/jobs"');
+    expect(html).not.toContain("Installation time");
+    expect(notFoundMock).not.toHaveBeenCalled();
   });
 
   it("should call notFound when the job is not an installation job", async () => {
