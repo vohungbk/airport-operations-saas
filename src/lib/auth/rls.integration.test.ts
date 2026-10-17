@@ -1460,6 +1460,41 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       },
     );
 
+    it("rejects the next recording once the technician loses the assignment, and leaves no row", async () => {
+      // Not tracked: the reassignment writes a job event, so the job cannot be
+      // deleted afterwards. It is cancelled instead, which frees the booking.
+      const jobId = await createInstallationJob(
+        identities.technician.id,
+        BOOKING_C_ID,
+      );
+
+      try {
+        const reassign = await opsClient
+          .from("technician_jobs")
+          .update({ technician_id: OTHER_TECHNICIAN_ID })
+          .eq("id", jobId);
+        expect(reassign.error).toBeNull();
+
+        const { error } = await technicianClient
+          .from("installations")
+          .insert({ technician_job_id: jobId, completed_at: installedAt() });
+
+        expect(error).not.toBeNull();
+        const { data } = await service
+          .from("installations")
+          .select("id")
+          .eq("technician_job_id", jobId);
+        expect(data).toEqual([]);
+      } finally {
+        await opsClient.rpc("change_technician_job_status", {
+          p_job_id: jobId,
+          p_from_status: "assigned",
+          p_to_status: "cancelled",
+          p_reason: "installation test cleanup",
+        });
+      }
+    });
+
     it("partner_user cannot record an installation, even on their own partner's booking", async () => {
       const jobId = track(
         await createInstallationJob(identities.technician.id, BOOKING_C_ID),

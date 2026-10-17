@@ -844,10 +844,23 @@ time at the airport and converted to UTC with `airports.timezone`.
   table owner are unaffected, so only trusted server code or a migration can
   change the log.
 - Two recordings for one job: the unique index lets one through and rejects
-  the other with `23505` (`ALREADY_RECORDED`). The form then re-fetches the
-  page, which shows the existing record read-only.
+  the other with `23505` (`ALREADY_RECORDED`). First save wins; the second is
+  rejected, never merged (the log is immutable).
 - Covered by the "record installation (FO-F02-S01)" tests (concurrent
   insert, first record kept, update and delete denied for every role).
+
+## Installation record errors (FO-F02-S05)
+
+- Conflict: the form keeps the user's entry on screen and says "Someone
+  recorded this installation first. Your entry was not saved." The page
+  switches to the recorded installation only when the user asks for it. The
+  message names nobody; the record is shown only if RLS lets the user read it.
+- Network failure: `runJobAction` turns a failed call into `NETWORK_ERROR`;
+  the form stays mounted with its input and can be submitted again.
+- Assignment or permission revoked while the screen is open: the action
+  returns `NOT_FOUND` (RLS hides the job) or `FORBIDDEN`, the form shows "no
+  longer available" with a link to the jobs, and the database rejects the
+  insert anyway (the RLS test "loses the assignment").
 
 ## Installation and seat status (FO-F02-S04)
 

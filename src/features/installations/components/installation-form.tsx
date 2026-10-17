@@ -10,6 +10,8 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { InstallationConflictAlert } from "@/features/installations/components/installation-conflict-alert";
+import { isAlreadyRecordedError } from "@/features/installations/lib/installation-errors";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
 import { useRecordInstallationForm } from "@/features/installations/hooks/use-record-installation-form";
 
@@ -36,12 +38,13 @@ export function InstallationForm({
   timeZone,
   defaultInstalledAt,
 }: InstallationFormProps) {
-  const { form, onSubmit, isPending, result } = useRecordInstallationForm({
-    jobId,
-    seatId,
-    timeZone,
-    defaultInstalledAt,
-  });
+  const { form, onSubmit, isPending, result, viewRecordedInstallation } =
+    useRecordInstallationForm({
+      jobId,
+      seatId,
+      timeZone,
+      defaultInstalledAt,
+    });
   const {
     register,
     formState: { errors },
@@ -50,10 +53,14 @@ export function InstallationForm({
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       {result && !result.success && result.error && (
-        <JobActionErrorAlert
-          error={result.error}
-          fallbackTitle="Could not record installation"
-        />
+        isAlreadyRecordedError(result.error) ? (
+          <InstallationConflictAlert onViewRecord={viewRecordedInstallation} />
+        ) : (
+          <JobActionErrorAlert
+            error={result.error}
+            fallbackTitle="Could not record installation"
+          />
+        )
       )}
 
       <input type="hidden" {...register("job_id")} />

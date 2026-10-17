@@ -7,7 +7,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { recordInstallationAction } from "@/features/installations/actions/record-installation.action";
 import type { JobActionResult } from "@/features/jobs/lib/job-errors";
-import { isAlreadyRecordedError } from "@/features/installations/lib/installation-errors";
 import { runJobAction } from "@/features/jobs/lib/run-job-action";
 import {
   buildRecordInstallationSchema,
@@ -47,16 +46,16 @@ export function useRecordInstallationForm({
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
     startTransition(async () => {
-      const next = await runJobAction(() => recordInstallationAction(values));
-      setResult(next);
-
-      // Someone else recorded this job first: re-run the Server Component
-      // fetch so the page shows the existing record instead of the form.
-      if (isAlreadyRecordedError(next.error)) {
-        router.refresh();
-      }
+      setResult(await runJobAction(() => recordInstallationAction(values)));
     });
   });
 
-  return { form, onSubmit, isPending, result };
+  // Someone else recorded this job first. The user's entry stays on screen
+  // until they choose to look at the record that was kept: re-running the
+  // Server Component fetch swaps the form for that record.
+  function viewRecordedInstallation() {
+    router.refresh();
+  }
+
+  return { form, onSubmit, isPending, result, viewRecordedInstallation };
 }
