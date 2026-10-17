@@ -898,6 +898,24 @@ time at the airport and converted to UTC with `airports.timezone`.
   permission group (who can open the screen) and the form for an internal
   user (page).
 
+## Cleaning history (FO-F03-S03)
+
+- A recorded cleaning is kept unchanged at two layers: no UPDATE or DELETE
+  policy, and `UPDATE`, `DELETE` and `TRUNCATE` are revoked from `anon` and
+  `authenticated` (migration `20261021090000_cleaning_records_revoke_mutation.sql`).
+  Supabase grants them by default and `TRUNCATE` is not covered by RLS. A
+  change attempt now fails with `42501` instead of matching zero rows.
+  `service_role` and the table owner are unaffected, so only trusted server
+  code or a migration can change the log.
+- Two recordings for one job: the unique index on `technician_job_id` lets
+  one through and rejects the other with `23505` (`ALREADY_RECORDED`). First
+  save wins; the form keeps the user's entry and says it was not saved (see
+  "Installation record errors").
+- `inspection_records` has the same shape and the same default grants; it is
+  left for its own story.
+- Covered by the "record cleaning (FO-F03-S01)" tests (update and delete
+  denied for every role, concurrent insert, first record kept).
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone
