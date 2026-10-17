@@ -27,7 +27,7 @@ export const WORK_RECORD_WORKFLOWS: WorkRecordWorkflows = {
   cleaning: {
     permission: "cleaning:create",
     segment: "cleaning",
-    available: false,
+    available: true,
   },
   inspection: {
     permission: "inspections:create",

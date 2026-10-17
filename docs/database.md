@@ -317,6 +317,16 @@ The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
 | checklist | jsonb | nullable |
 | passed | boolean | nullable |
 | notes / photo_path | text | nullable |
+| technician_job_id | uuid, FK → technician_jobs.id ON DELETE RESTRICT | nullable (rows that predate it, cleaning outside a job); the job the cleaning was recorded for |
+
+Unique index `(technician_job_id)`: one cleaning record per job. Insert guard
+trigger `guard_cleaning_records_insert`: when a job is given, it must be a
+`cleaning` job (`JB005`) and active (`JB006`), the booking must have a seat
+that is not `retired` (`JB007`), and `completed_at` is required and cannot be
+in the future (`22023`). It sets `seat_id`, `booking_id`, `employee_id` and
+`started_at` (= `completed_at`, the form has one time). Rows without a job are
+not checked. The technician insert policy requires the job to be assigned to
+the caller.
 
 ### `inspection_records` (immutable log)
 | column | type | notes |

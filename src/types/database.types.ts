@@ -324,6 +324,7 @@ export type Database = {
           photo_path: string | null
           seat_id: string
           started_at: string
+          technician_job_id: string | null
         }
         Insert: {
           booking_id?: string | null
@@ -337,6 +338,7 @@ export type Database = {
           photo_path?: string | null
           seat_id: string
           started_at: string
+          technician_job_id?: string | null
         }
         Update: {
           booking_id?: string | null
@@ -350,6 +352,7 @@ export type Database = {
           photo_path?: string | null
           seat_id?: string
           started_at?: string
+          technician_job_id?: string | null
         }
         Relationships: [
           {
@@ -371,6 +374,13 @@ export type Database = {
             columns: ["seat_id"]
             isOneToOne: false
             referencedRelation: "seats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_records_technician_job_id_fkey"
+            columns: ["technician_job_id"]
+            isOneToOne: false
+            referencedRelation: "technician_jobs"
             referencedColumns: ["id"]
           },
         ]
