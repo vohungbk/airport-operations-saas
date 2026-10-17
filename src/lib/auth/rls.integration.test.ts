@@ -1732,6 +1732,274 @@ describe.skipIf(!config)("F05 RLS integration", () => {
   });
 
   // ===========================================================================
+  // FO-F03-S01: recording a cleaning. RLS limits who may insert (the assigned
+  // technician, admin/ops); the guard trigger validates the job and seat and
+  // sets seat_id, booking_id, employee_id and started_at.
+  // ===========================================================================
+  describe("record cleaning (FO-F03-S01)", () => {
+    // Bookings without an open cleaning job in the shared fixtures: 4 is
+    // partner A's (seat 4), 3 is partner B's (seat 3).
+    const BOOKING_C_ID = "f0000000-0000-0000-0000-000000000004";
+    const SEAT_C_ID = "e0000000-0000-0000-0000-000000000004";
+    const BOOKING_D_ID = "f0000000-0000-0000-0000-000000000003";
+    const cleanedAt = () => new Date(Date.now() - 60_000).toISOString();
+
+    // The generated insert type requires these NOT NULL columns; the guard
+    // trigger overwrites seat_id, booking_id, employee_id and started_at.
+    const cleaningRow = (
+      jobId: string,
+      extra: Partial<
+        Database["public"]["Tables"]["cleaning_records"]["Insert"]
+      > = {},
+    ) => ({
+      technician_job_id: jobId,
+      seat_id: SEAT_C_ID,
+      employee_id: identities.technician.id,
+      started_at: cleanedAt(),
+      completed_at: cleanedAt(),
+      ...extra,
+    });
+
+    async function createCleaningJob(
+      technicianId: string,
+      bookingId: string,
+      jobType: "cleaning" | "installation" = "cleaning",
+      status: "assigned" | "completed" = "assigned",
+    ) {
+      const { data, error } = await service
+        .from("technician_jobs")
+        .insert({
+          booking_id: bookingId,
+          technician_id: technicianId,
+          job_type: jobType,
+          status,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
+    }
+
+    // No status change is made through the RPC, so these jobs have no events
+    // and can be removed.
+    const createdJobIds: string[] = [];
+    const track = (id: string) => {
+      createdJobIds.push(id);
+      return id;
+    };
+
+    afterEach(async () => {
+      for (const id of createdJobIds.splice(0)) {
+        await service
+          .from("cleaning_records")
+          .delete()
+          .eq("technician_job_id", id);
+        await service.from("technician_jobs").delete().eq("id", id);
+      }
+    });
+
+    it("technician records a cleaning on their job and the server sets seat, booking, employee and start", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { data, error } = await technicianClient
+        .from("cleaning_records")
+        .insert(
+          cleaningRow(jobId, {
+            notes: "Wiped and checked",
+            // Forged values must be overwritten by the guard trigger.
+            seat_id: SEAT_A_ID,
+            booking_id: BOOKING_A_ID,
+            started_at: "2001-01-01T00:00:00Z",
+          }),
+        )
+        .select("seat_id, booking_id, employee_id, started_at, completed_at")
+        .single();
+
+      expect(error).toBeNull();
+      expect(data).toMatchObject({
+        seat_id: SEAT_C_ID,
+        booking_id: BOOKING_C_ID,
+        employee_id: identities.technician.id,
+      });
+      expect(new Date(data!.started_at).getTime()).toBe(
+        new Date(data!.completed_at!).getTime(),
+      );
+    });
+
+    it.each([
+      ["admin", () => adminClient, () => identities.admin.id],
+      ["ops", () => opsClient, () => identities.opsManager.id],
+    ])(
+      "%s can record a cleaning on a job assigned to a technician, as the employee",
+      async (_role, getClient, getUserId) => {
+        const jobId = track(
+          await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+        );
+
+        const { data, error } = await getClient()
+          .from("cleaning_records")
+          .insert(cleaningRow(jobId, { employee_id: getUserId() }))
+          .select("employee_id")
+          .single();
+
+        expect(error).toBeNull();
+        expect(data?.employee_id).toBe(getUserId());
+      },
+    );
+
+    it("technician cannot record a cleaning on another technician's job", async () => {
+      const jobId = track(
+        await createCleaningJob(OTHER_TECHNICIAN_ID, BOOKING_D_ID),
+      );
+
+      const { error } = await technicianClient.from("cleaning_records").insert(cleaningRow(jobId));
+
+      expect(error).not.toBeNull();
+      const { data } = await service
+        .from("cleaning_records")
+        .select("id")
+        .eq("technician_job_id", jobId);
+      expect(data).toEqual([]);
+    });
+
+    it("technician cannot record a cleaning without a job", async () => {
+      const { error } = await technicianClient.from("cleaning_records").insert({
+        seat_id: SEAT_C_ID,
+        booking_id: BOOKING_C_ID,
+        employee_id: identities.technician.id,
+        started_at: cleanedAt(),
+        completed_at: cleanedAt(),
+      });
+
+      expect(error).not.toBeNull();
+    });
+
+    it("partner_user cannot record a cleaning, even on their own partner's booking", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { error } = await partnerAClient.from("cleaning_records").insert(
+        cleaningRow(jobId, { employee_id: identities.partnerA.id }),
+      );
+
+      expect(error).not.toBeNull();
+    });
+
+    it("rejects a second cleaning for the same job (23505)", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const first = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId));
+      expect(first.error).toBeNull();
+
+      const second = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId));
+
+      expect(second.error?.code).toBe("23505");
+    });
+
+    it("rejects a cleaning on a job that is not a cleaning job (JB005)", async () => {
+      const jobId = track(
+        await createCleaningJob(
+          identities.technician.id,
+          BOOKING_C_ID,
+          "installation",
+        ),
+      );
+
+      const { error } = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId));
+
+      expect(error?.code).toBe("JB005");
+    });
+
+    it("rejects a cleaning on a job that is no longer active (JB006)", async () => {
+      const jobId = track(
+        await createCleaningJob(
+          identities.technician.id,
+          BOOKING_C_ID,
+          "cleaning",
+          "completed",
+        ),
+      );
+
+      const { error } = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId));
+
+      expect(error?.code).toBe("JB006");
+    });
+
+    it("rejects a cleaning time in the future (22023)", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { error } = await technicianClient.from("cleaning_records").insert(
+        cleaningRow(jobId, {
+          completed_at: new Date(Date.now() + 3_600_000).toISOString(),
+        }),
+      );
+
+      expect(error?.code).toBe("22023");
+    });
+
+    it("rejects a cleaning without a time (22023)", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { error } = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId, { completed_at: null }));
+
+      expect(error?.code).toBe("22023");
+    });
+
+    it("keeps a recorded cleaning: it cannot be changed or removed by the technician, ops or admin", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const created = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId))
+        .select("id")
+        .single();
+      const cleaningId = created.data!.id;
+
+      for (const client of [technicianClient, opsClient, adminClient]) {
+        const update = await client
+          .from("cleaning_records")
+          .update({ notes: "tampered" })
+          .eq("id", cleaningId)
+          .select("id");
+        expect(update.data ?? []).toEqual([]);
+
+        const del = await client
+          .from("cleaning_records")
+          .delete()
+          .eq("id", cleaningId)
+          .select("id");
+        expect(del.data ?? []).toEqual([]);
+      }
+
+      const { data: row } = await service
+        .from("cleaning_records")
+        .select("notes")
+        .eq("id", cleaningId)
+        .single();
+      expect(row!.notes).toBeNull();
+    });
+  });
+
+  // ===========================================================================
   // FO-F01-S01: technician list reads `users` with role = 'technician'
   // ===========================================================================
   describe("technician list access (FO-F01-S01)", () => {
