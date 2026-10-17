@@ -628,13 +628,15 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
 
     it("technician list query returns only their own job", async () => {
+      // Asked for both fixture jobs by id: the technician's job history grows
+      // with every local run and an unfiltered select is cut at max_rows.
       const { data, error } = await technicianClient
         .from("technician_jobs")
-        .select(JOB_LIST_SELECT);
+        .select(JOB_LIST_SELECT)
+        .in("id", [fixtureIds.jobOwn, fixtureIds.jobOther]);
 
       expect(error).toBeNull();
-      expect(data!.map((job) => job.id)).toContain(fixtureIds.jobOwn);
-      expect(data!.map((job) => job.id)).not.toContain(fixtureIds.jobOther);
+      expect(data!.map((job) => job.id)).toEqual([fixtureIds.jobOwn]);
     });
 
     it("technician filtering by another technician's id gets no jobs", async () => {
@@ -1998,31 +2000,36 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(error?.code).toBe("22023");
     });
 
-    it("keeps a recorded cleaning: it cannot be changed or removed by the technician, ops or admin", async () => {
+    it("keeps a recorded cleaning: update and delete are denied for every role (42501) and the row stays unchanged", async () => {
       const jobId = track(
         await createCleaningJob(identities.technician.id, BOOKING_C_ID),
       );
       const created = await technicianClient
         .from("cleaning_records")
-        .insert(cleaningRow(jobId))
+        .insert(cleaningRow(jobId, { notes: "original" }))
         .select("id")
         .single();
       const cleaningId = created.data!.id;
 
-      for (const client of [technicianClient, opsClient, adminClient]) {
+      // UPDATE and DELETE privileges are revoked: the database refuses the
+      // statement outright instead of silently matching zero rows.
+      for (const client of [
+        technicianClient,
+        opsClient,
+        adminClient,
+        partnerAClient,
+      ]) {
         const update = await client
           .from("cleaning_records")
           .update({ notes: "tampered" })
-          .eq("id", cleaningId)
-          .select("id");
-        expect(update.data ?? []).toEqual([]);
+          .eq("id", cleaningId);
+        expect(update.error?.code).toBe("42501");
 
         const del = await client
           .from("cleaning_records")
           .delete()
-          .eq("id", cleaningId)
-          .select("id");
-        expect(del.data ?? []).toEqual([]);
+          .eq("id", cleaningId);
+        expect(del.error?.code).toBe("42501");
       }
 
       const { data: row } = await service
@@ -2030,7 +2037,56 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         .select("notes")
         .eq("id", cleaningId)
         .single();
-      expect(row!.notes).toBeNull();
+      expect(row!.notes).toBe("original");
+    });
+
+    it("lets exactly one of two simultaneous recordings through and keeps a single row (23505)", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const [byTechnician, byOps] = await Promise.all([
+        technicianClient.from("cleaning_records").insert(cleaningRow(jobId)),
+        opsClient
+          .from("cleaning_records")
+          .insert(cleaningRow(jobId, { employee_id: identities.opsManager.id })),
+      ]);
+
+      const errors = [byTechnician.error, byOps.error];
+      expect(errors.filter((e) => e === null)).toHaveLength(1);
+      expect(errors.find((e) => e !== null)?.code).toBe("23505");
+      const { data } = await service
+        .from("cleaning_records")
+        .select("id")
+        .eq("technician_job_id", jobId);
+      expect(data).toHaveLength(1);
+    });
+
+    it("keeps the first cleaning unchanged when a second recording is rejected", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const first = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId, { notes: "first" }))
+        .select("id")
+        .single();
+
+      const second = await opsClient
+        .from("cleaning_records")
+        .insert(
+          cleaningRow(jobId, {
+            notes: "second",
+            employee_id: identities.opsManager.id,
+          }),
+        );
+
+      expect(second.error?.code).toBe("23505");
+      const { data } = await service
+        .from("cleaning_records")
+        .select("id, notes")
+        .eq("technician_job_id", jobId);
+      expect(data).toEqual([{ id: first.data!.id, notes: "first" }]);
     });
   });
 
