@@ -833,6 +833,22 @@ time at the airport and converted to UTC with `airports.timezone`.
 - Covered by the "record installation (FO-F02-S01)" tests in
   `src/lib/auth/rls.integration.test.ts`.
 
+## Installation history (FO-F02-S03)
+
+- A recorded installation is kept unchanged at two layers: no UPDATE or
+  DELETE policy, and `UPDATE`, `DELETE` and `TRUNCATE` are revoked from
+  `anon` and `authenticated` (migration
+  `20261019090000_installations_revoke_mutation.sql`). Supabase grants them
+  by default and `TRUNCATE` is not covered by RLS. A change attempt now
+  fails with `42501` instead of matching zero rows. `service_role` and the
+  table owner are unaffected, so only trusted server code or a migration can
+  change the log.
+- Two recordings for one job: the unique index lets one through and rejects
+  the other with `23505` (`ALREADY_RECORDED`). The form then re-fetches the
+  page, which shows the existing record read-only.
+- Covered by the "record installation (FO-F02-S01)" tests (concurrent
+  insert, first record kept, update and delete denied for every role).
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.

@@ -303,6 +303,9 @@ trigger `guard_installations_insert`: the job must be an `installation` job
 `available` or `reserved` (`JB007`), and `completed_at` cannot be in the
 future (`22023`). It also sets `seat_id` and `created_by`.
 
+The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
+`TRUNCATE` are revoked from `anon` and `authenticated`.
+
 ### `cleaning_records` (immutable log)
 | column | type | notes |
 |---|---|---|
