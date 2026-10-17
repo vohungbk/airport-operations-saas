@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { jobIdSchema } from "@/features/jobs/schemas/jobs-query.schema";
 import type { JobStatus } from "@/features/jobs/lib/job-status";
 import type { JobType } from "@/features/jobs/lib/job-type";
+import type { SeatStatus } from "@/features/seats/types";
 
 export interface InstallationRecord {
   id: string;
@@ -25,6 +26,7 @@ export interface InstallationContext {
     seat: {
       id: string;
       serial_number: string;
+      status: SeatStatus;
       category_name: string | null;
     } | null;
   };
@@ -41,7 +43,7 @@ const INSTALLATION_CONTEXT_SELECT = [
   "status",
   "job_type",
   "technician_id",
-  "booking:bookings!inner(booking_number, airport:airports!inner(code, name, timezone), seat:seats!assigned_seat_id(id, serial_number, category:seat_categories(name)))",
+  "booking:bookings!inner(booking_number, airport:airports!inner(code, name, timezone), seat:seats!assigned_seat_id(id, serial_number, status, category:seat_categories(name)))",
   "installation:installations(id, completed_at, notes, created_at, seat:seats(serial_number), recorder:users!created_by(full_name))",
 ].join(", ");
 
@@ -56,6 +58,7 @@ interface Row {
     seat: {
       id: string;
       serial_number: string;
+      status: SeatStatus;
       category: { name: string } | null;
     } | null;
   };
@@ -116,6 +119,7 @@ export async function getInstallationContext(
       seat: row.booking.seat && {
         id: row.booking.seat.id,
         serial_number: row.booking.seat.serial_number,
+        status: row.booking.seat.status,
         category_name: row.booking.seat.category?.name ?? null,
       },
     },
