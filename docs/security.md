@@ -849,6 +849,34 @@ time at the airport and converted to UTC with `airports.timezone`.
 - Covered by the "record installation (FO-F02-S01)" tests (concurrent
   insert, first record kept, update and delete denied for every role).
 
+## Record cleaning (FO-F03-S01)
+
+- `/jobs/[id]/cleaning` and `recordCleaningAction` require `cleaning:create`
+  (technician) or `technicians:manage` (admin, ops). The "Record work" link is
+  offered only to the assigned technician; hiding it is not an access check.
+- RLS changed: `cleaning_records_insert_technician` now also requires the
+  record's `technician_job_id` to be a job assigned to the caller. Before, a
+  technician could insert a cleaning for any seat (`employee_id = auth.uid()`
+  was the only check). Admin/ops keep their policy. A partner user cannot
+  insert. There is still no UPDATE or DELETE policy, so a recorded cleaning is
+  an immutable log row.
+- The guard trigger `guard_cleaning_records_insert` (SECURITY DEFINER) checks
+  values RLS cannot: job type and status, the booking's seat and its status
+  (only `retired` is rejected, the status model defines no other rule for
+  cleaning yet), and the time. It overwrites `seat_id`, `booking_id`,
+  `employee_id` and `started_at`, so the client cannot forge them. It runs
+  only when a job is given; a row without a job can only come from admin/ops
+  or a trusted server insert, never from a technician.
+- `employee_id` is the user who recorded it (`auth.uid()`), like
+  `installations.created_by`. Recording does not change the seat or the job
+  status.
+- One cleaning per job (unique index). The error behavior (conflict, network
+  failure, lost assignment) is the same as for installations.
+- Covered by the "record cleaning (FO-F03-S01)" tests in
+  `src/lib/auth/rls.integration.test.ts`. The retired-seat and no-seat
+  branches of the trigger are not covered there: a booking's seat can only be
+  changed through the booking functions and a retired seat cannot be restored.
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone
