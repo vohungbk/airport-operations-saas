@@ -877,6 +877,27 @@ time at the airport and converted to UTC with `airports.timezone`.
   branches of the trigger are not covered there: a booking's seat can only be
   changed through the booking functions and a retired seat cannot be restored.
 
+## Cleaning assignment (FO-F03-S02)
+
+- Only the assigned technician or an internal role (admin, operations
+  manager) can record a cleaning. The boundary is the database:
+  `cleaning_records_insert_technician` requires the job to be assigned to the
+  caller, admin/ops use their own policy, and a partner user has no insert
+  policy. The screen and the Server Action add the permission check
+  (`CLEANING_RECORD_PERMISSIONS`) and the forbidden state, but hiding the link
+  or the form is not the access check.
+- A technician who is not assigned gets the forbidden state on
+  `/jobs/[id]/cleaning` (RLS hides the job, the page cannot tell it from a
+  missing one) and `NOT_FOUND` from the action. If the assignment is lost
+  while the form is open, the next save is rejected by RLS and the form shows
+  "no longer available" with a link to the jobs.
+- An internal user records as themselves: `employee_id` is the user who
+  recorded it, not the technician of the job.
+- No code changed for this story; it adds the tests that prove the boundary:
+  lost assignment (RLS), internal role records as themselves (action), the
+  permission group (who can open the screen) and the form for an internal
+  user (page).
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone

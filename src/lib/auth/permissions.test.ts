@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CLEANING_RECORD_PERMISSIONS,
   hasAnyPermission,
   hasPermission,
   ROLE_PERMISSIONS,
@@ -150,5 +151,20 @@ describe("seat access scope (CO-F04-S09)", () => {
   it("should give only partner_user the own-partner seat view permission", () => {
     expect(hasPermission("partner_user", "seats:view_own_partner")).toBe(true);
     expect(hasPermission("technician", "seats:view_own_partner")).toBe(false);
+  });
+});
+
+describe("CLEANING_RECORD_PERMISSIONS", () => {
+  it.each([["technician"], ["admin"], ["operations_manager"]] as const)(
+    "should let the %s role open the cleaning record screen",
+    (role) => {
+      expect(hasAnyPermission(role, CLEANING_RECORD_PERMISSIONS)).toBe(true);
+    },
+  );
+
+  it("should not let a partner user open the cleaning record screen", () => {
+    expect(
+      hasAnyPermission("partner_user", CLEANING_RECORD_PERMISSIONS),
+    ).toBe(false);
   });
 });

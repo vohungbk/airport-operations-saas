@@ -93,6 +93,21 @@ describe("recordCleaningAction", () => {
     expect(payload).not.toHaveProperty("passed");
   });
 
+  it.each([["admin"], ["operations_manager"]])(
+    "should record as the %s user, not as the technician of the job",
+    async (role) => {
+      requireAnyPermissionMock.mockResolvedValue({ id: "internal-1", role });
+
+      await expect(recordCleaningAction(VALID_INPUT)).rejects.toThrow(
+        `REDIRECT:/jobs/${JOB_ID}`,
+      );
+
+      const payload = insertMock.mock.calls[0][0];
+      expect(payload.employee_id).toBe("internal-1");
+      expect(payload.employee_id).not.toBe(CONTEXT.job.technician_id);
+    },
+  );
+
   it("should return VALIDATION_ERROR and skip the insert for an invalid time", async () => {
     const result = await recordCleaningAction({
       ...VALID_INPUT,

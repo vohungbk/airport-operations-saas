@@ -1864,6 +1864,41 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(data).toEqual([]);
     });
 
+    it("rejects the next cleaning once the technician loses the assignment, and leaves no row", async () => {
+      // Not tracked: the reassignment writes a job event, so the job cannot be
+      // deleted afterwards. It is cancelled instead, which frees the booking.
+      const jobId = await createCleaningJob(
+        identities.technician.id,
+        BOOKING_C_ID,
+      );
+
+      try {
+        const reassign = await opsClient
+          .from("technician_jobs")
+          .update({ technician_id: OTHER_TECHNICIAN_ID })
+          .eq("id", jobId);
+        expect(reassign.error).toBeNull();
+
+        const { error } = await technicianClient
+          .from("cleaning_records")
+          .insert(cleaningRow(jobId));
+
+        expect(error).not.toBeNull();
+        const { data } = await service
+          .from("cleaning_records")
+          .select("id")
+          .eq("technician_job_id", jobId);
+        expect(data).toEqual([]);
+      } finally {
+        await opsClient.rpc("change_technician_job_status", {
+          p_job_id: jobId,
+          p_from_status: "assigned",
+          p_to_status: "cancelled",
+          p_reason: "cleaning test cleanup",
+        });
+      }
+    });
+
     it("technician cannot record a cleaning without a job", async () => {
       const { error } = await technicianClient.from("cleaning_records").insert({
         seat_id: SEAT_C_ID,
@@ -2353,11 +2388,14 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
 
     it("partner_user reading technician_jobs does not trigger infinite recursion (42P17), exercising booking_partner_id()", async () => {
+      // Filtered by id: the job history grows with every local run and an
+      // unfiltered select is cut at the API's max_rows.
       const { data, error } = await partnerAClient
         .from("technician_jobs")
-        .select("id");
+        .select("id")
+        .eq("id", fixtureIds.jobOwn);
       expect(error).toBeNull();
-      expect(data!.some((j) => j.id === fixtureIds.jobOwn)).toBe(true);
+      expect(data!.map((j) => j.id)).toEqual([fixtureIds.jobOwn]);
     });
   });
 

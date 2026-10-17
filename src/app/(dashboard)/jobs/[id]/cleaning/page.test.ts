@@ -143,6 +143,15 @@ describe("CleaningPage", () => {
     expect(html).not.toContain("Cleaning time");
   });
 
+  it("should show the form to an internal user on a job assigned to a technician", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "admin-1", role: "admin" });
+
+    const html = await render();
+
+    expect(html).toContain("Cleaning time");
+    expect(html).not.toContain("You cannot record this cleaning");
+  });
+
   it("should show the recorded cleaning read-only instead of the form", async () => {
     getContextMock.mockResolvedValue(
       context({
