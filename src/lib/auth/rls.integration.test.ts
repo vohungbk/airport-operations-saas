@@ -2388,11 +2388,14 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
 
     it("partner_user reading technician_jobs does not trigger infinite recursion (42P17), exercising booking_partner_id()", async () => {
+      // Filtered by id: the job history grows with every local run and an
+      // unfiltered select is cut at the API's max_rows.
       const { data, error } = await partnerAClient
         .from("technician_jobs")
-        .select("id");
+        .select("id")
+        .eq("id", fixtureIds.jobOwn);
       expect(error).toBeNull();
-      expect(data!.some((j) => j.id === fixtureIds.jobOwn)).toBe(true);
+      expect(data!.map((j) => j.id)).toEqual([fixtureIds.jobOwn]);
     });
   });
 
