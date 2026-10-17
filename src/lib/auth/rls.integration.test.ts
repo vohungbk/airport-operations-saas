@@ -1541,6 +1541,58 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(error?.code).toBe("22023");
     });
 
+    it("lets exactly one of two simultaneous recordings through and keeps a single row (23505)", async () => {
+      const jobId = track(
+        await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const [byTechnician, byOps] = await Promise.all([
+        technicianClient
+          .from("installations")
+          .insert({ technician_job_id: jobId, completed_at: installedAt() }),
+        opsClient
+          .from("installations")
+          .insert({ technician_job_id: jobId, completed_at: installedAt() }),
+      ]);
+
+      const errors = [byTechnician.error, byOps.error];
+      expect(errors.filter((e) => e === null)).toHaveLength(1);
+      expect(errors.find((e) => e !== null)?.code).toBe("23505");
+      const { data } = await service
+        .from("installations")
+        .select("id")
+        .eq("technician_job_id", jobId);
+      expect(data).toHaveLength(1);
+    });
+
+    it("keeps the first record unchanged when a second recording is rejected", async () => {
+      const jobId = track(
+        await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const first = await technicianClient
+        .from("installations")
+        .insert({
+          technician_job_id: jobId,
+          completed_at: installedAt(),
+          notes: "first",
+        })
+        .select("id")
+        .single();
+
+      const second = await opsClient.from("installations").insert({
+        technician_job_id: jobId,
+        completed_at: installedAt(),
+        notes: "second",
+      });
+
+      expect(second.error?.code).toBe("23505");
+      const { data } = await service
+        .from("installations")
+        .select("id, notes")
+        .eq("technician_job_id", jobId);
+      expect(data).toEqual([{ id: first.data!.id, notes: "first" }]);
+    });
+
     it("keeps a recorded installation: it is readable by the technician and ops and cannot be changed or removed", async () => {
       const jobId = track(
         await createInstallationJob(identities.technician.id, BOOKING_C_ID),
@@ -1560,20 +1612,25 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         expect(data).toHaveLength(1);
       }
 
-      for (const client of [technicianClient, opsClient, adminClient]) {
+      // UPDATE and DELETE privileges are revoked: the database refuses the
+      // statement outright instead of silently matching zero rows.
+      for (const client of [
+        technicianClient,
+        opsClient,
+        adminClient,
+        partnerAClient,
+      ]) {
         const update = await client
           .from("installations")
           .update({ notes: "tampered" })
-          .eq("id", installationId)
-          .select("id");
-        expect(update.data ?? []).toEqual([]);
+          .eq("id", installationId);
+        expect(update.error?.code).toBe("42501");
 
         const del = await client
           .from("installations")
           .delete()
-          .eq("id", installationId)
-          .select("id");
-        expect(del.data ?? []).toEqual([]);
+          .eq("id", installationId);
+        expect(del.error?.code).toBe("42501");
       }
 
       const { data: row } = await service

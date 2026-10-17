@@ -1,7 +1,10 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 
-import { mapInstallationError } from "@/features/installations/lib/installation-errors";
+import {
+  isAlreadyRecordedError,
+  mapInstallationError,
+} from "@/features/installations/lib/installation-errors";
 
 const pgError = (code: string) =>
   ({
@@ -30,5 +33,26 @@ describe("mapInstallationError", () => {
     expect(mapInstallationError(pgError("XX000")).message).not.toContain(
       "secret_table",
     );
+  });
+});
+
+describe("isAlreadyRecordedError", () => {
+  it("should be true for the duplicate error of the unique index", () => {
+    expect(isAlreadyRecordedError(mapInstallationError(pgError("23505")))).toBe(
+      true,
+    );
+  });
+
+  it.each([["JB005"], ["JB007"], ["42501"], ["XX000"]])(
+    "should be false for database error %s",
+    (code) => {
+      expect(isAlreadyRecordedError(mapInstallationError(pgError(code)))).toBe(
+        false,
+      );
+    },
+  );
+
+  it("should be false when there is no error", () => {
+    expect(isAlreadyRecordedError(undefined)).toBe(false);
   });
 });
