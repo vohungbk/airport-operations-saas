@@ -21,7 +21,10 @@ vi.mock("@/features/installations/actions/record-installation.action", () => ({
   recordInstallationAction: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
+vi.mock("next/navigation", () => ({
+  notFound: notFoundMock,
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 import InstallationPage from "@/app/(dashboard)/jobs/[id]/installation/page";
 

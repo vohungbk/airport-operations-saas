@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { recordInstallationAction } from "@/features/installations/actions/record-installation.action";
 import type { JobActionResult } from "@/features/jobs/lib/job-errors";
+import { isAlreadyRecordedError } from "@/features/installations/lib/installation-errors";
 import { runJobAction } from "@/features/jobs/lib/run-job-action";
 import {
   buildRecordInstallationSchema,
@@ -25,6 +27,7 @@ export function useRecordInstallationForm({
   timeZone,
   defaultInstalledAt,
 }: UseRecordInstallationFormArgs) {
+  const router = useRouter();
   const schema = useMemo(
     () => buildRecordInstallationSchema(timeZone),
     [timeZone],
@@ -44,7 +47,14 @@ export function useRecordInstallationForm({
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
     startTransition(async () => {
-      setResult(await runJobAction(() => recordInstallationAction(values)));
+      const next = await runJobAction(() => recordInstallationAction(values));
+      setResult(next);
+
+      // Someone else recorded this job first: re-run the Server Component
+      // fetch so the page shows the existing record instead of the form.
+      if (isAlreadyRecordedError(next.error)) {
+        router.refresh();
+      }
     });
   });
 

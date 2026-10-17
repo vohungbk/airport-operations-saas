@@ -26,6 +26,16 @@ const SEAT_NOT_ELIGIBLE_ERROR: JobActionError = {
 };
 
 /**
+ * True when someone else recorded this job first (the unique index fired):
+ * the page should then show the existing record, not the form.
+ */
+export function isAlreadyRecordedError(
+  error: JobActionError | undefined,
+): boolean {
+  return error?.code === ALREADY_RECORDED_ERROR.code;
+}
+
+/**
  * `JB005` not an installation job and `JB006` job not active are raised by
  * the insert guard trigger; `JB007` is a missing or ineligible seat;
  * `23505` is the one-installation-per-job unique index. Everything else is
