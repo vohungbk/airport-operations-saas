@@ -328,6 +328,9 @@ in the future (`22023`). It sets `seat_id`, `booking_id`, `employee_id` and
 not checked. The technician insert policy requires the job to be assigned to
 the caller.
 
+The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
+`TRUNCATE` are revoked from `anon` and `authenticated`.
+
 ### `inspection_records` (immutable log)
 | column | type | notes |
 |---|---|---|
