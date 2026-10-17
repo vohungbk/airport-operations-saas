@@ -1528,6 +1528,60 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(error?.code).toBe("JB007");
     });
 
+    async function seatSnapshot(seatId: string) {
+      const seat = await service
+        .from("seats")
+        .select("status")
+        .eq("id", seatId)
+        .single();
+      const history = await service
+        .from("seat_status_history")
+        .select("id", { count: "exact", head: true })
+        .eq("seat_id", seatId);
+      return { status: seat.data!.status, historyCount: history.count };
+    }
+
+    it("leaves the seat status and its history unchanged when an installation is recorded", async () => {
+      const jobId = track(
+        await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const before = await seatSnapshot(SEAT_C_ID);
+
+      const { error } = await technicianClient
+        .from("installations")
+        .insert({ technician_job_id: jobId, completed_at: installedAt() });
+
+      expect(error).toBeNull();
+      expect(await seatSnapshot(SEAT_C_ID)).toEqual(before);
+    });
+
+    it("leaves the seat status and its history unchanged when the seat does not allow installation (JB007)", async () => {
+      const jobId = track(
+        await createInstallationJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const quarantine = await adminClient.rpc("change_seat_status", {
+        p_seat_id: SEAT_C_ID,
+        p_to_status: "quarantine",
+        p_reason: "installation test",
+      });
+      expect(quarantine.error).toBeNull();
+      const before = await seatSnapshot(SEAT_C_ID);
+
+      const { error } = await technicianClient
+        .from("installations")
+        .insert({ technician_job_id: jobId, completed_at: installedAt() });
+      const after = await seatSnapshot(SEAT_C_ID);
+
+      await adminClient.rpc("change_seat_status", {
+        p_seat_id: SEAT_C_ID,
+        p_to_status: "available",
+        p_reason: "installation test",
+      });
+      expect(error?.code).toBe("JB007");
+      expect(after).toEqual(before);
+      expect(before.status).toBe("quarantine");
+    });
+
     it("rejects an installation time in the future (22023)", async () => {
       const jobId = track(
         await createInstallationJob(identities.technician.id, BOOKING_C_ID),

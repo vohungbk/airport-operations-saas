@@ -39,7 +39,12 @@ function context(overrides: Record<string, unknown> = {}) {
     booking: {
       booking_number: "BK-00002",
       airport: { code: "DXB", name: "Dubai", timezone: "Asia/Dubai" },
-      seat: { id: "s-1", serial_number: "SN-2", category_name: "Infant" },
+      seat: {
+        id: "s-1",
+        serial_number: "SN-2",
+        status: "available",
+        category_name: "Infant",
+      },
     },
     installation: null,
     ...overrides,
@@ -105,6 +110,47 @@ describe("InstallationPage", () => {
     expect(html).toContain('href="/jobs/j-1"');
     expect(html).toContain("Cancel");
   });
+
+  it.each([["available"], ["reserved"]])(
+    "should show the form when the seat is %s",
+    async (status) => {
+      getContextMock.mockResolvedValue(
+        context({
+          booking: {
+            ...context().booking,
+            seat: { ...context().booking.seat, status },
+          },
+        }),
+      );
+
+      expect(await render()).toContain("Installation time");
+    },
+  );
+
+  it.each([
+    ["quarantine", "Quarantine"],
+    ["in_use", "In use"],
+    ["cleaning", "Cleaning"],
+    ["inspection", "Inspection"],
+    ["retired", "Retired"],
+  ])(
+    "should say the seat status is %s and not show the form",
+    async (status, label) => {
+      getContextMock.mockResolvedValue(
+        context({
+          booking: {
+            ...context().booking,
+            seat: { ...context().booking.seat, status },
+          },
+        }),
+      );
+
+      const html = await render();
+
+      expect(html).toContain(`The seat status is ${label}`);
+      expect(html).not.toContain("Installation time");
+    },
+  );
 
   it("should show the recorded installation read-only instead of the form", async () => {
     getContextMock.mockResolvedValue(
