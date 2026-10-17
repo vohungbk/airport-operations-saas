@@ -849,6 +849,24 @@ time at the airport and converted to UTC with `airports.timezone`.
 - Covered by the "record installation (FO-F02-S01)" tests (concurrent
   insert, first record kept, update and delete denied for every role).
 
+## Installation and seat status (FO-F02-S04)
+
+- Recording an installation does not change the seat status. The seat status
+  model (`change_seat_status()`) defines no status that follows an
+  installation: `reserved`, `in_use`, `cleaning` and `inspection` belong to
+  later workflows, and the spec's resulting status is still open. When it is
+  decided, the change must go through the same model so it writes
+  `seat_status_history`.
+- A seat that is not `available` or `reserved` is rejected with `JB007` by
+  `guard_installation_insert`. The screen also reads the seat status and says
+  so instead of showing the form (`INSTALLABLE_SEAT_STATUSES` in
+  `src/features/installations/lib/seat-eligibility.ts`, which must stay in
+  sync with the trigger). The trigger remains the enforcing authority: the
+  status can change after the page loaded.
+- Tests: "record installation" in `src/lib/auth/rls.integration.test.ts`
+  checks the seat status and history do not change, on success and on a
+  rejected insert.
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.

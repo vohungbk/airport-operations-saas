@@ -9,6 +9,8 @@ import { utcToZonedLocalInput } from "@/features/bookings/lib/booking-time";
 import { InstallationForm } from "@/features/installations/components/installation-form";
 import { InstallationRecord } from "@/features/installations/components/installation-record";
 import { getInstallationContext } from "@/features/installations/lib/get-installation-context";
+import { isSeatEligibleForInstallation } from "@/features/installations/lib/seat-eligibility";
+import { SEAT_STATUS_LABEL } from "@/features/seats/lib/seat-status";
 
 interface InstallationPageProps {
   params: Promise<{ id: string }>;
@@ -71,6 +73,12 @@ export default async function InstallationPage({
           <PageEmpty message="This job is not active, so an installation cannot be recorded." />
         ) : !booking.seat ? (
           <PageEmpty message="This job's booking has no seat assigned yet." />
+        ) : !isSeatEligibleForInstallation(booking.seat.status) ? (
+          <PageEmpty
+            message={`The seat status is ${
+              SEAT_STATUS_LABEL[booking.seat.status]
+            }, so an installation cannot be recorded.`}
+          />
         ) : (
           <InstallationForm
             jobId={job.id}
