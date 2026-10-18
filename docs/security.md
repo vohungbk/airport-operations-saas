@@ -918,29 +918,49 @@ time at the airport and converted to UTC with `airports.timezone`.
 
 ## Cleaning and availability (FO-F03-S04)
 
-- **Undetermined.** The story leaves two rules open ("to be determined", PRD
-  open question 2): what cleaning does to availability, and what to do for a
-  cleaning on a seat that is in an active booking. No behavior was invented;
-  both acceptance criteria stay Block until the PRD decides.
-- **Today.** A seat is available for a booking when `seats.status =
-  'available'` and no active booking overlaps (`get_available_seats`,
-  `assert_booking_seat_assignable`). Recording a cleaning does not change the
-  seat status, its `seat_status_history` or its availability, and it does not
-  change the booking. A cleaning for the seat of an active booking is
-  recorded. The two "current behavior" tests in
-  `src/lib/auth/rls.integration.test.ts` ("record cleaning") pin this down so a
-  later rule changes it on purpose; they are not requirements.
-- **Why it is not just a status change.** `change_seat_status()` allows only
-  `available <-> quarantine` and `-> retired`; `cleaning` and `in_use` belong
-  to later workflows. The form records one time (`started_at` equals
-  `completed_at`), so there is no "starts" and "completes" to attach a status
-  to. Reflecting cleaning in availability needs a status rule in that shared
-  model, probably with a start and a complete step, and it must write
-  `seat_status_history`.
-- **Open questions for the PRD.** (1) Does the seat move to `cleaning` while
-  it is cleaned and back to `available` when done? (2) One recording, or a
-  start and a complete step? (3) A cleaning for the seat of an active booking:
-  block, warn, or allow?
+- **Rule (PRD open question 2).** Cleaning is two steps. `start_cleaning(job)`
+  moves the seat `available -> cleaning` and creates the cleaning record in
+  the same transaction. `complete_cleaning(job, passed, notes)` records the
+  result once: a passed cleaning returns the seat to `available`; a failed
+  cleaning, or an unresolved incident (`open` or `investigating`) on the seat,
+  moves it to `quarantine` with a reason (`Cleaning failed`, `Unresolved
+  incident on the seat`). The status model has no `maintenance` status, so
+  `quarantine` is the existing way to hold a seat; a manager releases it with
+  `change_seat_status()` (`quarantine -> available`).
+- **Start is refused** when the seat is not `available` (`JB008`) or when
+  another active booking is in force on the seat now (`JB009`). The booking
+  of the job itself is ignored: it is the booking the seat was used for.
+  Other errors: `JB005` not a cleaning job, `JB006` job not active, `JB007`
+  no seat, `23505` already started, `JB010` not started, `JB011` already
+  completed, `JB012` the seat is no longer being cleaned, `22023` result
+  missing or notes too long, `P0002` job not found or not the caller's,
+  `42501` role not allowed (a partner user).
+- **Access.** Both functions are `SECURITY DEFINER` because technicians cannot
+  update seats, so each checks the caller itself: the assigned technician, an
+  admin or an operations manager. A technician who is not assigned gets
+  `P0002`, which does not reveal that the job exists. Execute is granted to
+  `authenticated` only.
+- **The seat model is shared.** The transitions are reached only through the
+  two functions, via the internal `apply_cleaning_seat_status()`, which sets
+  the same signals as `change_seat_status()` so `guard_seat_update()` accepts
+  the change and the history trigger writes `seat_status_history`. Execute on
+  it is revoked from `anon` and `authenticated` (the service role keeps it;
+  the tests use it to put a seat back, because the model has no manual way
+  out of `cleaning`). `change_seat_status()` and its transitions are
+  unchanged. A seat in `cleaning` is not listed by `get_available_seats()`.
+- **Immutability.** The completion is the only change a cleaning record ever
+  gets, and only `complete_cleaning()` can make it, once. `UPDATE` stays
+  revoked from clients (see "Cleaning history").
+- **Still open in this change.** Direct INSERT into `cleaning_records` (the
+  one-step record from FO-F03-S01) still works and does not move the seat; the
+  screen moves to the two functions in the next change, which then revokes
+  INSERT. The two "current behavior" tests in
+  `src/lib/auth/rls.integration.test.ts` describe that direct path and go
+  away with it. The job status is not changed by either step.
+- Covered by the "start and complete cleaning (FO-F03-S04)" tests: seat
+  transitions with history, refusals that change nothing, simultaneous starts,
+  completion rules, and the denial cases for another technician, a partner
+  user and the internal helper.
 
 ## Installation record errors (FO-F02-S05)
 
