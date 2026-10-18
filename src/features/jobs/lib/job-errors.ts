@@ -18,6 +18,8 @@ export interface JobActionError {
     | "ALREADY_RECORDED"
     | "JOB_NOT_ELIGIBLE"
     | "SEAT_NOT_ELIGIBLE"
+    | "SEAT_IN_USE"
+    | "NOT_STARTED"
     | "INTERNAL_ERROR";
   message: string;
 }

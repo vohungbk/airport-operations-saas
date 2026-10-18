@@ -1734,435 +1734,6 @@ describe.skipIf(!config)("F05 RLS integration", () => {
   });
 
   // ===========================================================================
-  // FO-F03-S01: recording a cleaning. RLS limits who may insert (the assigned
-  // technician, admin/ops); the guard trigger validates the job and seat and
-  // sets seat_id, booking_id, employee_id and started_at.
-  // ===========================================================================
-  describe("record cleaning (FO-F03-S01)", () => {
-    // Bookings without an open cleaning job in the shared fixtures: 4 is
-    // partner A's (seat 4), 3 is partner B's (seat 3).
-    const BOOKING_C_ID = "f0000000-0000-0000-0000-000000000004";
-    const SEAT_C_ID = "e0000000-0000-0000-0000-000000000004";
-    const BOOKING_D_ID = "f0000000-0000-0000-0000-000000000003";
-    const cleanedAt = () => new Date(Date.now() - 60_000).toISOString();
-
-    // The generated insert type requires these NOT NULL columns; the guard
-    // trigger overwrites seat_id, booking_id, employee_id and started_at.
-    const cleaningRow = (
-      jobId: string,
-      extra: Partial<
-        Database["public"]["Tables"]["cleaning_records"]["Insert"]
-      > = {},
-    ) => ({
-      technician_job_id: jobId,
-      seat_id: SEAT_C_ID,
-      employee_id: identities.technician.id,
-      started_at: cleanedAt(),
-      completed_at: cleanedAt(),
-      ...extra,
-    });
-
-    async function createCleaningJob(
-      technicianId: string,
-      bookingId: string,
-      jobType: "cleaning" | "installation" = "cleaning",
-      status: "assigned" | "completed" = "assigned",
-    ) {
-      const { data, error } = await service
-        .from("technician_jobs")
-        .insert({
-          booking_id: bookingId,
-          technician_id: technicianId,
-          job_type: jobType,
-          status,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      return data.id;
-    }
-
-    // No status change is made through the RPC, so these jobs have no events
-    // and can be removed.
-    const createdJobIds: string[] = [];
-    const track = (id: string) => {
-      createdJobIds.push(id);
-      return id;
-    };
-
-    afterEach(async () => {
-      for (const id of createdJobIds.splice(0)) {
-        await service
-          .from("cleaning_records")
-          .delete()
-          .eq("technician_job_id", id);
-        await service.from("technician_jobs").delete().eq("id", id);
-      }
-    });
-
-    it("technician records a cleaning on their job and the server sets seat, booking, employee and start", async () => {
-      const jobId = track(
-        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-      );
-
-      const { data, error } = await technicianClient
-        .from("cleaning_records")
-        .insert(
-          cleaningRow(jobId, {
-            notes: "Wiped and checked",
-            // Forged values must be overwritten by the guard trigger.
-            seat_id: SEAT_A_ID,
-            booking_id: BOOKING_A_ID,
-            started_at: "2001-01-01T00:00:00Z",
-          }),
-        )
-        .select("seat_id, booking_id, employee_id, started_at, completed_at")
-        .single();
-
-      expect(error).toBeNull();
-      expect(data).toMatchObject({
-        seat_id: SEAT_C_ID,
-        booking_id: BOOKING_C_ID,
-        employee_id: identities.technician.id,
-      });
-      expect(new Date(data!.started_at).getTime()).toBe(
-        new Date(data!.completed_at!).getTime(),
-      );
-    });
-
-    it.each([
-      ["admin", () => adminClient, () => identities.admin.id],
-      ["ops", () => opsClient, () => identities.opsManager.id],
-    ])(
-      "%s can record a cleaning on a job assigned to a technician, as the employee",
-      async (_role, getClient, getUserId) => {
-        const jobId = track(
-          await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-        );
-
-        const { data, error } = await getClient()
-          .from("cleaning_records")
-          .insert(cleaningRow(jobId, { employee_id: getUserId() }))
-          .select("employee_id")
-          .single();
-
-        expect(error).toBeNull();
-        expect(data?.employee_id).toBe(getUserId());
-      },
-    );
-
-    it("technician cannot record a cleaning on another technician's job", async () => {
-      const jobId = track(
-        await createCleaningJob(OTHER_TECHNICIAN_ID, BOOKING_D_ID),
-      );
-
-      const { error } = await technicianClient.from("cleaning_records").insert(cleaningRow(jobId));
-
-      expect(error).not.toBeNull();
-      const { data } = await service
-        .from("cleaning_records")
-        .select("id")
-        .eq("technician_job_id", jobId);
-      expect(data).toEqual([]);
-    });
-
-    it("rejects the next cleaning once the technician loses the assignment, and leaves no row", async () => {
-      // Not tracked: the reassignment writes a job event, so the job cannot be
-      // deleted afterwards. It is cancelled instead, which frees the booking.
-      const jobId = await createCleaningJob(
-        identities.technician.id,
-        BOOKING_C_ID,
-      );
-
-      try {
-        const reassign = await opsClient
-          .from("technician_jobs")
-          .update({ technician_id: OTHER_TECHNICIAN_ID })
-          .eq("id", jobId);
-        expect(reassign.error).toBeNull();
-
-        const { error } = await technicianClient
-          .from("cleaning_records")
-          .insert(cleaningRow(jobId));
-
-        expect(error).not.toBeNull();
-        const { data } = await service
-          .from("cleaning_records")
-          .select("id")
-          .eq("technician_job_id", jobId);
-        expect(data).toEqual([]);
-      } finally {
-        await opsClient.rpc("change_technician_job_status", {
-          p_job_id: jobId,
-          p_from_status: "assigned",
-          p_to_status: "cancelled",
-          p_reason: "cleaning test cleanup",
-        });
-      }
-    });
-
-    it("technician cannot record a cleaning without a job", async () => {
-      const { error } = await technicianClient.from("cleaning_records").insert({
-        seat_id: SEAT_C_ID,
-        booking_id: BOOKING_C_ID,
-        employee_id: identities.technician.id,
-        started_at: cleanedAt(),
-        completed_at: cleanedAt(),
-      });
-
-      expect(error).not.toBeNull();
-    });
-
-    it("partner_user cannot record a cleaning, even on their own partner's booking", async () => {
-      const jobId = track(
-        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-      );
-
-      const { error } = await partnerAClient.from("cleaning_records").insert(
-        cleaningRow(jobId, { employee_id: identities.partnerA.id }),
-      );
-
-      expect(error).not.toBeNull();
-    });
-
-    it("rejects a second cleaning for the same job (23505)", async () => {
-      const jobId = track(
-        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-      );
-      const first = await technicianClient
-        .from("cleaning_records")
-        .insert(cleaningRow(jobId));
-      expect(first.error).toBeNull();
-
-      const second = await technicianClient
-        .from("cleaning_records")
-        .insert(cleaningRow(jobId));
-
-      expect(second.error?.code).toBe("23505");
-    });
-
-    it("rejects a cleaning on a job that is not a cleaning job (JB005)", async () => {
-      const jobId = track(
-        await createCleaningJob(
-          identities.technician.id,
-          BOOKING_C_ID,
-          "installation",
-        ),
-      );
-
-      const { error } = await technicianClient
-        .from("cleaning_records")
-        .insert(cleaningRow(jobId));
-
-      expect(error?.code).toBe("JB005");
-    });
-
-    it("rejects a cleaning on a job that is no longer active (JB006)", async () => {
-      const jobId = track(
-        await createCleaningJob(
-          identities.technician.id,
-          BOOKING_C_ID,
-          "cleaning",
-          "completed",
-        ),
-      );
-
-      const { error } = await technicianClient
-        .from("cleaning_records")
-        .insert(cleaningRow(jobId));
-
-      expect(error?.code).toBe("JB006");
-    });
-
-    it("rejects a cleaning time in the future (22023)", async () => {
-      const jobId = track(
-        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-      );
-
-      const { error } = await technicianClient.from("cleaning_records").insert(
-        cleaningRow(jobId, {
-          completed_at: new Date(Date.now() + 3_600_000).toISOString(),
-        }),
-      );
-
-      expect(error?.code).toBe("22023");
-    });
-
-    it("rejects a cleaning without a time (22023)", async () => {
-      const jobId = track(
-        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-      );
-
-      const { error } = await technicianClient
-        .from("cleaning_records")
-        .insert(cleaningRow(jobId, { completed_at: null }));
-
-      expect(error?.code).toBe("22023");
-    });
-
-    // The one-step record (direct INSERT) does not move the seat and does not
-    // look at other bookings. The two tests below describe that path, which
-    // stays until the screen moves to start_cleaning()/complete_cleaning()
-    // (see "start and complete cleaning (FO-F03-S04)"); they are not
-    // requirements and go away with the direct path.
-    async function seatState(seatId: string) {
-      const seat = await service
-        .from("seats")
-        .select("status, airport_id, category_id")
-        .eq("id", seatId)
-        .single();
-      const history = await service
-        .from("seat_status_history")
-        .select("id", { count: "exact", head: true })
-        .eq("seat_id", seatId);
-      return { ...seat.data!, historyCount: history.count };
-    }
-
-    it("current behavior: recording a cleaning leaves the seat status, its history and its availability unchanged", async () => {
-      const jobId = track(
-        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-      );
-      const before = await seatState(SEAT_C_ID);
-      const availableFor = async () => {
-        const { data, error } = await opsClient.rpc("get_available_seats", {
-          p_airport_id: before.airport_id,
-          p_seat_category_id: before.category_id,
-          // A period far from the fixture bookings, so only the seat status
-          // decides whether the seat is listed.
-          p_pickup_at: "2036-01-01T08:00:00Z",
-          p_return_at: "2036-01-03T08:00:00Z",
-        });
-        expect(error).toBeNull();
-        return data!.map((s) => s.id);
-      };
-      const listedBefore = await availableFor();
-      expect(listedBefore).toContain(SEAT_C_ID);
-
-      const { error } = await technicianClient
-        .from("cleaning_records")
-        .insert(cleaningRow(jobId));
-
-      expect(error).toBeNull();
-      expect(await seatState(SEAT_C_ID)).toEqual(before);
-      expect(await availableFor()).toEqual(listedBefore);
-    });
-
-    it("current behavior: a cleaning can be recorded for the seat of an active booking and the booking does not change", async () => {
-      const jobId = track(
-        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-      );
-      const readBooking = async () => {
-        const { data } = await service
-          .from("bookings")
-          .select("status, assigned_seat_id, pickup_at, return_at, updated_at")
-          .eq("id", BOOKING_C_ID)
-          .single();
-        return data;
-      };
-      const before = await readBooking();
-      expect(["pending", "confirmed", "assigned", "in_progress"]).toContain(
-        before!.status,
-      );
-
-      const { error } = await technicianClient
-        .from("cleaning_records")
-        .insert(cleaningRow(jobId));
-
-      expect(error).toBeNull();
-      expect(await readBooking()).toEqual(before);
-    });
-
-    it("keeps a recorded cleaning: update and delete are denied for every role (42501) and the row stays unchanged", async () => {
-      const jobId = track(
-        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-      );
-      const created = await technicianClient
-        .from("cleaning_records")
-        .insert(cleaningRow(jobId, { notes: "original" }))
-        .select("id")
-        .single();
-      const cleaningId = created.data!.id;
-
-      // UPDATE and DELETE privileges are revoked: the database refuses the
-      // statement outright instead of silently matching zero rows.
-      for (const client of [
-        technicianClient,
-        opsClient,
-        adminClient,
-        partnerAClient,
-      ]) {
-        const update = await client
-          .from("cleaning_records")
-          .update({ notes: "tampered" })
-          .eq("id", cleaningId);
-        expect(update.error?.code).toBe("42501");
-
-        const del = await client
-          .from("cleaning_records")
-          .delete()
-          .eq("id", cleaningId);
-        expect(del.error?.code).toBe("42501");
-      }
-
-      const { data: row } = await service
-        .from("cleaning_records")
-        .select("notes")
-        .eq("id", cleaningId)
-        .single();
-      expect(row!.notes).toBe("original");
-    });
-
-    it("lets exactly one of two simultaneous recordings through and keeps a single row (23505)", async () => {
-      const jobId = track(
-        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-      );
-
-      const [byTechnician, byOps] = await Promise.all([
-        technicianClient.from("cleaning_records").insert(cleaningRow(jobId)),
-        opsClient
-          .from("cleaning_records")
-          .insert(cleaningRow(jobId, { employee_id: identities.opsManager.id })),
-      ]);
-
-      const errors = [byTechnician.error, byOps.error];
-      expect(errors.filter((e) => e === null)).toHaveLength(1);
-      expect(errors.find((e) => e !== null)?.code).toBe("23505");
-      const { data } = await service
-        .from("cleaning_records")
-        .select("id")
-        .eq("technician_job_id", jobId);
-      expect(data).toHaveLength(1);
-    });
-
-    it("keeps the first cleaning unchanged when a second recording is rejected", async () => {
-      const jobId = track(
-        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
-      );
-      const first = await technicianClient
-        .from("cleaning_records")
-        .insert(cleaningRow(jobId, { notes: "first" }))
-        .select("id")
-        .single();
-
-      const second = await opsClient
-        .from("cleaning_records")
-        .insert(
-          cleaningRow(jobId, {
-            notes: "second",
-            employee_id: identities.opsManager.id,
-          }),
-        );
-
-      expect(second.error?.code).toBe("23505");
-      const { data } = await service
-        .from("cleaning_records")
-        .select("id, notes")
-        .eq("technician_job_id", jobId);
-      expect(data).toEqual([{ id: first.data!.id, notes: "first" }]);
-    });
-  });
-
-  // ===========================================================================
   // FO-F03-S04: cleaning in two steps. start_cleaning() moves the seat to
   // cleaning and creates the record; complete_cleaning() records the result
   // and moves the seat to available or quarantine. Both are SECURITY DEFINER
@@ -2209,13 +1780,24 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       return data!;
     }
 
-    async function historyOf(seatId: string) {
+    // The seat's history grows with every local run, so it is counted and the
+    // last row is read instead of reading all rows (the API cuts at max_rows).
+    async function historyCount(seatId: string) {
+      const { count } = await service
+        .from("seat_status_history")
+        .select("id", { count: "exact", head: true })
+        .eq("seat_id", seatId);
+      return count!;
+    }
+
+    async function lastHistory(seatId: string) {
       const { data } = await service
         .from("seat_status_history")
         .select("from_status, to_status, changed_by, reason")
         .eq("seat_id", seatId)
-        .order("created_at", { ascending: true });
-      return data!;
+        .order("created_at", { ascending: false })
+        .limit(1);
+      return data![0];
     }
 
     async function recordOf(jobId: string) {
@@ -2260,7 +1842,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       const jobId = track(
         await createCleaningJob(identities.technician.id, BOOKING_C_ID),
       );
-      const historyBefore = (await historyOf(SEAT_C_ID)).length;
+      const historyBefore = await historyCount(SEAT_C_ID);
 
       const { data, error } = await technicianClient.rpc("start_cleaning", {
         p_job_id: jobId,
@@ -2276,9 +1858,8 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         passed: null,
       });
       expect((await seatRow(SEAT_C_ID)).status).toBe("cleaning");
-      const history = await historyOf(SEAT_C_ID);
-      expect(history).toHaveLength(historyBefore + 1);
-      expect(history.at(-1)).toEqual({
+      expect(await historyCount(SEAT_C_ID)).toBe(historyBefore + 1);
+      expect(await lastHistory(SEAT_C_ID)).toEqual({
         from_status: "available",
         to_status: "cleaning",
         changed_by: identities.technician.id,
@@ -2324,7 +1905,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(data).toMatchObject({ passed: true, notes: "Wiped and checked" });
       expect(data!.completed_at).not.toBeNull();
       expect((await seatRow(SEAT_C_ID)).status).toBe("available");
-      expect((await historyOf(SEAT_C_ID)).at(-1)).toMatchObject({
+      expect(await lastHistory(SEAT_C_ID)).toMatchObject({
         from_status: "cleaning",
         to_status: "available",
         reason: "Cleaning completed",
@@ -2418,13 +1999,13 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         p_reason: "cleaning test",
       });
       expect(quarantine.error).toBeNull();
-      const historyBefore = (await historyOf(SEAT_C_ID)).length;
+      const historyBefore = await historyCount(SEAT_C_ID);
 
       const { error } = await technicianClient.rpc("start_cleaning", {
         p_job_id: jobId,
       });
       const seat = await seatRow(SEAT_C_ID);
-      const historyAfter = (await historyOf(SEAT_C_ID)).length;
+      const historyAfter = await historyCount(SEAT_C_ID);
 
       await adminClient.rpc("change_seat_status", {
         p_seat_id: SEAT_C_ID,
@@ -2670,6 +2251,171 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       const [record] = await recordOf(jobId);
       expect(record.completed_at).toBeNull();
       expect((await seatRow(SEAT_C_ID)).status).toBe("quarantine");
+    });
+
+    it("rejects a direct INSERT into cleaning_records for every client role (42501)", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const row = (employeeId: string) => ({
+        technician_job_id: jobId,
+        seat_id: SEAT_C_ID,
+        employee_id: employeeId,
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+      });
+
+      const results = await Promise.all([
+        technicianClient
+          .from("cleaning_records")
+          .insert(row(identities.technician.id)),
+        opsClient.from("cleaning_records").insert(row(identities.opsManager.id)),
+        adminClient.from("cleaning_records").insert(row(identities.admin.id)),
+        partnerAClient
+          .from("cleaning_records")
+          .insert(row(identities.partnerA.id)),
+      ]);
+
+      for (const { error } of results) {
+        expect(error?.code).toBe("42501");
+      }
+      expect(await recordOf(jobId)).toEqual([]);
+      expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+    });
+
+    it("the assigned technician can read a cleaning an admin started, and nobody outside the job can", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const started = await adminClient.rpc("start_cleaning", {
+        p_job_id: jobId,
+      });
+      expect(started.error).toBeNull();
+      const read = (client: SupabaseClient<Database>) =>
+        client
+          .from("cleaning_records")
+          .select("id, employee_id")
+          .eq("technician_job_id", jobId);
+
+      const assigned = await read(technicianClient);
+      const partnerB = await read(partnerBClient);
+
+      expect(assigned.error).toBeNull();
+      expect(assigned.data).toEqual([
+        { id: started.data!.id, employee_id: identities.admin.id },
+      ]);
+      expect(partnerB.data).toEqual([]);
+    });
+
+    it("a technician cannot read the cleaning of another technician's job", async () => {
+      const jobId = track(
+        await createCleaningJob(OTHER_TECHNICIAN_ID, BOOKING_D_ID),
+      );
+      const started = await opsClient.rpc("start_cleaning", { p_job_id: jobId });
+      expect(started.error).toBeNull();
+
+      const { data, error } = await technicianClient
+        .from("cleaning_records")
+        .select("id")
+        .eq("technician_job_id", jobId);
+
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+      await service.rpc("apply_cleaning_seat_status", {
+        p_seat_id: "e0000000-0000-0000-0000-000000000003",
+        p_to_status: "available",
+        p_reason: "cleaning test cleanup",
+      });
+    });
+
+    it("keeps a completed cleaning: update and delete are denied for every role (42501) and the row stays unchanged", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+      await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: true,
+        p_notes: "original",
+      });
+      const [before] = await recordOf(jobId);
+
+      for (const client of [
+        technicianClient,
+        opsClient,
+        adminClient,
+        partnerAClient,
+      ]) {
+        const update = await client
+          .from("cleaning_records")
+          .update({ notes: "tampered", passed: false })
+          .eq("technician_job_id", jobId);
+        expect(update.error?.code).toBe("42501");
+
+        const del = await client
+          .from("cleaning_records")
+          .delete()
+          .eq("technician_job_id", jobId);
+        expect(del.error?.code).toBe("42501");
+      }
+
+      expect(await recordOf(jobId)).toEqual([before]);
+    });
+
+    it("keeps the completed result when a second completion is rejected", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+      await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: true,
+        p_notes: "first",
+      });
+      const [before] = await recordOf(jobId);
+
+      const second = await opsClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: false,
+        p_notes: "second",
+      });
+
+      expect(second.error?.code).toBe("JB011");
+      expect(await recordOf(jobId)).toEqual([before]);
+      expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+    });
+
+    it("rejects the next start once the technician loses the assignment, and leaves the seat and the records alone", async () => {
+      // Not tracked for deletion: the reassignment writes a job event, so the
+      // job cannot be deleted afterwards. It is cancelled instead, which
+      // frees the booking.
+      const jobId = await createCleaningJob(
+        identities.technician.id,
+        BOOKING_C_ID,
+      );
+
+      try {
+        const reassign = await opsClient
+          .from("technician_jobs")
+          .update({ technician_id: OTHER_TECHNICIAN_ID })
+          .eq("id", jobId);
+        expect(reassign.error).toBeNull();
+
+        const { error } = await technicianClient.rpc("start_cleaning", {
+          p_job_id: jobId,
+        });
+
+        expect(error?.code).toBe("P0002");
+        expect(await recordOf(jobId)).toEqual([]);
+        expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+      } finally {
+        await opsClient.rpc("change_technician_job_status", {
+          p_job_id: jobId,
+          p_from_status: "assigned",
+          p_to_status: "cancelled",
+          p_reason: "cleaning test cleanup",
+        });
+      }
     });
 
     it("keeps the record unchangeable by clients and the helper out of their reach", async () => {

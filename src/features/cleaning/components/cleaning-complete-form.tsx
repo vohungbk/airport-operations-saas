@@ -5,46 +5,35 @@ import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Field,
-  FieldDescription,
   FieldError as FieldErrorMessage,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { CleaningConflictAlert } from "@/features/cleaning/components/cleaning-conflict-alert";
 import { isAlreadyRecordedError } from "@/features/cleaning/lib/cleaning-errors";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
-import { useRecordCleaningForm } from "@/features/cleaning/hooks/use-record-cleaning-form";
+import { useCompleteCleaningForm } from "@/features/cleaning/hooks/use-complete-cleaning-form";
 
-interface CleaningFormProps {
+interface CleaningCompleteFormProps {
   jobId: string;
-  seatId: string;
   seatLabel: string;
-  timeZone: string;
-  defaultCleanedAt: string;
+  /** Start time and who started, already formatted for the airport. */
+  startedLabel: string;
 }
 
 const CONTROL_CLASS =
   "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30";
 
 /**
- * Cancel is a plain link: nothing is saved until Save succeeds, so leaving
- * the page discards the draft. The seat is shown, not chosen: it is the
- * seat of the job's booking.
+ * Step two. The result is chosen, never defaulted: a passed cleaning returns
+ * the seat to available, a failed one does not.
  */
-export function CleaningForm({
+export function CleaningCompleteForm({
   jobId,
-  seatId,
   seatLabel,
-  timeZone,
-  defaultCleanedAt,
-}: CleaningFormProps) {
-  const { form, onSubmit, isPending, result, viewRecordedCleaning } =
-    useRecordCleaningForm({
-      jobId,
-      seatId,
-      timeZone,
-      defaultCleanedAt,
-    });
+  startedLabel,
+}: CleaningCompleteFormProps) {
+  const { form, onSubmit, isPending, result, viewCleaning } =
+    useCompleteCleaningForm(jobId);
   const {
     register,
     formState: { errors },
@@ -54,43 +43,56 @@ export function CleaningForm({
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       {result && !result.success && result.error && (
         isAlreadyRecordedError(result.error) ? (
-          <CleaningConflictAlert onViewRecord={viewRecordedCleaning} />
+          <CleaningConflictAlert
+            message="Someone completed this cleaning first. Your result was not saved."
+            onViewRecord={viewCleaning}
+          />
         ) : (
           <JobActionErrorAlert
             error={result.error}
-            fallbackTitle="Could not record cleaning"
+            fallbackTitle="Could not complete the cleaning"
           />
         )
       )}
 
       <input type="hidden" {...register("job_id")} />
-      <input type="hidden" {...register("seat_id")} />
 
-      <Field data-invalid={!!errors.seat_id}>
-        <FieldLabel htmlFor="seat">Seat</FieldLabel>
-        <Input id="seat" value={seatLabel} readOnly disabled={isPending} />
-        <FieldErrorMessage
-          id="seat-error"
-          errors={errors.seat_id ? [errors.seat_id] : undefined}
-        />
-      </Field>
+      <dl className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <dt className="text-sm text-muted-foreground">Seat</dt>
+          <dd className="mt-1 text-sm text-foreground">{seatLabel}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-muted-foreground">Started</dt>
+          <dd className="mt-1 text-sm text-foreground">{startedLabel}</dd>
+        </div>
+      </dl>
 
-      <Field data-invalid={!!errors.cleaned_at}>
-        <FieldLabel htmlFor="cleaned_at">Cleaning time</FieldLabel>
-        <Input
-          id="cleaned_at"
-          type="datetime-local"
-          aria-invalid={!!errors.cleaned_at}
-          aria-describedby="cleaned_at-hint cleaned_at-error"
-          disabled={isPending}
-          {...register("cleaned_at")}
-        />
-        <FieldDescription id="cleaned_at-hint">
-          Local time at the airport ({timeZone}).
-        </FieldDescription>
+      <Field data-invalid={!!errors.result}>
+        <FieldLabel>Result</FieldLabel>
+        <div className="flex flex-col gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              value="passed"
+              disabled={isPending}
+              {...register("result")}
+            />
+            Passed: the seat is ready to use
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              value="failed"
+              disabled={isPending}
+              {...register("result")}
+            />
+            Failed: the seat is held for a manager
+          </label>
+        </div>
         <FieldErrorMessage
-          id="cleaned_at-error"
-          errors={errors.cleaned_at ? [errors.cleaned_at] : undefined}
+          id="result-error"
+          errors={errors.result ? [errors.result] : undefined}
         />
       </Field>
 
@@ -113,7 +115,7 @@ export function CleaningForm({
 
       <div className="flex items-center gap-2">
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : "Save"}
+          {isPending ? "Saving..." : "Complete cleaning"}
         </Button>
         <Link
           href={`/jobs/${jobId}`}

@@ -7,27 +7,44 @@ import {
 
 const ALREADY_RECORDED_ERROR: JobActionError = {
   code: "ALREADY_RECORDED",
-  message: "A cleaning is already recorded for this job.",
+  message: "Someone else already did this step for this cleaning.",
 };
 
 const JOB_NOT_ELIGIBLE_ERROR: JobActionError = {
   code: "JOB_NOT_ELIGIBLE",
-  message: "A cleaning can only be recorded on an active cleaning job.",
+  message: "A cleaning can only be done on an active cleaning job.",
 };
 
-export const SEAT_REQUIRED_ERROR: JobActionError = {
+const SEAT_REQUIRED_ERROR: JobActionError = {
   code: "SEAT_NOT_ELIGIBLE",
   message: "This job's booking has no seat assigned yet.",
 };
 
-const SEAT_NOT_ELIGIBLE_ERROR: JobActionError = {
+const SEAT_NOT_AVAILABLE_ERROR: JobActionError = {
   code: "SEAT_NOT_ELIGIBLE",
-  message: "The seat is retired, so a cleaning cannot be recorded.",
+  message: "The seat is not available for cleaning.",
+};
+
+const SEAT_IN_USE_ERROR: JobActionError = {
+  code: "SEAT_IN_USE",
+  message:
+    "Another booking is using the seat now. Handle that booking first, then start the cleaning.",
+};
+
+const NOT_STARTED_ERROR: JobActionError = {
+  code: "NOT_STARTED",
+  message: "The cleaning has not been started yet.",
+};
+
+const SEAT_CHANGED_ERROR: JobActionError = {
+  code: "SEAT_NOT_ELIGIBLE",
+  message: "The seat is no longer being cleaned. Reload the page.",
 };
 
 /**
- * True when someone else recorded this job first (the unique index fired):
- * the screen then keeps the user's entry and offers the recorded cleaning.
+ * True when someone else got there first (`23505` the cleaning is already
+ * started, `JB011` it is already completed): the screen then keeps the
+ * user's entry and offers the cleaning that was kept.
  */
 export function isAlreadyRecordedError(
   error: JobActionError | undefined,
@@ -36,10 +53,12 @@ export function isAlreadyRecordedError(
 }
 
 /**
- * `JB005` not a cleaning job and `JB006` job not active are raised by the
- * insert guard trigger; `JB007` is a missing or retired seat; `23505` is the
- * one-cleaning-per-job unique index. Everything else is handled like any
- * other job error (forbidden, not found, bad input).
+ * Codes raised by `start_cleaning()` and `complete_cleaning()`:
+ * `JB005` not a cleaning job, `JB006` job not active, `JB007` no seat,
+ * `JB008` seat not available, `JB009` another booking is using the seat now,
+ * `JB010` not started, `JB011` already completed, `JB012` the seat is no
+ * longer being cleaned, `23505` already started. Everything else is handled
+ * like any other job error (forbidden, not found, bad input).
  */
 export function mapCleaningError(error: PostgrestError): JobActionError {
   switch (error.code) {
@@ -47,9 +66,18 @@ export function mapCleaningError(error: PostgrestError): JobActionError {
     case "JB006":
       return JOB_NOT_ELIGIBLE_ERROR;
     case "JB007":
-      return SEAT_NOT_ELIGIBLE_ERROR;
+      return SEAT_REQUIRED_ERROR;
+    case "JB008":
+      return SEAT_NOT_AVAILABLE_ERROR;
+    case "JB009":
+      return SEAT_IN_USE_ERROR;
+    case "JB010":
+      return NOT_STARTED_ERROR;
+    case "JB011":
     case "23505":
       return ALREADY_RECORDED_ERROR;
+    case "JB012":
+      return SEAT_CHANGED_ERROR;
     default:
       return mapJobError(error);
   }

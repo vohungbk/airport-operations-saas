@@ -6,7 +6,11 @@ import type { SeatStatus } from "@/features/seats/types";
 
 export interface CleaningRecord {
   id: string;
+  started_at: string;
+  /** Null while the cleaning is in progress. */
   completed_at: string | null;
+  /** Null until the cleaning is completed. */
+  passed: boolean | null;
   notes: string | null;
   created_at: string;
   seat_serial_number: string | null;
@@ -44,7 +48,7 @@ const CLEANING_CONTEXT_SELECT = [
   "job_type",
   "technician_id",
   "booking:bookings!inner(booking_number, airport:airports!inner(code, name, timezone), seat:seats!assigned_seat_id(id, serial_number, status, category:seat_categories(name)))",
-  "cleaning:cleaning_records(id, completed_at, notes, created_at, seat:seats(serial_number), recorder:users!employee_id(full_name))",
+  "cleaning:cleaning_records(id, started_at, completed_at, passed, notes, created_at, seat:seats(serial_number), recorder:users!employee_id(full_name))",
 ].join(", ");
 
 interface Row {
@@ -67,7 +71,9 @@ interface Row {
 
 interface CleaningRow {
   id: string;
+  started_at: string;
   completed_at: string | null;
+  passed: boolean | null;
   notes: string | null;
   created_at: string;
   seat: { serial_number: string } | null;
@@ -125,7 +131,9 @@ export async function getCleaningContext(
     },
     cleaning: cleaning && {
       id: cleaning.id,
+      started_at: cleaning.started_at,
       completed_at: cleaning.completed_at,
+      passed: cleaning.passed,
       notes: cleaning.notes,
       created_at: cleaning.created_at,
       seat_serial_number: cleaning.seat?.serial_number ?? null,
