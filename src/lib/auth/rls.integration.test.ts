@@ -2000,6 +2000,77 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(error?.code).toBe("22023");
     });
 
+    // FO-F03-S04 leaves two rules undetermined (what cleaning does to
+    // availability, and what to do for a seat in an active booking). The two
+    // tests below record what happens today so a later rule changes them on
+    // purpose; they are not requirements.
+    async function seatState(seatId: string) {
+      const seat = await service
+        .from("seats")
+        .select("status, airport_id, category_id")
+        .eq("id", seatId)
+        .single();
+      const history = await service
+        .from("seat_status_history")
+        .select("id", { count: "exact", head: true })
+        .eq("seat_id", seatId);
+      return { ...seat.data!, historyCount: history.count };
+    }
+
+    it("current behavior: recording a cleaning leaves the seat status, its history and its availability unchanged", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const before = await seatState(SEAT_C_ID);
+      const availableFor = async () => {
+        const { data, error } = await opsClient.rpc("get_available_seats", {
+          p_airport_id: before.airport_id,
+          p_seat_category_id: before.category_id,
+          // A period far from the fixture bookings, so only the seat status
+          // decides whether the seat is listed.
+          p_pickup_at: "2036-01-01T08:00:00Z",
+          p_return_at: "2036-01-03T08:00:00Z",
+        });
+        expect(error).toBeNull();
+        return data!.map((s) => s.id);
+      };
+      const listedBefore = await availableFor();
+      expect(listedBefore).toContain(SEAT_C_ID);
+
+      const { error } = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId));
+
+      expect(error).toBeNull();
+      expect(await seatState(SEAT_C_ID)).toEqual(before);
+      expect(await availableFor()).toEqual(listedBefore);
+    });
+
+    it("current behavior: a cleaning can be recorded for the seat of an active booking and the booking does not change", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const readBooking = async () => {
+        const { data } = await service
+          .from("bookings")
+          .select("status, assigned_seat_id, pickup_at, return_at, updated_at")
+          .eq("id", BOOKING_C_ID)
+          .single();
+        return data;
+      };
+      const before = await readBooking();
+      expect(["pending", "confirmed", "assigned", "in_progress"]).toContain(
+        before!.status,
+      );
+
+      const { error } = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId));
+
+      expect(error).toBeNull();
+      expect(await readBooking()).toEqual(before);
+    });
+
     it("keeps a recorded cleaning: update and delete are denied for every role (42501) and the row stays unchanged", async () => {
       const jobId = track(
         await createCleaningJob(identities.technician.id, BOOKING_C_ID),
