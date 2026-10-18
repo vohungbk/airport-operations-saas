@@ -5,11 +5,12 @@ import { requireAnyPermission } from "@/lib/auth/current-user";
 import { CLEANING_RECORD_PERMISSIONS } from "@/lib/auth/permissions";
 import { buttonVariants } from "@/components/ui/button";
 import { PageEmpty, PageForbidden } from "@/components/shared/page-state";
-import { utcToZonedLocalInput } from "@/features/bookings/lib/booking-time";
-import { CleaningForm } from "@/features/cleaning/components/cleaning-form";
+import { formatBookingDateTime } from "@/features/bookings/lib/booking-time";
+import { CleaningCompleteForm } from "@/features/cleaning/components/cleaning-complete-form";
+import { CleaningStartPanel } from "@/features/cleaning/components/cleaning-start-panel";
 import { CleaningRecord } from "@/features/cleaning/components/cleaning-record";
 import { getCleaningContext } from "@/features/cleaning/lib/get-cleaning-context";
-import { isSeatEligibleForCleaning } from "@/features/cleaning/lib/seat-eligibility";
+import { canStartCleaningOnSeat } from "@/features/cleaning/lib/seat-eligibility";
 import { SEAT_STATUS_LABEL } from "@/features/seats/lib/seat-status";
 
 interface CleaningPageProps {
@@ -19,7 +20,8 @@ interface CleaningPageProps {
 /**
  * RLS scopes the row: a technician gets `null` (so the forbidden state) for
  * a job that is not theirs. A job that is not a cleaning job is not
- * found. Once recorded, the cleaning is shown read-only.
+ * found. The screen has three steps: not started (Start), in progress
+ * (Complete with the result) and completed (read-only).
  */
 export default async function CleaningPage({ params }: CleaningPageProps) {
   await requireAnyPermission(CLEANING_RECORD_PERMISSIONS);
@@ -49,6 +51,11 @@ export default async function CleaningPage({ params }: CleaningPageProps) {
   const { job, booking, cleaning } = context;
   const timeZone = booking.airport.timezone;
   const isActive = job.status === "assigned" || job.status === "in_progress";
+  const seatLabel = booking.seat
+    ? `${booking.seat.serial_number}${
+        booking.seat.category_name ? ` (${booking.seat.category_name})` : ""
+      }`
+    : "";
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
@@ -65,31 +72,26 @@ export default async function CleaningPage({ params }: CleaningPageProps) {
       </div>
 
       <div className="max-w-lg">
-        {cleaning ? (
+        {cleaning?.completed_at ? (
           <CleaningRecord record={cleaning} timeZone={timeZone} />
+        ) : cleaning ? (
+          <CleaningCompleteForm
+            jobId={job.id}
+            seatLabel={seatLabel}
+            startedLabel={`${formatBookingDateTime(cleaning.started_at, timeZone)} by ${cleaning.recorded_by ?? "staff"}`}
+          />
         ) : !isActive ? (
-          <PageEmpty message="This job is not active, so a cleaning cannot be recorded." />
+          <PageEmpty message="This job is not active, so a cleaning cannot be started." />
         ) : !booking.seat ? (
           <PageEmpty message="This job's booking has no seat assigned yet." />
-        ) : !isSeatEligibleForCleaning(booking.seat.status) ? (
+        ) : !canStartCleaningOnSeat(booking.seat.status) ? (
           <PageEmpty
             message={`The seat status is ${
               SEAT_STATUS_LABEL[booking.seat.status]
-            }, so a cleaning cannot be recorded.`}
+            }, so a cleaning cannot be started.`}
           />
         ) : (
-          <CleaningForm
-            jobId={job.id}
-            seatId={booking.seat.id}
-            seatLabel={`${booking.seat.serial_number}${
-              booking.seat.category_name ? ` (${booking.seat.category_name})` : ""
-            }`}
-            timeZone={timeZone}
-            defaultCleanedAt={utcToZonedLocalInput(
-              new Date().toISOString(),
-              timeZone,
-            )}
-          />
+          <CleaningStartPanel jobId={job.id} seatLabel={seatLabel} />
         )}
       </div>
     </div>

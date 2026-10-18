@@ -323,7 +323,8 @@ Cleaning is two steps (FO-F03-S04): `start_cleaning(job)` creates the record
 with `started_at = now()` and no `completed_at`, and moves the seat to
 `cleaning`; `complete_cleaning(job, passed, notes)` fills `completed_at`,
 `passed` and `notes` once and moves the seat to `available` or `quarantine`.
-See `docs/security.md` for the rules and error codes.
+`INSERT` is revoked from `anon` and `authenticated`; the functions are the only
+way to create a record. See `docs/security.md` for the rules and error codes.
 
 Unique index `(technician_job_id)`: one cleaning record per job. Insert guard
 trigger `guard_cleaning_records_insert`: when a job is given, it must be a

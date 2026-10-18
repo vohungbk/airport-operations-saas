@@ -851,8 +851,11 @@ time at the airport and converted to UTC with `airports.timezone`.
 
 ## Record cleaning (FO-F03-S01)
 
-- `/jobs/[id]/cleaning` and `recordCleaningAction` require `cleaning:create`
-  (technician) or `technicians:manage` (admin, ops). The "Record work" link is
+- `/jobs/[id]/cleaning`, `startCleaningAction` and `completeCleaningAction`
+  require `cleaning:create` (technician) or `technicians:manage` (admin, ops).
+  Since FO-F03-S04 the cleaning is two steps through database functions (see
+  "Cleaning and availability"); the one-step insert described below was
+  replaced. The "Record work" link is
   offered only to the assigned technician; hiding it is not an access check.
 - RLS changed: `cleaning_records_insert_technician` now also requires the
   record's `technician_job_id` to be a job assigned to the caller. Before, a
@@ -951,16 +954,32 @@ time at the airport and converted to UTC with `airports.timezone`.
 - **Immutability.** The completion is the only change a cleaning record ever
   gets, and only `complete_cleaning()` can make it, once. `UPDATE` stays
   revoked from clients (see "Cleaning history").
-- **Still open in this change.** Direct INSERT into `cleaning_records` (the
-  one-step record from FO-F03-S01) still works and does not move the seat; the
-  screen moves to the two functions in the next change, which then revokes
-  INSERT. The two "current behavior" tests in
-  `src/lib/auth/rls.integration.test.ts` describe that direct path and go
-  away with it. The job status is not changed by either step.
+- **One way in.** `INSERT` into `cleaning_records` is revoked from `anon` and
+  `authenticated` (migration `20261023090000_cleaning_records_revoke_insert.sql`):
+  a record exists only because `start_cleaning()` created it, so a seat cannot
+  be left unmoved. The insert policies and `guard_cleaning_insert()` stay but
+  only matter if the grant is ever restored. The job status is not changed by
+  either step: a job stays `assigned` or `in_progress` after its cleaning is
+  completed.
+- **Who can read it.** `cleaning_records_select_technician` now also lets a
+  technician read the record of a job assigned to them (migration
+  `20261023100000_cleaning_records_select_assigned.sql`). Before, only the
+  user who started the cleaning could read it, so a cleaning started by an
+  admin or ops user was invisible to the assigned technician, who could then
+  never complete it. Admin/ops and partner policies are unchanged; another
+  technician still sees nothing (tested).
+- **Screen.** `/jobs/[id]/cleaning` has three steps: not started (Start, or
+  the reason: the seat status is shown up front, "another booking is using the
+  seat" comes from the `JB009` error so the rule lives in one place), in
+  progress (Complete with a result that has no default, and notes) and
+  completed (read-only with the result). Two people acting at once: the
+  second gets "Someone ... first", keeps their entry, and can open the cleaning
+  that was kept.
 - Covered by the "start and complete cleaning (FO-F03-S04)" tests: seat
   transitions with history, refusals that change nothing, simultaneous starts,
-  completion rules, and the denial cases for another technician, a partner
-  user and the internal helper.
+  completion rules, direct INSERT denied for every role, a completed record
+  that cannot be changed, and the denial cases for another technician, a
+  partner user and the internal helper.
 
 ## Installation record errors (FO-F02-S05)
 

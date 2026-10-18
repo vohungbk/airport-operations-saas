@@ -22,15 +22,18 @@ export function CleaningRecord({ record, timeZone }: CleaningRecordProps) {
   return (
     <dl className="grid gap-4 sm:grid-cols-2">
       <Detail label="Seat">{record.seat_serial_number ?? "-"}</Detail>
-      <Detail label="Cleaning time">
+      <Detail label="Result">
+        {record.passed === null ? "-" : record.passed ? "Passed" : "Failed"}
+      </Detail>
+      <Detail label="Started">
+        {formatBookingDateTime(record.started_at, timeZone)}
+      </Detail>
+      <Detail label="Completed">
         {record.completed_at
           ? formatBookingDateTime(record.completed_at, timeZone)
           : "-"}
       </Detail>
-      <Detail label="Recorded by">{record.recorded_by ?? "Staff"}</Detail>
-      <Detail label="Recorded at">
-        {formatBookingDateTime(record.created_at, timeZone)}
-      </Detail>
+      <Detail label="Done by">{record.recorded_by ?? "Staff"}</Detail>
       <Detail label="Cleaning notes">{record.notes ?? "-"}</Detail>
     </dl>
   );
