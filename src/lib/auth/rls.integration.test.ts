@@ -1780,13 +1780,24 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       return data!;
     }
 
-    async function historyOf(seatId: string) {
+    // The seat's history grows with every local run, so it is counted and the
+    // last row is read instead of reading all rows (the API cuts at max_rows).
+    async function historyCount(seatId: string) {
+      const { count } = await service
+        .from("seat_status_history")
+        .select("id", { count: "exact", head: true })
+        .eq("seat_id", seatId);
+      return count!;
+    }
+
+    async function lastHistory(seatId: string) {
       const { data } = await service
         .from("seat_status_history")
         .select("from_status, to_status, changed_by, reason")
         .eq("seat_id", seatId)
-        .order("created_at", { ascending: true });
-      return data!;
+        .order("created_at", { ascending: false })
+        .limit(1);
+      return data![0];
     }
 
     async function recordOf(jobId: string) {
@@ -1831,7 +1842,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       const jobId = track(
         await createCleaningJob(identities.technician.id, BOOKING_C_ID),
       );
-      const historyBefore = (await historyOf(SEAT_C_ID)).length;
+      const historyBefore = await historyCount(SEAT_C_ID);
 
       const { data, error } = await technicianClient.rpc("start_cleaning", {
         p_job_id: jobId,
@@ -1847,9 +1858,8 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         passed: null,
       });
       expect((await seatRow(SEAT_C_ID)).status).toBe("cleaning");
-      const history = await historyOf(SEAT_C_ID);
-      expect(history).toHaveLength(historyBefore + 1);
-      expect(history.at(-1)).toEqual({
+      expect(await historyCount(SEAT_C_ID)).toBe(historyBefore + 1);
+      expect(await lastHistory(SEAT_C_ID)).toEqual({
         from_status: "available",
         to_status: "cleaning",
         changed_by: identities.technician.id,
@@ -1895,7 +1905,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(data).toMatchObject({ passed: true, notes: "Wiped and checked" });
       expect(data!.completed_at).not.toBeNull();
       expect((await seatRow(SEAT_C_ID)).status).toBe("available");
-      expect((await historyOf(SEAT_C_ID)).at(-1)).toMatchObject({
+      expect(await lastHistory(SEAT_C_ID)).toMatchObject({
         from_status: "cleaning",
         to_status: "available",
         reason: "Cleaning completed",
@@ -1989,13 +1999,13 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         p_reason: "cleaning test",
       });
       expect(quarantine.error).toBeNull();
-      const historyBefore = (await historyOf(SEAT_C_ID)).length;
+      const historyBefore = await historyCount(SEAT_C_ID);
 
       const { error } = await technicianClient.rpc("start_cleaning", {
         p_job_id: jobId,
       });
       const seat = await seatRow(SEAT_C_ID);
-      const historyAfter = (await historyOf(SEAT_C_ID)).length;
+      const historyAfter = await historyCount(SEAT_C_ID);
 
       await adminClient.rpc("change_seat_status", {
         p_seat_id: SEAT_C_ID,
