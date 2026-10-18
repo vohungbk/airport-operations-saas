@@ -916,6 +916,32 @@ time at the airport and converted to UTC with `airports.timezone`.
 - Covered by the "record cleaning (FO-F03-S01)" tests (update and delete
   denied for every role, concurrent insert, first record kept).
 
+## Cleaning and availability (FO-F03-S04)
+
+- **Undetermined.** The story leaves two rules open ("to be determined", PRD
+  open question 2): what cleaning does to availability, and what to do for a
+  cleaning on a seat that is in an active booking. No behavior was invented;
+  both acceptance criteria stay Block until the PRD decides.
+- **Today.** A seat is available for a booking when `seats.status =
+  'available'` and no active booking overlaps (`get_available_seats`,
+  `assert_booking_seat_assignable`). Recording a cleaning does not change the
+  seat status, its `seat_status_history` or its availability, and it does not
+  change the booking. A cleaning for the seat of an active booking is
+  recorded. The two "current behavior" tests in
+  `src/lib/auth/rls.integration.test.ts` ("record cleaning") pin this down so a
+  later rule changes it on purpose; they are not requirements.
+- **Why it is not just a status change.** `change_seat_status()` allows only
+  `available <-> quarantine` and `-> retired`; `cleaning` and `in_use` belong
+  to later workflows. The form records one time (`started_at` equals
+  `completed_at`), so there is no "starts" and "completes" to attach a status
+  to. Reflecting cleaning in availability needs a status rule in that shared
+  model, probably with a start and a complete step, and it must write
+  `seat_status_history`.
+- **Open questions for the PRD.** (1) Does the seat move to `cleaning` while
+  it is cleaned and back to `available` when done? (2) One recording, or a
+  start and a complete step? (3) A cleaning for the seat of an active booking:
+  block, warn, or allow?
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone
