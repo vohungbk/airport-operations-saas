@@ -17,8 +17,12 @@ vi.mock("@/features/cleaning/lib/get-cleaning-context", () => ({
   getCleaningContext: getContextMock,
 }));
 
-vi.mock("@/features/cleaning/actions/record-cleaning.action", () => ({
-  recordCleaningAction: vi.fn(),
+vi.mock("@/features/cleaning/actions/start-cleaning.action", () => ({
+  startCleaningAction: vi.fn(),
+}));
+
+vi.mock("@/features/cleaning/actions/complete-cleaning.action", () => ({
+  completeCleaningAction: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -90,7 +94,7 @@ describe("CleaningPage", () => {
     expect(html).toContain("You cannot record this cleaning");
     expect(html).toContain("not found or is not assigned to you");
     expect(html).toContain('href="/jobs"');
-    expect(html).not.toContain("Cleaning time");
+    expect(html).not.toContain("Start cleaning");
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 
@@ -102,18 +106,35 @@ describe("CleaningPage", () => {
     await expect(render()).rejects.toThrow("NOT_FOUND");
   });
 
-  it("should show the form with the booking's seat and a Cancel link back to the job", async () => {
+  it("should show the Start step with the seat and a Cancel link when the cleaning is not started", async () => {
     const html = await render();
 
     expect(html).toContain("SN-2 (Infant)");
-    expect(html).toContain("Cleaning time");
+    expect(html).toContain("Start cleaning");
+    expect(html).not.toContain("Complete cleaning");
     expect(html).toContain('href="/jobs/j-1"');
     expect(html).toContain("Cancel");
   });
 
-  it.each([["available"], ["reserved"], ["in_use"], ["cleaning"], ["quarantine"]])(
-    "should show the form when the seat is %s",
-    async (status) => {
+  it("should show the Start step to an internal user on a job assigned to a technician", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "admin-1", role: "admin" });
+
+    const html = await render();
+
+    expect(html).toContain("Start cleaning");
+    expect(html).not.toContain("You cannot record this cleaning");
+  });
+
+  it.each([
+    ["reserved", "Reserved"],
+    ["in_use", "In use"],
+    ["cleaning", "Cleaning"],
+    ["inspection", "Inspection"],
+    ["quarantine", "Quarantine"],
+    ["retired", "Retired"],
+  ])(
+    "should say the seat status is %s and not offer Start",
+    async (status, label) => {
       getContextMock.mockResolvedValue(
         context({
           booking: {
@@ -123,43 +144,27 @@ describe("CleaningPage", () => {
         }),
       );
 
-      expect(await render()).toContain("Cleaning time");
+      const html = await render();
+
+      expect(html).toContain(`The seat status is ${label}`);
+      expect(html).not.toContain("Start cleaning");
     },
   );
 
-  it("should say the seat status is Retired and not show the form", async () => {
+  it("should show the Complete step with the start time and a result to choose when the cleaning is in progress", async () => {
     getContextMock.mockResolvedValue(
       context({
         booking: {
           ...context().booking,
-          seat: { ...context().booking.seat, status: "retired" },
+          seat: { ...context().booking.seat, status: "cleaning" },
         },
-      }),
-    );
-
-    const html = await render();
-
-    expect(html).toContain("The seat status is Retired");
-    expect(html).not.toContain("Cleaning time");
-  });
-
-  it("should show the form to an internal user on a job assigned to a technician", async () => {
-    requireAnyPermissionMock.mockResolvedValue({ id: "admin-1", role: "admin" });
-
-    const html = await render();
-
-    expect(html).toContain("Cleaning time");
-    expect(html).not.toContain("You cannot record this cleaning");
-  });
-
-  it("should show the recorded cleaning read-only instead of the form", async () => {
-    getContextMock.mockResolvedValue(
-      context({
         cleaning: {
-          id: "i-1",
-          completed_at: "2026-10-16T08:00:00Z",
-          notes: "Fitted",
-          created_at: "2026-10-16T08:05:00Z",
+          id: "c-1",
+          started_at: "2026-10-16T08:00:00Z",
+          completed_at: null,
+          passed: null,
+          notes: null,
+          created_at: "2026-10-16T08:00:00Z",
           seat_serial_number: "SN-2",
           recorded_by: "Ahmed",
         },
@@ -168,12 +173,45 @@ describe("CleaningPage", () => {
 
     const html = await render();
 
-    expect(html).toContain("Recorded by");
-    expect(html).toContain("Ahmed");
-    expect(html).not.toContain("Cancel");
+    expect(html).toContain("Complete cleaning");
+    expect(html).toContain("by Ahmed");
+    expect(html).toContain("Passed");
+    expect(html).toContain("Failed");
+    expect(html).not.toContain("Start cleaning");
   });
 
-  it("should say a cleaning cannot be recorded on a job that is not active", async () => {
+  it.each([
+    [true, "Passed"],
+    [false, "Failed"],
+  ])(
+    "should show the completed cleaning read-only with the result (passed %s)",
+    async (passed, label) => {
+      getContextMock.mockResolvedValue(
+        context({
+          cleaning: {
+            id: "c-1",
+            started_at: "2026-10-16T08:00:00Z",
+            completed_at: "2026-10-16T08:20:00Z",
+            passed,
+            notes: "Wiped",
+            created_at: "2026-10-16T08:00:00Z",
+            seat_serial_number: "SN-2",
+            recorded_by: "Ahmed",
+          },
+        }),
+      );
+
+      const html = await render();
+
+      expect(html).toContain("Done by");
+      expect(html).toContain("Ahmed");
+      expect(html).toContain(label);
+      expect(html).not.toContain("Start cleaning");
+      expect(html).not.toContain("Complete cleaning");
+    },
+  );
+
+  it("should say a cleaning cannot be started on a job that is not active", async () => {
     getContextMock.mockResolvedValue(
       context({ job: { ...context().job, status: "completed" } }),
     );
@@ -181,7 +219,7 @@ describe("CleaningPage", () => {
     const html = await render();
 
     expect(html).toContain("not active");
-    expect(html).not.toContain("Cleaning time");
+    expect(html).not.toContain("Start cleaning");
   });
 
   it("should say the booking has no seat yet when it has none", async () => {
@@ -192,6 +230,6 @@ describe("CleaningPage", () => {
     const html = await render();
 
     expect(html).toContain("no seat assigned");
-    expect(html).not.toContain("Cleaning time");
+    expect(html).not.toContain("Start cleaning");
   });
 });
