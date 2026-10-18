@@ -1205,6 +1205,60 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_cleaning_seat_status: {
+        Args: {
+          p_reason: string
+          p_seat_id: string
+          p_to_status: Database["public"]["Enums"]["seat_status"]
+        }
+        Returns: undefined
+      }
+      complete_cleaning: {
+        Args: { p_job_id: string; p_notes?: string; p_passed: boolean }
+        Returns: {
+          booking_id: string | null
+          checklist: Json | null
+          completed_at: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          notes: string | null
+          passed: boolean | null
+          photo_path: string | null
+          seat_id: string
+          started_at: string
+          technician_job_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cleaning_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      start_cleaning: {
+        Args: { p_job_id: string }
+        Returns: {
+          booking_id: string | null
+          checklist: Json | null
+          completed_at: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          notes: string | null
+          passed: boolean | null
+          photo_path: string | null
+          seat_id: string
+          started_at: string
+          technician_job_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cleaning_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       assert_booking_seat_assignable: {
         Args: {
           p_airport_id: string

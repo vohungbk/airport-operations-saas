@@ -2000,6 +2000,78 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(error?.code).toBe("22023");
     });
 
+    // The one-step record (direct INSERT) does not move the seat and does not
+    // look at other bookings. The two tests below describe that path, which
+    // stays until the screen moves to start_cleaning()/complete_cleaning()
+    // (see "start and complete cleaning (FO-F03-S04)"); they are not
+    // requirements and go away with the direct path.
+    async function seatState(seatId: string) {
+      const seat = await service
+        .from("seats")
+        .select("status, airport_id, category_id")
+        .eq("id", seatId)
+        .single();
+      const history = await service
+        .from("seat_status_history")
+        .select("id", { count: "exact", head: true })
+        .eq("seat_id", seatId);
+      return { ...seat.data!, historyCount: history.count };
+    }
+
+    it("current behavior: recording a cleaning leaves the seat status, its history and its availability unchanged", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const before = await seatState(SEAT_C_ID);
+      const availableFor = async () => {
+        const { data, error } = await opsClient.rpc("get_available_seats", {
+          p_airport_id: before.airport_id,
+          p_seat_category_id: before.category_id,
+          // A period far from the fixture bookings, so only the seat status
+          // decides whether the seat is listed.
+          p_pickup_at: "2036-01-01T08:00:00Z",
+          p_return_at: "2036-01-03T08:00:00Z",
+        });
+        expect(error).toBeNull();
+        return data!.map((s) => s.id);
+      };
+      const listedBefore = await availableFor();
+      expect(listedBefore).toContain(SEAT_C_ID);
+
+      const { error } = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId));
+
+      expect(error).toBeNull();
+      expect(await seatState(SEAT_C_ID)).toEqual(before);
+      expect(await availableFor()).toEqual(listedBefore);
+    });
+
+    it("current behavior: a cleaning can be recorded for the seat of an active booking and the booking does not change", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const readBooking = async () => {
+        const { data } = await service
+          .from("bookings")
+          .select("status, assigned_seat_id, pickup_at, return_at, updated_at")
+          .eq("id", BOOKING_C_ID)
+          .single();
+        return data;
+      };
+      const before = await readBooking();
+      expect(["pending", "confirmed", "assigned", "in_progress"]).toContain(
+        before!.status,
+      );
+
+      const { error } = await technicianClient
+        .from("cleaning_records")
+        .insert(cleaningRow(jobId));
+
+      expect(error).toBeNull();
+      expect(await readBooking()).toEqual(before);
+    });
+
     it("keeps a recorded cleaning: update and delete are denied for every role (42501) and the row stays unchanged", async () => {
       const jobId = track(
         await createCleaningJob(identities.technician.id, BOOKING_C_ID),
@@ -2087,6 +2159,538 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         .select("id, notes")
         .eq("technician_job_id", jobId);
       expect(data).toEqual([{ id: first.data!.id, notes: "first" }]);
+    });
+  });
+
+  // ===========================================================================
+  // FO-F03-S04: cleaning in two steps. start_cleaning() moves the seat to
+  // cleaning and creates the record; complete_cleaning() records the result
+  // and moves the seat to available or quarantine. Both are SECURITY DEFINER
+  // and check the caller themselves.
+  // ===========================================================================
+  describe("start and complete cleaning (FO-F03-S04)", () => {
+    // Booking 4 (partner A, seat 4) has no open cleaning job in the shared
+    // fixtures; booking 3 belongs to another technician's job.
+    const BOOKING_C_ID = "f0000000-0000-0000-0000-000000000004";
+    const SEAT_C_ID = "e0000000-0000-0000-0000-000000000004";
+    const BOOKING_D_ID = "f0000000-0000-0000-0000-000000000003";
+
+    async function createCleaningJob(technicianId: string, bookingId: string) {
+      const { data, error } = await service
+        .from("technician_jobs")
+        .insert({
+          booking_id: bookingId,
+          technician_id: technicianId,
+          job_type: "cleaning",
+          status: "assigned",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
+    }
+
+    // Starting a cleaning does not touch the job status, so these jobs have
+    // no events and can be removed.
+    const createdJobIds: string[] = [];
+    const createdIncidentIds: string[] = [];
+    const createdBookingIds: string[] = [];
+    const track = (id: string) => {
+      createdJobIds.push(id);
+      return id;
+    };
+
+    async function seatRow(seatId: string) {
+      const { data } = await service
+        .from("seats")
+        .select("status, quarantine_reason, airport_id, category_id")
+        .eq("id", seatId)
+        .single();
+      return data!;
+    }
+
+    async function historyOf(seatId: string) {
+      const { data } = await service
+        .from("seat_status_history")
+        .select("from_status, to_status, changed_by, reason")
+        .eq("seat_id", seatId)
+        .order("created_at", { ascending: true });
+      return data!;
+    }
+
+    async function recordOf(jobId: string) {
+      const { data } = await service
+        .from("cleaning_records")
+        .select("*")
+        .eq("technician_job_id", jobId);
+      return data!;
+    }
+
+    afterEach(async () => {
+      for (const id of createdBookingIds.splice(0)) {
+        await opsClient.rpc("change_booking_status", {
+          p_booking_id: id,
+          p_to_status: "cancelled",
+          p_reason: "cleaning test cleanup",
+        });
+      }
+      for (const id of createdIncidentIds.splice(0)) {
+        await service.from("incidents").delete().eq("id", id);
+      }
+      for (const id of createdJobIds.splice(0)) {
+        await service
+          .from("cleaning_records")
+          .delete()
+          .eq("technician_job_id", id);
+        await service.from("technician_jobs").delete().eq("id", id);
+      }
+      // The status model has no manual way out of cleaning, so the seat is
+      // put back through the internal function (service role only).
+      const seat = await seatRow(SEAT_C_ID);
+      if (seat.status !== "available") {
+        await service.rpc("apply_cleaning_seat_status", {
+          p_seat_id: SEAT_C_ID,
+          p_to_status: "available",
+          p_reason: "cleaning test cleanup",
+        });
+      }
+    });
+
+    it("technician starts a cleaning: the seat moves to cleaning with history, and the record is created", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const historyBefore = (await historyOf(SEAT_C_ID)).length;
+
+      const { data, error } = await technicianClient.rpc("start_cleaning", {
+        p_job_id: jobId,
+      });
+
+      expect(error).toBeNull();
+      expect(data).toMatchObject({
+        technician_job_id: jobId,
+        seat_id: SEAT_C_ID,
+        booking_id: BOOKING_C_ID,
+        employee_id: identities.technician.id,
+        completed_at: null,
+        passed: null,
+      });
+      expect((await seatRow(SEAT_C_ID)).status).toBe("cleaning");
+      const history = await historyOf(SEAT_C_ID);
+      expect(history).toHaveLength(historyBefore + 1);
+      expect(history.at(-1)).toEqual({
+        from_status: "available",
+        to_status: "cleaning",
+        changed_by: identities.technician.id,
+        reason: "Cleaning started",
+      });
+    });
+
+    it("lists a seat in cleaning as unavailable for bookings", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const seat = await seatRow(SEAT_C_ID);
+      const listed = async () => {
+        const { data, error } = await opsClient.rpc("get_available_seats", {
+          p_airport_id: seat.airport_id,
+          p_seat_category_id: seat.category_id,
+          p_pickup_at: "2036-01-01T08:00:00Z",
+          p_return_at: "2036-01-03T08:00:00Z",
+        });
+        expect(error).toBeNull();
+        return data!.map((s) => s.id);
+      };
+      expect(await listed()).toContain(SEAT_C_ID);
+
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+      expect(await listed()).not.toContain(SEAT_C_ID);
+    });
+
+    it("a passed cleaning returns the seat to available and keeps the result", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+      const { data, error } = await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: true,
+        p_notes: "  Wiped and checked  ",
+      });
+
+      expect(error).toBeNull();
+      expect(data).toMatchObject({ passed: true, notes: "Wiped and checked" });
+      expect(data!.completed_at).not.toBeNull();
+      expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+      expect((await historyOf(SEAT_C_ID)).at(-1)).toMatchObject({
+        from_status: "cleaning",
+        to_status: "available",
+        reason: "Cleaning completed",
+      });
+    });
+
+    it("a failed cleaning quarantines the seat with a reason and does not return it to available", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+      const { data, error } = await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: false,
+        p_notes: "Stain remains",
+      });
+
+      expect(error).toBeNull();
+      expect(data).toMatchObject({ passed: false });
+      expect(await seatRow(SEAT_C_ID)).toMatchObject({
+        status: "quarantine",
+        quarantine_reason: "Cleaning failed",
+      });
+    });
+
+    it("a passed cleaning with an unresolved incident on the seat quarantines it", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const incident = await service
+        .from("incidents")
+        .insert({
+          partner_id: PARTNER_A_ID,
+          seat_id: SEAT_C_ID,
+          type: "seat_damage",
+          severity: "low",
+          description: "Cleaning test incident",
+          reported_by: identities.technician.id,
+        })
+        .select("id")
+        .single();
+      expect(incident.error).toBeNull();
+      createdIncidentIds.push(incident.data!.id);
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+      const { error } = await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: true,
+      });
+
+      expect(error).toBeNull();
+      expect(await seatRow(SEAT_C_ID)).toMatchObject({
+        status: "quarantine",
+        quarantine_reason: "Unresolved incident on the seat",
+      });
+    });
+
+    it.each([
+      ["admin", () => adminClient, () => identities.admin.id],
+      ["ops", () => opsClient, () => identities.opsManager.id],
+    ])(
+      "%s can start and complete a cleaning on a technician's job, as the employee",
+      async (_role, getClient, getUserId) => {
+        const jobId = track(
+          await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+        );
+
+        const started = await getClient().rpc("start_cleaning", {
+          p_job_id: jobId,
+        });
+        expect(started.error).toBeNull();
+        expect(started.data?.employee_id).toBe(getUserId());
+
+        const completed = await getClient().rpc("complete_cleaning", {
+          p_job_id: jobId,
+          p_passed: true,
+        });
+        expect(completed.error).toBeNull();
+        expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+      },
+    );
+
+    it("refuses to start when the seat is not available (JB008) and changes nothing", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const quarantine = await adminClient.rpc("change_seat_status", {
+        p_seat_id: SEAT_C_ID,
+        p_to_status: "quarantine",
+        p_reason: "cleaning test",
+      });
+      expect(quarantine.error).toBeNull();
+      const historyBefore = (await historyOf(SEAT_C_ID)).length;
+
+      const { error } = await technicianClient.rpc("start_cleaning", {
+        p_job_id: jobId,
+      });
+      const seat = await seatRow(SEAT_C_ID);
+      const historyAfter = (await historyOf(SEAT_C_ID)).length;
+
+      await adminClient.rpc("change_seat_status", {
+        p_seat_id: SEAT_C_ID,
+        p_to_status: "available",
+        p_reason: "cleaning test",
+      });
+      expect(error?.code).toBe("JB008");
+      expect(seat.status).toBe("quarantine");
+      expect(historyAfter).toBe(historyBefore);
+      expect(await recordOf(jobId)).toEqual([]);
+    });
+
+    it("refuses to start while another active booking is using the seat now (JB009) and changes nothing", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const seat = await seatRow(SEAT_C_ID);
+      const hour = 3_600_000;
+      const other = await opsClient.rpc("create_booking", {
+        p_partner_id: PARTNER_A_ID,
+        p_airport_id: seat.airport_id,
+        p_seat_category_id: seat.category_id,
+        p_pickup_at: new Date(Date.now() - hour).toISOString(),
+        p_return_at: new Date(Date.now() + hour).toISOString(),
+        p_daily_rate: 75,
+        p_assigned_seat_id: SEAT_C_ID,
+      });
+      expect(other.error).toBeNull();
+      createdBookingIds.push(other.data!.id);
+
+      const { error } = await technicianClient.rpc("start_cleaning", {
+        p_job_id: jobId,
+      });
+
+      expect(error?.code).toBe("JB009");
+      expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+      expect(await recordOf(jobId)).toEqual([]);
+    });
+
+    it("starts when the only active booking on the seat is the one of the job itself", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { error } = await technicianClient.rpc("start_cleaning", {
+        p_job_id: jobId,
+      });
+
+      expect(error).toBeNull();
+    });
+
+    it("lets exactly one of two simultaneous starts through (23505) and keeps a single record", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const [byTechnician, byOps] = await Promise.all([
+        technicianClient.rpc("start_cleaning", { p_job_id: jobId }),
+        opsClient.rpc("start_cleaning", { p_job_id: jobId }),
+      ]);
+
+      const errors = [byTechnician.error, byOps.error];
+      expect(errors.filter((e) => e === null)).toHaveLength(1);
+      expect(errors.find((e) => e !== null)?.code).toBe("23505");
+      expect(await recordOf(jobId)).toHaveLength(1);
+      expect((await seatRow(SEAT_C_ID)).status).toBe("cleaning");
+    });
+
+    it("rejects a second start for the same job (23505)", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+      const { error } = await technicianClient.rpc("start_cleaning", {
+        p_job_id: jobId,
+      });
+
+      expect(error?.code).toBe("23505");
+    });
+
+    it("rejects completing before starting (JB010) and completing twice (JB011)", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const early = await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: true,
+      });
+      expect(early.error?.code).toBe("JB010");
+
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+      await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: true,
+      });
+      const again = await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: false,
+      });
+      expect(again.error?.code).toBe("JB011");
+      expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+    });
+
+    it("rejects a missing result and over-long notes (22023)", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+      const noResult = await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: null as unknown as boolean,
+      });
+      const longNotes = await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: true,
+        p_notes: "x".repeat(1001),
+      });
+
+      expect(noResult.error?.code).toBe("22023");
+      expect(longNotes.error?.code).toBe("22023");
+      expect((await seatRow(SEAT_C_ID)).status).toBe("cleaning");
+    });
+
+    it("technician cannot start or complete on another technician's job (P0002) and the seat does not change", async () => {
+      const jobId = track(
+        await createCleaningJob(OTHER_TECHNICIAN_ID, BOOKING_D_ID),
+      );
+      const seatD = "e0000000-0000-0000-0000-000000000003";
+      const before = (await seatRow(seatD)).status;
+
+      const start = await technicianClient.rpc("start_cleaning", {
+        p_job_id: jobId,
+      });
+      const complete = await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: true,
+      });
+
+      expect(start.error?.code).toBe("P0002");
+      expect(complete.error?.code).toBe("P0002");
+      expect((await seatRow(seatD)).status).toBe(before);
+      expect(await recordOf(jobId)).toEqual([]);
+    });
+
+    it("partner_user cannot start or complete a cleaning (42501)", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const start = await partnerAClient.rpc("start_cleaning", {
+        p_job_id: jobId,
+      });
+      const complete = await partnerAClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: true,
+      });
+
+      expect(start.error?.code).toBe("42501");
+      expect(complete.error?.code).toBe("42501");
+      expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+    });
+
+    it("rejects a job that is not a cleaning job (JB005)", async () => {
+      const { data, error } = await service
+        .from("technician_jobs")
+        .insert({
+          booking_id: BOOKING_C_ID,
+          technician_id: identities.technician.id,
+          job_type: "installation",
+          status: "assigned",
+        })
+        .select("id")
+        .single();
+      expect(error).toBeNull();
+      const jobId = track(data!.id);
+
+      const start = await technicianClient.rpc("start_cleaning", {
+        p_job_id: jobId,
+      });
+
+      expect(start.error?.code).toBe("JB005");
+    });
+
+    it("rejects start and complete once the job is no longer active (JB006)", async () => {
+      // On another technician's job: the cancellation writes a job event, so
+      // the job cannot be deleted afterwards and stays cancelled. It must not
+      // stay on the test technician, whose seat visibility other tests check.
+      const seatD = "e0000000-0000-0000-0000-000000000003";
+      const jobId = track(
+        await createCleaningJob(OTHER_TECHNICIAN_ID, BOOKING_D_ID),
+      );
+
+      try {
+        const start = await opsClient.rpc("start_cleaning", { p_job_id: jobId });
+        expect(start.error).toBeNull();
+        const cancelled = await opsClient.rpc("change_technician_job_status", {
+          p_job_id: jobId,
+          p_from_status: "assigned",
+          p_to_status: "cancelled",
+          p_reason: "cleaning test",
+        });
+        expect(cancelled.error).toBeNull();
+
+        const complete = await opsClient.rpc("complete_cleaning", {
+          p_job_id: jobId,
+          p_passed: true,
+        });
+        expect(complete.error?.code).toBe("JB006");
+        expect((await seatRow(seatD)).status).toBe("cleaning");
+
+        const again = await opsClient.rpc("start_cleaning", { p_job_id: jobId });
+        expect(again.error?.code).toBe("JB006");
+      } finally {
+        await service.rpc("apply_cleaning_seat_status", {
+          p_seat_id: seatD,
+          p_to_status: "available",
+          p_reason: "cleaning test cleanup",
+        });
+      }
+    });
+
+    it("rejects completing when the seat is no longer being cleaned (JB012) and keeps the record open", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+      // Someone else moved the seat out of cleaning in the meantime.
+      await service.rpc("apply_cleaning_seat_status", {
+        p_seat_id: SEAT_C_ID,
+        p_to_status: "quarantine",
+        p_reason: "moved by someone else",
+      });
+
+      const { error } = await technicianClient.rpc("complete_cleaning", {
+        p_job_id: jobId,
+        p_passed: true,
+      });
+
+      expect(error?.code).toBe("JB012");
+      const [record] = await recordOf(jobId);
+      expect(record.completed_at).toBeNull();
+      expect((await seatRow(SEAT_C_ID)).status).toBe("quarantine");
+    });
+
+    it("keeps the record unchangeable by clients and the helper out of their reach", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+      const update = await technicianClient
+        .from("cleaning_records")
+        .update({ passed: true, completed_at: new Date().toISOString() })
+        .eq("technician_job_id", jobId);
+      const helper = await technicianClient.rpc("apply_cleaning_seat_status", {
+        p_seat_id: SEAT_C_ID,
+        p_to_status: "available",
+        p_reason: "forged",
+      });
+
+      expect(update.error?.code).toBe("42501");
+      expect(helper.error).not.toBeNull();
+      expect((await seatRow(SEAT_C_ID)).status).toBe("cleaning");
     });
   });
 
