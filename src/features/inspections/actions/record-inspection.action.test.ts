@@ -115,7 +115,7 @@ describe("recordInspectionAction", () => {
     },
   );
 
-  it.each([[undefined], ["maybe"], [""]])(
+  it.each([[undefined], ["maybe"], [""], [null]])(
     "should return VALIDATION_ERROR and skip the insert for the result %j",
     async (result) => {
       const response = await recordInspectionAction({

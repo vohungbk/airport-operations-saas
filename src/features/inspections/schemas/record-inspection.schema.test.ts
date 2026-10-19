@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -30,7 +32,22 @@ describe("recordInspectionSchema", () => {
     expect(parsed.error?.issues[0].message).toBe("Choose the result.");
   });
 
-  it.each([[""], ["passed"], ["PASS"], ["maybe"]])(
+  it("should list exactly the values of the inspection_result enum in the migration", () => {
+    const sql = readFileSync(
+      join(
+        process.cwd(),
+        "supabase/migrations/20260826083733_create_enums_and_extensions.sql",
+      ),
+      "utf8",
+    );
+    const body = /create type inspection_result as enum \(([^)]*)\)/.exec(sql);
+    const values = [...(body?.[1] ?? "").matchAll(/'([^']+)'/g)].map((m) => m[1]);
+
+    expect(values.length).toBeGreaterThan(0);
+    expect([...INSPECTION_RESULTS]).toEqual(values);
+  });
+
+  it.each([[""], ["passed"], ["PASS"], ["maybe"], [" pass"], [null], [1]])(
     "should reject the result %j, which is outside the allowed list",
     (result) => {
       expect(
