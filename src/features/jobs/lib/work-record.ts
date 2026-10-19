@@ -32,7 +32,7 @@ export const WORK_RECORD_WORKFLOWS: WorkRecordWorkflows = {
   inspection: {
     permission: "inspections:create",
     segment: "inspection",
-    available: false,
+    available: true,
   },
 };
 

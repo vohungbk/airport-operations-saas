@@ -348,6 +348,16 @@ The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
 | result | inspection_result not null | |
 | checklist | jsonb | nullable |
 | notes / photo_path | text | nullable |
+| technician_job_id | uuid, FK → technician_jobs.id ON DELETE RESTRICT | nullable (rows that predate it, inspections outside a job); the job the inspection was recorded for |
+
+Unique index `(technician_job_id)`: one inspection record per job. Insert guard
+trigger `guard_inspection_records_insert`: when a job is given, it must be an
+`inspection` job (`JB005`) and active (`JB006`), and the booking must have a
+seat that is not `retired` (`JB007`). It sets `seat_id`, `booking_id`,
+`inspector_id` and `inspection_type` (`general`). Rows without a job are not
+checked. The technician insert policy requires the job to be assigned to the
+caller, and the technician select policy also covers the record of a job
+assigned to them.
 
 ### `incidents` (mutable)
 | column | type | notes |
