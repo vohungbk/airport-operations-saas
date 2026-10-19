@@ -186,6 +186,7 @@ describe("InspectionPage", () => {
             result,
             notes: "Strap worn",
             created_at: "2026-10-16T08:05:00Z",
+            follow_up: null,
             seat_serial_number: "SN-2",
             recorded_by: "Ahmed",
           },

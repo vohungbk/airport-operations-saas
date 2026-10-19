@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
 import type { InspectionRecord as InspectionRecordItem } from "@/features/inspections/lib/get-inspection-context";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { inspectionFollowUpMessages } from "@/features/inspections/lib/inspection-follow-up";
 import { inspectionResultLabel } from "@/features/inspections/schemas/record-inspection.schema";
 import { formatBookingDateTime } from "@/features/bookings/lib/booking-time";
 
@@ -23,17 +25,31 @@ export function InspectionRecord({
   record,
   timeZone,
 }: InspectionRecordProps) {
+  const followUp = inspectionFollowUpMessages(record.follow_up);
+
   return (
-    <dl className="grid gap-4 sm:grid-cols-2">
-      <Detail label="Seat">{record.seat_serial_number ?? "-"}</Detail>
-      <Detail label="Inspection result">
-        {inspectionResultLabel(record.result)}
-      </Detail>
-      <Detail label="Recorded by">{record.recorded_by ?? "Staff"}</Detail>
-      <Detail label="Recorded at">
-        {formatBookingDateTime(record.created_at, timeZone)}
-      </Detail>
-      <Detail label="Inspection notes">{record.notes ?? "-"}</Detail>
-    </dl>
+    <div className="flex flex-col gap-4">
+      {followUp.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTitle>Follow-up</AlertTitle>
+          <AlertDescription>
+            {followUp.map((message) => (
+              <p key={message}>{message}</p>
+            ))}
+          </AlertDescription>
+        </Alert>
+      )}
+      <dl className="grid gap-4 sm:grid-cols-2">
+        <Detail label="Seat">{record.seat_serial_number ?? "-"}</Detail>
+        <Detail label="Inspection result">
+          {inspectionResultLabel(record.result)}
+        </Detail>
+        <Detail label="Recorded by">{record.recorded_by ?? "Staff"}</Detail>
+        <Detail label="Recorded at">
+          {formatBookingDateTime(record.created_at, timeZone)}
+        </Detail>
+        <Detail label="Inspection notes">{record.notes ?? "-"}</Detail>
+      </dl>
+    </div>
   );
 }

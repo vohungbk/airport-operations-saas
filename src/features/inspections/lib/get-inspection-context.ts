@@ -4,12 +4,17 @@ import type { JobStatus } from "@/features/jobs/lib/job-status";
 import type { JobType } from "@/features/jobs/lib/job-type";
 import type { SeatStatus } from "@/features/seats/types";
 import type { InspectionResult } from "@/features/inspections/schemas/record-inspection.schema";
+import {
+  toInspectionFollowUp,
+  type InspectionFollowUp,
+} from "@/features/inspections/lib/inspection-follow-up";
 
 export interface InspectionRecord {
   id: string;
   result: InspectionResult;
   notes: string | null;
   created_at: string;
+  follow_up: InspectionFollowUp | null;
   seat_serial_number: string | null;
   recorded_by: string | null;
 }
@@ -45,7 +50,7 @@ const INSPECTION_CONTEXT_SELECT = [
   "job_type",
   "technician_id",
   "booking:bookings!inner(booking_number, airport:airports!inner(code, name, timezone), seat:seats!assigned_seat_id(id, serial_number, status, category:seat_categories(name)))",
-  "inspection:inspection_records(id, result, notes, created_at, seat:seats(serial_number), recorder:users!inspector_id(full_name))",
+  "inspection:inspection_records(id, result, notes, created_at, follow_up, seat:seats(serial_number), recorder:users!inspector_id(full_name))",
 ].join(", ");
 
 interface Row {
@@ -71,6 +76,7 @@ interface InspectionRow {
   result: InspectionResult;
   notes: string | null;
   created_at: string;
+  follow_up: string | null;
   seat: { serial_number: string } | null;
   recorder: { full_name: string } | null;
 }
@@ -129,6 +135,7 @@ export async function getInspectionContext(
       result: inspection.result,
       notes: inspection.notes,
       created_at: inspection.created_at,
+      follow_up: toInspectionFollowUp(inspection.follow_up),
       seat_serial_number: inspection.seat?.serial_number ?? null,
       recorded_by: inspection.recorder?.full_name ?? null,
     },

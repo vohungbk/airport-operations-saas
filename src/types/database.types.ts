@@ -540,6 +540,7 @@ export type Database = {
           booking_id: string | null
           checklist: Json | null
           created_at: string
+          follow_up: string | null
           id: string
           inspection_type: string
           inspector_id: string
@@ -553,6 +554,7 @@ export type Database = {
           booking_id?: string | null
           checklist?: Json | null
           created_at?: string
+          follow_up?: string | null
           id?: string
           inspection_type: string
           inspector_id: string
@@ -566,6 +568,7 @@ export type Database = {
           booking_id?: string | null
           checklist?: Json | null
           created_at?: string
+          follow_up?: string | null
           id?: string
           inspection_type?: string
           inspector_id?: string
