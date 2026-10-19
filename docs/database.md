@@ -359,6 +359,9 @@ checked. The technician insert policy requires the job to be assigned to the
 caller, and the technician select policy also covers the record of a job
 assigned to them.
 
+The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
+`TRUNCATE` are revoked from `anon` and `authenticated`.
+
 ### `incidents` (mutable)
 | column | type | notes |
 |---|---|---|
