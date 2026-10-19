@@ -1,0 +1,109 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
+const getIncidentsMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/auth/current-user", () => ({
+  requireAnyPermission: requireAnyPermissionMock,
+}));
+
+vi.mock("@/features/incidents/lib/get-incidents", () => ({
+  getIncidents: getIncidentsMock,
+}));
+
+// Client component that needs the app router; irrelevant to these assertions.
+vi.mock("@/features/incidents/components/incidents-search", () => ({
+  IncidentsSearch: () => null,
+}));
+
+import IncidentsPage from "@/app/(dashboard)/incidents/page";
+import { INCIDENT_SEARCH_TOO_LONG_MESSAGE } from "@/features/incidents/lib/incident-search";
+
+const INCIDENT = {
+  id: "i-1",
+  type: "Damaged strap",
+  severity: "high",
+  status: "open",
+  description: "The harness strap is torn.",
+  created_at: "2026-10-16T08:05:00Z",
+  seat: { serial_number: "SN-2" },
+  booking: null,
+  reporter: { full_name: "Ahmed" },
+};
+
+async function render(params: Record<string, string> = {}) {
+  return renderToStaticMarkup(
+    await IncidentsPage({ searchParams: Promise.resolve(params) }),
+  );
+}
+
+describe("IncidentsPage", () => {
+  beforeEach(() => {
+    requireAnyPermissionMock.mockReset();
+    requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role: "admin" });
+    getIncidentsMock.mockReset();
+    getIncidentsMock.mockResolvedValue({ incidents: [INCIDENT], total: 1 });
+  });
+
+  it("should guard the page with incidents:view", async () => {
+    await render();
+
+    expect(requireAnyPermissionMock).toHaveBeenCalledWith(["incidents:view"]);
+  });
+
+  it("should propagate the guard's redirect without loading data", async () => {
+    requireAnyPermissionMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
+
+    await expect(render()).rejects.toThrow("REDIRECT:/forbidden");
+    expect(getIncidentsMock).not.toHaveBeenCalled();
+  });
+
+  it("should list the incidents with a link to the detail of each", async () => {
+    const html = await render();
+
+    expect(html).toContain("Damaged strap");
+    expect(html).toContain('href="/incidents/i-1"');
+    expect(html).toContain("High");
+    expect(html).toContain("Open");
+    expect(html).toContain("SN-2");
+    expect(html).toContain("Ahmed");
+    expect(html).toContain("Page 1 of 1 (1 incident)");
+  });
+
+  it("should show the empty state when there are no incidents", async () => {
+    getIncidentsMock.mockResolvedValue({ incidents: [], total: 0 });
+
+    const html = await render();
+
+    expect(html).toContain("No incidents yet.");
+    expect(html).not.toContain("<table");
+  });
+
+  it("should show the no-match empty state when a search finds nothing", async () => {
+    getIncidentsMock.mockResolvedValue({ incidents: [], total: 0 });
+
+    const html = await render({ q: "nothing" });
+
+    expect(html).toContain("No incidents match the search.");
+    expect(getIncidentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ q: "nothing" }),
+    );
+  });
+
+  it("should say the search was not applied when it is too long", async () => {
+    const html = await render({ q: "x".repeat(101) });
+
+    expect(html).toContain("Search not applied");
+    expect(html).toContain(INCIDENT_SEARCH_TOO_LONG_MESSAGE);
+    expect(getIncidentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ q: undefined }),
+    );
+  });
+
+  it("should let an error from the query reach the error boundary", async () => {
+    getIncidentsMock.mockRejectedValue(new Error("db down"));
+
+    await expect(render()).rejects.toThrow("db down");
+  });
+});

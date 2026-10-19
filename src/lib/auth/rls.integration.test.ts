@@ -4,6 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { JOB_DETAIL_SELECT } from "@/features/jobs/lib/get-job-by-id";
 import { JOB_LIST_SELECT as JOB_LIST_QUERY_SELECT } from "@/features/jobs/lib/get-jobs";
+import { buildIncidentsQueryFilters } from "@/features/incidents/lib/build-incidents-query-filters";
+import { INCIDENT_LIST_SELECT } from "@/features/incidents/lib/get-incidents";
 import {
   ACTIVE_BOOKING_STATUSES,
   BOOKING_STATUSES,
@@ -665,6 +667,109 @@ describe.skipIf(!config)("F05 RLS integration", () => {
   // ===========================================================================
   // FO-F01-S03: job detail reads one technician_jobs row with minimal embeds
   // ===========================================================================
+  describe("incident list access (FO-F05-S01)", () => {
+    // Asked for by id: the shared incident table grows with every local run and
+    // an unfiltered select is cut at max_rows.
+    const fixtureIncidentIds = () => [
+      fixtureIds.incidentA,
+      fixtureIds.incidentB,
+    ];
+    const search = (q: string) =>
+      buildIncidentsQueryFilters({
+        q,
+        sort: "created_at",
+        order: "desc",
+        page: 1,
+        page_size: 20,
+      }).search!;
+
+    it("admin and operations_manager see every incident with its booking and reporter", async () => {
+      for (const client of [adminClient, opsClient]) {
+        const { data, error } = await client
+          .from("incidents")
+          .select(INCIDENT_LIST_SELECT)
+          .in("id", fixtureIncidentIds());
+
+        expect(error).toBeNull();
+        expect(data).toHaveLength(2);
+        for (const incident of data!) {
+          const row = incident as unknown as {
+            booking: { booking_number: string } | null;
+            reporter: { full_name: string } | null;
+          };
+          expect(row.booking?.booking_number).toMatch(/^BK-/);
+          expect(row.reporter?.full_name).toBeTruthy();
+        }
+      }
+    });
+
+    it("searches the description and keeps brackets in the search from breaking the filter", async () => {
+      const { data, error } = await opsClient
+        .from("incidents")
+        .select(INCIDENT_LIST_SELECT)
+        .in("id", fixtureIncidentIds())
+        .or(search("incident (partner A)"));
+
+      expect(error).toBeNull();
+      expect(data!.map((incident) => incident.id)).toEqual([
+        fixtureIds.incidentA,
+      ]);
+    });
+
+    it("returns no rows when the search matches nothing", async () => {
+      const { data, error } = await opsClient
+        .from("incidents")
+        .select(INCIDENT_LIST_SELECT)
+        .in("id", fixtureIncidentIds())
+        .or(search("no such incident"));
+
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+    });
+
+    it("technician sees the incidents they reported and not another technician's", async () => {
+      const other = await service
+        .from("incidents")
+        .insert({
+          partner_id: PARTNER_A_ID,
+          booking_id: BOOKING_A_ID,
+          type: "seat_damage",
+          severity: "high",
+          description: "RLS list test incident (other technician)",
+          reported_by: OTHER_TECHNICIAN_ID,
+        })
+        .select("id")
+        .single();
+      expect(other.error).toBeNull();
+
+      try {
+        const { data, error } = await technicianClient
+          .from("incidents")
+          .select(INCIDENT_LIST_SELECT)
+          .in("id", [...fixtureIncidentIds(), other.data!.id]);
+
+        expect(error).toBeNull();
+        expect(data!.map((incident) => incident.id).sort()).toEqual(
+          fixtureIncidentIds().sort(),
+        );
+      } finally {
+        await service.from("incidents").delete().eq("id", other.data!.id);
+      }
+    });
+
+    it("partner user sees only their own partner's incident and none of another partner's", async () => {
+      const { data, error } = await partnerAClient
+        .from("incidents")
+        .select(INCIDENT_LIST_SELECT)
+        .in("id", fixtureIncidentIds());
+
+      expect(error).toBeNull();
+      expect(data!.map((incident) => incident.id)).toEqual([
+        fixtureIds.incidentA,
+      ]);
+    });
+  });
+
   describe("job detail access (FO-F01-S03)", () => {
     it("technician can read the detail of their own job by id", async () => {
       const { data, error } = await technicianClient
