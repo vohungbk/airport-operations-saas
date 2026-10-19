@@ -3459,6 +3459,220 @@ describe.skipIf(!config)("F05 RLS integration", () => {
   // ===========================================================================
   // FO-F01-S01: technician list reads `users` with role = 'technician'
   // ===========================================================================
+  describe("report incident (FO-F05-S04)", () => {
+    // Booking 4 (partner A, seat 4); booking 3 belongs to partner B.
+    const BOOKING_C_ID = "f0000000-0000-0000-0000-000000000004";
+    const SEAT_C_ID = "e0000000-0000-0000-0000-000000000004";
+
+    const createdJobIds: string[] = [];
+
+    async function createJob(
+      technicianId: string,
+      bookingId = BOOKING_C_ID,
+      jobType: "inspection" | "cleaning" | "installation" = "inspection",
+    ) {
+      const { data, error } = await service
+        .from("technician_jobs")
+        .insert({
+          booking_id: bookingId,
+          technician_id: technicianId,
+          job_type: jobType,
+          status: "assigned",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      createdJobIds.push(data.id);
+      return data.id;
+    }
+
+    // The generated insert type requires these not-null columns; the guard
+    // trigger overwrites everything but the job, severity and description.
+    const report = (
+      jobId: string | null,
+      extra: Partial<Database["public"]["Tables"]["incidents"]["Insert"]> = {},
+    ) => ({
+      technician_job_id: jobId,
+      severity: "high" as const,
+      description: "RLS report test incident",
+      partner_id: PARTNER_B_ID,
+      reported_by: identities.technician.id,
+      type: "report",
+      ...extra,
+    });
+
+    async function incidentsOf(jobId: string) {
+      const { data } = await service
+        .from("incidents")
+        .select("*")
+        .eq("technician_job_id", jobId);
+      return data!;
+    }
+
+    afterEach(async () => {
+      for (const id of createdJobIds.splice(0)) {
+        await service.from("incidents").delete().eq("technician_job_id", id);
+        await service.from("technician_jobs").delete().eq("id", id);
+      }
+    });
+
+    it("technician reports on their job and the server sets partner, booking, seat, type, reporter and status", async () => {
+      const jobId = await createJob(identities.technician.id);
+      const { data: booking } = await service
+        .from("bookings")
+        .select("partner_id, assigned_seat_id")
+        .eq("id", BOOKING_C_ID)
+        .single();
+
+      const { error } = await technicianClient
+        .from("incidents")
+        .insert(report(jobId));
+
+      expect(error).toBeNull();
+      const [row] = await incidentsOf(jobId);
+      expect(row).toMatchObject({
+        partner_id: booking!.partner_id,
+        booking_id: BOOKING_C_ID,
+        seat_id: SEAT_C_ID,
+        type: "inspection",
+        status: "open",
+        reported_by: identities.technician.id,
+        resolved_by: null,
+        resolved_at: null,
+        severity: "high",
+      });
+      expect(booking!.assigned_seat_id).toBe(SEAT_C_ID);
+    });
+
+    it("overwrites a partner, booking, seat, status, resolver and type sent by the client", async () => {
+      const jobId = await createJob(identities.technician.id);
+
+      const { error } = await technicianClient.from("incidents").insert(
+        report(jobId, {
+          partner_id: PARTNER_B_ID,
+          booking_id: BOOKING_B_ID,
+          seat_id: SEAT_B_ID,
+          status: "resolved",
+          resolved_by: identities.admin.id,
+          resolved_at: new Date().toISOString(),
+          type: "forged",
+        }),
+      );
+
+      expect(error).toBeNull();
+      const [row] = await incidentsOf(jobId);
+      expect(row).toMatchObject({
+        booking_id: BOOKING_C_ID,
+        seat_id: SEAT_C_ID,
+        status: "open",
+        resolved_by: null,
+        resolved_at: null,
+        type: "inspection",
+      });
+      expect(row.partner_id).not.toBe(PARTNER_B_ID);
+    });
+
+    it.each([
+      ["admin", () => adminClient, () => identities.admin.id],
+      ["ops", () => opsClient, () => identities.opsManager.id],
+    ])(
+      "%s can report on a job assigned to a technician, as the reporter",
+      async (_role, getClient, getUserId) => {
+        const jobId = await createJob(identities.technician.id);
+
+        const { error } = await getClient()
+          .from("incidents")
+          .insert(report(jobId, { reported_by: getUserId() }));
+
+        expect(error).toBeNull();
+        const [row] = await incidentsOf(jobId);
+        expect(row).toMatchObject({
+          reported_by: getUserId(),
+          status: "open",
+          booking_id: BOOKING_C_ID,
+        });
+      },
+    );
+
+    it("technician cannot report on another technician's job (P0002) and nothing is stored", async () => {
+      const jobId = await createJob(OTHER_TECHNICIAN_ID);
+
+      const { error } = await technicianClient
+        .from("incidents")
+        .insert(report(jobId));
+
+      expect(error?.code).toBe("P0002");
+      expect(await incidentsOf(jobId)).toEqual([]);
+    });
+
+    it("technician gets the same error for a job that does not exist", async () => {
+      const { error } = await technicianClient
+        .from("incidents")
+        .insert(report("c0000000-0000-0000-0000-00000000dead"));
+
+      expect(error?.code).toBe("P0002");
+    });
+
+    it("technician cannot report without a job (42501)", async () => {
+      const { error } = await technicianClient
+        .from("incidents")
+        .insert(report(null, { booking_id: BOOKING_C_ID }));
+
+      expect(error?.code).toBe("42501");
+    });
+
+    it("rejects a report from a technician who is deactivated meanwhile (42501) and stores nothing", async () => {
+      const jobId = await createJob(identities.technician.id);
+
+      // Only an admin may change is_active (a trigger enforces it), so the
+      // deactivation and the restore go through the admin client.
+      const off = await adminClient
+        .from("users")
+        .update({ is_active: false })
+        .eq("id", identities.technician.id);
+      expect(off.error).toBeNull();
+
+      let error: { code?: string } | null = null;
+      try {
+        ({ error } = await technicianClient
+          .from("incidents")
+          .insert(report(jobId)));
+      } finally {
+        const restore = await adminClient
+          .from("users")
+          .update({ is_active: true })
+          .eq("id", identities.technician.id);
+        // A technician left inactive would break every later test.
+        expect(restore.error).toBeNull();
+      }
+
+      expect(error?.code).toBe("42501");
+      expect(await incidentsOf(jobId)).toEqual([]);
+    });
+
+    it("rejects a report from a partner user, even for their own partner's booking", async () => {
+      const jobId = await createJob(identities.technician.id);
+
+      const { error } = await partnerAClient
+        .from("incidents")
+        .insert(report(jobId, { reported_by: identities.partnerA.id }));
+
+      expect(error).not.toBeNull();
+      expect(await incidentsOf(jobId)).toEqual([]);
+    });
+
+    it("rejects a severity outside the enum and stores nothing", async () => {
+      const jobId = await createJob(identities.technician.id);
+
+      const { error } = await technicianClient
+        .from("incidents")
+        .insert(report(jobId, { severity: "urgent" as never }));
+
+      expect(error?.code).toBe("22P02");
+      expect(await incidentsOf(jobId)).toEqual([]);
+    });
+  });
+
   describe("technician list access (FO-F01-S01)", () => {
     it("admin and operations_manager can list technician users", async () => {
       for (const client of [adminClient, opsClient]) {

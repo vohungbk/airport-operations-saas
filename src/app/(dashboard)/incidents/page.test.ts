@@ -59,6 +59,13 @@ describe("IncidentsPage", () => {
     expect(getIncidentsMock).not.toHaveBeenCalled();
   });
 
+  it("should offer Report incident, linking to the report form", async () => {
+    const html = await render();
+
+    expect(html).toContain("Report incident");
+    expect(html).toContain('href="/incidents/new"');
+  });
+
   it("should list the incidents with a link to the detail of each", async () => {
     const html = await render();
 
