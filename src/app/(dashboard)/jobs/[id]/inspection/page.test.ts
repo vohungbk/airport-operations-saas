@@ -94,6 +94,19 @@ describe("InspectionPage", () => {
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 
+  it("should show the forbidden state without job details to a technician the job is not assigned to (FO-F04-S03)", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "t-2", role: "technician" });
+    getContextMock.mockResolvedValue(null);
+
+    const html = await render();
+
+    expect(getContextMock).toHaveBeenCalledWith("j-1");
+    expect(html).toContain("You cannot record this inspection");
+    expect(html).not.toContain("BK-00002");
+    expect(html).not.toContain("SN-2");
+    expect(html).not.toContain("Inspection result");
+  });
+
   it("should call notFound when the job is not an inspection job", async () => {
     getContextMock.mockResolvedValue(
       context({ job: { ...context().job, job_type: "cleaning" } }),
