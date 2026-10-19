@@ -2688,6 +2688,46 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(data).toEqual([]);
     });
 
+    it("keeps a recorded inspection: update and delete are denied for every role (42501) and the row stays unchanged (FO-F04-S04)", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const recorded = await technicianClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId, { notes: "original" }));
+      expect(recorded.error).toBeNull();
+      const recordOf = async () =>
+        (
+          await service
+            .from("inspection_records")
+            .select("id, result, notes, inspector_id, seat_id, created_at")
+            .eq("technician_job_id", jobId)
+        ).data;
+      const before = await recordOf();
+      expect(before).toHaveLength(1);
+
+      for (const client of [
+        technicianClient,
+        opsClient,
+        adminClient,
+        partnerAClient,
+      ]) {
+        const update = await client
+          .from("inspection_records")
+          .update({ notes: "tampered", result: "fail" })
+          .eq("technician_job_id", jobId);
+        expect(update.error?.code).toBe("42501");
+
+        const del = await client
+          .from("inspection_records")
+          .delete()
+          .eq("technician_job_id", jobId);
+        expect(del.error?.code).toBe("42501");
+      }
+
+      expect(await recordOf()).toEqual(before);
+    });
+
     it("partner_user cannot record an inspection, even on their own partner's booking", async () => {
       const jobId = track(
         await createInspectionJob(identities.technician.id, BOOKING_C_ID),

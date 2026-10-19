@@ -914,10 +914,14 @@ time at the airport and converted to UTC with `airports.timezone`.
   one through and rejects the other with `23505` (`ALREADY_RECORDED`). First
   save wins; the form keeps the user's entry and says it was not saved (see
   "Installation record errors").
-- `inspection_records` has the same shape and the same default grants; it is
-  left for its own story.
+- `inspection_records` is kept the same way (FO-F04-S04): no UPDATE or DELETE
+  policy, and `UPDATE`, `DELETE` and `TRUNCATE` are revoked from `anon` and
+  `authenticated` (migration `20261025090000_inspection_records_revoke_mutation.sql`).
+  A change attempt fails with `42501`. `service_role` and the table owner are
+  unaffected.
 - Covered by the "record cleaning (FO-F03-S01)" tests (update and delete
-  denied for every role, concurrent insert, first record kept).
+  denied for every role, concurrent insert, first record kept) and the
+  "record inspection (FO-F04-S04)" test for inspections.
 
 ## Cleaning and availability (FO-F03-S04)
 
