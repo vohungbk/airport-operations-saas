@@ -129,12 +129,27 @@ describe("JobDetailPage", () => {
     expect(element.props.workRecordHref).toBe("/jobs/j-1/cleaning");
   });
 
-  it("should not offer Record work while the inspection screen is not available", async () => {
+  it("should offer Record work for the assigned technician on an inspection job", async () => {
     getJobByIdMock.mockResolvedValue({
       id: "j-1",
       status: "in_progress",
       job_type: "inspection",
       technician: { id: "user-1" },
+    });
+
+    const element = await JobDetailPage({
+      params: Promise.resolve({ id: "j-1" }),
+    });
+
+    expect(element.props.workRecordHref).toBe("/jobs/j-1/inspection");
+  });
+
+  it("should not offer Record work to a user who is not the assigned technician", async () => {
+    getJobByIdMock.mockResolvedValue({
+      id: "j-1",
+      status: "in_progress",
+      job_type: "inspection",
+      technician: { id: "someone-else" },
     });
 
     const element = await JobDetailPage({

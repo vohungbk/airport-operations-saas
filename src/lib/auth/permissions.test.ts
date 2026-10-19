@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CLEANING_RECORD_PERMISSIONS,
+  INSPECTION_RECORD_PERMISSIONS,
   hasAnyPermission,
   hasPermission,
   ROLE_PERMISSIONS,
@@ -165,6 +166,21 @@ describe("CLEANING_RECORD_PERMISSIONS", () => {
   it("should not let a partner user open the cleaning record screen", () => {
     expect(
       hasAnyPermission("partner_user", CLEANING_RECORD_PERMISSIONS),
+    ).toBe(false);
+  });
+});
+
+describe("INSPECTION_RECORD_PERMISSIONS", () => {
+  it.each([["technician"], ["admin"], ["operations_manager"]] as const)(
+    "should let the %s role open the inspection record screen",
+    (role) => {
+      expect(hasAnyPermission(role, INSPECTION_RECORD_PERMISSIONS)).toBe(true);
+    },
+  );
+
+  it("should not let a partner user open the inspection record screen", () => {
+    expect(
+      hasAnyPermission("partner_user", INSPECTION_RECORD_PERMISSIONS),
     ).toBe(false);
   });
 });

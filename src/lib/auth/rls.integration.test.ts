@@ -2526,6 +2526,359 @@ describe.skipIf(!config)("F05 RLS integration", () => {
   });
 
   // ===========================================================================
+  // FO-F04-S01: recording an inspection. RLS limits who may insert (the
+  // assigned technician, admin/ops); the guard trigger validates the job and
+  // seat and sets seat_id, booking_id, inspector_id and inspection_type.
+  // ===========================================================================
+  describe("record inspection (FO-F04-S01)", () => {
+    // Booking 4 (partner A, seat 4) and booking 3 (partner B, seat 3) have no
+    // open inspection job in the shared fixtures.
+    const BOOKING_C_ID = "f0000000-0000-0000-0000-000000000004";
+    const SEAT_C_ID = "e0000000-0000-0000-0000-000000000004";
+    const BOOKING_D_ID = "f0000000-0000-0000-0000-000000000003";
+
+    async function createInspectionJob(
+      technicianId: string,
+      bookingId: string,
+      jobType: "inspection" | "cleaning" = "inspection",
+      status: "assigned" | "completed" = "assigned",
+    ) {
+      const { data, error } = await service
+        .from("technician_jobs")
+        .insert({
+          booking_id: bookingId,
+          technician_id: technicianId,
+          job_type: jobType,
+          status,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
+    }
+
+    // The generated insert type requires these NOT NULL columns; the guard
+    // trigger overwrites seat_id, booking_id, inspector_id and inspection_type.
+    const inspectionRow = (
+      jobId: string,
+      extra: Partial<
+        Database["public"]["Tables"]["inspection_records"]["Insert"]
+      > = {},
+    ) => ({
+      technician_job_id: jobId,
+      seat_id: SEAT_C_ID,
+      inspector_id: identities.technician.id,
+      inspection_type: "pre_rental",
+      result: "pass" as const,
+      ...extra,
+    });
+
+    // No status change is made through the RPC, so these jobs have no events
+    // and can be removed.
+    const createdJobIds: string[] = [];
+    const track = (id: string) => {
+      createdJobIds.push(id);
+      return id;
+    };
+
+    afterEach(async () => {
+      for (const id of createdJobIds.splice(0)) {
+        await service
+          .from("inspection_records")
+          .delete()
+          .eq("technician_job_id", id);
+        await service.from("technician_jobs").delete().eq("id", id);
+      }
+    });
+
+    it("technician records an inspection on their job and the server sets seat, booking, inspector and type", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { data, error } = await technicianClient
+        .from("inspection_records")
+        .insert(
+          inspectionRow(jobId, {
+            result: "conditional_pass",
+            notes: "Strap worn",
+            // Forged values must be overwritten by the guard trigger.
+            seat_id: SEAT_A_ID,
+            booking_id: BOOKING_A_ID,
+            inspection_type: "forged",
+          }),
+        )
+        .select("seat_id, booking_id, inspector_id, inspection_type, result")
+        .single();
+
+      expect(error).toBeNull();
+      expect(data).toEqual({
+        seat_id: SEAT_C_ID,
+        booking_id: BOOKING_C_ID,
+        inspector_id: identities.technician.id,
+        inspection_type: "general",
+        result: "conditional_pass",
+      });
+    });
+
+    it.each([
+      ["admin", () => adminClient, () => identities.admin.id],
+      ["ops", () => opsClient, () => identities.opsManager.id],
+    ])(
+      "%s can record an inspection on a job assigned to a technician, as the inspector",
+      async (_role, getClient, getUserId) => {
+        const jobId = track(
+          await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+        );
+
+        const { data, error } = await getClient()
+          .from("inspection_records")
+          .insert(inspectionRow(jobId, { inspector_id: getUserId() }))
+          .select("inspector_id")
+          .single();
+
+        expect(error).toBeNull();
+        expect(data?.inspector_id).toBe(getUserId());
+      },
+    );
+
+    it("technician cannot record an inspection on another technician's job", async () => {
+      const jobId = track(
+        await createInspectionJob(OTHER_TECHNICIAN_ID, BOOKING_D_ID),
+      );
+
+      const { error } = await technicianClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId));
+
+      expect(error).not.toBeNull();
+      const { data } = await service
+        .from("inspection_records")
+        .select("id")
+        .eq("technician_job_id", jobId);
+      expect(data).toEqual([]);
+    });
+
+    it("technician cannot record an inspection without a job", async () => {
+      const { error } = await technicianClient.from("inspection_records").insert({
+        seat_id: SEAT_C_ID,
+        booking_id: BOOKING_C_ID,
+        inspector_id: identities.technician.id,
+        inspection_type: "pre_rental",
+        result: "pass",
+      });
+
+      expect(error).not.toBeNull();
+    });
+
+    it("partner_user cannot record an inspection, even on their own partner's booking", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { error } = await partnerAClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId, { inspector_id: identities.partnerA.id }));
+
+      expect(error).not.toBeNull();
+    });
+
+    it("rejects a second inspection for the same job (23505) and keeps the first", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const first = await technicianClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId, { notes: "first" }))
+        .select("id")
+        .single();
+      expect(first.error).toBeNull();
+
+      const second = await opsClient
+        .from("inspection_records")
+        .insert(
+          inspectionRow(jobId, {
+            notes: "second",
+            inspector_id: identities.opsManager.id,
+          }),
+        );
+
+      expect(second.error?.code).toBe("23505");
+      const { data } = await service
+        .from("inspection_records")
+        .select("id, notes")
+        .eq("technician_job_id", jobId);
+      expect(data).toEqual([{ id: first.data!.id, notes: "first" }]);
+    });
+
+    it("lets exactly one of two simultaneous recordings through and keeps a single row", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const [byTechnician, byOps] = await Promise.all([
+        technicianClient.from("inspection_records").insert(inspectionRow(jobId)),
+        opsClient
+          .from("inspection_records")
+          .insert(inspectionRow(jobId, { inspector_id: identities.opsManager.id })),
+      ]);
+
+      const errors = [byTechnician.error, byOps.error];
+      expect(errors.filter((e) => e === null)).toHaveLength(1);
+      expect(errors.find((e) => e !== null)?.code).toBe("23505");
+      const { data } = await service
+        .from("inspection_records")
+        .select("id")
+        .eq("technician_job_id", jobId);
+      expect(data).toHaveLength(1);
+    });
+
+    it("rejects an inspection on a job that is not an inspection job (JB005)", async () => {
+      const jobId = track(
+        await createInspectionJob(
+          identities.technician.id,
+          BOOKING_C_ID,
+          "cleaning",
+        ),
+      );
+
+      const { error } = await technicianClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId));
+
+      expect(error?.code).toBe("JB005");
+    });
+
+    it("rejects an inspection on a job that is no longer active (JB006)", async () => {
+      const jobId = track(
+        await createInspectionJob(
+          identities.technician.id,
+          BOOKING_C_ID,
+          "inspection",
+          "completed",
+        ),
+      );
+
+      const { error } = await technicianClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId));
+
+      expect(error?.code).toBe("JB006");
+    });
+
+    it("leaves the seat status and its history unchanged when an inspection is recorded", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const snapshot = async () => {
+        const seat = await service
+          .from("seats")
+          .select("status, last_inspected_at")
+          .eq("id", SEAT_C_ID)
+          .single();
+        const history = await service
+          .from("seat_status_history")
+          .select("id", { count: "exact", head: true })
+          .eq("seat_id", SEAT_C_ID);
+        return { ...seat.data!, historyCount: history.count };
+      };
+      const before = await snapshot();
+
+      const { error } = await technicianClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId, { result: "fail" }));
+
+      expect(error).toBeNull();
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it("the assigned technician can read an inspection an admin recorded, and nobody outside the job can", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const recorded = await adminClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId, { inspector_id: identities.admin.id }))
+        .select("id")
+        .single();
+      expect(recorded.error).toBeNull();
+      const read = (client: SupabaseClient<Database>) =>
+        client
+          .from("inspection_records")
+          .select("id, inspector_id")
+          .eq("technician_job_id", jobId);
+
+      const assigned = await read(technicianClient);
+      const partnerB = await read(partnerBClient);
+
+      expect(assigned.error).toBeNull();
+      expect(assigned.data).toEqual([
+        { id: recorded.data!.id, inspector_id: identities.admin.id },
+      ]);
+      expect(partnerB.data).toEqual([]);
+    });
+
+    it("a technician cannot read the inspection of another technician's job", async () => {
+      const jobId = track(
+        await createInspectionJob(OTHER_TECHNICIAN_ID, BOOKING_D_ID),
+      );
+      const recorded = await opsClient
+        .from("inspection_records")
+        .insert(
+          inspectionRow(jobId, {
+            seat_id: "e0000000-0000-0000-0000-000000000003",
+            inspector_id: identities.opsManager.id,
+          }),
+        );
+      expect(recorded.error).toBeNull();
+
+      const { data, error } = await technicianClient
+        .from("inspection_records")
+        .select("id")
+        .eq("technician_job_id", jobId);
+
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+    });
+
+    it("rejects the next recording once the technician loses the assignment, and leaves no row", async () => {
+      // Not tracked for deletion: the reassignment writes a job event, so the
+      // job cannot be deleted afterwards. It is cancelled instead, which
+      // frees the booking.
+      const jobId = await createInspectionJob(
+        identities.technician.id,
+        BOOKING_C_ID,
+      );
+
+      try {
+        const reassign = await opsClient
+          .from("technician_jobs")
+          .update({ technician_id: OTHER_TECHNICIAN_ID })
+          .eq("id", jobId);
+        expect(reassign.error).toBeNull();
+
+        const { error } = await technicianClient
+          .from("inspection_records")
+          .insert(inspectionRow(jobId));
+
+        expect(error).not.toBeNull();
+        const { data } = await service
+          .from("inspection_records")
+          .select("id")
+          .eq("technician_job_id", jobId);
+        expect(data).toEqual([]);
+      } finally {
+        await opsClient.rpc("change_technician_job_status", {
+          p_job_id: jobId,
+          p_from_status: "assigned",
+          p_to_status: "cancelled",
+          p_reason: "inspection test cleanup",
+        });
+      }
+    });
+  });
+
+  // ===========================================================================
   // FO-F01-S01: technician list reads `users` with role = 'technician'
   // ===========================================================================
   describe("technician list access (FO-F01-S01)", () => {
