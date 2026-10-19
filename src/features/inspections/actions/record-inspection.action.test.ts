@@ -86,6 +86,21 @@ describe("recordInspectionAction", () => {
     });
   });
 
+  it("should redirect to the inspection page when the result is fail so the follow-up is shown", async () => {
+    await expect(
+      recordInspectionAction({ ...VALID_INPUT, result: "fail" }),
+    ).rejects.toThrow(`REDIRECT:/jobs/${JOB_ID}/inspection`);
+  });
+
+  it.each([["pass"], ["conditional_pass"]])(
+    "should redirect to the job when the result is %s",
+    async (result) => {
+      await expect(
+        recordInspectionAction({ ...VALID_INPUT, result }),
+      ).rejects.toThrow(`REDIRECT:/jobs/${JOB_ID}`);
+    },
+  );
+
   it("should take the inspector from the session and ignore client-controlled columns", async () => {
     await expect(
       recordInspectionAction({

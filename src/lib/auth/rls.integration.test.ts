@@ -2581,13 +2581,69 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       return id;
     };
 
+    const createdBookingIds: string[] = [];
+
+    async function seatRow(seatId: string) {
+      const { data } = await service
+        .from("seats")
+        .select("status, quarantine_reason, airport_id, category_id")
+        .eq("id", seatId)
+        .single();
+      return data!;
+    }
+
+    // The seat's history grows with every local run, so it is counted and the
+    // last row is read instead of reading all rows (the API cuts at max_rows).
+    async function historyCount(seatId: string) {
+      const { count } = await service
+        .from("seat_status_history")
+        .select("id", { count: "exact", head: true })
+        .eq("seat_id", seatId);
+      return count!;
+    }
+
+    async function lastHistory(seatId: string) {
+      const { data } = await service
+        .from("seat_status_history")
+        .select("from_status, to_status, reason")
+        .eq("seat_id", seatId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      return data![0];
+    }
+
+    async function followUpOf(jobId: string) {
+      const { data } = await service
+        .from("inspection_records")
+        .select("follow_up")
+        .eq("technician_job_id", jobId)
+        .single();
+      return data?.follow_up;
+    }
+
     afterEach(async () => {
+      for (const id of createdBookingIds.splice(0)) {
+        await opsClient.rpc("change_booking_status", {
+          p_booking_id: id,
+          p_to_status: "cancelled",
+          p_reason: "inspection test cleanup",
+        });
+      }
       for (const id of createdJobIds.splice(0)) {
         await service
           .from("inspection_records")
           .delete()
           .eq("technician_job_id", id);
         await service.from("technician_jobs").delete().eq("id", id);
+      }
+      // A failed inspection quarantines the seat; put it back through the
+      // internal function (service role only).
+      if ((await seatRow(SEAT_C_ID)).status !== "available") {
+        await service.rpc("apply_cleaning_seat_status", {
+          p_seat_id: SEAT_C_ID,
+          p_to_status: "available",
+          p_reason: "inspection test cleanup",
+        });
       }
     });
 
@@ -2823,30 +2879,178 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(error?.code).toBe("JB006");
     });
 
-    it("leaves the seat status and its history unchanged when an inspection is recorded", async () => {
+    it.each([["pass"], ["conditional_pass"]] as const)(
+      "leaves the seat status and its history unchanged when the result is %s",
+      async (result) => {
+        const jobId = track(
+          await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+        );
+        const historyBefore = await historyCount(SEAT_C_ID);
+
+        const { error } = await technicianClient
+          .from("inspection_records")
+          .insert(inspectionRow(jobId, { result }));
+
+        expect(error).toBeNull();
+        expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+        expect(await historyCount(SEAT_C_ID)).toBe(historyBefore);
+        expect(await followUpOf(jobId)).toBeNull();
+      },
+    );
+
+    it("moves the seat to quarantine with history when an inspection fails (FO-F04-S05)", async () => {
       const jobId = track(
         await createInspectionJob(identities.technician.id, BOOKING_C_ID),
       );
-      const snapshot = async () => {
-        const seat = await service
-          .from("seats")
-          .select("status, last_inspected_at")
-          .eq("id", SEAT_C_ID)
-          .single();
-        const history = await service
-          .from("seat_status_history")
-          .select("id", { count: "exact", head: true })
-          .eq("seat_id", SEAT_C_ID);
-        return { ...seat.data!, historyCount: history.count };
-      };
-      const before = await snapshot();
+      const historyBefore = await historyCount(SEAT_C_ID);
 
       const { error } = await technicianClient
         .from("inspection_records")
         .insert(inspectionRow(jobId, { result: "fail" }));
 
       expect(error).toBeNull();
-      expect(await snapshot()).toEqual(before);
+      const seat = await seatRow(SEAT_C_ID);
+      expect(seat.status).toBe("quarantine");
+      expect(seat.quarantine_reason).toBe("Inspection failed");
+      expect(await historyCount(SEAT_C_ID)).toBe(historyBefore + 1);
+      expect(await lastHistory(SEAT_C_ID)).toEqual({
+        from_status: "available",
+        to_status: "quarantine",
+        reason: "Inspection failed",
+      });
+      expect(await followUpOf(jobId)).toBe("seat_quarantined");
+    });
+
+    it.each([
+      ["admin", () => adminClient, () => identities.admin.id],
+      ["ops", () => opsClient, () => identities.opsManager.id],
+    ])(
+      "%s recording a failed inspection also quarantines the seat",
+      async (_role, getClient, getUserId) => {
+        const jobId = track(
+          await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+        );
+
+        const { error } = await getClient()
+          .from("inspection_records")
+          .insert(
+            inspectionRow(jobId, { result: "fail", inspector_id: getUserId() }),
+          );
+
+        expect(error).toBeNull();
+        expect((await seatRow(SEAT_C_ID)).status).toBe("quarantine");
+      },
+    );
+
+    it("still quarantines the seat and flags it when the seat is in an active booking (FO-F04-S05)", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const seat = await seatRow(SEAT_C_ID);
+      const hour = 3_600_000;
+      const active = await opsClient.rpc("create_booking", {
+        p_partner_id: PARTNER_A_ID,
+        p_airport_id: seat.airport_id,
+        p_seat_category_id: seat.category_id,
+        p_pickup_at: new Date(Date.now() - hour).toISOString(),
+        p_return_at: new Date(Date.now() + hour).toISOString(),
+        p_daily_rate: 75,
+        p_assigned_seat_id: SEAT_C_ID,
+      });
+      expect(active.error).toBeNull();
+      createdBookingIds.push(active.data!.id);
+
+      const { error } = await technicianClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId, { result: "fail" }));
+
+      expect(error).toBeNull();
+      expect((await seatRow(SEAT_C_ID)).status).toBe("quarantine");
+      expect(await followUpOf(jobId)).toBe("seat_quarantined_active_booking");
+    });
+
+    it("leaves a seat that is already in quarantine as it is and records no follow-up", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const held = await adminClient.rpc("change_seat_status", {
+        p_seat_id: SEAT_C_ID,
+        p_to_status: "quarantine",
+        p_reason: "inspection test",
+      });
+      expect(held.error).toBeNull();
+      const historyBefore = await historyCount(SEAT_C_ID);
+
+      const { error } = await technicianClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId, { result: "fail" }));
+
+      expect(error).toBeNull();
+      expect((await seatRow(SEAT_C_ID)).quarantine_reason).toBe("inspection test");
+      expect(await historyCount(SEAT_C_ID)).toBe(historyBefore);
+      expect(await followUpOf(jobId)).toBeNull();
+    });
+
+    it("ignores a follow_up sent by the client", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { error } = await technicianClient
+        .from("inspection_records")
+        .insert(
+          inspectionRow(jobId, {
+            result: "pass",
+            follow_up: "seat_quarantined_active_booking",
+          }),
+        );
+
+      expect(error).toBeNull();
+      expect(await followUpOf(jobId)).toBeNull();
+    });
+
+    it("stores no follow_up when even a trusted insert sends an unknown value", async () => {
+      const { error } = await service.from("inspection_records").insert({
+        seat_id: SEAT_C_ID,
+        inspector_id: identities.technician.id,
+        inspection_type: "pre_rental",
+        result: "pass",
+        follow_up: "anything",
+      });
+
+      // The guard resets the value to null for every insert, so the check
+      // constraint never sees it: the row is stored with no follow-up.
+      expect(error).toBeNull();
+      await service
+        .from("inspection_records")
+        .delete()
+        .eq("inspection_type", "pre_rental")
+        .eq("seat_id", SEAT_C_ID)
+        .is("technician_job_id", null);
+    });
+
+    it("keeps the seat unchanged when a failed inspection is rejected as already recorded (23505)", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const first = await technicianClient
+        .from("inspection_records")
+        .insert(inspectionRow(jobId, { result: "pass" }));
+      expect(first.error).toBeNull();
+      const historyBefore = await historyCount(SEAT_C_ID);
+
+      const second = await opsClient
+        .from("inspection_records")
+        .insert(
+          inspectionRow(jobId, {
+            result: "fail",
+            inspector_id: identities.opsManager.id,
+          }),
+        );
+
+      expect(second.error?.code).toBe("23505");
+      expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+      expect(await historyCount(SEAT_C_ID)).toBe(historyBefore);
     });
 
     it("the assigned technician can read an inspection an admin recorded, and nobody outside the job can", async () => {
