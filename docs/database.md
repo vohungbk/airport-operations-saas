@@ -381,6 +381,13 @@ The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
 
 Indexes: `partner_id`, `status`.
 
+Insert guard trigger `guard_incidents_insert` (FO-F05-S04): when
+`technician_job_id` is given, it derives `booking_id`, `seat_id` and
+`partner_id` from the job, sets `type` to the job type and `reported_by` to the
+caller, and opens the incident (`status` open, no resolver). A technician who
+is not assigned to the job gets `P0002`. The technician insert policy requires
+an active technician and a job assigned to them. See `docs/security.md`.
+
 ### `partner_commercial_terms` (mutable)
 | column | type | notes |
 |---|---|---|

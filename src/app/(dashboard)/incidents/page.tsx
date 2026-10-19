@@ -1,6 +1,13 @@
+import Link from "next/link";
+
 import { requireAnyPermission } from "@/lib/auth/current-user";
-import { INCIDENTS_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
+import {
+  INCIDENTS_ACCESS_PERMISSIONS,
+  INCIDENT_REPORT_PERMISSIONS,
+  hasAnyPermission,
+} from "@/lib/auth/permissions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
 import { PageEmpty } from "@/components/shared/page-state";
 import { getIncidents } from "@/features/incidents/lib/get-incidents";
 import { parseIncidentsQuery } from "@/features/incidents/schemas/incidents-query.schema";
@@ -19,7 +26,8 @@ interface IncidentsPageProps {
 export default async function IncidentsPage({
   searchParams,
 }: IncidentsPageProps) {
-  await requireAnyPermission(INCIDENTS_ACCESS_PERMISSIONS);
+  const user = await requireAnyPermission(INCIDENTS_ACCESS_PERMISSIONS);
+  const canReport = hasAnyPermission(user.role, INCIDENT_REPORT_PERMISSIONS);
 
   const { query, search_error } = parseIncidentsQuery(await searchParams);
   const { incidents, total } = await getIncidents(query);
@@ -27,9 +35,16 @@ export default async function IncidentsPage({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        Incidents
-      </h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Incidents
+        </h1>
+        {canReport && (
+          <Link href="/incidents/new" className={buttonVariants()}>
+            Report incident
+          </Link>
+        )}
+      </div>
 
       <IncidentsFilters query={query} />
 

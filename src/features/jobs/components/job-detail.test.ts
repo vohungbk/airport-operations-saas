@@ -18,7 +18,10 @@ const JOB: JobDetailItem = {
   booking: null,
 };
 
-function render(workRecordHref: string | null) {
+function render(
+  workRecordHref: string | null,
+  reportIncidentHref?: string | null,
+) {
   return renderToStaticMarkup(
     createElement(JobDetail, {
       job: JOB,
@@ -26,6 +29,7 @@ function render(workRecordHref: string | null) {
       eventsTruncated: false,
       allowedStatuses: [],
       workRecordHref,
+      reportIncidentHref,
     }),
   );
 }
@@ -36,6 +40,18 @@ describe("JobDetail", () => {
 
     expect(html).toContain('href="/jobs/j-1/installation"');
     expect(html).toContain("Record work");
+  });
+
+  it("should link Report incident to the report form when it is offered", () => {
+    const html = render(null, "/incidents/new?job_id=j-1");
+
+    expect(html).toContain('href="/incidents/new?job_id=j-1"');
+    expect(html).toContain("Report incident");
+  });
+
+  it("should not show Report incident when it is not offered", () => {
+    expect(render(null)).not.toContain("Report incident");
+    expect(render(null, null)).not.toContain("Report incident");
   });
 
   it("should not show Record work when no workflow is offered", () => {

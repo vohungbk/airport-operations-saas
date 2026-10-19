@@ -9,13 +9,16 @@ vi.mock("@/lib/auth/current-user", () => ({
 import IncidentsLayout from "@/app/(dashboard)/incidents/layout";
 
 describe("IncidentsLayout", () => {
-  it("should guard the area with incidents:view", async () => {
+  it("should guard the area with incidents:report or incidents:view", async () => {
     requireAnyPermissionMock.mockReset();
     requireAnyPermissionMock.mockResolvedValue({ id: "user-1" });
 
     await IncidentsLayout({ children: null });
 
-    expect(requireAnyPermissionMock).toHaveBeenCalledWith(["incidents:view"]);
+    expect(requireAnyPermissionMock).toHaveBeenCalledWith([
+      "incidents:report",
+      "incidents:view",
+    ]);
   });
 
   it("should propagate the guard's redirect instead of swallowing it", async () => {

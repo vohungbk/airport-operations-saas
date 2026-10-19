@@ -144,6 +144,42 @@ describe("JobDetailPage", () => {
     expect(element.props.workRecordHref).toBe("/jobs/j-1/inspection");
   });
 
+  it.each([
+    ["technician", { id: "user-1", role: "technician" }],
+    ["admin", { id: "admin-1", role: "admin" }],
+    ["operations_manager", { id: "ops-1", role: "operations_manager" }],
+  ])("should offer Report incident with the job selected to the %s role", async (_role, user) => {
+    requireAnyPermissionMock.mockResolvedValue(user);
+    getJobByIdMock.mockResolvedValue({
+      id: "j-1",
+      status: "in_progress",
+      job_type: "installation",
+      technician: { id: "user-1" },
+    });
+
+    const element = await JobDetailPage({
+      params: Promise.resolve({ id: "j-1" }),
+    });
+
+    expect(element.props.reportIncidentHref).toBe("/incidents/new?job_id=j-1");
+  });
+
+  it("should not offer Report incident to a role that cannot report", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "p-1", role: "partner_user" });
+    getJobByIdMock.mockResolvedValue({
+      id: "j-1",
+      status: "in_progress",
+      job_type: "installation",
+      technician: { id: "user-1" },
+    });
+
+    const element = await JobDetailPage({
+      params: Promise.resolve({ id: "j-1" }),
+    });
+
+    expect(element.props.reportIncidentHref).toBeNull();
+  });
+
   it("should not offer Record work to a user who is not the assigned technician", async () => {
     getJobByIdMock.mockResolvedValue({
       id: "j-1",

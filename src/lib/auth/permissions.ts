@@ -112,6 +112,16 @@ export const INCIDENTS_ACCESS_PERMISSIONS = [
 ] as const satisfies readonly Permission[];
 
 /**
+ * Who may report an incident: technicians (`incidents:report`, only for a job
+ * assigned to them, enforced by RLS) and managers (`incidents:view`). The
+ * permission matrix is unchanged; this is an any-of set.
+ */
+export const INCIDENT_REPORT_PERMISSIONS = [
+  "incidents:report",
+  "incidents:view",
+] as const satisfies readonly Permission[];
+
+/**
  * Who may change a job's status: technicians (own jobs, scoped by RLS) and
  * managers (any job). Cancelling is further limited to managers in the
  * database function.
