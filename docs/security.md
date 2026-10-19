@@ -1022,7 +1022,8 @@ time at the airport and converted to UTC with `airports.timezone`.
   `inspection_records_insert_technician` now also requires the record's
   `technician_job_id` to be a job assigned to the caller. Before, a technician
   could insert an inspection for any seat (`inspector_id = auth.uid()` was the
-  only check). Admin/ops keep their policy and a partner user cannot insert.
+  only check; FO-F04-S06 later added the active-technician check). Admin/ops
+  keep their policy and a partner user cannot insert.
   `inspection_records_select_technician` also lets a technician read the
   record of a job assigned to them, so a record entered by admin/ops is not
   invisible to the technician. There is no UPDATE or DELETE policy, so a
@@ -1081,6 +1082,39 @@ time at the airport and converted to UTC with `airports.timezone`.
   pass, conditional pass, admin/ops, active booking, seat already in
   quarantine, forged value, rejected duplicate leaves the seat unchanged) and
   the unit tests for the action, the helper and the record component.
+
+## Inspection record errors (FO-F04-S06)
+
+- **Conflict.** First save wins; the second is rejected, never merged. The
+  unique index on `technician_job_id` lets one recording through and gives the
+  other `23505` ("Someone recorded this inspection first. Your entry was not
+  saved."). The form keeps the user's result and notes on screen and can open
+  the inspection that was kept. A rejected duplicate does not change the seat.
+- **Network failure.** `runJobAction` turns a failed call into
+  `NETWORK_ERROR`. The form stays mounted with the result and the notes the
+  user chose, and can be submitted again.
+- **Assignment or permission lost while the screen is open.** The check is the
+  insert policy, not the screen. A technician who is no longer assigned to the
+  job gets a denial, shown as "no longer available" with a link to the jobs.
+  A technician who is deactivated gets `42501`, shown as "no longer has
+  access" (tested). Before this story the technician insert policy did not
+  check that the user is still active, so a deactivated technician could still
+  record; migration `20261027090000_inspection_insert_requires_active_technician.sql`
+  now requires `current_user_role() = 'technician'` (which is null for an
+  inactive user). Admin and operations manager already used
+  `is_admin_or_ops_manager()`, which has the same check. Nothing is stored and
+  the seat is not changed in either case. `requireAnyPermission` in the Server
+  Action is not the access check; the policy is.
+- Not covered: a technician whose role was changed to another role while the
+  screen was open (the shared test technician's role is not changed by the
+  tests); the policy rejects it the same way as a deactivated user. The
+  technician SELECT policy still lets a deactivated user read their own
+  records; that is outside this story.
+- Covered by the "record inspection (FO-F04-S01)" tests: simultaneous
+  recordings (one row), a rejected duplicate, losing the assignment before
+  saving, and a technician deactivated before saving (only an admin can change
+  `is_active`, so the test goes through the admin client). The form tests cover
+  the conflict, network and access messages.
 
 ## Installation record errors (FO-F02-S05)
 
