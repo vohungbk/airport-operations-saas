@@ -17,6 +17,8 @@ interface JobDetailProps {
   allowedStatuses: JobTargetStatus[];
   /** Matching workflow screen; null hides the "Record work" link. */
   workRecordHref: string | null;
+  /** The incident report form for this job; null hides the link. */
+  reportIncidentHref?: string | null;
 }
 
 function formatDateTime(value: string | null): string {
@@ -42,6 +44,7 @@ export function JobDetail({
   eventsTruncated,
   allowedStatuses,
   workRecordHref,
+  reportIncidentHref = null,
 }: JobDetailProps) {
   const { booking } = job;
 
@@ -58,6 +61,14 @@ export function JobDetail({
           {workRecordHref && (
             <Link href={workRecordHref} className={buttonVariants()}>
               Record work
+            </Link>
+          )}
+          {reportIncidentHref && (
+            <Link
+              href={reportIncidentHref}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Report incident
             </Link>
           )}
           {allowedStatuses.length > 0 && (

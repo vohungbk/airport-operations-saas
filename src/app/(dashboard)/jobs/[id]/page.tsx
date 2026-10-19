@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import {
+  INCIDENT_REPORT_PERMISSIONS,
   JOBS_ACCESS_PERMISSIONS,
   JOB_STATUS_UPDATE_PERMISSIONS,
   hasAnyPermission,
@@ -53,6 +54,11 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
       eventsTruncated={truncated}
       allowedStatuses={allowedStatuses}
       workRecordHref={getWorkRecordHref(job, user)}
+      reportIncidentHref={
+        hasAnyPermission(user.role, INCIDENT_REPORT_PERMISSIONS)
+          ? `/incidents/new?job_id=${job.id}`
+          : null
+      }
     />
   );
 }
