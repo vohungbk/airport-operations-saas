@@ -1039,15 +1039,48 @@ time at the airport and converted to UTC with `airports.timezone`.
   (plus placeholders the trigger overwrites). The result must be one of
   `pass`, `conditional_pass`, `fail`, with no default.
 - `inspector_id` is the user who recorded it (`auth.uid()`). One inspection
-  per job (unique index). Recording does not change the seat status or
-  `seats.last_inspected_at`; that belongs to a later story. Conflicts,
-  network failures and a lost assignment behave as for installations and
-  cleaning.
+  per job (unique index). Recording a `pass` or `conditional_pass` does not
+  change the seat status or `seats.last_inspected_at`; a `fail` does change
+  the seat status (see "Inspection follow-up"). Conflicts, network failures
+  and a lost assignment behave as for installations and cleaning.
 - Covered by the "record inspection (FO-F04-S01)" tests in
   `src/lib/auth/rls.integration.test.ts`. The retired-seat and no-seat
   branches of the trigger are not covered there (a booking's seat can only be
   changed through the booking functions and a retired seat cannot be
   restored); the page and the seat helper are unit-tested.
+
+## Inspection follow-up (FO-F04-S05)
+
+- **Rule (spec open question Q2).** A `fail` moves the seat to `quarantine`
+  with the reason `Inspection failed`, in the same transaction as the insert,
+  and `seat_status_history` gets the row from the existing trigger. `pass` and
+  `conditional_pass` leave the seat as it is. No incident is created (FO-F05
+  owns incidents). A manager releases the seat with `change_seat_status()`
+  (`quarantine -> available`).
+- **Where it runs.** In `guard_inspection_insert()` (migration
+  `20261026090000_inspection_follow_up.sql`), after its checks, so the seat
+  moves only for an insert the guard accepts. The seat row is locked first. It
+  uses the internal `apply_cleaning_seat_status()`, which clients cannot call.
+  The seat is moved from any status except `retired` (the guard already
+  refuses that); a seat already in `quarantine` is left alone, with no extra
+  history. A seat in `cleaning` is quarantined too; a later `complete_cleaning`
+  then fails with `JB012`.
+- **Active booking.** When the seat has a booking in `pending`, `confirmed`,
+  `assigned` or `in_progress` that has not been returned yet (`return_at >
+  now()`, future bookings included), the seat is still quarantined and the
+  record says so. Bookings are not changed; a manager decides.
+- **`inspection_records.follow_up`** (`seat_quarantined` or
+  `seat_quarantined_active_booking`, else null) records what happened to the
+  seat. Only the guard sets it: a value sent by a client is overwritten. It is
+  part of the immutable log (UPDATE is revoked).
+- **Screen.** After a `fail`, `recordInspectionAction` redirects to
+  `/jobs/[id]/inspection`, where the read-only record shows a "Follow-up" alert
+  (and the active booking warning). Other results redirect to the job as
+  before.
+- Covered by the "record inspection (FO-F04-S01)" integration tests (fail,
+  pass, conditional pass, admin/ops, active booking, seat already in
+  quarantine, forged value, rejected duplicate leaves the seat unchanged) and
+  the unit tests for the action, the helper and the record component.
 
 ## Installation record errors (FO-F02-S05)
 

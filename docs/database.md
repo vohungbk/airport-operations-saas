@@ -332,7 +332,8 @@ trigger `guard_cleaning_records_insert`: when a job is given, it must be a
 that is not `retired` (`JB007`), and `completed_at` is required and cannot be
 in the future (`22023`). It sets `seat_id`, `booking_id`, `employee_id` and
 `started_at` (= `completed_at`, the form has one time). Rows without a job are
-not checked. The technician insert policy requires the job to be assigned to
+not checked. A `fail` result also moves the seat to `quarantine` (FO-F04-S05,
+`20261026090000_inspection_follow_up.sql`; see `docs/security.md`). The technician insert policy requires the job to be assigned to
 the caller.
 
 The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
@@ -349,6 +350,7 @@ The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
 | checklist | jsonb | nullable |
 | notes / photo_path | text | nullable |
 | technician_job_id | uuid, FK → technician_jobs.id ON DELETE RESTRICT | nullable (rows that predate it, inspections outside a job); the job the inspection was recorded for |
+| follow_up | text, check in (`seat_quarantined`, `seat_quarantined_active_booking`) | nullable; set only by the insert guard: what happened to the seat when a failed inspection was recorded |
 
 Unique index `(technician_job_id)`: one inspection record per job. Insert guard
 trigger `guard_inspection_records_insert`: when a job is given, it must be an
