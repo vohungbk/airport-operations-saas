@@ -683,6 +683,40 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         page_size: 20,
       }).search!;
 
+    // A third incident with another status and severity, so the filters have
+    // something to tell apart from the two fixtures (both low and open).
+    let criticalIncidentId = "";
+
+    beforeAll(async () => {
+      const { data, error } = await service
+        .from("incidents")
+        .insert({
+          partner_id: PARTNER_A_ID,
+          booking_id: BOOKING_A_ID,
+          type: "seat_damage",
+          severity: "critical",
+          status: "investigating",
+          description: "RLS list test incident (critical, investigating)",
+          reported_by: identities.technician.id,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      criticalIncidentId = data.id;
+    });
+
+    afterAll(async () => {
+      if (criticalIncidentId) {
+        await service.from("incidents").delete().eq("id", criticalIncidentId);
+      }
+    });
+
+    const listIds = (client: SupabaseClient<Database>) =>
+      client
+        .from("incidents")
+        .select(INCIDENT_LIST_SELECT)
+        .in("id", [...fixtureIncidentIds(), criticalIncidentId]);
+
     it("admin and operations_manager see every incident with its booking and reporter", async () => {
       for (const client of [adminClient, opsClient]) {
         const { data, error } = await client
@@ -725,6 +759,52 @@ describe.skipIf(!config)("F05 RLS integration", () => {
 
       expect(error).toBeNull();
       expect(data).toEqual([]);
+    });
+
+    it("filters the list by status", async () => {
+      const investigating = await listIds(opsClient).eq(
+        "status",
+        "investigating",
+      );
+      const open = await listIds(opsClient).eq("status", "open");
+
+      expect(investigating.error).toBeNull();
+      expect(investigating.data!.map((i) => i.id)).toEqual([criticalIncidentId]);
+      expect(open.data!.map((i) => i.id).sort()).toEqual(
+        fixtureIncidentIds().sort(),
+      );
+    });
+
+    it("filters the list by severity", async () => {
+      const critical = await listIds(opsClient).eq("severity", "critical");
+      const low = await listIds(opsClient).eq("severity", "low");
+
+      expect(critical.error).toBeNull();
+      expect(critical.data!.map((i) => i.id)).toEqual([criticalIncidentId]);
+      expect(low.data!.map((i) => i.id).sort()).toEqual(
+        fixtureIncidentIds().sort(),
+      );
+    });
+
+    it("combines the status and severity filters and returns no rows when none match", async () => {
+      const both = await listIds(opsClient)
+        .eq("status", "investigating")
+        .eq("severity", "critical");
+      const none = await listIds(opsClient)
+        .eq("status", "open")
+        .eq("severity", "critical");
+
+      expect(both.data!.map((i) => i.id)).toEqual([criticalIncidentId]);
+      expect(none.error).toBeNull();
+      expect(none.data).toEqual([]);
+    });
+
+    it("keeps the filters inside the caller's scope: a partner user filtering by open sees only their own partner's incident", async () => {
+      const { data, error } = await listIds(partnerAClient).eq("status", "open");
+
+      expect(error).toBeNull();
+      // Partner A owns incident A and the critical one (investigating), not B.
+      expect(data!.map((i) => i.id)).toEqual([fixtureIds.incidentA]);
     });
 
     it("technician sees the incidents they reported and not another technician's", async () => {

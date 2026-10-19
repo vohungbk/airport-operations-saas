@@ -8,6 +8,8 @@ import type { IncidentListItem } from "@/features/incidents/types";
 
 const QUERY: IncidentsQuery = {
   q: undefined,
+  status: undefined,
+  severity: undefined,
   sort: "created_at",
   order: "desc",
   page: 1,

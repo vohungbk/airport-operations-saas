@@ -18,7 +18,7 @@ export const INCIDENT_LIST_SELECT =
 /**
  * Server-only. RLS is the access boundary: admin/ops read every incident, a
  * technician only the ones they reported, a partner user only their own
- * partner's. The filters here are only for the page's search/sort/pagination.
+ * partner's. The filters here are only for the page's search/filter/sort/pagination.
  */
 export async function getIncidents(
   query: IncidentsQuery,
@@ -36,6 +36,14 @@ export async function getIncidents(
 
   if (filters.search) {
     request = request.or(filters.search);
+  }
+
+  if (filters.status) {
+    request = request.eq("status", filters.status);
+  }
+
+  if (filters.severity) {
+    request = request.eq("severity", filters.severity);
   }
 
   const { data, error, count } = await request;

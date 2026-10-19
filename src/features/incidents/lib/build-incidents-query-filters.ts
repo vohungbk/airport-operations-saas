@@ -1,3 +1,5 @@
+import type { IncidentSeverity } from "@/features/incidents/lib/incident-severity";
+import type { IncidentStatus } from "@/features/incidents/lib/incident-status";
 import { escapeIlikeValue } from "@/features/seat-categories/lib/escape-ilike";
 import type {
   IncidentsQuery,
@@ -11,6 +13,8 @@ export interface IncidentsQueryFilters {
    * in user input cannot split or corrupt the filter.
    */
   search: string | undefined;
+  status: IncidentStatus | undefined;
+  severity: IncidentSeverity | undefined;
   sort: IncidentsSortColumn;
   order: "asc" | "desc";
   range: { from: number; to: number };
@@ -31,7 +35,7 @@ function toQuotedIlikePattern(term: string): string {
 export function buildIncidentsQueryFilters(
   query: IncidentsQuery,
 ): IncidentsQueryFilters {
-  const { q, sort, order, page, page_size } = query;
+  const { q, status, severity, sort, order, page, page_size } = query;
 
   const from = (page - 1) * page_size;
   const to = from + page_size - 1;
@@ -42,5 +46,5 @@ export function buildIncidentsQueryFilters(
     search = `type.ilike.${pattern},description.ilike.${pattern}`;
   }
 
-  return { search, sort, order, range: { from, to } };
+  return { search, status, severity, sort, order, range: { from, to } };
 }
