@@ -981,6 +981,33 @@ time at the airport and converted to UTC with `airports.timezone`.
   that cannot be changed, and the denial cases for another technician, a
   partner user and the internal helper.
 
+## Cleaning record errors (FO-F03-S05)
+
+- **Conflict.** First save wins; the second is rejected, never merged. Two
+  starts for one job: the second gets `23505` ("Someone started this cleaning
+  first"). Two completions: the second gets `JB011` ("Someone completed this
+  cleaning first. Your result was not saved."), keeps their result and notes
+  on screen, and can open the cleaning that was kept. The job row is locked
+  inside the functions, so the order is decided by the database.
+- **Network failure.** `runJobAction` turns a failed call into
+  `NETWORK_ERROR`. The Complete form stays mounted with the result and the
+  notes the user chose, and can be submitted again; Start is a button, so it
+  can be pressed again.
+- **Assignment or permission lost while the screen is open.** Both functions
+  re-check the caller on every call. A technician who is no longer assigned
+  gets `P0002` (the job looks missing), which the screen shows as "no longer
+  available" with a link to the jobs. A user who is deactivated gets `42501`,
+  shown as "no longer has access" (tested). The functions also reject a role
+  that no longer allows cleaning with the same code; that case is not covered
+  by a test.
+  Nothing changes in either case: the cleaning stays open and the seat stays
+  in `cleaning`. `requireAnyPermission` in the Server Actions is not the
+  access check; the functions are.
+- Covered by the "start and complete cleaning (FO-F03-S04)" tests: simultaneous
+  starts, a second completion, losing the assignment before Start and before
+  Complete, and a user deactivated between Start and Complete (only an admin
+  can change `is_active`, so the test goes through the admin client).
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone
