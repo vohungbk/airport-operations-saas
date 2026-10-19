@@ -2671,6 +2671,23 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(error).not.toBeNull();
     });
 
+    it("should reject a result outside the inspection_result enum and store nothing (FO-F04-S02)", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      const { error } = await technicianClient.from("inspection_records").insert(
+        inspectionRow(jobId, { result: "excellent" as never }),
+      );
+
+      expect(error?.code).toBe("22P02");
+      const { data } = await service
+        .from("inspection_records")
+        .select("id")
+        .eq("technician_job_id", jobId);
+      expect(data).toEqual([]);
+    });
+
     it("partner_user cannot record an inspection, even on their own partner's booking", async () => {
       const jobId = track(
         await createInspectionJob(identities.technician.id, BOOKING_C_ID),
