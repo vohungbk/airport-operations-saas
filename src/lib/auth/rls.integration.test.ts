@@ -2784,6 +2784,42 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(await recordOf()).toEqual(before);
     });
 
+    it("rejects an inspection from a technician who is deactivated meanwhile (42501) and stores nothing (FO-F04-S06)", async () => {
+      const jobId = track(
+        await createInspectionJob(identities.technician.id, BOOKING_C_ID),
+      );
+
+      // Only an admin may change is_active (a trigger enforces it), so the
+      // deactivation and the restore go through the admin client.
+      const off = await adminClient
+        .from("users")
+        .update({ is_active: false })
+        .eq("id", identities.technician.id);
+      expect(off.error).toBeNull();
+
+      let error: { code?: string } | null = null;
+      try {
+        ({ error } = await technicianClient
+          .from("inspection_records")
+          .insert(inspectionRow(jobId, { result: "fail" })));
+      } finally {
+        const restore = await adminClient
+          .from("users")
+          .update({ is_active: true })
+          .eq("id", identities.technician.id);
+        // A technician left inactive would break every later test.
+        expect(restore.error).toBeNull();
+      }
+
+      expect(error?.code).toBe("42501");
+      const { data } = await service
+        .from("inspection_records")
+        .select("id")
+        .eq("technician_job_id", jobId);
+      expect(data).toEqual([]);
+      expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+    });
+
     it("partner_user cannot record an inspection, even on their own partner's booking", async () => {
       const jobId = track(
         await createInspectionJob(identities.technician.id, BOOKING_C_ID),
