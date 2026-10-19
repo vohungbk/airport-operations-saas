@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { INCIDENT_SEVERITIES } from "@/features/incidents/lib/incident-severity";
+import { INCIDENT_STATUSES } from "@/features/incidents/lib/incident-status";
 import {
   getIncidentSearchError,
   INCIDENT_SEARCH_MAX_LENGTH,
@@ -31,6 +33,8 @@ export const incidentsQuerySchema = z.object({
     .max(INCIDENT_SEARCH_MAX_LENGTH)
     .optional()
     .catch(undefined),
+  status: z.enum(INCIDENT_STATUSES).optional().catch(undefined),
+  severity: z.enum(INCIDENT_SEVERITIES).optional().catch(undefined),
   sort: z.enum(INCIDENTS_SORT_COLUMNS).catch(INCIDENTS_DEFAULT_SORT),
   order: z.enum(["asc", "desc"]).catch("desc"),
   page: z.coerce.number().int().min(1).catch(1),

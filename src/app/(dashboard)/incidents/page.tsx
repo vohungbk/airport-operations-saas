@@ -4,8 +4,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageEmpty } from "@/components/shared/page-state";
 import { getIncidents } from "@/features/incidents/lib/get-incidents";
 import { parseIncidentsQuery } from "@/features/incidents/schemas/incidents-query.schema";
+import { IncidentsFilters } from "@/features/incidents/components/incidents-filters";
 import { IncidentsPagination } from "@/features/incidents/components/incidents-pagination";
-import { IncidentsSearch } from "@/features/incidents/components/incidents-search";
 import { IncidentsTable } from "@/features/incidents/components/incidents-table";
 
 interface IncidentsPageProps {
@@ -23,6 +23,7 @@ export default async function IncidentsPage({
 
   const { query, search_error } = parseIncidentsQuery(await searchParams);
   const { incidents, total } = await getIncidents(query);
+  const hasFilters = Boolean(query.q || query.status || query.severity);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
@@ -30,7 +31,7 @@ export default async function IncidentsPage({
         Incidents
       </h1>
 
-      <IncidentsSearch query={query} />
+      <IncidentsFilters query={query} />
 
       {search_error && (
         <Alert variant="destructive">
@@ -42,7 +43,9 @@ export default async function IncidentsPage({
       {total === 0 ? (
         <PageEmpty
           message={
-            query.q ? "No incidents match the search." : "No incidents yet."
+            hasFilters
+              ? "No incidents match the search or filters."
+              : "No incidents yet."
           }
         />
       ) : (
