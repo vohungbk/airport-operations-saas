@@ -1116,6 +1116,52 @@ time at the airport and converted to UTC with `airports.timezone`.
   `is_active`, so the test goes through the admin client). The form tests cover
   the conflict, network and access messages.
 
+## Report incident (FO-F05-S04)
+
+- **Who.** `/incidents/new` and `reportIncidentAction` require
+  `incidents:report` (technician) or `incidents:view` (admin, operations
+  manager): `INCIDENT_REPORT_PERMISSIONS`. The permission matrix is unchanged;
+  the operations manager still has no `incidents:report`. A partner user
+  cannot report (spec Q2 is still open). `/incidents/layout.tsx` lets both
+  kinds of reporter in; the list and the detail guard themselves with
+  `incidents:view`, so a technician reaches only the report form. Hiding a
+  button is not an access check.
+- **Related job.** The incident is tied to a job, because a seat has no partner
+  and `incidents.partner_id` is not null; the job carries the booking, the seat
+  and the partner. The choices are the jobs RLS gives the user (a technician's
+  own, every job for a manager), cancelled jobs left out, newest first, at most
+  100.
+- **What the client sends.** Only the job, the severity (no default) and the
+  description (required, trimmed, at most 1000 characters). Validation is the
+  same Zod schema on the client and in the Server Action.
+- **The database decides the rest** (migration
+  `20261028090000_incident_report_guard.sql`). The guard trigger
+  `guard_incidents_insert` (SECURITY DEFINER, before insert) derives
+  `booking_id`, `seat_id` and `partner_id` from the job, sets `type` to the job
+  type and `reported_by` to the caller, and forces `status` open with no
+  resolver. A technician who is not assigned to the job gets `P0002`, the same
+  as for a job that does not exist. Rows without a job (admin/ops or a trusted
+  server insert) are not changed.
+- **RLS changed.** `incidents_insert_technician` now also requires an active
+  technician (`current_user_role() = 'technician'`), a job, and that job
+  assigned to the caller. Before, a technician could cite any job or seat, and
+  a deactivated technician could still insert (the same gap that was closed for
+  inspections). Admin/ops keep their policy and a partner user cannot insert.
+  The booking status of the job is not checked, so an incident can be reported
+  on a completed job.
+- **After saving.** A manager is taken to the incident detail. A technician has
+  no `incidents:view` yet (FO-F05-S07), so they go back to the job. Cancel goes
+  to the incident list for a manager and to the jobs for a technician. A
+  technician reaches the form from the "Report incident" link on the job
+  detail, which selects that job.
+- **Errors.** `P0002` shows as "no longer available", `42501` as "no longer has
+  access", a network failure keeps the user's input (same handling as the work
+  records). Raw database messages never reach the client.
+- Covered by the "report incident (FO-F05-S04)" integration tests (own job,
+  forged values overwritten, admin and ops, another technician's job, unknown
+  job, no job, deactivated technician, partner user, severity outside the
+  enum) and the unit tests for the schema, the action, the form and the pages.
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone
