@@ -159,6 +159,19 @@ describe("recordInspectionAction", () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
+  it("should return NOT_FOUND and skip the insert when a technician submits a job assigned to someone else (FO-F04-S03)", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "t-2", role: "technician" });
+    // RLS hides t-1's job from t-2, so the context lookup finds nothing.
+    getContextMock.mockResolvedValue(null);
+
+    const response = await recordInspectionAction(VALID_INPUT);
+
+    expect(getContextMock).toHaveBeenCalledWith(JOB_ID);
+    expect(response.success).toBe(false);
+    expect(response.error?.code).toBe("NOT_FOUND");
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
   it("should propagate the guard's redirect when the caller lacks permission", async () => {
     requireAnyPermissionMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
 
