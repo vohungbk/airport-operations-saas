@@ -1162,6 +1162,27 @@ time at the airport and converted to UTC with `airports.timezone`.
   job, no job, deactivated technician, partner user, severity outside the
   enum) and the unit tests for the schema, the action, the form and the pages.
 
+## Incident status and severity models (FO-F05-S05)
+
+- **One source of truth.** The Postgres enums `incident_status` (`open`,
+  `investigating`, `resolved`, `closed`) and `incident_severity` (`low`,
+  `medium`, `high`, `critical`) are the models. The app takes its lists from
+  the generated types (`Constants.public.Enums`), so they cannot drift; a test
+  compares them with the migration, and a new value fails type-checking until
+  it gets a label.
+- **Where a value is checked.** The report form and the Server Action accept
+  only a severity from the enum (Zod) and never a status: the guard trigger
+  opens every reported incident as `open`. The list filters drop a status or
+  severity outside the enum. The database is the last layer: a value outside
+  the enum is rejected with `22P02` on insert and on update, and the row is
+  left unchanged.
+- **Updates.** Only an admin has an UPDATE policy on `incidents` today. Which
+  status changes are allowed, and who may make them, is FO-F05-S06.
+- Covered by the "incident status and severity models (FO-F05-S05)"
+  integration tests (every status and severity saved, values outside the enum
+  rejected on insert and update, a status sent when reporting ignored) and the
+  enum tests in `src/features/incidents/lib/incident-enums.test.ts`.
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone
