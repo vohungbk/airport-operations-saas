@@ -13,8 +13,8 @@ vi.mock("@/features/incidents/lib/get-incidents", () => ({
 }));
 
 // Client component that needs the app router; irrelevant to these assertions.
-vi.mock("@/features/incidents/components/incidents-search", () => ({
-  IncidentsSearch: () => null,
+vi.mock("@/features/incidents/components/incidents-filters", () => ({
+  IncidentsFilters: () => null,
 }));
 
 import IncidentsPage from "@/app/(dashboard)/incidents/page";
@@ -85,11 +85,46 @@ describe("IncidentsPage", () => {
 
     const html = await render({ q: "nothing" });
 
-    expect(html).toContain("No incidents match the search.");
+    expect(html).toContain("No incidents match the search or filters.");
     expect(getIncidentsMock).toHaveBeenCalledWith(
       expect.objectContaining({ q: "nothing" }),
     );
   });
+
+  it("should load only the incidents of the chosen status and severity", async () => {
+    await render({ status: "open", severity: "high" });
+
+    expect(getIncidentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "open", severity: "high" }),
+    );
+  });
+
+  it("should combine the filters with the search", async () => {
+    await render({ q: "strap", status: "investigating" });
+
+    expect(getIncidentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ q: "strap", status: "investigating" }),
+    );
+  });
+
+  it("should ignore a status or severity that is not in the enum", async () => {
+    await render({ status: "OPEN", severity: "urgent" });
+
+    expect(getIncidentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: undefined, severity: undefined }),
+    );
+  });
+
+  it.each([[{ status: "closed" }], [{ severity: "low" }]])(
+    "should show the no-match empty state when the filter %j finds nothing",
+    async (params) => {
+      getIncidentsMock.mockResolvedValue({ incidents: [], total: 0 });
+
+      const html = await render(params);
+
+      expect(html).toContain("No incidents match the search or filters.");
+    },
+  );
 
   it("should say the search was not applied when it is too long", async () => {
     const html = await render({ q: "x".repeat(101) });

@@ -12,6 +12,8 @@ describe("parseIncidentsQuery", () => {
 
     expect(query).toEqual({
       q: undefined,
+      status: undefined,
+      severity: undefined,
       sort: "created_at",
       order: "desc",
       page: 1,
@@ -50,6 +52,41 @@ describe("parseIncidentsQuery", () => {
 
   it("should trim the search", () => {
     expect(parseIncidentsQuery({ q: "  strap  " }).query.q).toBe("strap");
+  });
+
+  it.each([["open"], ["investigating"], ["resolved"], ["closed"]])(
+    "should accept the status %s",
+    (status) => {
+      expect(parseIncidentsQuery({ status }).query.status).toBe(status);
+    },
+  );
+
+  it.each([["low"], ["medium"], ["high"], ["critical"]])(
+    "should accept the severity %s",
+    (severity) => {
+      expect(parseIncidentsQuery({ severity }).query.severity).toBe(severity);
+    },
+  );
+
+  it.each([["OPEN"], ["done"], [""], ["open;drop table incidents"]])(
+    "should drop the status %j that is not in the enum instead of failing",
+    (status) => {
+      expect(parseIncidentsQuery({ status }).query.status).toBeUndefined();
+    },
+  );
+
+  it.each([["URGENT"], ["none"], [""]])(
+    "should drop the severity %j that is not in the enum instead of failing",
+    (severity) => {
+      expect(parseIncidentsQuery({ severity }).query.severity).toBeUndefined();
+    },
+  );
+
+  it("should keep a valid status when the severity is invalid", () => {
+    const { query } = parseIncidentsQuery({ status: "open", severity: "x" });
+
+    expect(query.status).toBe("open");
+    expect(query.severity).toBeUndefined();
   });
 
   it.each([["description"], ["created_at;drop table incidents"], [""]])(

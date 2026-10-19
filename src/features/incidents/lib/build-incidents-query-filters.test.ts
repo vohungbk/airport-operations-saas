@@ -5,6 +5,8 @@ import type { IncidentsQuery } from "@/features/incidents/schemas/incidents-quer
 
 const BASE: IncidentsQuery = {
   q: undefined,
+  status: undefined,
+  severity: undefined,
   sort: "created_at",
   order: "desc",
   page: 1,
@@ -42,6 +44,24 @@ describe("buildIncidentsQueryFilters", () => {
       );
     },
   );
+
+  it("should pass the status and the severity through", () => {
+    const filters = buildIncidentsQueryFilters({
+      ...BASE,
+      status: "open",
+      severity: "high",
+    });
+
+    expect(filters.status).toBe("open");
+    expect(filters.severity).toBe("high");
+  });
+
+  it("should have no status or severity filter by default", () => {
+    const filters = buildIncidentsQueryFilters(BASE);
+
+    expect(filters.status).toBeUndefined();
+    expect(filters.severity).toBeUndefined();
+  });
 
   it("should compute the range from the page and the page size", () => {
     expect(
