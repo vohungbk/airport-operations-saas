@@ -63,5 +63,11 @@ export async function recordInspectionAction(
     return { success: false, error: mapInspectionError(error) };
   }
 
-  redirect(`/jobs/${context.job.id}`);
+  // A failed inspection moves the seat to quarantine: the record page shows
+  // that (and any active booking) to the person who recorded it.
+  redirect(
+    parsed.data.result === "fail"
+      ? `/jobs/${context.job.id}/inspection`
+      : `/jobs/${context.job.id}`,
+  );
 }
