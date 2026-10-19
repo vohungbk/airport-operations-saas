@@ -5,6 +5,7 @@ import type { Database } from "@/types/database.types";
 import { JOB_DETAIL_SELECT } from "@/features/jobs/lib/get-job-by-id";
 import { JOB_LIST_SELECT as JOB_LIST_QUERY_SELECT } from "@/features/jobs/lib/get-jobs";
 import { buildIncidentsQueryFilters } from "@/features/incidents/lib/build-incidents-query-filters";
+import { INCIDENT_DETAIL_SELECT } from "@/features/incidents/lib/get-incident-by-id";
 import { INCIDENT_LIST_SELECT } from "@/features/incidents/lib/get-incidents";
 import {
   ACTIVE_BOOKING_STATUSES,
@@ -847,6 +848,101 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(data!.map((incident) => incident.id)).toEqual([
         fixtureIds.incidentA,
       ]);
+    });
+  });
+
+  describe("incident detail access (FO-F05-S03)", () => {
+    const read = (client: SupabaseClient<Database>, id: string) =>
+      client
+        .from("incidents")
+        .select(INCIDENT_DETAIL_SELECT)
+        .eq("id", id)
+        .maybeSingle();
+
+    it("admin and operations_manager read an incident with its partner, booking and reporter", async () => {
+      for (const client of [adminClient, opsClient]) {
+        const { data, error } = await read(client, fixtureIds.incidentA);
+        const row = data as unknown as {
+          partner: { name: string } | null;
+          booking: { booking_number: string } | null;
+          reporter: { full_name: string } | null;
+        };
+
+        expect(error).toBeNull();
+        expect(row.partner?.name).toBeTruthy();
+        expect(row.booking?.booking_number).toMatch(/^BK-/);
+        expect(row.reporter?.full_name).toBeTruthy();
+      }
+    });
+
+    it("a partner user reads their own partner's incident and gets nothing for another partner's", async () => {
+      const own = await read(partnerAClient, fixtureIds.incidentA);
+      const cross = await read(partnerAClient, fixtureIds.incidentB);
+      const otherWay = await read(partnerBClient, fixtureIds.incidentA);
+
+      expect(own.error).toBeNull();
+      expect(own.data).not.toBeNull();
+      expect(cross.error).toBeNull();
+      expect(cross.data).toBeNull();
+      expect(otherWay.error).toBeNull();
+      expect(otherWay.data).toBeNull();
+    });
+
+    it("a technician gets nothing for another technician's incident, the same as for an id that does not exist", async () => {
+      const other = await service
+        .from("incidents")
+        .insert({
+          partner_id: PARTNER_A_ID,
+          booking_id: BOOKING_A_ID,
+          type: "seat_damage",
+          severity: "high",
+          description: "RLS detail test incident (other technician)",
+          reported_by: OTHER_TECHNICIAN_ID,
+        })
+        .select("id")
+        .single();
+      expect(other.error).toBeNull();
+
+      try {
+        const hidden = await read(technicianClient, other.data!.id);
+        const missing = await read(
+          technicianClient,
+          "c0000000-0000-0000-0000-00000000dead",
+        );
+
+        expect(hidden.error).toBeNull();
+        expect(hidden.data).toBeNull();
+        expect(missing.error).toBeNull();
+        expect(missing.data).toBeNull();
+      } finally {
+        await service.from("incidents").delete().eq("id", other.data!.id);
+      }
+    });
+
+    it("returns only the listed columns: no user emails and no partner contact or commercial data", async () => {
+      const { data } = await read(adminClient, fixtureIds.incidentA);
+      const row = data as unknown as Record<string, Record<string, unknown>>;
+
+      expect(Object.keys(row).sort()).toEqual(
+        [
+          "id",
+          "type",
+          "severity",
+          "status",
+          "description",
+          "created_at",
+          "updated_at",
+          "resolved_at",
+          "technician_job_id",
+          "partner",
+          "seat",
+          "booking",
+          "reporter",
+          "resolver",
+        ].sort(),
+      );
+      expect(Object.keys(row.partner)).toEqual(["name"]);
+      expect(Object.keys(row.reporter)).toEqual(["full_name"]);
     });
   });
 

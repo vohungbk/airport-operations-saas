@@ -38,6 +38,12 @@ function render(incidents: IncidentListItem[], query = QUERY) {
 }
 
 describe("IncidentsTable", () => {
+  it("should link each incident to its detail page", () => {
+    const html = render([incident({ id: "i-9" })]);
+
+    expect(html).toContain('href="/incidents/i-9"');
+  });
+
   it("should show severity and status as text, not only as color", () => {
     const html = render([incident()]);
 
