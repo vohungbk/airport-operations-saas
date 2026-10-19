@@ -42,6 +42,21 @@ describe("reportIncidentSchema", () => {
     },
   );
 
+  it("should leave the status and the other columns the client sends out of the parsed input", () => {
+    const parsed = reportIncidentSchema.parse({
+      ...valid,
+      status: "resolved",
+      partner_id: "forged",
+      reported_by: "forged",
+    });
+
+    expect(parsed).toEqual({
+      job_id: JOB_ID,
+      severity: "high",
+      description: "The harness strap is torn.",
+    });
+  });
+
   it.each([[""], ["   "], ["\n\t"]])(
     "should reject the empty description %j with a clear message",
     (description) => {

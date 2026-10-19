@@ -3673,6 +3673,175 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  describe("incident status and severity models (FO-F05-S05)", () => {
+    const STATUSES = ["open", "investigating", "resolved", "closed"] as const;
+    const SEVERITIES = ["low", "medium", "high", "critical"] as const;
+    const createdIds: string[] = [];
+
+    // No job, so the insert guard leaves the row as sent (admin/ops only).
+    const row = (
+      extra: Partial<Database["public"]["Tables"]["incidents"]["Insert"]> = {},
+    ) => ({
+      partner_id: PARTNER_A_ID,
+      booking_id: BOOKING_A_ID,
+      type: "seat_damage",
+      severity: "low" as const,
+      description: "RLS status model test incident",
+      reported_by: identities.admin.id,
+      ...extra,
+    });
+
+    async function seed(
+      extra: Partial<Database["public"]["Tables"]["incidents"]["Insert"]> = {},
+    ) {
+      const { data, error } = await service
+        .from("incidents")
+        .insert(row(extra))
+        .select("id")
+        .single();
+      if (error) throw error;
+      createdIds.push(data.id);
+      return data.id;
+    }
+
+    const stored = async (id: string) =>
+      (
+        await service
+          .from("incidents")
+          .select("status, severity")
+          .eq("id", id)
+          .single()
+      ).data!;
+
+    afterEach(async () => {
+      await service.from("incidents").delete().in("id", createdIds.splice(0));
+    });
+
+    it.each(STATUSES.map((status) => [status]))(
+      "admin saves an incident with the status %s",
+      async (status) => {
+        const { data, error } = await adminClient
+          .from("incidents")
+          .insert(row({ status }))
+          .select("id, status")
+          .single();
+
+        expect(error).toBeNull();
+        createdIds.push(data!.id);
+        expect(data!.status).toBe(status);
+      },
+    );
+
+    it.each(SEVERITIES.map((severity) => [severity]))(
+      "admin saves an incident with the severity %s",
+      async (severity) => {
+        const { data, error } = await adminClient
+          .from("incidents")
+          .insert(row({ severity }))
+          .select("id, severity")
+          .single();
+
+        expect(error).toBeNull();
+        createdIds.push(data!.id);
+        expect(data!.severity).toBe(severity);
+      },
+    );
+
+    it.each([
+      ["status", { status: "done" }],
+      ["status", { status: "OPEN" }],
+      ["severity", { severity: "urgent" }],
+      ["severity", { severity: "" }],
+    ])(
+      "rejects an incident whose %s is outside the model (%j) and stores nothing",
+      async (_field, extra) => {
+        const marker = `RLS status model rejected ${JSON.stringify(extra)}`;
+
+        const { error } = await adminClient
+          .from("incidents")
+          .insert(row({ ...extra, description: marker } as never));
+
+        expect(error?.code).toBe("22P02");
+        const { data } = await service
+          .from("incidents")
+          .select("id")
+          .eq("description", marker);
+        expect(data).toEqual([]);
+      },
+    );
+
+    it.each(STATUSES.map((status) => [status]))(
+      "admin updates an incident to the status %s",
+      async (status) => {
+        const id = await seed();
+
+        const { error } = await adminClient
+          .from("incidents")
+          .update({ status })
+          .eq("id", id);
+
+        expect(error).toBeNull();
+        expect((await stored(id)).status).toBe(status);
+      },
+    );
+
+    it.each([
+      ["status", { status: "done" }],
+      ["severity", { severity: "urgent" }],
+    ])(
+      "rejects an update whose %s is outside the model (%j) and keeps the row unchanged",
+      async (_field, change) => {
+        const id = await seed({ status: "investigating", severity: "high" });
+
+        const { error } = await adminClient
+          .from("incidents")
+          .update(change as never)
+          .eq("id", id);
+
+        expect(error?.code).toBe("22P02");
+        expect(await stored(id)).toEqual({
+          status: "investigating",
+          severity: "high",
+        });
+      },
+    );
+
+    it("ignores a status sent when a technician reports: the incident opens as open", async () => {
+      const { data: job, error: jobError } = await service
+        .from("technician_jobs")
+        .insert({
+          booking_id: BOOKING_A_ID,
+          technician_id: identities.technician.id,
+          job_type: "inspection",
+          status: "assigned",
+        })
+        .select("id")
+        .single();
+      expect(jobError).toBeNull();
+
+      try {
+        const { error } = await technicianClient.from("incidents").insert(
+          row({
+            technician_job_id: job!.id,
+            reported_by: identities.technician.id,
+            status: "closed",
+          }),
+        );
+
+        expect(error).toBeNull();
+        const { data } = await service
+          .from("incidents")
+          .select("status")
+          .eq("technician_job_id", job!.id)
+          .single();
+        expect(data!.status).toBe("open");
+      } finally {
+        await service.from("incidents").delete().eq("technician_job_id", job!.id);
+        await service.from("technician_jobs").delete().eq("id", job!.id);
+      }
+    });
+  });
+
   describe("technician list access (FO-F01-S01)", () => {
     it("admin and operations_manager can list technician users", async () => {
       for (const client of [adminClient, opsClient]) {
