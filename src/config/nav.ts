@@ -7,6 +7,7 @@ import {
   ListChecks,
   LayoutDashboard,
   Plane,
+  TriangleAlert,
   UserCircle,
   Users,
   type LucideIcon,
@@ -14,6 +15,7 @@ import {
 
 import {
   BOOKINGS_ACCESS_PERMISSIONS,
+  INCIDENTS_ACCESS_PERMISSIONS,
   JOBS_ACCESS_PERMISSIONS,
   hasAnyPermission,
   type Permission,
@@ -82,6 +84,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/jobs",
     permission: JOBS_ACCESS_PERMISSIONS,
     icon: ListChecks,
+  },
+  {
+    label: "Incidents",
+    href: "/incidents",
+    permission: INCIDENTS_ACCESS_PERMISSIONS,
+    icon: TriangleAlert,
   },
   {
     label: "Technician Jobs",

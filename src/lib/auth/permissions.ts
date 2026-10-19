@@ -104,6 +104,14 @@ export const JOBS_ACCESS_PERMISSIONS = [
 ] as const satisfies readonly Permission[];
 
 /**
+ * Who may enter `/incidents`: managers (`incidents:view`, all incidents).
+ * Technician and partner scope is a later story (FO-F05-S07).
+ */
+export const INCIDENTS_ACCESS_PERMISSIONS = [
+  "incidents:view",
+] as const satisfies readonly Permission[];
+
+/**
  * Who may change a job's status: technicians (own jobs, scoped by RLS) and
  * managers (any job). Cancelling is further limited to managers in the
  * database function.
