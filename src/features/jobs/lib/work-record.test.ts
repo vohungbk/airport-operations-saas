@@ -60,10 +60,10 @@ describe("getWorkRecordHref", () => {
     ).toBe("/jobs/j-1/cleaning");
   });
 
-  it("should return null while the inspection screen is not available", () => {
+  it("should offer the inspection screen with the default registry", () => {
     expect(
       getWorkRecordHref(job({ job_type: "inspection" }), TECHNICIAN),
-    ).toBeNull();
+    ).toBe("/jobs/j-1/inspection");
   });
 
   it("should return null when the workflow of this job type is not available", () => {

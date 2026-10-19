@@ -132,3 +132,13 @@ export const CLEANING_RECORD_PERMISSIONS = [
   "cleaning:create",
   "technicians:manage",
 ] as const satisfies readonly Permission[];
+
+/**
+ * Who may open the inspection record screen and record an inspection:
+ * technicians (own jobs, scoped by RLS) and managers. The link on the job
+ * detail is offered only to the assigned technician.
+ */
+export const INSPECTION_RECORD_PERMISSIONS = [
+  "inspections:create",
+  "technicians:manage",
+] as const satisfies readonly Permission[];

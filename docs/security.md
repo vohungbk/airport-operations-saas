@@ -1008,6 +1008,43 @@ time at the airport and converted to UTC with `airports.timezone`.
   Complete, and a user deactivated between Start and Complete (only an admin
   can change `is_active`, so the test goes through the admin client).
 
+## Record inspection (FO-F04-S01)
+
+- `/jobs/[id]/inspection` and `recordInspectionAction` require
+  `inspections:create` (technician) or `technicians:manage` (admin, ops). The
+  "Record work" link is offered only to the assigned technician; hiding it is
+  not an access check.
+- RLS changed (migration `20261024090000_inspection_record_guard.sql`).
+  `inspection_records_insert_technician` now also requires the record's
+  `technician_job_id` to be a job assigned to the caller. Before, a technician
+  could insert an inspection for any seat (`inspector_id = auth.uid()` was the
+  only check). Admin/ops keep their policy and a partner user cannot insert.
+  `inspection_records_select_technician` also lets a technician read the
+  record of a job assigned to them, so a record entered by admin/ops is not
+  invisible to the technician. There is no UPDATE or DELETE policy, so a
+  recorded inspection is an immutable log row.
+- The guard trigger `guard_inspection_records_insert` (SECURITY DEFINER) checks
+  values RLS cannot: the job is an inspection job (`JB005`) and active
+  (`JB006`), and the booking has a seat that is not retired (`JB007`). It
+  overwrites `seat_id`, `booking_id`, `inspector_id` and `inspection_type`
+  (`general`), so the client cannot forge them. It runs only when a job is
+  given; a row without a job can only come from admin/ops or a trusted server
+  insert, never from a technician.
+- The Server Action takes the seat from the database (the submitted seat must
+  be the booking's seat) and inserts only the job, the result and the notes
+  (plus placeholders the trigger overwrites). The result must be one of
+  `pass`, `conditional_pass`, `fail`, with no default.
+- `inspector_id` is the user who recorded it (`auth.uid()`). One inspection
+  per job (unique index). Recording does not change the seat status or
+  `seats.last_inspected_at`; that belongs to a later story. Conflicts,
+  network failures and a lost assignment behave as for installations and
+  cleaning.
+- Covered by the "record inspection (FO-F04-S01)" tests in
+  `src/lib/auth/rls.integration.test.ts`. The retired-seat and no-seat
+  branches of the trigger are not covered there (a booking's seat can only be
+  changed through the booking functions and a retired seat cannot be
+  restored); the page and the seat helper are unit-tested.
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone
