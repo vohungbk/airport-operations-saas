@@ -82,6 +82,23 @@ describe("CleaningStartPanel", () => {
     expect(html).toContain('href="/jobs"');
   });
 
+  it("should say access was lost and point back to the jobs when the database denies the start", () => {
+    hookMock.mockReturnValue(
+      hookState({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "You do not have permission to do this.",
+        },
+      }),
+    );
+
+    const html = render();
+
+    expect(html).toContain("You no longer have access to this action");
+    expect(html).toContain('href="/jobs"');
+  });
+
   it("should keep the button usable after a network failure", () => {
     hookMock.mockReturnValue(
       hookState({

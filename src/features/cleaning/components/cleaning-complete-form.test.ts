@@ -74,6 +74,25 @@ describe("CleaningCompleteForm", () => {
     expect(html).toContain("Cleaning notes");
   });
 
+  it("should tell the user the cleaning has not been started and keep the form", () => {
+    hookMock.mockReturnValue(
+      hookState({
+        success: false,
+        error: {
+          code: "NOT_STARTED",
+          message: "The cleaning has not been started yet.",
+        },
+      }),
+    );
+
+    const html = render();
+
+    expect(html).toContain("Could not complete the cleaning");
+    expect(html).toContain("The cleaning has not been started yet.");
+    expect(html).toContain("Cleaning notes");
+    expect(html).not.toContain('href="/jobs"');
+  });
+
   it("should keep the entry and tell the user to retry after a network failure", () => {
     hookMock.mockReturnValue(
       hookState({

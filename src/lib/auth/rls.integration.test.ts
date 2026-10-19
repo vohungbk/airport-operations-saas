@@ -2385,6 +2385,91 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect((await seatRow(SEAT_C_ID)).status).toBe("available");
     });
 
+    it("rejects completing once the technician loses the assignment (P0002) and keeps the cleaning open", async () => {
+      // Not tracked for deletion: the reassignment writes a job event, so the
+      // job cannot be deleted afterwards. Its record is removed and the job
+      // cancelled instead, which frees the booking.
+      const jobId = await createCleaningJob(
+        identities.technician.id,
+        BOOKING_C_ID,
+      );
+
+      try {
+        const started = await technicianClient.rpc("start_cleaning", {
+          p_job_id: jobId,
+        });
+        expect(started.error).toBeNull();
+        const reassign = await opsClient
+          .from("technician_jobs")
+          .update({ technician_id: OTHER_TECHNICIAN_ID })
+          .eq("id", jobId);
+        expect(reassign.error).toBeNull();
+
+        const { error } = await technicianClient.rpc("complete_cleaning", {
+          p_job_id: jobId,
+          p_passed: true,
+        });
+
+        expect(error?.code).toBe("P0002");
+        const [record] = await recordOf(jobId);
+        expect(record.completed_at).toBeNull();
+        expect((await seatRow(SEAT_C_ID)).status).toBe("cleaning");
+      } finally {
+        await service
+          .from("cleaning_records")
+          .delete()
+          .eq("technician_job_id", jobId);
+        await opsClient.rpc("change_technician_job_status", {
+          p_job_id: jobId,
+          p_from_status: "assigned",
+          p_to_status: "cancelled",
+          p_reason: "cleaning test cleanup",
+        });
+      }
+    });
+
+    it("rejects start and complete for a technician who is deactivated meanwhile (42501) and keeps the cleaning open", async () => {
+      const jobId = track(
+        await createCleaningJob(identities.technician.id, BOOKING_C_ID),
+      );
+      const started = await technicianClient.rpc("start_cleaning", {
+        p_job_id: jobId,
+      });
+      expect(started.error).toBeNull();
+
+      // Only an admin may change is_active (a trigger enforces it), so the
+      // deactivation and the restore go through the admin client.
+      const off = await adminClient
+        .from("users")
+        .update({ is_active: false })
+        .eq("id", identities.technician.id);
+      expect(off.error).toBeNull();
+
+      try {
+        const complete = await technicianClient.rpc("complete_cleaning", {
+          p_job_id: jobId,
+          p_passed: true,
+        });
+        const again = await technicianClient.rpc("start_cleaning", {
+          p_job_id: jobId,
+        });
+
+        expect(complete.error?.code).toBe("42501");
+        expect(again.error?.code).toBe("42501");
+      } finally {
+        const restore = await adminClient
+          .from("users")
+          .update({ is_active: true })
+          .eq("id", identities.technician.id);
+        // A technician left inactive would break every later test.
+        expect(restore.error).toBeNull();
+      }
+
+      const [record] = await recordOf(jobId);
+      expect(record.completed_at).toBeNull();
+      expect((await seatRow(SEAT_C_ID)).status).toBe("cleaning");
+    });
+
     it("rejects the next start once the technician loses the assignment, and leaves the seat and the records alone", async () => {
       // Not tracked for deletion: the reassignment writes a job event, so the
       // job cannot be deleted afterwards. It is cancelled instead, which
