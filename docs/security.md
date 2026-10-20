@@ -1387,6 +1387,23 @@ time at the airport and converted to UTC with `airports.timezone`.
     real guard with the real permission rules). Menu and guard cannot drift.
   No role is refused the dashboard today: managers, technicians and partner
   users may all open it.
+- **Errors (VI-F01-S06).** Two different failures, shown differently:
+  - *The network or database fails while loading* (spec E4). A figure that
+    could not be counted shows "Unavailable" and the page note carries a "Try
+    again" button that runs the page again (`router.refresh()`, so every figure
+    is counted again; nothing is cached on the client). If the profile of the
+    user cannot be read, `getCurrentUser` throws in the `(dashboard)` layout;
+    a layout's error is caught by the boundary above it, `src/app/error.tsx`,
+    which shows "Could not load this page" with "Try again". Such a failure is never shown as
+    "forbidden": it says nothing about permission. It also never grants
+    access, and the raw error is not shown.
+  - *Permission is revoked while the screen is open* (spec E5). Every request
+    reads the profile again, so the next request of a deactivated user is sent
+    to `/forbidden`, even though the session token is still valid. "Try again"
+    is a new request, so a revoked user lands on `/forbidden` too.
+  `getCurrentUser` returns `null` (forbidden) only for a missing row or an
+  inactive profile; any other read error is thrown. This holds for every area
+  that uses `requireAuth`, not only the dashboard.
 - Not in this story: financial figures, KPIs with targets and AI analysis
   (VI-F04 to VI-F06), and a refresh interval (spec Q3: computed on load).
 - Covered by the "dashboard metrics (VI-F01-S01)" integration tests (platform
