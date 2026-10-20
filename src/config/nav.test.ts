@@ -59,26 +59,26 @@ describe("getVisibleNavItems", () => {
     );
   });
 
-  it("should show the jobs and technician links to technician", () => {
+  it("should show the incidents, jobs and technician links to technician", () => {
     const visible = getVisibleNavItems("technician");
 
     expect(visible.map((item) => item.href).sort()).toEqual(
-      ["/jobs", "/technician"].sort(),
+      ["/incidents", "/jobs", "/technician"].sort(),
     );
   });
 
-  it("should show the partner portal and bookings links to partner_user", () => {
+  it("should show the partner portal, bookings and incidents links to partner_user", () => {
     const visible = getVisibleNavItems("partner_user");
 
     expect(visible.map((item) => item.href).sort()).toEqual(
-      ["/bookings", "/partner"].sort(),
+      ["/bookings", "/incidents", "/partner"].sort(),
     );
   });
 
-  it.each([["technician"], ["partner_user"]] as const)(
-    "should not show the incidents link to %s",
+  it.each([["technician"], ["partner_user"], ["operations_manager"], ["admin"]] as const)(
+    "should show the incidents link to %s, who sees the incidents in their scope",
     (role) => {
-      expect(getVisibleNavItems(role).map((item) => item.href)).not.toContain(
+      expect(getVisibleNavItems(role).map((item) => item.href)).toContain(
         "/incidents",
       );
     },

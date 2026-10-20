@@ -42,16 +42,18 @@ function incident(
 function render(
   item: IncidentDetailItem = incident(),
   options: {
-    history?: IncidentHistoryItem[];
+    history?: IncidentHistoryItem[] | null;
     historyTruncated?: boolean;
     allowedStatuses?: IncidentStatus[];
+    showStaffDetails?: boolean;
   } = {},
 ) {
   return renderToStaticMarkup(
     createElement(IncidentDetail, {
       incident: item,
-      history: options.history ?? [],
+      history: options.history === undefined ? [] : options.history,
       historyTruncated: options.historyTruncated ?? false,
+      showStaffDetails: options.showStaffDetails ?? true,
       allowedStatuses: options.allowedStatuses ?? [],
     }),
   );
@@ -117,6 +119,31 @@ describe("IncidentDetail", () => {
 
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("should leave out the staff names and the job link for a partner user", () => {
+    const html = render(
+      incident({
+        resolver: { full_name: "Fatima" },
+        resolved_at: "2026-10-18T10:00:00Z",
+      }),
+      { showStaffDetails: false },
+    );
+
+    expect(html).toContain("Emirates Rent A Car");
+    expect(html).toContain("SN-2");
+    expect(html).not.toContain("Ahmed");
+    expect(html).not.toContain("Fatima");
+    expect(html).not.toContain("Reported by");
+    expect(html).not.toContain("Resolved by");
+    expect(html).not.toContain('href="/jobs/');
+  });
+
+  it("should leave out the history when the user may not read it", () => {
+    const html = render(incident(), { history: null });
+
+    expect(html).not.toContain("History");
+    expect(html).not.toContain("No changes recorded.");
   });
 
   it("should offer Update status when the user has a permitted transition", () => {

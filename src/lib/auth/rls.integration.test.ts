@@ -4181,6 +4181,186 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  describe("incident access scope (FO-F05-S07)", () => {
+    // Fixture incidents A (partner A) and B (partner B) are both reported by
+    // the technician. Two more are made here: one on the technician's job
+    // reported by someone else, and one of another technician on another job.
+    let assignedIncidentId = "";
+    let foreignIncidentId = "";
+
+    const idsOf = () => [
+      fixtureIds.incidentA,
+      fixtureIds.incidentB,
+      assignedIncidentId,
+      foreignIncidentId,
+    ];
+    const listed = async (client: SupabaseClient<Database>) => {
+      const { data, error } = await client
+        .from("incidents")
+        .select(INCIDENT_LIST_SELECT)
+        .in("id", idsOf());
+      expect(error).toBeNull();
+      return data!.map((incident) => incident.id).sort();
+    };
+    const opened = (client: SupabaseClient<Database>, id: string) =>
+      client
+        .from("incidents")
+        .select(INCIDENT_DETAIL_SELECT)
+        .eq("id", id)
+        .maybeSingle();
+
+    beforeAll(async () => {
+      const assigned = await service
+        .from("incidents")
+        .insert({
+          partner_id: PARTNER_A_ID,
+          booking_id: BOOKING_A_ID,
+          technician_job_id: fixtureIds.jobOwn,
+          type: "seat_damage",
+          severity: "medium",
+          description: "RLS scope test incident (on the technician's job)",
+          reported_by: OTHER_TECHNICIAN_ID,
+        })
+        .select("id")
+        .single();
+      if (assigned.error) throw assigned.error;
+      assignedIncidentId = assigned.data.id;
+
+      const foreign = await service
+        .from("incidents")
+        .insert({
+          partner_id: PARTNER_B_ID,
+          booking_id: BOOKING_B_ID,
+          technician_job_id: fixtureIds.jobOther,
+          type: "seat_damage",
+          severity: "high",
+          description: "RLS scope test incident (another technician's job)",
+          reported_by: OTHER_TECHNICIAN_ID,
+        })
+        .select("id")
+        .single();
+      if (foreign.error) throw foreign.error;
+      foreignIncidentId = foreign.data.id;
+    });
+
+    afterAll(async () => {
+      await service
+        .from("incidents")
+        .delete()
+        .in("id", [assignedIncidentId, foreignIncidentId].filter(Boolean));
+    });
+
+    // Only an admin may change is_active (a trigger enforces it).
+    async function whileInactive<T>(userId: string, run: () => Promise<T>) {
+      const off = await adminClient
+        .from("users")
+        .update({ is_active: false })
+        .eq("id", userId);
+      expect(off.error).toBeNull();
+      try {
+        return await run();
+      } finally {
+        const restore = await adminClient
+          .from("users")
+          .update({ is_active: true })
+          .eq("id", userId);
+        // A user left inactive would break every later test.
+        expect(restore.error).toBeNull();
+      }
+    }
+
+    it("admin and operations manager see every incident", async () => {
+      for (const client of [adminClient, opsClient]) {
+        expect(await listed(client)).toEqual([...idsOf()].sort());
+      }
+    });
+
+    it("a partner user sees only the incidents of their own partner", async () => {
+      expect(await listed(partnerAClient)).toEqual(
+        [fixtureIds.incidentA, assignedIncidentId].sort(),
+      );
+      expect(await listed(partnerBClient)).toEqual(
+        [fixtureIds.incidentB, foreignIncidentId].sort(),
+      );
+    });
+
+    it("a partner user cannot open another partner's incident by its id, the same as for an id that does not exist", async () => {
+      for (const id of [fixtureIds.incidentB, foreignIncidentId]) {
+        const { data, error } = await opened(partnerAClient, id);
+        expect(error).toBeNull();
+        expect(data).toBeNull();
+      }
+      for (const id of [fixtureIds.incidentA, assignedIncidentId]) {
+        const { data, error } = await opened(partnerBClient, id);
+        expect(error).toBeNull();
+        expect(data).toBeNull();
+      }
+      const missing = await opened(
+        partnerAClient,
+        "c0000000-0000-0000-0000-00000000dead",
+      );
+      expect(missing.error).toBeNull();
+      expect(missing.data).toBeNull();
+    });
+
+    it("a partner user does not get the staff data of their own partner's incident", async () => {
+      const { data } = await opened(partnerAClient, fixtureIds.incidentA);
+      const row = data as unknown as {
+        reporter: unknown;
+        partner: { name: string } | null;
+      };
+
+      expect(row.partner?.name).toBeTruthy();
+      // Users are not readable by a partner user, so no staff name leaks.
+      expect(row.reporter).toBeNull();
+    });
+
+    it("a partner user who is deactivated meanwhile sees no incident", async () => {
+      const ids = await whileInactive(identities.partnerA.id, () =>
+        listed(partnerAClient),
+      );
+
+      expect(ids).toEqual([]);
+    });
+
+    it("a technician sees the incidents they reported and those on a job assigned to them, and not another technician's", async () => {
+      expect(await listed(technicianClient)).toEqual(
+        [fixtureIds.incidentA, fixtureIds.incidentB, assignedIncidentId].sort(),
+      );
+
+      const foreign = await opened(technicianClient, foreignIncidentId);
+      const missing = await opened(
+        technicianClient,
+        "c0000000-0000-0000-0000-00000000dead",
+      );
+      expect(foreign.error).toBeNull();
+      expect(foreign.data).toBeNull();
+      expect(missing.data).toBeNull();
+    });
+
+    it("a technician who is deactivated meanwhile sees no incident", async () => {
+      const ids = await whileInactive(identities.technician.id, () =>
+        listed(technicianClient),
+      );
+
+      expect(ids).toEqual([]);
+    });
+
+    it("a partner user cannot read the status history, change a status or report", async () => {
+      const history = await partnerAClient
+        .from("incident_status_history")
+        .select("id");
+      const change = await partnerAClient.rpc("change_incident_status", {
+        p_incident_id: fixtureIds.incidentA,
+        p_from_status: "open",
+        p_to_status: "investigating",
+      });
+
+      expect(history.data).toEqual([]);
+      expect(change.error?.code).toBe("42501");
+    });
+  });
+
   describe("technician list access (FO-F01-S01)", () => {
     it("admin and operations_manager can list technician users", async () => {
       for (const client of [adminClient, opsClient]) {

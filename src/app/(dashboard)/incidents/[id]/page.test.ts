@@ -69,10 +69,14 @@ describe("IncidentDetailPage", () => {
     getHistoryMock.mockResolvedValue({ history: [], truncated: false });
   });
 
-  it("should guard the page with incidents:view", async () => {
+  it("should guard the page with the incident access permissions", async () => {
     await render();
 
-    expect(requireAnyPermissionMock).toHaveBeenCalledWith(["incidents:view"]);
+    expect(requireAnyPermissionMock).toHaveBeenCalledWith([
+      "incidents:view",
+      "operations:view_own_partner",
+      "incidents:report",
+    ]);
   });
 
   it("should propagate the guard's redirect without loading the incident", async () => {
@@ -152,6 +156,53 @@ describe("IncidentDetailPage", () => {
     expect(html).not.toContain("DIALOG:");
     expect(html).not.toContain("History");
   });
+
+  it("should show a partner user the incident without the staff names, the job, the history or the status control", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "p-1", role: "partner_user" });
+    getIncidentByIdMock.mockResolvedValue({
+      ...INCIDENT,
+      technician_job_id: "j-1",
+      resolver: { full_name: "Fatima" },
+    });
+
+    const html = await render();
+
+    expect(html).toContain("Damaged strap");
+    expect(html).toContain("Emirates Rent A Car");
+    expect(html).not.toContain("Ahmed");
+    expect(html).not.toContain("Fatima");
+    expect(html).not.toContain('href="/jobs/');
+    expect(html).not.toContain("History");
+    expect(html).not.toContain("DIALOG:");
+    expect(getHistoryMock).not.toHaveBeenCalled();
+  });
+
+  it("should show a technician the incident with the job link, but no history and no status control", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "t-1", role: "technician" });
+    getIncidentByIdMock.mockResolvedValue({ ...INCIDENT, technician_job_id: "j-1" });
+
+    const html = await render();
+
+    expect(html).toContain("Ahmed");
+    expect(html).toContain('href="/jobs/j-1"');
+    expect(html).not.toContain("History");
+    expect(html).not.toContain("DIALOG:");
+    expect(getHistoryMock).not.toHaveBeenCalled();
+  });
+
+  it.each([["partner_user"], ["technician"]])(
+    "should show the forbidden state to a %s for an incident outside their scope",
+    async (role) => {
+      requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role });
+      getIncidentByIdMock.mockResolvedValue(null);
+
+      const html = await render("someone-elses");
+
+      expect(html).toContain("You cannot view this incident");
+      expect(html).not.toContain("Damaged strap");
+      expect(html).not.toContain("Emirates Rent A Car");
+    },
+  );
 
   it("should let an error from the query reach the error boundary", async () => {
     getIncidentByIdMock.mockRejectedValue(new Error("db down"));

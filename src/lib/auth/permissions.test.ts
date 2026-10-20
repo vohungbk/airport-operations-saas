@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CLEANING_RECORD_PERMISSIONS,
+  INCIDENTS_ACCESS_PERMISSIONS,
   INCIDENT_REPORT_PERMISSIONS,
   INCIDENT_STATUS_UPDATE_PERMISSIONS,
   INSPECTION_RECORD_PERMISSIONS,
@@ -224,4 +225,26 @@ describe("INCIDENT_STATUS_UPDATE_PERMISSIONS", () => {
       );
     },
   );
+});
+
+describe("INCIDENTS_ACCESS_PERMISSIONS", () => {
+  it.each([
+    ["admin"],
+    ["operations_manager"],
+    ["technician"],
+    ["partner_user"],
+  ] as const)("should let the %s role open the incident list and detail", (role) => {
+    expect(hasAnyPermission(role, INCIDENTS_ACCESS_PERMISSIONS)).toBe(true);
+  });
+
+  it("should keep the report permission to technicians and managers: a partner user still cannot report", () => {
+    expect(hasAnyPermission("partner_user", INCIDENT_REPORT_PERMISSIONS)).toBe(
+      false,
+    );
+  });
+
+  it("should not change the permission matrix", () => {
+    expect(hasPermission("partner_user", "incidents:view")).toBe(false);
+    expect(hasPermission("technician", "incidents:view")).toBe(false);
+  });
 });

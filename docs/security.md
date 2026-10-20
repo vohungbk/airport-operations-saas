@@ -1122,10 +1122,9 @@ time at the airport and converted to UTC with `airports.timezone`.
   `incidents:report` (technician) or `incidents:view` (admin, operations
   manager): `INCIDENT_REPORT_PERMISSIONS`. The permission matrix is unchanged;
   the operations manager still has no `incidents:report`. A partner user
-  cannot report (spec Q2 is still open). `/incidents/layout.tsx` lets both
-  kinds of reporter in; the list and the detail guard themselves with
-  `incidents:view`, so a technician reaches only the report form. Hiding a
-  button is not an access check.
+  cannot report (spec Q2 is still open). Who may open the list and the detail
+  is described under "Incident access scope (FO-F05-S07)". Hiding a button is
+  not an access check.
 - **Related job.** The incident is tied to a job, because a seat has no partner
   and `incidents.partner_id` is not null; the job carries the booking, the seat
   and the partner. The choices are the jobs RLS gives the user (a technician's
@@ -1149,11 +1148,10 @@ time at the airport and converted to UTC with `airports.timezone`.
   inspections). Admin/ops keep their policy and a partner user cannot insert.
   The booking status of the job is not checked, so an incident can be reported
   on a completed job.
-- **After saving.** A manager is taken to the incident detail. A technician has
-  no `incidents:view` yet (FO-F05-S07), so they go back to the job. Cancel goes
-  to the incident list for a manager and to the jobs for a technician. A
-  technician reaches the form from the "Report incident" link on the job
-  detail, which selects that job.
+- **After saving.** The reporter is taken to the incident detail (FO-F05-S07
+  lets a technician open the incidents they reported; at first they went back
+  to the job). Cancel goes to the incident list. A technician reaches the form
+  from the "Report incident" link on the job detail, which selects that job.
 - **Errors.** `P0002` shows as "no longer available", `42501` as "no longer has
   access", a network failure keeps the user's input (same handling as the work
   records). Raw database messages never reach the client.
@@ -1210,7 +1208,8 @@ time at the airport and converted to UTC with `airports.timezone`.
   append-only: no policy lets a client insert, update or delete, and a trigger
   rejects any change or delete, service role included. It follows that an
   incident with history cannot be deleted. Only admin and operations manager
-  read it until incident access is scoped for other roles (FO-F05-S07).
+  read it; FO-F05-S07 kept it that way (technician and partner users read no
+  history).
 - **Errors.** `42501` "no longer has access", `P0002` "not found or not within
   your access", `55000` invalid transition, `JB004` changed by someone else,
   `22023` missing or too long note. Raw database text never reaches the client.
@@ -1220,6 +1219,40 @@ time at the airport and converted to UTC with `airports.timezone`.
   deactivated manager, direct updates blocked, append-only history, who can read
   it) and the unit tests for the transitions, schema, action, dialog, history
   and detail page.
+
+## Incident access scope (FO-F05-S07)
+
+- **Who sees which rows.** RLS on `incidents` decides; the screens never
+  filter for access. Admin and operations manager read every incident. A
+  partner user reads the incidents of their own partner (`partner_id =
+  current_user_partner_id()`), and none when inactive because that function is
+  then null. A technician reads the incidents they reported and those reported
+  on a job assigned to them, and only while active.
+- **RLS changed** (migration `20261030090000_incident_select_scope.sql`).
+  `incidents_select_technician` now requires an active technician
+  (`current_user_role() = 'technician'`) and adds the assigned-job case. Before,
+  a deactivated technician could still read their incidents, and an incident
+  on their job reported by someone else was invisible to them.
+- **Who may open the screens.** `INCIDENTS_ACCESS_PERMISSIONS` is an any-of set
+  (`incidents:view`, `operations:view_own_partner`, `incidents:report`): the
+  list, the detail and the menu link are offered to managers, partner users and
+  technicians. The permission matrix is unchanged. Reporting still needs
+  `incidents:report` or `incidents:view`, and changing a status
+  `incidents:view` plus the database function, so a partner user is read-only.
+- **What each role sees on the detail.** A partner user gets no staff names (the
+  reporter and the resolver), no link to the job (they have no access to the
+  jobs) and no status history, and the page does not query the history for them.
+  A technician gets the job link but no history and no status control. Only a
+  manager sees the history and the Update status button. An incident outside
+  the user's scope, a missing one and a malformed id all show the same
+  forbidden state.
+- **After reporting**, every reporter is taken to the incident they made.
+- Covered by the "incident access scope (FO-F05-S07)" integration tests
+  (partner A and partner B each see only their own and cannot open the other's
+  by id, a deactivated partner user or technician sees nothing, the technician
+  sees the reported and the assigned ones and not another's, admin and ops see
+  all, a partner user cannot read the history or change a status) and the unit
+  tests for the permissions, the menu, the pages and the detail.
 
 ## Installation record errors (FO-F02-S05)
 

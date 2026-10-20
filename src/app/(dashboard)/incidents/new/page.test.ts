@@ -76,10 +76,13 @@ describe("NewIncidentPage", () => {
     },
   );
 
-  it("should send Cancel to the incident list for a manager and to the jobs for a technician", async () => {
-    expect(formProps(await element()).cancelHref).toBe("/incidents");
+  it.each([
+    ["admin"],
+    ["operations_manager"],
+    ["technician"],
+  ])("should send Cancel to the incident list for the %s role", async (role) => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role });
 
-    requireAnyPermissionMock.mockResolvedValue({ id: "t-1", role: "technician" });
-    expect(formProps(await element()).cancelHref).toBe("/jobs");
+    expect(formProps(await element()).cancelHref).toBe("/incidents");
   });
 });

@@ -4,10 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireAnyPermission } from "@/lib/auth/current-user";
-import {
-  INCIDENT_REPORT_PERMISSIONS,
-  hasPermission,
-} from "@/lib/auth/permissions";
+import { INCIDENT_REPORT_PERMISSIONS } from "@/lib/auth/permissions";
 import {
   VALIDATION_ERROR,
   mapJobError,
@@ -54,11 +51,7 @@ export async function reportIncidentAction(
     return { success: false, error: mapJobError(error) };
   }
 
-  // A technician cannot open the incident yet (they have no incidents:view),
-  // so they go back to the job they reported on.
-  redirect(
-    hasPermission(user.role, "incidents:view")
-      ? `/incidents/${data.id}`
-      : `/jobs/${parsed.data.job_id}`,
-  );
+  // Every reporter can open the incident they just made: RLS gives a
+  // technician the ones they reported, a manager every incident.
+  redirect(`/incidents/${data.id}`);
 }

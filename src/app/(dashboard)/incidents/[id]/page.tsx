@@ -29,9 +29,15 @@ export default async function IncidentDetailPage({
   const user = await requireAnyPermission(INCIDENTS_ACCESS_PERMISSIONS);
 
   const { id } = await params;
-  const [incident, { history, truncated }] = await Promise.all([
+  // Only managers change a status and read the history; nobody else needs
+  // the query.
+  const isManager = hasAnyPermission(
+    user.role,
+    INCIDENT_STATUS_UPDATE_PERMISSIONS,
+  );
+  const [incident, historyResult] = await Promise.all([
     getIncidentById(id),
-    getIncidentHistory(id),
+    isManager ? getIncidentHistory(id) : Promise.resolve(null),
   ]);
 
   if (!incident) {
@@ -52,18 +58,17 @@ export default async function IncidentDetailPage({
 
   // The control is hidden when the user has no permitted transition; the
   // database function enforces the same rules.
-  const allowedStatuses = hasAnyPermission(
-    user.role,
-    INCIDENT_STATUS_UPDATE_PERMISSIONS,
-  )
+  const allowedStatuses = isManager
     ? getAllowedIncidentTransitions(incident.status)
     : [];
 
   return (
     <IncidentDetail
       incident={incident}
-      history={history}
-      historyTruncated={truncated}
+      history={historyResult?.history ?? null}
+      historyTruncated={historyResult?.truncated ?? false}
+      // Staff names and the job are internal: a partner user sees neither.
+      showStaffDetails={user.role !== "partner_user"}
       allowedStatuses={allowedStatuses}
     />
   );

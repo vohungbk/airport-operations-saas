@@ -14,8 +14,14 @@ import type {
 
 interface IncidentDetailProps {
   incident: IncidentDetailItem;
-  history: IncidentHistoryItem[];
+  /** `null` hides the history: only managers read it. */
+  history: IncidentHistoryItem[] | null;
   historyTruncated: boolean;
+  /**
+   * False for a partner user: staff names and the link to the job are
+   * internal (a partner has no access to the jobs).
+   */
+  showStaffDetails: boolean;
   /** Transitions the current user may make; empty hides the control. */
   allowedStatuses: IncidentStatus[];
 }
@@ -42,6 +48,7 @@ export function IncidentDetail({
   incident,
   history,
   historyTruncated,
+  showStaffDetails,
   allowedStatuses,
 }: IncidentDetailProps) {
   return (
@@ -89,33 +96,44 @@ export function IncidentDetail({
           <Detail label="Booking">
             {incident.booking?.booking_number ?? "-"}
           </Detail>
-          <Detail label="Job">
-            {incident.technician_job_id ? (
-              <Link
-                href={`/jobs/${incident.technician_job_id}`}
-                className="text-primary underline-offset-4 hover:underline"
-              >
-                View job
-              </Link>
-            ) : (
-              "-"
-            )}
-          </Detail>
-          <Detail label="Reported by">
-            {incident.reporter?.full_name ?? "-"}
-          </Detail>
+          {showStaffDetails && (
+            <Detail label="Job">
+              {incident.technician_job_id ? (
+                <Link
+                  href={`/jobs/${incident.technician_job_id}`}
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  View job
+                </Link>
+              ) : (
+                "-"
+              )}
+            </Detail>
+          )}
+          {showStaffDetails && (
+            <Detail label="Reported by">
+              {incident.reporter?.full_name ?? "-"}
+            </Detail>
+          )}
           <Detail label="Reported at">{formatDateTime(incident.created_at)}</Detail>
           <Detail label="Updated at">{formatDateTime(incident.updated_at)}</Detail>
-          <Detail label="Resolved by">
-            {incident.resolver?.full_name ?? "-"}
-          </Detail>
+          {showStaffDetails && (
+            <Detail label="Resolved by">
+              {incident.resolver?.full_name ?? "-"}
+            </Detail>
+          )}
           <Detail label="Resolved at">
             {formatDateTime(incident.resolved_at)}
           </Detail>
         </dl>
       </section>
 
-      <IncidentHistoryTimeline history={history} truncated={historyTruncated} />
+      {history && (
+        <IncidentHistoryTimeline
+          history={history}
+          truncated={historyTruncated}
+        />
+      )}
     </div>
   );
 }
