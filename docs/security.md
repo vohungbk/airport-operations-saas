@@ -1309,6 +1309,51 @@ time at the airport and converted to UTC with `airports.timezone`.
   deactivated manager or technician, a job given to someone else) and the unit
   tests for `IncidentActionErrorAlert`, `mapIncidentError` and the report form.
 
+## Operations dashboard (VI-F01-S01)
+
+- **Where.** `/dashboard`, the page users land on after signing in, and a
+  "Dashboard" link in the menu for every role. `requireAnyPermission` with
+  `DASHBOARD_ACCESS_PERMISSIONS` (`dashboards:view`, `jobs:view_assigned`,
+  `operations:view_own_partner`) is the access check; the permission matrix is
+  unchanged. `/admin` ("Admin Operations") is a separate placeholder and was not
+  touched.
+- **What a figure is.** The number of rows of one table that match a filter, as
+  the viewer's RLS scope returns them: one `count` query per figure, run when
+  the page loads (no refresh interval, no stored value, no hardcoded value). The
+  service role is never used, so the scope is the viewer's, not the app's.
+  Source: `src/features/dashboard/lib/dashboard-metrics.ts`.
+
+  | Figure | Table | Rule (column = value) | Drills into |
+  |---|---|---|---|
+  | Available seats | `seats` | `status = available` | `/seats?status=available` |
+  | Quarantined seats | `seats` | `status = quarantine` | `/seats?status=quarantine` |
+  | Pending bookings | `bookings` | `status = pending` | `/bookings?status=pending` |
+  | Bookings in progress | `bookings` | `status = in_progress` | `/bookings?status=in_progress` |
+  | Assigned jobs | `technician_jobs` | `status = assigned` | `/jobs?status=assigned` |
+  | Jobs in progress | `technician_jobs` | `status = in_progress` | `/jobs?status=in_progress` |
+  | Open incidents | `incidents` | `status = open` | `/incidents?status=open` |
+  | Critical open incidents | `incidents` | `status = open` and `severity = critical` | `/incidents?status=open&severity=critical` |
+
+- **Who sees what.** A figure is shown to the roles that can open the list it
+  drills into. Admin and operations manager get all eight. A technician gets the
+  jobs and incidents in their scope. A partner user gets the bookings and
+  incidents of their own partner and no seat or job figure. A partner user who is
+  inactive counts zero, because the scope is then empty.
+- **Same rule as the list (spec E3).** The filter pairs of a figure are also the
+  query string of its link, so the count and the list use one rule. The
+  integration tests check each figure against the total of the list select.
+- **Honest states.** A figure that could not be read is marked "Unavailable" and
+  never shown as 0, with a note on the page; when every figure was read and all
+  are zero the page says there is no operational data yet; when none could be
+  read it says so. Loading and error states use the shared components.
+- Not in this story: financial figures, KPIs with targets and AI analysis
+  (VI-F04 to VI-F06), and a refresh interval (spec Q3: computed on load).
+- Covered by the "dashboard metrics (VI-F01-S01)" integration tests (platform
+  counts for admin and ops, partner A and partner B each counted over their own
+  partner, a technician over their own jobs, count equals list total, a
+  deactivated partner user counts nothing) and the unit tests for the metric
+  definitions, the count query, the page states and the tiles.
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone

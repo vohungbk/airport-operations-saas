@@ -128,6 +128,19 @@ export const INCIDENT_REPORT_PERMISSIONS = [
 ] as const satisfies readonly Permission[];
 
 /**
+ * Who may open the dashboard: managers (`dashboards:view`), technicians
+ * (`jobs:view_assigned`) and partner users (`operations:view_own_partner`).
+ * Each role sees only the metrics of the modules it can open, over the rows
+ * its RLS scope returns. The permission matrix is unchanged; this is an
+ * any-of set.
+ */
+export const DASHBOARD_ACCESS_PERMISSIONS = [
+  "dashboards:view",
+  "jobs:view_assigned",
+  "operations:view_own_partner",
+] as const satisfies readonly Permission[];
+
+/**
  * Who may change an incident's status: managers (`incidents:view`). The
  * permission matrix is unchanged; the database function checks the role too.
  */
