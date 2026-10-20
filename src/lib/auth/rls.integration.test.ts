@@ -3661,6 +3661,35 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(await incidentsOf(jobId)).toEqual([]);
     });
 
+    it("rejects the next report once the technician loses the job to someone else (P0002) and stores nothing (FO-F05-S09)", async () => {
+      // Not tracked for deletion: the reassignment writes a job event, so the
+      // job cannot be deleted afterwards. It is cancelled instead.
+      const jobId = await createJob(identities.technician.id);
+      createdJobIds.splice(createdJobIds.indexOf(jobId), 1);
+
+      try {
+        const reassign = await opsClient
+          .from("technician_jobs")
+          .update({ technician_id: OTHER_TECHNICIAN_ID })
+          .eq("id", jobId);
+        expect(reassign.error).toBeNull();
+
+        const { error } = await technicianClient
+          .from("incidents")
+          .insert(report(jobId));
+
+        expect(error?.code).toBe("P0002");
+        expect(await incidentsOf(jobId)).toEqual([]);
+      } finally {
+        await opsClient.rpc("change_technician_job_status", {
+          p_job_id: jobId,
+          p_from_status: "assigned",
+          p_to_status: "cancelled",
+          p_reason: "incident report test cleanup",
+        });
+      }
+    });
+
     it("rejects a severity outside the enum and stores nothing", async () => {
       const jobId = await createJob(identities.technician.id);
 
@@ -4083,6 +4112,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
 
       expect(error?.code).toBe("42501");
       expect((await incidentOf(id)).status).toBe("open");
+      expect(await historyOf(id)).toEqual([]);
     });
 
     it("blocks a direct update of the status and of who resolved it, even for an admin (55000)", async () => {
