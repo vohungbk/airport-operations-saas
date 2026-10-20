@@ -15,6 +15,8 @@ import { getJobs } from "@/features/jobs/lib/get-jobs";
 import { parseJobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
 import { seatsQuerySchema } from "@/features/seats/schemas/seats-query.schema";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
+import { requireAnyPermission } from "@/lib/auth/current-user";
+import { DASHBOARD_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { INCIDENT_DETAIL_SELECT } from "@/features/incidents/lib/get-incident-by-id";
 import { INCIDENT_LIST_SELECT } from "@/features/incidents/lib/get-incidents";
 import {
@@ -4907,6 +4909,69 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       }
 
       expect(results.map((result) => result.value)).toEqual([0, 0, 0, 0]);
+    });
+  });
+
+  describe("dashboard access revoked while the screen is open (VI-F01-S06)", () => {
+    const redirectTarget = (error: unknown) =>
+      (error as { digest?: string }).digest ?? String(error);
+
+    async function openDashboard(client: SupabaseClient<Database>) {
+      listClient.current = client;
+      try {
+        return await requireAnyPermission(DASHBOARD_ACCESS_PERMISSIONS);
+      } finally {
+        listClient.current = null;
+      }
+    }
+
+    it("a partner user who is deactivated meanwhile is sent to forbidden on the next request, and is let in again when restored", async () => {
+      const before = await openDashboard(partnerAClient);
+      expect(before.id).toBe(identities.partnerA.id);
+
+      const off = await adminClient
+        .from("users")
+        .update({ is_active: false })
+        .eq("id", identities.partnerA.id);
+      expect(off.error).toBeNull();
+
+      try {
+        // The session (JWT) is still valid; the profile read is what refuses.
+        const refused = await openDashboard(partnerAClient).then(
+          () => null,
+          (error: unknown) => error,
+        );
+        expect(redirectTarget(refused)).toContain("/forbidden");
+      } finally {
+        const restore = await adminClient
+          .from("users")
+          .update({ is_active: true })
+          .eq("id", identities.partnerA.id);
+        // A user left inactive would break every later test.
+        expect(restore.error).toBeNull();
+      }
+
+      const after = await openDashboard(partnerAClient);
+      expect(after.id).toBe(identities.partnerA.id);
+    });
+
+    it("a deactivation of partner A does not change what partner B is allowed to open", async () => {
+      const off = await adminClient
+        .from("users")
+        .update({ is_active: false })
+        .eq("id", identities.partnerA.id);
+      expect(off.error).toBeNull();
+
+      try {
+        const user = await openDashboard(partnerBClient);
+        expect(user.id).toBe(identities.partnerB.id);
+      } finally {
+        const restore = await adminClient
+          .from("users")
+          .update({ is_active: true })
+          .eq("id", identities.partnerA.id);
+        expect(restore.error).toBeNull();
+      }
     });
   });
 

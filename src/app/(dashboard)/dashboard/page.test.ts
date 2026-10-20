@@ -8,6 +8,10 @@ vi.mock("@/lib/auth/current-user", () => ({
   requireAnyPermission: requireAnyPermissionMock,
 }));
 
+vi.mock("@/features/dashboard/components/dashboard-retry-button", () => ({
+  DashboardRetryButton: () => "RETRY_BUTTON",
+}));
+
 vi.mock("@/features/dashboard/lib/get-dashboard-metrics", () => ({
   getDashboardMetrics: getMetricsMock,
 }));
@@ -115,6 +119,31 @@ describe("DashboardPage", () => {
     expect(html).toContain("Unavailable");
     expect(html).not.toContain(">0<");
     expect(html).toContain(">3<");
+  });
+
+  it("should offer a retry when some figures could not be read", async () => {
+    getMetricsMock.mockResolvedValue([
+      result("seats_available", null),
+      result("incidents_open", 3),
+    ]);
+
+    expect(await render()).toContain("RETRY_BUTTON");
+  });
+
+  it("should offer a retry when no figure could be read (network failure)", async () => {
+    getMetricsMock.mockResolvedValue([
+      result("seats_available", null),
+      result("incidents_open", null),
+    ]);
+
+    expect(await render()).toContain("RETRY_BUTTON");
+  });
+
+  it("should not offer a retry when every figure was read, or there is no data yet", async () => {
+    expect(await render()).not.toContain("RETRY_BUTTON");
+
+    getMetricsMock.mockResolvedValue([result("seats_available", 0)]);
+    expect(await render()).not.toContain("RETRY_BUTTON");
   });
 
   it("should say so when no figure could be read", async () => {

@@ -2,6 +2,7 @@ import { requireAnyPermission } from "@/lib/auth/current-user";
 import { DASHBOARD_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageEmpty } from "@/components/shared/page-state";
+import { DashboardRetryButton } from "@/features/dashboard/components/dashboard-retry-button";
 import { DashboardMetricsGrid } from "@/features/dashboard/components/dashboard-metrics-grid";
 import {
   getDashboardState,
@@ -31,7 +32,8 @@ function Heading() {
  * the page loads, never from a stored or hardcoded number. Gaps are said out
  * loud: a figure that could not be read is Unavailable, a module that is not
  * released is Not available yet, and a partner user with no partner gets a
- * note instead of a screen of zeros. None of them is shown as 0.
+ * note instead of a screen of zeros. None of them is shown as 0. When figures
+ * could not be read, the note offers a retry that counts them again.
  */
 export default async function DashboardPage() {
   const user = await requireAnyPermission(DASHBOARD_ACCESS_PERMISSIONS);
@@ -63,9 +65,12 @@ export default async function DashboardPage() {
           <AlertTitle>Some figures are unavailable</AlertTitle>
           <AlertDescription>
             {state === "unavailable"
-              ? "None of the figures could be read right now. Try again later."
+              ? "None of the figures could be read right now."
               : "Some figures could not be read and are marked Unavailable. The others are up to date."}
           </AlertDescription>
+          <div className="mt-2">
+            <DashboardRetryButton />
+          </div>
         </Alert>
       )}
 

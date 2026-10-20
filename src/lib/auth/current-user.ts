@@ -11,6 +11,9 @@ import {
 import type { Role } from "@/lib/auth/roles";
 import { FORBIDDEN_ROUTE, LOGIN_ROUTE } from "@/lib/constants/routes";
 
+/** PostgREST code for `.single()` finding no row. */
+const NO_ROW_ERROR_CODE = "PGRST116";
+
 export interface AppUser {
   id: string;
   email: string;
@@ -25,7 +28,8 @@ export interface AppUser {
  * the JWT via `getAuthUser()`, then does a single self-lookup row read on
  * `public.users` keyed by the caller's own verified id (never a list
  * query). Safe without RLS specifically because it is scoped to
- * `auth.uid()` of the caller — see `docs/security.md`. Wrapped in
+ * `auth.uid()` of the caller — see `docs/security.md`. A failed read (not a
+ * missing row) throws instead of returning `null`. Wrapped in
  * `cache()` so nested layouts (e.g. `(dashboard)` then `(admin)`) share
  * one DB round trip per request instead of one each.
  */
@@ -43,7 +47,15 @@ export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
     .eq("id", authUser.id)
     .single();
 
-  if (error || !data || !data.is_active) {
+  // "No such row" is a missing profile: not permitted. Any other error (the
+  // network, the database) says nothing about permission, so it must not be
+  // reported as "forbidden": it is thrown for the error boundary to offer a
+  // retry. It never grants access.
+  if (error && error.code !== NO_ROW_ERROR_CODE) {
+    throw new Error("Could not read the user profile");
+  }
+
+  if (!data || !data.is_active) {
     return null;
   }
 
