@@ -1278,6 +1278,37 @@ time at the airport and converted to UTC with `airports.timezone`.
   retired, another partner still gets nothing, a delete of a referenced seat is
   refused) and the unit tests for the list, the detail and the formatter.
 
+## Incident errors (FO-F05-S09)
+
+- **Conflict.** First change wins, never merged. Changing a status sends the
+  status the user was looking at; if the incident moved on, the function locks
+  the row and raises `JB004` ("changed by someone else"), the page refreshes to
+  the latest status, and the second person looks again and retries. Two
+  simultaneous changes let exactly one through. Reporting has no conflict: more
+  than one incident for the same job is valid.
+- **Network failure.** `runJobAction` turns a failed call into `NETWORK_ERROR`.
+  The report form and the status dialog stay mounted with what the user typed
+  (job, severity, description, new status, note) and can be submitted again. The
+  alert says the input is kept and offers no way out of the form.
+- **Permission or assignment lost while the screen is open.** The check is made
+  again on every call, in the database. A technician whose job was given to
+  someone else gets `P0002` when reporting; a technician or a manager who is
+  deactivated gets `42501` (tested). The alert says "no longer available" or "no
+  longer has access" and points back to the incident list. Nothing is stored:
+  no incident and no history row. `requireAnyPermission` in the Server Actions
+  is not the access check; the policy and the function are.
+- **Messages.** `IncidentActionErrorAlert` and `mapIncidentError` talk about the
+  incident, never about a job, and raw database text never reaches the client.
+  A retry can fix `STALE_DATA`, `INVALID_TRANSITION` and a network failure; for
+  `NOT_FOUND` and `FORBIDDEN` the only way on is back to the list.
+- Not covered by a test: clicking through the dialog in a browser (the hook that
+  refreshes the page after `JB004` has no unit test, as for the job status
+  dialog); the database and the alert are tested on their own.
+- Covered by the "update incident status (FO-F05-S06)" and "report incident
+  (FO-F05-S04)" integration tests (simultaneous changes, stale status, a
+  deactivated manager or technician, a job given to someone else) and the unit
+  tests for `IncidentActionErrorAlert`, `mapIncidentError` and the report form.
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone
