@@ -3770,18 +3770,27 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       },
     );
 
-    it.each(STATUSES.map((status) => [status]))(
-      "admin updates an incident to the status %s",
-      async (status) => {
-        const id = await seed();
+    // The status changes only through change_incident_status() (FO-F05-S06);
+    // an incident with a history row cannot be deleted, so these stay behind.
+    it.each([
+      ["open", "investigating"],
+      ["open", "resolved"],
+      ["investigating", "resolved"],
+      ["resolved", "closed"],
+    ] as const)(
+      "admin moves an incident from %s to %s through the function",
+      async (from, to) => {
+        const id = await seed({ status: from });
 
-        const { error } = await adminClient
-          .from("incidents")
-          .update({ status })
-          .eq("id", id);
+        const { error } = await adminClient.rpc("change_incident_status", {
+          p_incident_id: id,
+          p_from_status: from,
+          p_to_status: to,
+        });
 
         expect(error).toBeNull();
-        expect((await stored(id)).status).toBe(status);
+        expect((await stored(id)).status).toBe(to);
+        createdIds.splice(createdIds.indexOf(id), 1);
       },
     );
 
@@ -3838,6 +3847,336 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       } finally {
         await service.from("incidents").delete().eq("technician_job_id", job!.id);
         await service.from("technician_jobs").delete().eq("id", job!.id);
+      }
+    });
+  });
+
+  describe("update incident status (FO-F05-S06)", () => {
+    // An incident with a history row cannot be deleted (the log is
+    // append-only), so the incidents these tests change are left behind, like
+    // the job events of the job tests. Every query asks for them by id.
+    type Status = Database["public"]["Enums"]["incident_status"];
+
+    async function seed(status: Status = "open") {
+      const { data, error } = await service
+        .from("incidents")
+        .insert({
+          partner_id: PARTNER_A_ID,
+          booking_id: BOOKING_A_ID,
+          type: "seat_damage",
+          severity: "medium",
+          status,
+          description: "RLS status change test incident",
+          reported_by: identities.technician.id,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
+    }
+
+    const change = (
+      client: SupabaseClient<Database>,
+      id: string,
+      from: Status,
+      to: Status,
+      note?: string,
+    ) =>
+      client.rpc("change_incident_status", {
+        p_incident_id: id,
+        p_from_status: from,
+        p_to_status: to,
+        p_note: note,
+      });
+
+    const incidentOf = async (id: string) =>
+      (await service.from("incidents").select("*").eq("id", id).single()).data!;
+
+    const historyOf = async (id: string) =>
+      (
+        await service
+          .from("incident_status_history")
+          .select("*")
+          .eq("incident_id", id)
+          .order("created_at", { ascending: true })
+      ).data!;
+
+    it("ops moves an incident open, investigating, resolved, closed and every change is kept in the history", async () => {
+      const id = await seed("open");
+
+      expect((await change(opsClient, id, "open", "investigating", "On it")).error).toBeNull();
+      expect((await change(opsClient, id, "investigating", "resolved")).error).toBeNull();
+      expect((await change(opsClient, id, "resolved", "closed", "Done")).error).toBeNull();
+
+      const history = await historyOf(id);
+      expect(
+        history.map((h) => [h.from_status, h.to_status, h.notes, h.user_id]),
+      ).toEqual([
+        ["open", "investigating", "On it", identities.opsManager.id],
+        ["investigating", "resolved", null, identities.opsManager.id],
+        ["resolved", "closed", "Done", identities.opsManager.id],
+      ]);
+      expect((await incidentOf(id)).status).toBe("closed");
+    });
+
+    it("sets who resolved the incident and when, and keeps it when the incident is closed", async () => {
+      const id = await seed("investigating");
+
+      await change(opsClient, id, "investigating", "resolved");
+      const resolved = await incidentOf(id);
+      await change(opsClient, id, "resolved", "closed");
+      const closed = await incidentOf(id);
+
+      expect(resolved.resolved_by).toBe(identities.opsManager.id);
+      expect(resolved.resolved_at).not.toBeNull();
+      expect(closed.resolved_by).toBe(resolved.resolved_by);
+      expect(closed.resolved_at).toBe(resolved.resolved_at);
+    });
+
+    it("admin can change the status too", async () => {
+      const id = await seed("open");
+
+      const { error } = await change(adminClient, id, "open", "resolved");
+
+      expect(error).toBeNull();
+      expect((await incidentOf(id)).resolved_by).toBe(identities.admin.id);
+      expect((await historyOf(id))[0].user_id).toBe(identities.admin.id);
+    });
+
+    it("needs a note to reopen a resolved incident (22023), then clears who resolved it", async () => {
+      const id = await seed("open");
+      await change(opsClient, id, "open", "resolved");
+
+      const noNote = await change(opsClient, id, "resolved", "investigating");
+      const blank = await change(opsClient, id, "resolved", "investigating", "   ");
+      expect(noNote.error?.code).toBe("22023");
+      expect(blank.error?.code).toBe("22023");
+      expect((await incidentOf(id)).status).toBe("resolved");
+
+      const reopened = await change(
+        opsClient,
+        id,
+        "resolved",
+        "investigating",
+        "The seat failed again",
+      );
+      expect(reopened.error).toBeNull();
+
+      const row = await incidentOf(id);
+      const history = await historyOf(id);
+      expect(row.status).toBe("investigating");
+      expect(row.resolved_by).toBeNull();
+      expect(row.resolved_at).toBeNull();
+      expect(history.at(-1)).toMatchObject({
+        from_status: "resolved",
+        to_status: "investigating",
+        notes: "The seat failed again",
+      });
+    });
+
+    it.each([
+      ["open", "closed"],
+      ["open", "open"],
+      ["investigating", "open"],
+      ["investigating", "closed"],
+      ["resolved", "open"],
+      ["closed", "open"],
+      ["closed", "investigating"],
+      ["closed", "resolved"],
+    ] as const)(
+      "rejects the transition from %s to %s (55000) and records nothing",
+      async (from, to) => {
+        const id = await seed(from);
+
+        const { error } = await change(opsClient, id, from, to, "note");
+
+        expect(error?.code).toBe("55000");
+        expect((await incidentOf(id)).status).toBe(from);
+        expect(await historyOf(id)).toEqual([]);
+      },
+    );
+
+    it("rejects a change when the incident moved on since it was loaded (JB004) and records nothing more", async () => {
+      const id = await seed("open");
+      await change(opsClient, id, "open", "investigating");
+
+      const stale = await change(adminClient, id, "open", "resolved");
+
+      expect(stale.error?.code).toBe("JB004");
+      expect((await incidentOf(id)).status).toBe("investigating");
+      expect(await historyOf(id)).toHaveLength(1);
+    });
+
+    it("lets exactly one of two simultaneous changes through (JB004) and records one row", async () => {
+      const id = await seed("open");
+
+      const [byOps, byAdmin] = await Promise.all([
+        change(opsClient, id, "open", "investigating"),
+        change(adminClient, id, "open", "resolved"),
+      ]);
+
+      const errors = [byOps.error, byAdmin.error];
+      expect(errors.filter((e) => e === null)).toHaveLength(1);
+      expect(errors.find((e) => e !== null)?.code).toBe("JB004");
+      expect(await historyOf(id)).toHaveLength(1);
+    });
+
+    it("rejects a note over 500 characters (22023)", async () => {
+      const id = await seed("open");
+
+      const { error } = await change(
+        opsClient,
+        id,
+        "open",
+        "investigating",
+        "x".repeat(501),
+      );
+
+      expect(error?.code).toBe("22023");
+      expect(await historyOf(id)).toEqual([]);
+    });
+
+    it("gives P0002 for an incident that does not exist", async () => {
+      const { error } = await change(
+        opsClient,
+        "c0000000-0000-0000-0000-00000000dead",
+        "open",
+        "investigating",
+      );
+
+      expect(error?.code).toBe("P0002");
+    });
+
+    it.each([
+      ["technician", () => technicianClient],
+      ["partner user", () => partnerAClient],
+    ])("%s cannot change the status (42501) and nothing is recorded", async (_role, getClient) => {
+      const id = await seed("open");
+
+      const { error } = await change(getClient(), id, "open", "investigating");
+
+      expect(error?.code).toBe("42501");
+      expect((await incidentOf(id)).status).toBe("open");
+      expect(await historyOf(id)).toEqual([]);
+    });
+
+    it("rejects a change from an operations manager who is deactivated meanwhile (42501)", async () => {
+      const id = await seed("open");
+      // Only an admin may change is_active (a trigger enforces it).
+      const off = await adminClient
+        .from("users")
+        .update({ is_active: false })
+        .eq("id", identities.opsManager.id);
+      expect(off.error).toBeNull();
+
+      let error: { code?: string } | null = null;
+      try {
+        ({ error } = await change(opsClient, id, "open", "investigating"));
+      } finally {
+        const restore = await adminClient
+          .from("users")
+          .update({ is_active: true })
+          .eq("id", identities.opsManager.id);
+        // A user left inactive would break every later test.
+        expect(restore.error).toBeNull();
+      }
+
+      expect(error?.code).toBe("42501");
+      expect((await incidentOf(id)).status).toBe("open");
+    });
+
+    it("blocks a direct update of the status and of who resolved it, even for an admin (55000)", async () => {
+      const id = await seed("open");
+
+      const status = await adminClient
+        .from("incidents")
+        .update({ status: "closed" })
+        .eq("id", id);
+      const resolver = await adminClient
+        .from("incidents")
+        .update({ resolved_by: identities.admin.id })
+        .eq("id", id);
+      const resolvedAt = await adminClient
+        .from("incidents")
+        .update({ resolved_at: new Date().toISOString() })
+        .eq("id", id);
+
+      expect(status.error?.code).toBe("55000");
+      expect(resolver.error?.code).toBe("55000");
+      expect(resolvedAt.error?.code).toBe("55000");
+      const row = await incidentOf(id);
+      expect(row.status).toBe("open");
+      expect(row.resolved_by).toBeNull();
+      expect(await historyOf(id)).toEqual([]);
+    });
+
+    it("still lets an admin edit the other columns directly", async () => {
+      const id = await seed("open");
+
+      const { error } = await adminClient
+        .from("incidents")
+        .update({ description: "Edited by an admin" })
+        .eq("id", id);
+
+      expect(error).toBeNull();
+      expect((await incidentOf(id)).description).toBe("Edited by an admin");
+    });
+
+    it("keeps the history append-only: nobody can change or delete a row", async () => {
+      const id = await seed("open");
+      await change(opsClient, id, "open", "investigating", "Original");
+      const [entry] = await historyOf(id);
+
+      for (const client of [adminClient, opsClient]) {
+        await client
+          .from("incident_status_history")
+          .update({ notes: "tampered" })
+          .eq("id", entry.id);
+        await client.from("incident_status_history").delete().eq("id", entry.id);
+      }
+      const viaService = await service
+        .from("incident_status_history")
+        .update({ notes: "tampered" })
+        .eq("id", entry.id);
+      const deleteViaService = await service
+        .from("incident_status_history")
+        .delete()
+        .eq("id", entry.id);
+
+      expect(viaService.error?.code).toBe("55000");
+      expect(deleteViaService.error?.code).toBe("55000");
+      expect(await historyOf(id)).toEqual([entry]);
+    });
+
+    it("does not let a client insert a history row directly", async () => {
+      const id = await seed("open");
+
+      const { error } = await adminClient.from("incident_status_history").insert({
+        incident_id: id,
+        to_status: "closed",
+      });
+
+      expect(error).not.toBeNull();
+      expect(await historyOf(id)).toEqual([]);
+    });
+
+    it("lets admin and operations manager read the history and nobody else", async () => {
+      const id = await seed("open");
+      await change(opsClient, id, "open", "investigating");
+
+      const read = (client: SupabaseClient<Database>) =>
+        client.from("incident_status_history").select("id").eq("incident_id", id);
+
+      for (const client of [adminClient, opsClient]) {
+        const { data, error } = await read(client);
+        expect(error).toBeNull();
+        expect(data).toHaveLength(1);
+      }
+      // The technician reported it and partner A owns it, and still see none.
+      for (const client of [technicianClient, partnerAClient, partnerBClient]) {
+        const { data, error } = await read(client);
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
       }
     });
   });
