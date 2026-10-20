@@ -23,6 +23,23 @@ describe("DASHBOARD_METRICS", () => {
     }
   });
 
+  it("should write each formula so that it names every value the count filters on", () => {
+    for (const metric of DASHBOARD_METRICS) {
+      for (const value of Object.values(metric.filters)) {
+        expect(
+          metric.formula,
+          `${metric.id}: formula does not mention "${value}"`,
+        ).toContain(value.replaceAll("_", " "));
+      }
+    }
+  });
+
+  it("should not give two metrics the same formula", () => {
+    const formulas = DASHBOARD_METRICS.map((metric) => metric.formula);
+
+    expect(new Set(formulas).size).toBe(formulas.length);
+  });
+
   it("should only filter on values of the enums, so a count and its list can agree", () => {
     const statuses: Record<string, readonly string[]> = {
       seats: Constants.public.Enums.seat_status,

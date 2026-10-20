@@ -1321,7 +1321,10 @@ time at the airport and converted to UTC with `airports.timezone`.
   the viewer's RLS scope returns them: one `count` query per figure, run when
   the page loads (no refresh interval, no stored value, no hardcoded value). The
   service role is never used, so the scope is the viewer's, not the app's.
-  Source: `src/features/dashboard/lib/dashboard-metrics.ts`.
+  Source: `src/features/dashboard/lib/dashboard-metrics.ts`. The table below
+  is checked against that file by `dashboard-formulas-doc.test.ts` (label,
+  table, rule and link), and each written formula must name the values it
+  filters on, so a change to a metric must change the table too (VI-F01-S05).
 
   | Figure | Table | Rule (column = value) | Drills into |
   |---|---|---|---|
