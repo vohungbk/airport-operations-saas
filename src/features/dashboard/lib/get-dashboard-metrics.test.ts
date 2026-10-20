@@ -105,3 +105,56 @@ describe("getDashboardMetrics", () => {
     expect(valueOf("incidents_open")).toBe(4);
   });
 });
+
+describe("getDashboardMetrics with a module that is not released", () => {
+  it("should make no query for it and give it no figure, not a zero", async () => {
+    const tables: string[] = [];
+    const client = fakeClient((table) => {
+      tables.push(table);
+      return { count: 6, error: null };
+    });
+
+    const results = await getDashboardMetrics("admin", client, {
+      inventory: false,
+      bookings: true,
+      jobs: true,
+      incidents: true,
+    });
+    const seats = results.filter((r) => r.metric.source === "seats");
+
+    expect(seats.length).toBeGreaterThan(0);
+    for (const seat of seats) {
+      expect(seat.value).toBeNull();
+      expect(seat.reason).toBe("not_released");
+    }
+    expect(tables).not.toContain("seats");
+    expect(results.find((r) => r.metric.id === "incidents_open")).toMatchObject({
+      value: 6,
+    });
+  });
+
+  it("should tell a module that is not released from a read that failed", async () => {
+    const client = fakeClient(() => ({ count: null, error: { code: "XX000" } }));
+
+    const results = await getDashboardMetrics("admin", client, {
+      inventory: false,
+      bookings: true,
+      jobs: true,
+      incidents: true,
+    });
+    const seat = results.find((r) => r.metric.id === "seats_available")!;
+    const booking = results.find((r) => r.metric.id === "bookings_pending")!;
+
+    expect(seat.reason).toBe("not_released");
+    expect(booking.value).toBeNull();
+    expect(booking.reason).toBeUndefined();
+  });
+
+  it("should read every module while all of them are released, which is how it ships", async () => {
+    const client = fakeClient(() => ({ count: 1, error: null }));
+
+    const results = await getDashboardMetrics("admin", client);
+
+    expect(results.every((r) => r.value === 1 && r.reason === undefined)).toBe(true);
+  });
+});

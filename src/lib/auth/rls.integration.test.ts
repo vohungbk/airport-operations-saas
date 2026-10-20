@@ -4817,6 +4817,35 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       }
     });
 
+    it("a module that is not released is not queried and gets no figure, while the other modules still match the data (VI-F01-S03)", async () => {
+      const tables: string[] = [];
+      const spy = {
+        from: (table: string) => {
+          tables.push(table);
+          return adminClient.from(table as never);
+        },
+      } as unknown as SupabaseClient<Database>;
+
+      const results = await getDashboardMetrics("admin", spy, {
+        inventory: false,
+        bookings: true,
+        jobs: true,
+        incidents: true,
+      });
+
+      expect(tables).not.toContain("seats");
+      for (const result of results.filter((r) => r.metric.source === "seats")) {
+        expect(result.value).toBeNull();
+        expect(result.reason).toBe("not_released");
+      }
+      expect(valueOf(results, "incidents_open")).toBe(
+        await truth("incidents", { status: "open" }),
+      );
+      expect(valueOf(results, "bookings_pending")).toBe(
+        await truth("bookings", { status: "pending" }),
+      );
+    });
+
     it("a partner user who is deactivated meanwhile counts nothing, a zero from the scope and not a made-up figure", async () => {
       const off = await adminClient
         .from("users")

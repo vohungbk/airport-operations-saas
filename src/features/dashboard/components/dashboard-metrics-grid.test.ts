@@ -21,6 +21,20 @@ describe("DashboardMetricsGrid", () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
+  it("should keep a figure that is not available yet in its module and label it", () => {
+    const html = render(
+      all.map((result) =>
+        result.metric.module === "inventory"
+          ? { ...result, value: null as never, reason: "not_released" as const }
+          : result,
+      ),
+    );
+
+    expect(html).toContain(">Inventory<");
+    expect(html).toContain("Not available yet");
+    expect(html).not.toContain('href="/seats');
+  });
+
   it("should leave out the section of a module that has no tile", () => {
     const html = render(all.filter(({ metric }) => metric.module !== "inventory"));
 
