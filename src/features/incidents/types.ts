@@ -34,3 +34,13 @@ export interface IncidentDetailItem {
   reporter: { full_name: string } | null;
   resolver: { full_name: string } | null;
 }
+
+/** One entry of the incident history: a status change. */
+export interface IncidentHistoryItem {
+  id: string;
+  from_status: IncidentStatus | null;
+  to_status: IncidentStatus;
+  notes: string | null;
+  created_at: string;
+  actor_name: string | null;
+}

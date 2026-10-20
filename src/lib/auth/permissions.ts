@@ -122,6 +122,14 @@ export const INCIDENT_REPORT_PERMISSIONS = [
 ] as const satisfies readonly Permission[];
 
 /**
+ * Who may change an incident's status: managers (`incidents:view`). The
+ * permission matrix is unchanged; the database function checks the role too.
+ */
+export const INCIDENT_STATUS_UPDATE_PERMISSIONS = [
+  "incidents:view",
+] as const satisfies readonly Permission[];
+
+/**
  * Who may change a job's status: technicians (own jobs, scoped by RLS) and
  * managers (any job). Cancelling is further limited to managers in the
  * database function.
