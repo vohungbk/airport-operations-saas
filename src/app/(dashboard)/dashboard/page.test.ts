@@ -8,6 +8,12 @@ vi.mock("@/lib/auth/current-user", () => ({
   requireAnyPermission: requireAnyPermissionMock,
 }));
 
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn((url: string) => {
+    throw new Error(`REDIRECT:${url}`);
+  }),
+}));
+
 vi.mock("@/features/dashboard/components/dashboard-retry-button", () => ({
   DashboardRetryButton: () => "RETRY_BUTTON",
 }));
@@ -158,33 +164,36 @@ describe("DashboardPage", () => {
     expect(html).not.toContain("No operational data yet");
   });
 
-  it("should tell a partner user who is not linked to a partner so, and read no figure", async () => {
-    requireAnyPermissionMock.mockResolvedValue({
-      id: "p-1",
-      role: "partner_user",
-      partner_id: null,
-    });
-
-    const html = await render();
-
-    expect(html).toContain("Your account is not linked to a partner yet");
-    expect(html).not.toContain("No operational data yet");
-    expect(html).not.toContain(">0<");
-    expect(getMetricsMock).not.toHaveBeenCalled();
-  });
-
-  it("should show the figures to a partner user who is linked to a partner", async () => {
+  it("should send a partner user to the partner home without reading any figure", async () => {
     requireAnyPermissionMock.mockResolvedValue({
       id: "p-1",
       role: "partner_user",
       partner_id: "partner-a",
     });
 
-    const html = await render();
-
-    expect(html).not.toContain("not linked to a partner");
-    expect(getMetricsMock).toHaveBeenCalledWith("partner_user");
+    await expect(render()).rejects.toThrow("REDIRECT:/partner");
+    expect(getMetricsMock).not.toHaveBeenCalled();
   });
+
+  it("should send a partner user with no partner to the partner home too, which says so", async () => {
+    requireAnyPermissionMock.mockResolvedValue({
+      id: "p-1",
+      role: "partner_user",
+      partner_id: null,
+    });
+
+    await expect(render()).rejects.toThrow("REDIRECT:/partner");
+  });
+
+  it.each(["admin", "operations_manager", "technician"] as const)(
+    "should keep the %s role on the dashboard",
+    async (role) => {
+      requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role, partner_id: null });
+
+      await expect(render()).resolves.toContain("Dashboard");
+      expect(getMetricsMock).toHaveBeenCalledWith(role);
+    },
+  );
 
   it("should say some figures are not available yet and keep them out of the counts", async () => {
     getMetricsMock.mockResolvedValue([
