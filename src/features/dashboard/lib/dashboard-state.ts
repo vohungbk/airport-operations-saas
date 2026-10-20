@@ -1,5 +1,4 @@
 import type { DashboardMetricResult } from "@/features/dashboard/lib/get-dashboard-metrics";
-import type { Role } from "@/lib/auth/roles";
 
 export type DashboardState =
   /** Every metric was read and at least one is above zero. */
@@ -44,16 +43,4 @@ export function hasUnreleasedMetrics(
   results: readonly DashboardMetricResult[],
 ): boolean {
   return results.some((result) => result.reason === "not_released");
-}
-
-/**
- * A partner user who is not linked to a partner gets no rows from RLS, so
- * every figure would be 0. That is a gap in the account, not an empty
- * business: the page says so instead of showing zeros.
- */
-export function isUnlinkedPartner(user: {
-  role: Role;
-  partner_id: string | null;
-}): boolean {
-  return user.role === "partner_user" && user.partner_id === null;
 }

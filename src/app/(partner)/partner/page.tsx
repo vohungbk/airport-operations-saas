@@ -1,34 +1,80 @@
 import { requirePermission } from "@/lib/auth/current-user";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { DashboardFigures } from "@/features/dashboard/components/dashboard-figures";
+import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
+import { PartnerHomeNav } from "@/features/partners/components/partner-home-nav";
+import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
+
+interface HeadingProps {
+  title: string;
+  subtitle: string;
+}
+
+function Heading({ title, subtitle }: HeadingProps) {
+  return (
+    <div className="flex flex-col gap-1">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+        {title}
+      </h1>
+      <p className="text-sm text-muted-foreground">{subtitle}</p>
+    </div>
+  );
+}
 
 /**
- * Placeholder only — proves the `bookings:view_own_partner` guard works
- * end to end and demonstrates the partner-isolation pattern every real
- * partner-scoped query in this area must follow later: `partner_id ===
- * null` means "no partner assigned yet" (safe empty state), never
- * "unrestricted / see everyone". No Supabase table query happens here —
- * no partner/booking CRUD is in scope for F04.
+ * The partner home (VI-F03-S01), where a partner user lands after sign-in.
+ * The scope is never taken from the request: the partner is the one on the
+ * signed-in user's own profile, and every read goes through RLS, so another
+ * partner's id cannot be reached from here. The figures are the partner
+ * figures of the dashboard (same formulas, same gaps said out loud). An account
+ * with no partner reads nothing and says so (spec E2).
  */
 export default async function PartnerPage() {
   const user = await requirePermission("bookings:view_own_partner");
 
+  if (user.partner_id === null) {
+    return (
+      <div className="flex flex-1 flex-col gap-6 p-8">
+        <Heading title="Partner home" subtitle="Your organization." />
+        <Alert>
+          <AlertTitle>Your account is not linked to a partner yet</AlertTitle>
+          <AlertDescription>
+            There is nothing to show until it is linked. Ask an administrator
+            to link your account to your partner.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const [summary, results] = await Promise.all([
+    getPartnerSummary(user.partner_id),
+    getDashboardMetrics(user.role),
+  ]);
+
+  if (summary === null) {
+    return (
+      <div className="flex flex-1 flex-col gap-6 p-8">
+        <Heading title="Partner home" subtitle="Your organization." />
+        <Alert variant="destructive">
+          <AlertTitle>Your partner could not be found</AlertTitle>
+          <AlertDescription>
+            Nothing is shown for it. Contact your administrator if this keeps
+            happening.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-1 flex-col gap-2 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        Partner Portal
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        Signed in as {user.email} (role: {user.role}).
-      </p>
-      {user.partner_id ? (
-        <p className="text-sm text-muted-foreground">
-          Partner: {user.partner_id}
-        </p>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          No partner is assigned to this account yet. Contact your
-          administrator to get access to partner data.
-        </p>
-      )}
+    <div className="flex flex-1 flex-col gap-6 p-8">
+      <Heading
+        title={summary.name}
+        subtitle={`Partner ${summary.code}. Counts for your organization, as of now.`}
+      />
+      <PartnerHomeNav />
+      <DashboardFigures results={results} />
     </div>
   );
 }

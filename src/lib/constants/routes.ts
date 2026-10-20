@@ -9,6 +9,13 @@ export const LOGIN_ROUTE = "/login";
 export const DASHBOARD_ROUTE = "/dashboard";
 
 /**
+ * The home of a partner user. Every sign-in lands on `/dashboard`, which sends
+ * a partner user here, so the one rule works for login, signup, email
+ * confirmation and password reset alike.
+ */
+export const PARTNER_HOME_ROUTE = "/partner";
+
+/**
  * Shown for both "authenticated but not permitted" (role/permission
  * check failed) and "invalid/missing profile" (session exists but
  * `public.users` row is missing/inactive) — see
