@@ -42,8 +42,13 @@ export function DashboardMetricsGrid({ results }: DashboardMetricsGridProps) {
               {DASHBOARD_MODULE_LABEL[module]}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {inModule.map(({ metric, value }) => (
-                <MetricTile key={metric.id} metric={metric} value={value} />
+              {inModule.map(({ metric, value, reason }) => (
+                <MetricTile
+                  key={metric.id}
+                  metric={metric}
+                  value={value}
+                  notReleased={reason === "not_released"}
+                />
               ))}
             </div>
           </section>

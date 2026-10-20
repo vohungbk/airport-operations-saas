@@ -1356,10 +1356,20 @@ time at the airport and converted to UTC with `airports.timezone`.
     technician.
   A role is never taken to a list it cannot open, because the tile is not shown
   to it; the list also guards itself, so a typed address is refused.
-- **Honest states.** A figure that could not be read is marked "Unavailable" and
-  never shown as 0, with a note on the page; when every figure was read and all
-  are zero the page says there is no operational data yet; when none could be
-  read it says so. Loading and error states use the shared components.
+- **Data gaps (VI-F01-S03).** Nothing is ever shown as 0 unless it was counted
+  as 0. There are three kinds of gap, and each says what it is:
+  - *A figure that could not be read* shows "Unavailable" and the page adds a
+    note; if none could be read it says so.
+  - *A module that is not released* (`DASHBOARD_MODULE_RELEASED` in
+    `dashboard-metrics.ts`; all four are released today) is not queried at all:
+    its figures show "Not available yet", with no number and no link, and the
+    page adds a note. Such a figure is neither a zero nor a failed read, so it
+    does not make the dashboard "empty" or "partial".
+  - *A partner user who is not linked to a partner* gets no rows from RLS, so
+    every figure would be 0. The page reads nothing and says "Your account is
+    not linked to a partner yet" instead of a screen of zeros.
+  When every figure that was read is zero the page says there is no operational
+  data yet. Loading and error states use the shared components.
 - Not in this story: financial figures, KPIs with targets and AI analysis
   (VI-F04 to VI-F06), and a refresh interval (spec Q3: computed on load).
 - Covered by the "dashboard metrics (VI-F01-S01)" integration tests (platform

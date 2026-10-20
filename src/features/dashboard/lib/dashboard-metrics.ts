@@ -16,6 +16,20 @@ export const DASHBOARD_MODULE_LABEL: Record<DashboardModule, string> = {
   incidents: "Incidents",
 };
 
+/**
+ * Whether the module behind a figure is released. A figure of a module that is
+ * not released is shown as not available yet: it is never counted, and never
+ * shown as 0 (spec E1). All four modules are released today; flip a flag to
+ * false while a module is still being built.
+ */
+export const DASHBOARD_MODULE_RELEASED: Readonly<Record<DashboardModule, boolean>> =
+  {
+    inventory: true,
+    bookings: true,
+    jobs: true,
+    incidents: true,
+  };
+
 /** The tables the dashboard counts; each is also the table of a list screen. */
 export type DashboardSource =
   | "seats"
