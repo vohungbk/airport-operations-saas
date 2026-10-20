@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CLEANING_RECORD_PERMISSIONS,
   INCIDENT_REPORT_PERMISSIONS,
+  INCIDENT_STATUS_UPDATE_PERMISSIONS,
   INSPECTION_RECORD_PERMISSIONS,
   hasAnyPermission,
   hasPermission,
@@ -203,4 +204,24 @@ describe("INCIDENT_REPORT_PERMISSIONS", () => {
   it("should not change the permission matrix: the operations manager still has no incidents:report", () => {
     expect(hasPermission("operations_manager", "incidents:report")).toBe(false);
   });
+});
+
+describe("INCIDENT_STATUS_UPDATE_PERMISSIONS", () => {
+  it.each([["admin"], ["operations_manager"]] as const)(
+    "should let the %s role change an incident's status",
+    (role) => {
+      expect(hasAnyPermission(role, INCIDENT_STATUS_UPDATE_PERMISSIONS)).toBe(
+        true,
+      );
+    },
+  );
+
+  it.each([["technician"], ["partner_user"]] as const)(
+    "should not let the %s role change an incident's status",
+    (role) => {
+      expect(hasAnyPermission(role, INCIDENT_STATUS_UPDATE_PERMISSIONS)).toBe(
+        false,
+      );
+    },
+  );
 });

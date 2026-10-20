@@ -441,6 +441,51 @@ export type Database = {
           },
         ]
       }
+      incident_status_history: {
+        Row: {
+          created_at: string
+          from_status: Database["public"]["Enums"]["incident_status"] | null
+          id: string
+          incident_id: string
+          notes: string | null
+          to_status: Database["public"]["Enums"]["incident_status"]
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["incident_status"] | null
+          id?: string
+          incident_id: string
+          notes?: string | null
+          to_status: Database["public"]["Enums"]["incident_status"]
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["incident_status"] | null
+          id?: string
+          incident_id?: string
+          notes?: string | null
+          to_status?: Database["public"]["Enums"]["incident_status"]
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_status_history_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_status_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incidents: {
         Row: {
           booking_id: string | null
@@ -1324,6 +1369,36 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      change_incident_status: {
+        Args: {
+          p_from_status: Database["public"]["Enums"]["incident_status"]
+          p_incident_id: string
+          p_note?: string
+          p_to_status: Database["public"]["Enums"]["incident_status"]
+        }
+        Returns: {
+          booking_id: string | null
+          created_at: string
+          description: string
+          id: string
+          partner_id: string
+          reported_by: string
+          resolved_at: string | null
+          resolved_by: string | null
+          seat_id: string | null
+          severity: Database["public"]["Enums"]["incident_severity"]
+          status: Database["public"]["Enums"]["incident_status"]
+          technician_job_id: string | null
+          type: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "incidents"
           isOneToOne: true
           isSetofReturn: false
         }

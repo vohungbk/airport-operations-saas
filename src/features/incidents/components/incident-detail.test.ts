@@ -1,9 +1,21 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
+
+vi.mock("@/features/incidents/actions/change-incident-status.action", () => ({
+  changeIncidentStatusAction: vi.fn(),
+}));
 
 import { IncidentDetail } from "@/features/incidents/components/incident-detail";
-import type { IncidentDetailItem } from "@/features/incidents/types";
+import type {
+  IncidentDetailItem,
+  IncidentHistoryItem,
+} from "@/features/incidents/types";
+import type { IncidentStatus } from "@/features/incidents/lib/incident-status";
 
 function incident(
   overrides: Partial<IncidentDetailItem> = {},
@@ -27,9 +39,21 @@ function incident(
   };
 }
 
-function render(item: IncidentDetailItem = incident()) {
+function render(
+  item: IncidentDetailItem = incident(),
+  options: {
+    history?: IncidentHistoryItem[];
+    historyTruncated?: boolean;
+    allowedStatuses?: IncidentStatus[];
+  } = {},
+) {
   return renderToStaticMarkup(
-    createElement(IncidentDetail, { incident: item }),
+    createElement(IncidentDetail, {
+      incident: item,
+      history: options.history ?? [],
+      historyTruncated: options.historyTruncated ?? false,
+      allowedStatuses: options.allowedStatuses ?? [],
+    }),
   );
 }
 
@@ -95,7 +119,34 @@ describe("IncidentDetail", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 
-  it("should not offer to change the status on this screen", () => {
-    expect(render()).not.toContain("Update status");
+  it("should offer Update status when the user has a permitted transition", () => {
+    expect(render(incident(), { allowedStatuses: ["resolved"] })).toContain(
+      "Update status",
+    );
+  });
+
+  it("should not offer Update status when there is no permitted transition", () => {
+    expect(render(incident({ status: "closed" }))).not.toContain(
+      "Update status",
+    );
+  });
+
+  it("should show the history of the incident", () => {
+    const html = render(incident(), {
+      history: [
+        {
+          id: "h-1",
+          from_status: "open",
+          to_status: "investigating",
+          notes: "Looking into it",
+          created_at: "2026-10-17T09:00:00Z",
+          actor_name: "Fatima",
+        },
+      ],
+    });
+
+    expect(html).toContain("History");
+    expect(html).toContain("Fatima");
+    expect(html).toContain("Looking into it");
   });
 });

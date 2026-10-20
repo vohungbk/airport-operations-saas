@@ -2,12 +2,22 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { ChangeIncidentStatusDialog } from "@/features/incidents/components/change-incident-status-dialog";
+import { IncidentHistoryTimeline } from "@/features/incidents/components/incident-history-timeline";
 import { IncidentSeverityBadge } from "@/features/incidents/components/incident-severity-badge";
 import { IncidentStatusBadge } from "@/features/incidents/components/incident-status-badge";
-import type { IncidentDetailItem } from "@/features/incidents/types";
+import type { IncidentStatus } from "@/features/incidents/lib/incident-status";
+import type {
+  IncidentDetailItem,
+  IncidentHistoryItem,
+} from "@/features/incidents/types";
 
 interface IncidentDetailProps {
   incident: IncidentDetailItem;
+  history: IncidentHistoryItem[];
+  historyTruncated: boolean;
+  /** Transitions the current user may make; empty hides the control. */
+  allowedStatuses: IncidentStatus[];
 }
 
 function formatDateTime(value: string | null): string {
@@ -24,10 +34,16 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * Read-only. Changing the status is a later story (FO-F05-S06). The
- * description is free text: it is rendered as text, never as markup.
+ * The only edit here is the status, through the dialog and the database
+ * function behind it. The description is free text: it is rendered as text,
+ * never as markup.
  */
-export function IncidentDetail({ incident }: IncidentDetailProps) {
+export function IncidentDetail({
+  incident,
+  history,
+  historyTruncated,
+  allowedStatuses,
+}: IncidentDetailProps) {
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
       <div className="flex items-start justify-between gap-4">
@@ -40,12 +56,22 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
             <IncidentStatusBadge status={incident.status} />
           </div>
         </div>
-        <Link
-          href="/incidents"
-          className={buttonVariants({ variant: "outline" })}
-        >
-          Back to incidents
-        </Link>
+        <div className="flex items-center gap-2">
+          {allowedStatuses.length > 0 && (
+            <ChangeIncidentStatusDialog
+              incidentId={incident.id}
+              incidentLabel={incident.type}
+              currentStatus={incident.status}
+              allowedStatuses={allowedStatuses}
+            />
+          )}
+          <Link
+            href="/incidents"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Back to incidents
+          </Link>
+        </div>
       </div>
 
       <section className="flex flex-col gap-3">
@@ -88,6 +114,8 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
           </Detail>
         </dl>
       </section>
+
+      <IncidentHistoryTimeline history={history} truncated={historyTruncated} />
     </div>
   );
 }

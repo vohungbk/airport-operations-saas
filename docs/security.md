@@ -1176,12 +1176,50 @@ time at the airport and converted to UTC with `airports.timezone`.
   severity outside the enum. The database is the last layer: a value outside
   the enum is rejected with `22P02` on insert and on update, and the row is
   left unchanged.
-- **Updates.** Only an admin has an UPDATE policy on `incidents` today. Which
-  status changes are allowed, and who may make them, is FO-F05-S06.
+- **Updates.** Only an admin has an UPDATE policy on `incidents`. Which status
+  changes are allowed, and who may make them, is decided by
+  `change_incident_status()` (see "Update incident status (FO-F05-S06)").
 - Covered by the "incident status and severity models (FO-F05-S05)"
   integration tests (every status and severity saved, values outside the enum
   rejected on insert and update, a status sent when reporting ignored) and the
   enum tests in `src/features/incidents/lib/incident-enums.test.ts`.
+
+## Update incident status (FO-F05-S06)
+
+- **Rule (spec open question Q1).** The status changes only through
+  `change_incident_status(incident, from_status, to_status, note)`:
+  `open` to `investigating` or `resolved`; `investigating` to `resolved`;
+  `resolved` to `closed`, or back to `investigating` (reopening, which needs a
+  note); `closed` is the end. Becoming `resolved` sets `resolved_by` and
+  `resolved_at`; reopening clears them; closing keeps them. The lists in
+  `incident-status.ts` mirror the function, which is the authority.
+- **Who.** An active admin or operations manager. The function is SECURITY
+  DEFINER and checks the caller itself, because the UPDATE policy on
+  `incidents` is admin-only and was not widened. A technician or a partner user
+  gets `42501`. The page offers the control only to `incidents:view` holders and
+  only when a transition exists; hiding it is not the access check.
+- **No shortcut.** A trigger rejects a direct change of `status`,
+  `resolved_by` or `resolved_at` (`55000`), admin included. Other columns are
+  unchanged by this story.
+- **Stale data.** The caller sends the status they were looking at. If the
+  incident moved on, the function raises `JB004` and the screen refreshes, so
+  a second person never overwrites the first without seeing it. The row is
+  locked, so two simultaneous changes let one through.
+- **History.** `incident_status_history` keeps one row per change (who, from,
+  to, note, time), written by a trigger in the same transaction. It is
+  append-only: no policy lets a client insert, update or delete, and a trigger
+  rejects any change or delete, service role included. It follows that an
+  incident with history cannot be deleted. Only admin and operations manager
+  read it until incident access is scoped for other roles (FO-F05-S07).
+- **Errors.** `42501` "no longer has access", `P0002` "not found or not within
+  your access", `55000` invalid transition, `JB004` changed by someone else,
+  `22023` missing or too long note. Raw database text never reaches the client.
+- Covered by the "update incident status (FO-F05-S06)" integration tests (the
+  full path, resolver set and kept, reopen with and without a note, invalid
+  transitions, stale data, two simultaneous changes, technician, partner and a
+  deactivated manager, direct updates blocked, append-only history, who can read
+  it) and the unit tests for the transitions, schema, action, dialog, history
+  and detail page.
 
 ## Installation record errors (FO-F02-S05)
 
