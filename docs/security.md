@@ -1254,6 +1254,30 @@ time at the airport and converted to UTC with `airports.timezone`.
   all, a partner user cannot read the history or change a status) and the unit
   tests for the permissions, the menu, the pages and the detail.
 
+## Incident seat reference (FO-F05-S08)
+
+- **Rule (spec E1).** An incident keeps the seat it refers to when the seat is
+  deactivated. A seat is never deactivated by a flag: it is retired (`status`
+  `retired`, terminal), and the app has no way to delete a seat. Retiring one
+  does not touch `incidents`, so the incident stays visible and its `seat_id`
+  stays.
+- **The reference cannot be dropped by a delete.** `incidents.seat_id` was `ON
+  DELETE SET NULL`, so a delete done by maintenance or a service role would
+  have removed the reference silently. Migration
+  `20261031090000_incident_seat_reference_restrict.sql` makes it `ON DELETE
+  RESTRICT`, like `inspection_records`, `cleaning_records` and
+  `seat_status_history`: such a delete fails with `23503` and the reference is
+  kept. `booking_id` and `technician_job_id` keep `ON DELETE SET NULL`.
+- **Screens.** The list and the detail show the serial number of the seat and
+  mark a retired seat, for example `SN-2 (Retired)`. Who can read the seat row
+  is unchanged (seats RLS): a partner user and a technician see it through
+  the booking they have access to.
+- Covered by the "incident seat reference (FO-F05-S08)" integration tests (the
+  incident and its `seat_id` after the seat is retired, read by admin, ops, the
+  partner of the booking and the assigned technician with the seat marked
+  retired, another partner still gets nothing, a delete of a referenced seat is
+  refused) and the unit tests for the list, the detail and the formatter.
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone
