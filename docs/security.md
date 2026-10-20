@@ -1342,6 +1342,20 @@ time at the airport and converted to UTC with `airports.timezone`.
 - **Same rule as the list (spec E3).** The filter pairs of a figure are also the
   query string of its link, so the count and the list use one rule. The
   integration tests check each figure against the total of the list select.
+- **Drill-down (VI-F01-S02).** Selecting a tile opens the list it counts, with the
+  filter of the figure in the link. Three things keep the count and the list on
+  one rule, and a mismatch is a defect:
+  - the link is built from the same filter pairs as the count, and a unit test
+    parses every link with the parser of the destination list page and checks
+    that exactly those filters survive (a list drops a filter it does not
+    recognise, which would silently widen the list);
+  - the lists add no hidden filter of their own, only the ones in the link;
+  - an integration test runs the real list function (`getSeats`, `getBookings`,
+    `getJobs`, `getIncidents`) with the client of each role and compares its
+    total with the figure: admin, operations manager, partner A, partner B and
+    technician.
+  A role is never taken to a list it cannot open, because the tile is not shown
+  to it; the list also guards itself, so a typed address is refused.
 - **Honest states.** A figure that could not be read is marked "Unavailable" and
   never shown as 0, with a note on the page; when every figure was read and all
   are zero the page says there is no operational data yet; when none could be
