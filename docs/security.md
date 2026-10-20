@@ -1370,6 +1370,20 @@ time at the airport and converted to UTC with `airports.timezone`.
     not linked to a partner yet" instead of a screen of zeros.
   When every figure that was read is zero the page says there is no operational
   data yet. Loading and error states use the shared components.
+- **Role scope (VI-F01-S04).** The role only chooses which figures are shown
+  (`getMetricsForRole`); it is not the tenant boundary. Every count runs with
+  the viewer's own client, so RLS decides the rows. Tests prove it:
+  - a raised role (`admin` metrics read with a partner's or a technician's
+    client) gives the same figures as the honest role and never the platform
+    total;
+  - a partner user with no partner counts zero from the scope;
+  - for every role, a figure is shown only if the role holds a permission of
+    the list it opens (`it.each(ROLES)`, so a new role is caught);
+  - for every role, a menu link is shown exactly when the module behind it
+    opens for that role (`src/config/nav-access.test.ts` runs each module's
+    real guard with the real permission rules). Menu and guard cannot drift.
+  No role is refused the dashboard today: managers, technicians and partner
+  users may all open it.
 - Not in this story: financial figures, KPIs with targets and AI analysis
   (VI-F04 to VI-F06), and a refresh interval (spec Q3: computed on load).
 - Covered by the "dashboard metrics (VI-F01-S01)" integration tests (platform
