@@ -1,12 +1,19 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
 import { JOB_DETAIL_SELECT } from "@/features/jobs/lib/get-job-by-id";
 import { JOB_LIST_SELECT as JOB_LIST_QUERY_SELECT } from "@/features/jobs/lib/get-jobs";
 import { buildIncidentsQueryFilters } from "@/features/incidents/lib/build-incidents-query-filters";
-import { BOOKING_LIST_SELECT } from "@/features/bookings/lib/get-bookings";
-import { SEAT_LIST_SELECT } from "@/features/seats/lib/get-seats";
+import { BOOKING_LIST_SELECT, getBookings } from "@/features/bookings/lib/get-bookings";
+import { SEAT_LIST_SELECT, getSeats } from "@/features/seats/lib/get-seats";
+import { bookingsQuerySchema } from "@/features/bookings/schemas/bookings-query.schema";
+import { getMetricHref } from "@/features/dashboard/lib/dashboard-metrics";
+import { getIncidents } from "@/features/incidents/lib/get-incidents";
+import { parseIncidentsQuery } from "@/features/incidents/schemas/incidents-query.schema";
+import { getJobs } from "@/features/jobs/lib/get-jobs";
+import { parseJobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
+import { seatsQuerySchema } from "@/features/seats/schemas/seats-query.schema";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
 import { INCIDENT_DETAIL_SELECT } from "@/features/incidents/lib/get-incident-by-id";
 import { INCIDENT_LIST_SELECT } from "@/features/incidents/lib/get-incidents";
@@ -41,6 +48,20 @@ import {
  * reachable, so `npm test` stays runnable for a dev who hasn't started it
  * - see getLocalSupabaseConfig(). Run `npx supabase start` first.
  */
+// The list functions read through `createClient()`, which needs a request. The
+// drill-down tests point it at the client of the role being tested; everywhere
+// else it is the real one.
+const listClient = vi.hoisted(() => ({ current: null as unknown }));
+
+vi.mock("@/lib/supabase/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase/server")>();
+
+  return {
+    ...actual,
+    createClient: async () => listClient.current ?? actual.createClient(),
+  };
+});
+
 const config = getLocalSupabaseConfig();
 
 // Seeded from supabase/seed.sql - fixed literal uuids, stable across
@@ -4729,6 +4750,70 @@ describe.skipIf(!config)("F05 RLS integration", () => {
             expect(count).toBe(value);
           }
         }
+      }
+    });
+
+    it("a figure equals the total of the list it opens, run by the real list function, for every role (spec E3)", async () => {
+      const cases = [
+        ["admin", adminClient],
+        ["operations_manager", opsClient],
+        ["partner_user", partnerAClient],
+        ["partner_user", partnerBClient],
+        ["technician", technicianClient],
+      ] as const;
+
+      try {
+        for (const [role, client] of cases) {
+          const results = await getDashboardMetrics(role, client);
+          listClient.current = client;
+
+          for (const { metric, value } of results) {
+            // The link, parsed by the parser the list page itself uses.
+            const raw = Object.fromEntries(
+              new URL(getMetricHref(metric), "http://localhost").searchParams,
+            );
+            let total: number;
+
+            if (metric.source === "seats") {
+              total = (await getSeats(seatsQuerySchema.parse(raw))).total;
+            } else if (metric.source === "bookings") {
+              total = (await getBookings(bookingsQuerySchema.parse(raw))).total;
+            } else if (metric.source === "technician_jobs") {
+              total = (await getJobs(parseJobsQuery(raw).query)).total;
+            } else {
+              total = (await getIncidents(parseIncidentsQuery(raw).query)).total;
+            }
+
+            expect(value, `${role}: ${metric.id}`).not.toBeNull();
+            expect(total, `${role}: ${metric.id}`).toBe(value);
+          }
+        }
+      } finally {
+        listClient.current = null;
+      }
+    });
+
+    it("partner A and partner B open the same link and each get the total of their own partner's list", async () => {
+      const link = new URL("/bookings?status=pending", "http://localhost");
+      const query = bookingsQuerySchema.parse(
+        Object.fromEntries(link.searchParams),
+      );
+      const totals: Record<string, number> = {};
+
+      try {
+        for (const [name, client, partnerId] of [
+          ["A", partnerAClient, PARTNER_A_ID],
+          ["B", partnerBClient, PARTNER_B_ID],
+        ] as const) {
+          listClient.current = client;
+          totals[name] = (await getBookings(query)).total;
+
+          expect(totals[name]).toBe(
+            await truth("bookings", { status: "pending", partner_id: partnerId }),
+          );
+        }
+      } finally {
+        listClient.current = null;
       }
     });
 
