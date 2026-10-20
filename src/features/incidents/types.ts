@@ -1,3 +1,4 @@
+import type { IncidentSeatRef } from "@/features/incidents/lib/incident-seat";
 import type { IncidentSeverity } from "@/features/incidents/lib/incident-severity";
 import type { IncidentStatus } from "@/features/incidents/lib/incident-status";
 
@@ -9,7 +10,7 @@ export interface IncidentListItem {
   status: IncidentStatus;
   description: string;
   created_at: string;
-  seat: { serial_number: string } | null;
+  seat: IncidentSeatRef | null;
   booking: { booking_number: string } | null;
   reporter: { full_name: string } | null;
 }
@@ -29,7 +30,7 @@ export interface IncidentDetailItem {
   resolved_at: string | null;
   technician_job_id: string | null;
   partner: { name: string } | null;
-  seat: { serial_number: string } | null;
+  seat: IncidentSeatRef | null;
   booking: { booking_number: string } | null;
   reporter: { full_name: string } | null;
   resolver: { full_name: string } | null;

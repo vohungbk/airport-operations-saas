@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { IncidentSeverityBadge } from "@/features/incidents/components/incident-severity-badge";
 import { IncidentStatusBadge } from "@/features/incidents/components/incident-status-badge";
+import { formatIncidentSeat } from "@/features/incidents/lib/incident-seat";
 import { buildIncidentsHref } from "@/features/incidents/lib/build-incidents-href";
 import type {
   IncidentsQuery,
@@ -97,7 +98,7 @@ export function IncidentsTable({ incidents, query }: IncidentsTableProps) {
               {incident.description}
             </TableCell>
             <TableCell>
-              {incident.seat?.serial_number ??
+              {formatIncidentSeat(incident.seat) ??
                 incident.booking?.booking_number ??
                 "—"}
             </TableCell>

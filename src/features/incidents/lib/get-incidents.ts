@@ -13,7 +13,7 @@ export interface GetIncidentsResult {
  * lookup. Explicit columns: no partner, no resolver, no contact data.
  */
 export const INCIDENT_LIST_SELECT =
-  "id, type, severity, status, description, created_at, seat:seats(serial_number), booking:bookings(booking_number), reporter:users!reported_by(full_name)";
+  "id, type, severity, status, description, created_at, seat:seats(serial_number, status), booking:bookings(booking_number), reporter:users!reported_by(full_name)";
 
 /**
  * Server-only. RLS is the access boundary: admin/ops read every incident, a
