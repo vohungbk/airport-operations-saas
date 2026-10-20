@@ -54,6 +54,10 @@ describe("getIncidentById", () => {
     expect(eq).toHaveBeenCalledWith("id", INCIDENT_ID);
   });
 
+  it("should select the status of the seat so a retired seat can be marked", () => {
+    expect(INCIDENT_DETAIL_SELECT).toContain("seat:seats(serial_number, status)");
+  });
+
   it("should not select user emails or partner contact and commercial data", () => {
     expect(INCIDENT_DETAIL_SELECT).not.toMatch(/email|phone|contact|share|rate/);
   });

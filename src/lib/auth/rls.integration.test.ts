@@ -4361,6 +4361,203 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  describe("incident seat reference (FO-F05-S08)", () => {
+    // A retired seat is terminal and every seat has a history that blocks a
+    // delete, and the bookings and the incident keep references to it, so the
+    // rows made here are left behind (every query asks for them by id).
+    const CATEGORY_ID = "c0000000-0000-0000-0000-000000000001";
+    const AIRPORT_ID = "a0000000-0000-0000-0000-000000000001";
+    const day = 86_400_000;
+
+    let seatId = "";
+    let bookingId = "";
+    let incidentId = "";
+    let jobId = "";
+
+    const uniq = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    async function newSeat(label: string) {
+      const { data, error } = await adminClient
+        .from("seats")
+        .insert({
+          serial_number: `RLS-S08-${label}-${uniq()}`,
+          manufacturer: "Britax",
+          model: "RLS Test Model",
+          category_id: CATEGORY_ID,
+          airport_id: AIRPORT_ID,
+          manufacture_date: "2025-01-15",
+          purchase_date: "2025-02-01",
+          max_rental_cycles: 100,
+        })
+        .select("id, serial_number")
+        .single();
+      if (error) throw error;
+      return data;
+    }
+
+    const read = (client: SupabaseClient<Database>, id: string) =>
+      client
+        .from("incidents")
+        .select(INCIDENT_DETAIL_SELECT)
+        .eq("id", id)
+        .maybeSingle();
+
+    const seatOf = (row: unknown) =>
+      (row as { seat: { serial_number: string; status: string } | null } | null)
+        ?.seat ?? null;
+
+    let serial = "";
+
+    beforeAll(async () => {
+      const seat = await newSeat("kept");
+      seatId = seat.id;
+      serial = seat.serial_number;
+
+      const booking = await opsClient.rpc("create_booking", {
+        p_partner_id: PARTNER_A_ID,
+        p_airport_id: AIRPORT_ID,
+        p_seat_category_id: CATEGORY_ID,
+        p_pickup_at: new Date(Date.now() + day).toISOString(),
+        p_return_at: new Date(Date.now() + 2 * day).toISOString(),
+        p_daily_rate: 75,
+        p_assigned_seat_id: seatId,
+      });
+      if (booking.error) throw booking.error;
+      bookingId = booking.data.id;
+
+      const job = await service
+        .from("technician_jobs")
+        .insert({
+          booking_id: bookingId,
+          technician_id: identities.technician.id,
+          job_type: "inspection",
+          status: "assigned",
+        })
+        .select("id")
+        .single();
+      if (job.error) throw job.error;
+      jobId = job.data.id;
+
+      const incident = await service
+        .from("incidents")
+        .insert({
+          partner_id: PARTNER_A_ID,
+          technician_job_id: job.data.id,
+          type: "seat_damage",
+          severity: "high",
+          description: "RLS seat reference test incident",
+          reported_by: OTHER_TECHNICIAN_ID,
+        })
+        .select("id, seat_id, booking_id")
+        .single();
+      if (incident.error) throw incident.error;
+      incidentId = incident.data.id;
+      expect(incident.data.seat_id).toBe(seatId);
+
+      // The seat is retired after the incident was reported.
+      const retired = await adminClient.rpc("change_seat_status", {
+        p_seat_id: seatId,
+        p_to_status: "retired",
+        p_reason: "RLS seat reference test",
+      });
+      if (retired.error) throw retired.error;
+    });
+
+    afterAll(async () => {
+      // The job would show the technician a seat in the seat tests; deleting
+      // it leaves the incident and its seat reference as they are.
+      if (jobId) {
+        await service.from("technician_jobs").delete().eq("id", jobId);
+      }
+      if (bookingId) {
+        await opsClient.rpc("change_booking_status", {
+          p_booking_id: bookingId,
+          p_to_status: "cancelled",
+          p_reason: "incident seat reference test cleanup",
+        });
+      }
+    });
+
+    it("keeps the incident and its seat reference when the seat is retired", async () => {
+      const { data } = await service
+        .from("incidents")
+        .select("seat_id, booking_id")
+        .eq("id", incidentId)
+        .single();
+      const seat = await service
+        .from("seats")
+        .select("status")
+        .eq("id", seatId)
+        .single();
+
+      expect(seat.data!.status).toBe("retired");
+      expect(data).toEqual({ seat_id: seatId, booking_id: bookingId });
+    });
+
+    it.each([
+      ["admin", () => adminClient],
+      ["operations manager", () => opsClient],
+    ])("%s still opens the incident with the retired seat", async (_role, getClient) => {
+      const { data, error } = await read(getClient(), incidentId);
+
+      expect(error).toBeNull();
+      expect(seatOf(data)).toEqual({ serial_number: serial, status: "retired" });
+    });
+
+    it("the partner of the booking and the assigned technician still see the retired seat", async () => {
+      for (const client of [partnerAClient, technicianClient]) {
+        const { data, error } = await read(client, incidentId);
+
+        expect(error).toBeNull();
+        expect(seatOf(data)).toEqual({ serial_number: serial, status: "retired" });
+      }
+    });
+
+    it("another partner still gets nothing for the incident", async () => {
+      const { data, error } = await read(partnerBClient, incidentId);
+
+      expect(error).toBeNull();
+      expect(data).toBeNull();
+    });
+
+    it("refuses to delete a seat that an incident refers to and keeps the reference", async () => {
+      const seat = await newSeat("restrict");
+      const incident = await service
+        .from("incidents")
+        .insert({
+          partner_id: PARTNER_A_ID,
+          seat_id: seat.id,
+          type: "seat_damage",
+          severity: "low",
+          description: "RLS seat restrict test incident",
+          reported_by: identities.admin.id,
+        })
+        .select("id")
+        .single();
+      expect(incident.error).toBeNull();
+
+      try {
+        // The seat history would block the delete first; clear it so the
+        // incident is the only thing in the way.
+        await service.from("seat_status_history").delete().eq("seat_id", seat.id);
+
+        const del = await service.from("seats").delete().eq("id", seat.id);
+
+        expect(del.error?.code).toBe("23503");
+        expect(del.error?.message).toContain("incidents_seat_id_fkey");
+        const kept = await service
+          .from("incidents")
+          .select("seat_id")
+          .eq("id", incident.data!.id)
+          .single();
+        expect(kept.data!.seat_id).toBe(seat.id);
+      } finally {
+        await service.from("incidents").delete().eq("id", incident.data!.id);
+        await service.from("seats").delete().eq("id", seat.id);
+      }
+    });
+  });
+
   describe("technician list access (FO-F01-S01)", () => {
     it("admin and operations_manager can list technician users", async () => {
       for (const client of [adminClient, opsClient]) {
