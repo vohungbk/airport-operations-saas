@@ -35,6 +35,12 @@ vi.mock("@/lib/auth/current-user", async () => {
   };
 });
 
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    throw new Error(`REDIRECT:${url}`);
+  },
+}));
+
 vi.mock("@/components/layout/app-shell", () => ({ AppShell: () => null }));
 vi.mock("@/features/dashboard/lib/get-dashboard-metrics", () => ({
   getDashboardMetrics: async () => [],
@@ -70,6 +76,11 @@ async function opens(href: string, role: Role): Promise<boolean> {
   } catch (error) {
     if (error instanceof Error && error.message === "REDIRECT:/forbidden") {
       return false;
+    }
+    // The dashboard sends a partner user to their home: the link still opens
+    // a module for them, it is just not the dashboard.
+    if (error instanceof Error && error.message === "REDIRECT:/partner") {
+      return true;
     }
     throw error;
   }

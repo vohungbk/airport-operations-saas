@@ -4,7 +4,6 @@ import { DASHBOARD_METRICS } from "@/features/dashboard/lib/dashboard-metrics";
 import {
   getDashboardState,
   hasUnreleasedMetrics,
-  isUnlinkedPartner,
 } from "@/features/dashboard/lib/dashboard-state";
 
 const results = (...values: (number | null)[]) =>
@@ -74,18 +73,4 @@ describe("hasUnreleasedMetrics", () => {
     expect(hasUnreleasedMetrics(results(1, 2))).toBe(false);
     expect(hasUnreleasedMetrics([...results(1), notReleased(1)])).toBe(true);
   });
-});
-
-describe("isUnlinkedPartner", () => {
-  it("should be true only for a partner user with no partner", () => {
-    expect(isUnlinkedPartner({ role: "partner_user", partner_id: null })).toBe(true);
-    expect(isUnlinkedPartner({ role: "partner_user", partner_id: "p-1" })).toBe(false);
-  });
-
-  it.each([["admin"], ["operations_manager"], ["technician"]] as const)(
-    "should be false for the %s role, who has no partner by design",
-    (role) => {
-      expect(isUnlinkedPartner({ role, partner_id: null })).toBe(false);
-    },
-  );
 });

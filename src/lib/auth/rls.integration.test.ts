@@ -16,6 +16,7 @@ import { parseJobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
 import { seatsQuerySchema } from "@/features/seats/schemas/seats-query.schema";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
 import { requireAnyPermission } from "@/lib/auth/current-user";
+import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
 import { DASHBOARD_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { INCIDENT_DETAIL_SELECT } from "@/features/incidents/lib/get-incident-by-id";
 import { INCIDENT_LIST_SELECT } from "@/features/incidents/lib/get-incidents";
@@ -4971,6 +4972,61 @@ describe.skipIf(!config)("F05 RLS integration", () => {
           .update({ is_active: true })
           .eq("id", identities.partnerA.id);
         expect(restore.error).toBeNull();
+      }
+    });
+  });
+
+  describe("partner home (VI-F03-S01)", () => {
+    async function nameOf(partnerId: string) {
+      const { data, error } = await service
+        .from("partners")
+        .select("name, code")
+        .eq("id", partnerId)
+        .single();
+      expect(error).toBeNull();
+      return data!;
+    }
+
+    it("each partner user reads the name and code of their own partner", async () => {
+      expect(await getPartnerSummary(PARTNER_A_ID, partnerAClient)).toEqual(
+        await nameOf(PARTNER_A_ID),
+      );
+      expect(await getPartnerSummary(PARTNER_B_ID, partnerBClient)).toEqual(
+        await nameOf(PARTNER_B_ID),
+      );
+    });
+
+    it("a partner user cannot read another partner's summary, even by asking for its id", async () => {
+      expect(await getPartnerSummary(PARTNER_B_ID, partnerAClient)).toBeNull();
+      expect(await getPartnerSummary(PARTNER_A_ID, partnerBClient)).toBeNull();
+    });
+
+    it("a partner user with no partner, and a technician, read no partner summary", async () => {
+      for (const client of [partnerNullClient, technicianClient]) {
+        expect(await getPartnerSummary(PARTNER_A_ID, client)).toBeNull();
+        expect(await getPartnerSummary(PARTNER_B_ID, client)).toBeNull();
+      }
+    });
+
+    it("the figures on the home are those of the signed-in partner only", async () => {
+      for (const [client, partnerId] of [
+        [partnerAClient, PARTNER_A_ID],
+        [partnerBClient, PARTNER_B_ID],
+      ] as const) {
+        const results = await getDashboardMetrics("partner_user", client);
+        const pending = results.find((r) => r.metric.id === "bookings_pending");
+
+        expect(pending?.value).toBe(
+          await (async () => {
+            const { count, error } = await service
+              .from("bookings")
+              .select("id", { count: "exact", head: true })
+              .eq("status", "pending")
+              .eq("partner_id", partnerId);
+            expect(error).toBeNull();
+            return count;
+          })(),
+        );
       }
     });
   });
