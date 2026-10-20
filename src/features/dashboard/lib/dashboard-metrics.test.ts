@@ -5,6 +5,8 @@ import {
   getMetricHref,
   getMetricsForRole,
 } from "@/features/dashboard/lib/dashboard-metrics";
+import { hasAnyPermission } from "@/lib/auth/permissions";
+import { ROLES } from "@/lib/auth/roles";
 import { Constants } from "@/types/database.types";
 
 const idsFor = (role: Parameters<typeof getMetricsForRole>[0]) =>
@@ -65,6 +67,21 @@ describe("getMetricsForRole", () => {
       "incidents_critical_open",
     ]);
   });
+});
+
+describe("getMetricsForRole for every role (VI-F01-S04)", () => {
+  it.each(ROLES)(
+    "should give %s only the metrics of lists it holds a permission for",
+    (role) => {
+      const shown = new Set(getMetricsForRole(role).map((metric) => metric.id));
+
+      for (const metric of DASHBOARD_METRICS) {
+        expect(shown.has(metric.id), `${role}: ${metric.id}`).toBe(
+          hasAnyPermission(role, metric.permissions),
+        );
+      }
+    },
+  );
 });
 
 describe("getMetricHref", () => {

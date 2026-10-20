@@ -4846,6 +4846,47 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       );
     });
 
+    it("the role passed in is not the boundary: a raised role still counts only what the client's RLS scope returns (VI-F01-S04)", async () => {
+      for (const [client, partnerId] of [
+        [partnerAClient, PARTNER_A_ID],
+        [partnerBClient, PARTNER_B_ID],
+      ] as const) {
+        const raised = await getDashboardMetrics("admin", client);
+        const own = await getDashboardMetrics("partner_user", client);
+
+        // The partner's figures, not the platform's, whatever role was passed.
+        for (const { metric, value } of own) {
+          expect(valueOf(raised, metric.id), metric.id).toBe(value);
+        }
+        expect(valueOf(raised, "bookings_pending")).toBe(
+          await truth("bookings", { status: "pending", partner_id: partnerId }),
+        );
+        expect(valueOf(raised, "incidents_open")).toBe(
+          await truth("incidents", { status: "open", partner_id: partnerId }),
+        );
+      }
+
+      const raised = await getDashboardMetrics("admin", technicianClient);
+      expect(valueOf(raised, "jobs_assigned")).toBe(
+        await truth("technician_jobs", {
+          status: "assigned",
+          technician_id: identities.technician.id,
+        }),
+      );
+      expect(valueOf(raised, "jobs_in_progress")).toBe(
+        await truth("technician_jobs", {
+          status: "in_progress",
+          technician_id: identities.technician.id,
+        }),
+      );
+    });
+
+    it("a partner user with no partner counts nothing for any metric, a zero from the scope (VI-F01-S04)", async () => {
+      const results = await getDashboardMetrics("partner_user", partnerNullClient);
+
+      expect(results.map((result) => result.value)).toEqual([0, 0, 0, 0]);
+    });
+
     it("a partner user who is deactivated meanwhile counts nothing, a zero from the scope and not a made-up figure", async () => {
       const off = await adminClient
         .from("users")
