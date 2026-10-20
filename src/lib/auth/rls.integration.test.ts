@@ -5,6 +5,9 @@ import type { Database } from "@/types/database.types";
 import { JOB_DETAIL_SELECT } from "@/features/jobs/lib/get-job-by-id";
 import { JOB_LIST_SELECT as JOB_LIST_QUERY_SELECT } from "@/features/jobs/lib/get-jobs";
 import { buildIncidentsQueryFilters } from "@/features/incidents/lib/build-incidents-query-filters";
+import { BOOKING_LIST_SELECT } from "@/features/bookings/lib/get-bookings";
+import { SEAT_LIST_SELECT } from "@/features/seats/lib/get-seats";
+import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
 import { INCIDENT_DETAIL_SELECT } from "@/features/incidents/lib/get-incident-by-id";
 import { INCIDENT_LIST_SELECT } from "@/features/incidents/lib/get-incidents";
 import {
@@ -4585,6 +4588,170 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         await service.from("incidents").delete().eq("id", incident.data!.id);
         await service.from("seats").delete().eq("id", seat.id);
       }
+    });
+  });
+
+  describe("dashboard metrics (VI-F01-S01)", () => {
+    type Metrics = Awaited<ReturnType<typeof getDashboardMetrics>>;
+
+    const valueOf = (results: Metrics, id: string) =>
+      results.find((result) => result.metric.id === id)?.value;
+
+    // Ground truth: what the service role counts for the same rule.
+    async function truth(
+      table: "seats" | "bookings" | "technician_jobs" | "incidents",
+      filters: Record<string, string>,
+    ) {
+      let query = service.from(table).select("id", { count: "exact", head: true });
+      for (const [column, value] of Object.entries(filters)) {
+        query = query.eq(column as never, value as never);
+      }
+      const { count, error } = await query;
+      expect(error).toBeNull();
+      return count!;
+    }
+
+    it("admin and operations manager get every metric, counted over the whole platform", async () => {
+      for (const [role, client] of [
+        ["admin", adminClient],
+        ["operations_manager", opsClient],
+      ] as const) {
+        const results = await getDashboardMetrics(role, client);
+
+        expect(results).toHaveLength(8);
+        expect(valueOf(results, "seats_available")).toBe(
+          await truth("seats", { status: "available" }),
+        );
+        expect(valueOf(results, "bookings_pending")).toBe(
+          await truth("bookings", { status: "pending" }),
+        );
+        expect(valueOf(results, "jobs_assigned")).toBe(
+          await truth("technician_jobs", { status: "assigned" }),
+        );
+        expect(valueOf(results, "incidents_open")).toBe(
+          await truth("incidents", { status: "open" }),
+        );
+        expect(valueOf(results, "incidents_critical_open")).toBe(
+          await truth("incidents", { status: "open", severity: "critical" }),
+        );
+      }
+    });
+
+    it("a partner user is counted over their own partner only, and each partner gets their own figures", async () => {
+      const a = await getDashboardMetrics("partner_user", partnerAClient);
+      const b = await getDashboardMetrics("partner_user", partnerBClient);
+
+      for (const [results, partnerId] of [
+        [a, PARTNER_A_ID],
+        [b, PARTNER_B_ID],
+      ] as const) {
+        expect(valueOf(results, "bookings_pending")).toBe(
+          await truth("bookings", { status: "pending", partner_id: partnerId }),
+        );
+        expect(valueOf(results, "bookings_in_progress")).toBe(
+          await truth("bookings", { status: "in_progress", partner_id: partnerId }),
+        );
+        expect(valueOf(results, "incidents_open")).toBe(
+          await truth("incidents", { status: "open", partner_id: partnerId }),
+        );
+      }
+    });
+
+    it("a partner user has no seat or job figure", async () => {
+      const results = await getDashboardMetrics("partner_user", partnerAClient);
+      const ids = results.map((result) => result.metric.id);
+
+      expect(ids.some((id) => id.startsWith("seats_"))).toBe(false);
+      expect(ids.some((id) => id.startsWith("jobs_"))).toBe(false);
+    });
+
+    it("a technician is counted over their own jobs only", async () => {
+      const results = await getDashboardMetrics("technician", technicianClient);
+
+      expect(valueOf(results, "jobs_assigned")).toBe(
+        await truth("technician_jobs", {
+          status: "assigned",
+          technician_id: identities.technician.id,
+        }),
+      );
+      expect(valueOf(results, "jobs_in_progress")).toBe(
+        await truth("technician_jobs", {
+          status: "in_progress",
+          technician_id: identities.technician.id,
+        }),
+      );
+      expect(results.map((result) => result.metric.id)).toEqual([
+        "jobs_assigned",
+        "jobs_in_progress",
+        "incidents_open",
+        "incidents_critical_open",
+      ]);
+    });
+
+    it("a count equals the total of the list it drills into, for the same rule (spec E3)", async () => {
+      const cases = [
+        ["admin", adminClient],
+        ["partner_user", partnerAClient],
+        ["technician", technicianClient],
+      ] as const;
+
+      for (const [role, client] of cases) {
+        const results = await getDashboardMetrics(role, client);
+
+        for (const { metric, value } of results) {
+          if (metric.source === "incidents") {
+            let list = client
+              .from("incidents")
+              .select(INCIDENT_LIST_SELECT, { count: "exact", head: true });
+            for (const [column, filter] of Object.entries(metric.filters)) {
+              list = list.eq(column as never, filter as never);
+            }
+            const { count } = await list;
+            expect(count).toBe(value);
+          }
+
+          if (metric.source === "seats" || metric.source === "bookings") {
+            const { count } = await client
+              .from(metric.source)
+              .select(
+                metric.source === "seats" ? SEAT_LIST_SELECT : BOOKING_LIST_SELECT,
+                { count: "exact", head: true },
+              )
+              .eq("status", metric.filters.status as never);
+            expect(count).toBe(value);
+          }
+
+          if (metric.source === "technician_jobs") {
+            const { count } = await client
+              .from("technician_jobs")
+              .select(JOB_LIST_QUERY_SELECT, { count: "exact", head: true })
+              .eq("status", metric.filters.status as never);
+            expect(count).toBe(value);
+          }
+        }
+      }
+    });
+
+    it("a partner user who is deactivated meanwhile counts nothing, a zero from the scope and not a made-up figure", async () => {
+      const off = await adminClient
+        .from("users")
+        .update({ is_active: false })
+        .eq("id", identities.partnerA.id);
+      expect(off.error).toBeNull();
+
+      let results: Metrics = [];
+      try {
+        results = await getDashboardMetrics("partner_user", partnerAClient);
+      } finally {
+        const restore = await adminClient
+          .from("users")
+          .update({ is_active: true })
+          .eq("id", identities.partnerA.id);
+        // A user left inactive would break every later test.
+        expect(restore.error).toBeNull();
+      }
+
+      expect(results.map((result) => result.value)).toEqual([0, 0, 0, 0]);
     });
   });
 

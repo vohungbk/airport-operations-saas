@@ -2,6 +2,7 @@ import {
   Armchair,
   Boxes,
   CalendarCheck,
+  Gauge,
   Building2,
   ClipboardList,
   ListChecks,
@@ -15,6 +16,7 @@ import {
 
 import {
   BOOKINGS_ACCESS_PERMISSIONS,
+  DASHBOARD_ACCESS_PERMISSIONS,
   INCIDENTS_ACCESS_PERMISSIONS,
   JOBS_ACCESS_PERMISSIONS,
   hasAnyPermission,
@@ -37,6 +39,12 @@ export interface NavItem {
  * visibility.
  */
 export const NAV_ITEMS: NavItem[] = [
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    permission: DASHBOARD_ACCESS_PERMISSIONS,
+    icon: Gauge,
+  },
   {
     label: "Admin Operations",
     href: "/admin",
