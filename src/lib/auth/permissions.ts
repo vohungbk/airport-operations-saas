@@ -104,11 +104,17 @@ export const JOBS_ACCESS_PERMISSIONS = [
 ] as const satisfies readonly Permission[];
 
 /**
- * Who may enter `/incidents`: managers (`incidents:view`, all incidents).
- * Technician and partner scope is a later story (FO-F05-S07).
+ * Who may open the incident list and detail: managers (`incidents:view`, all
+ * incidents), partner users (`operations:view_own_partner`, their partner's
+ * incidents) and technicians (`incidents:report`, the ones they reported or
+ * that are on a job assigned to them). The permission matrix is unchanged;
+ * this is an any-of set. Which rows each role gets is decided by RLS on
+ * `incidents`, never by the screens.
  */
 export const INCIDENTS_ACCESS_PERMISSIONS = [
   "incidents:view",
+  "operations:view_own_partner",
+  "incidents:report",
 ] as const satisfies readonly Permission[];
 
 /**

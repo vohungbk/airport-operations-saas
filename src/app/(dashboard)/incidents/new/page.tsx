@@ -1,7 +1,8 @@
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import {
+  INCIDENTS_ACCESS_PERMISSIONS,
   INCIDENT_REPORT_PERMISSIONS,
-  hasPermission,
+  hasAnyPermission,
 } from "@/lib/auth/permissions";
 import { IncidentReportForm } from "@/features/incidents/components/incident-report-form";
 import { getIncidentJobOptions } from "@/features/incidents/lib/get-incident-job-options";
@@ -27,7 +28,7 @@ export default async function NewIncidentPage({
   // Only a job the user can report on is selected first.
   const requested = typeof params.job_id === "string" ? params.job_id : "";
   const initialJobId = jobs.some((job) => job.id === requested) ? requested : "";
-  const cancelHref = hasPermission(user.role, "incidents:view")
+  const cancelHref = hasAnyPermission(user.role, INCIDENTS_ACCESS_PERMISSIONS)
     ? "/incidents"
     : "/jobs";
 
