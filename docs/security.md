@@ -1340,8 +1340,9 @@ time at the airport and converted to UTC with `airports.timezone`.
 - **Who sees what.** A figure is shown to the roles that can open the list it
   drills into. Admin and operations manager get all eight. A technician gets the
   jobs and incidents in their scope. A partner user gets the bookings and
-  incidents of their own partner and no seat or job figure. A partner user who is
-  inactive counts zero, because the scope is then empty.
+  incidents of their own partner and no seat or job figure; they see them on the
+  partner home (`/partner`), because `/dashboard` sends a partner user there. A
+  partner user who is inactive counts zero, because the scope is then empty.
 - **Same rule as the list (spec E3).** The filter pairs of a figure are also the
   query string of its link, so the count and the list use one rule. The
   integration tests check each figure against the total of the list select.
@@ -1369,8 +1370,9 @@ time at the airport and converted to UTC with `airports.timezone`.
     page adds a note. Such a figure is neither a zero nor a failed read, so it
     does not make the dashboard "empty" or "partial".
   - *A partner user who is not linked to a partner* gets no rows from RLS, so
-    every figure would be 0. The page reads nothing and says "Your account is
-    not linked to a partner yet" instead of a screen of zeros.
+    every figure would be 0. The partner home reads nothing and says "Your
+    account is not linked to a partner yet" instead of a screen of zeros
+    (VI-F03-S01; a partner user no longer stays on `/dashboard`).
   When every figure that was read is zero the page says there is no operational
   data yet. Loading and error states use the shared components.
 - **Role scope (VI-F01-S04).** The role only chooses which figures are shown
@@ -1411,6 +1413,35 @@ time at the airport and converted to UTC with `airports.timezone`.
   partner, a technician over their own jobs, count equals list total, a
   deactivated partner user counts nothing) and the unit tests for the metric
   definitions, the count query, the page states and the tiles.
+
+## Partner home (VI-F03-S01)
+
+- **Where.** `/partner`, guarded by `bookings:view_own_partner` in the layout and
+  in the page. Every sign-in lands on `/dashboard`; for a `partner_user` that
+  page redirects to `/partner` after its own access check, so login, signup,
+  email confirmation and password reset all end on the partner home with one
+  rule. The other roles stay on the dashboard.
+- **Scope (spec R6).** The partner is the one on the signed-in user's profile,
+  never a value from the URL or the form. The name and code come from one read
+  of `partners` (`name, code` only, no contact or commercial data), and RLS
+  returns only the user's own row: asking for another partner's id gives
+  nothing. The figures are the partner figures of the dashboard (pending
+  bookings, bookings in progress, open and critical incidents), so the formulas
+  are the ones documented above. The raw partner id is not shown.
+- **States.** Loading (`loading.tsx`), error with retry (`error.tsx`, and the
+  Unavailable note with "Try again" for figures that could not be read), empty
+  (every figure read and zero), forbidden (the guard), and an account with no
+  partner (reads nothing, says so; spec E2). A partner row that cannot be seen
+  says "Your partner could not be found".
+- **Navigation (spec R2).** A Bookings card opens `/bookings`, the list a partner
+  user can already open (read-only, their partner's rows by RLS). The Seats card
+  says "Not available yet" and has no link: the partner seats view is
+  VI-F03-S04, and the home does not point at a page that is not there. Booking
+  actions for partners are VI-F03-S03.
+- Covered by unit tests (page states, navigation, summary read, redirect from the
+  dashboard) and the "partner home (VI-F03-S01)" integration tests (each partner
+  reads its own summary, another partner's id gives nothing, no partner and
+  technician read nothing).
 
 ## Installation record errors (FO-F02-S05)
 
