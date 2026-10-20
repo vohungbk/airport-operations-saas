@@ -129,6 +129,68 @@ describe("DashboardPage", () => {
     expect(html).not.toContain("No operational data yet");
   });
 
+  it("should tell a partner user who is not linked to a partner so, and read no figure", async () => {
+    requireAnyPermissionMock.mockResolvedValue({
+      id: "p-1",
+      role: "partner_user",
+      partner_id: null,
+    });
+
+    const html = await render();
+
+    expect(html).toContain("Your account is not linked to a partner yet");
+    expect(html).not.toContain("No operational data yet");
+    expect(html).not.toContain(">0<");
+    expect(getMetricsMock).not.toHaveBeenCalled();
+  });
+
+  it("should show the figures to a partner user who is linked to a partner", async () => {
+    requireAnyPermissionMock.mockResolvedValue({
+      id: "p-1",
+      role: "partner_user",
+      partner_id: "partner-a",
+    });
+
+    const html = await render();
+
+    expect(html).not.toContain("not linked to a partner");
+    expect(getMetricsMock).toHaveBeenCalledWith("partner_user");
+  });
+
+  it("should say some figures are not available yet and keep them out of the counts", async () => {
+    getMetricsMock.mockResolvedValue([
+      { ...result("seats_available", null), reason: "not_released" },
+      result("incidents_open", 3),
+    ]);
+
+    const html = await render();
+
+    expect(html).toContain("Some figures are not available yet");
+    expect(html).toContain("Not available yet");
+    expect(html).toContain(">3<");
+    expect(html).not.toContain("Some figures are unavailable");
+    expect(html).not.toContain(">0<");
+  });
+
+  it("should say there is no data yet when everything that was read is zero, even though a figure is not available yet", async () => {
+    getMetricsMock.mockResolvedValue([
+      result("incidents_open", 0),
+      { ...result("seats_available", null), reason: "not_released" },
+    ]);
+
+    const html = await render();
+
+    // Everything read is zero, so the page says so; the figure that is not
+    // available yet is not what made it empty.
+    expect(html).toContain("No operational data yet");
+  });
+
+  it("should show no unavailability note for a dashboard whose modules are all released", async () => {
+    const html = await render();
+
+    expect(html).not.toContain("not available yet");
+  });
+
   it("should let an unexpected error reach the error boundary", async () => {
     getMetricsMock.mockRejectedValue(new Error("db down"));
 

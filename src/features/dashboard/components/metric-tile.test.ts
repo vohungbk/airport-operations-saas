@@ -24,6 +24,18 @@ describe("MetricTile", () => {
     expect(render(0)).toContain(">0<");
   });
 
+  it("should say Not available yet, with no number and no link, for a module that is not released", () => {
+    const html = renderToStaticMarkup(
+      createElement(MetricTile, { metric, value: null, notReleased: true }),
+    );
+
+    expect(html).toContain("Jobs in progress");
+    expect(html).toContain("Not available yet");
+    expect(html).not.toContain("<a ");
+    expect(html).not.toContain(">0<");
+    expect(html).not.toContain("Unavailable");
+  });
+
   it("should say Unavailable, and no number, when the figure could not be read", () => {
     const html = render(null);
 
