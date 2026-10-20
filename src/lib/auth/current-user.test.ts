@@ -95,16 +95,36 @@ describe("getCurrentUser", () => {
     expect(user).toBeNull();
   });
 
-  it("should return null (fail closed) when the query errors", async () => {
+  it("should return null when the query finds no row for the caller", async () => {
     getAuthUserMock.mockResolvedValue(AUTH_USER);
     singleMock.mockResolvedValue({
       data: null,
-      error: { message: "connection failed" },
+      error: { code: "PGRST116", message: "no rows" },
     });
 
-    const user = await getCurrentUser();
+    await expect(getCurrentUser()).resolves.toBeNull();
+  });
 
-    expect(user).toBeNull();
+  it("should throw, not report forbidden, when the profile cannot be read (network or database error)", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({
+      data: null,
+      error: { message: "TypeError: fetch failed" },
+    });
+
+    await expect(getCurrentUser()).rejects.toThrow(
+      "Could not read the user profile",
+    );
+  });
+
+  it("should not leak the raw database error in the thrown message", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({
+      data: null,
+      error: { message: "connection to db.internal:5432 refused" },
+    });
+
+    await expect(getCurrentUser()).rejects.not.toThrow(/db\.internal/);
   });
 
   it("should return null (fail closed) when the profile is inactive, even with a live session", async () => {
