@@ -46,10 +46,14 @@ describe("IncidentsPage", () => {
     getIncidentsMock.mockResolvedValue({ incidents: [INCIDENT], total: 1 });
   });
 
-  it("should guard the page with incidents:view", async () => {
+  it("should guard the page with the incident access permissions", async () => {
     await render();
 
-    expect(requireAnyPermissionMock).toHaveBeenCalledWith(["incidents:view"]);
+    expect(requireAnyPermissionMock).toHaveBeenCalledWith([
+      "incidents:view",
+      "operations:view_own_partner",
+      "incidents:report",
+    ]);
   });
 
   it("should propagate the guard's redirect without loading data", async () => {
@@ -64,6 +68,21 @@ describe("IncidentsPage", () => {
 
     expect(html).toContain("Report incident");
     expect(html).toContain('href="/incidents/new"');
+  });
+
+  it("should not offer Report incident to a partner user, who only reads", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "p-1", role: "partner_user" });
+
+    const html = await render();
+
+    expect(html).toContain("Damaged strap");
+    expect(html).not.toContain("Report incident");
+  });
+
+  it("should offer Report incident to a technician", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "t-1", role: "technician" });
+
+    expect(await render()).toContain("Report incident");
   });
 
   it("should list the incidents with a link to the detail of each", async () => {

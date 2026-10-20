@@ -66,11 +66,11 @@ describe("reportIncidentAction", () => {
     );
   });
 
-  it("should send a technician back to the job, because they cannot open the incident yet", async () => {
+  it("should open the new incident for a technician too, who can read the incidents they reported", async () => {
     requireAnyPermissionMock.mockResolvedValue({ id: "t-1", role: "technician" });
 
     await expect(reportIncidentAction(VALID_INPUT)).rejects.toThrow(
-      `REDIRECT:/jobs/${JOB_ID}`,
+      `REDIRECT:/incidents/${INCIDENT_ID}`,
     );
   });
 
