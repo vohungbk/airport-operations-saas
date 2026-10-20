@@ -388,6 +388,25 @@ caller, and opens the incident (`status` open, no resolver). A technician who
 is not assigned to the job gets `P0002`. The technician insert policy requires
 an active technician and a job assigned to them. See `docs/security.md`.
 
+Status guard trigger `guard_incidents_status_update` (FO-F05-S06): `status`,
+`resolved_by` and `resolved_at` change only inside
+`change_incident_status(incident_id, from_status, to_status, note)`; a direct
+update is rejected with `55000`. See `docs/security.md`.
+
+### `incident_status_history` (immutable log)
+| column | type | notes |
+|---|---|---|
+| incident_id | uuid not null, FK → incidents.id ON DELETE RESTRICT | |
+| user_id | uuid, FK → users.id ON DELETE SET NULL | who changed the status |
+| from_status | incident_status | nullable |
+| to_status | incident_status not null | |
+| notes | text | nullable; required to reopen |
+| created_at | timestamptz not null default now() | |
+
+Index `(incident_id, created_at)`. Written by a trigger on `incidents`; the log
+is append-only (no insert, update or delete, service role included), so an
+incident with history cannot be deleted. Admin and operations manager read it.
+
 ### `partner_commercial_terms` (mutable)
 | column | type | notes |
 |---|---|---|
