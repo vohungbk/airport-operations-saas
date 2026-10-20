@@ -6,6 +6,7 @@ import { ChangeIncidentStatusDialog } from "@/features/incidents/components/chan
 import { IncidentHistoryTimeline } from "@/features/incidents/components/incident-history-timeline";
 import { IncidentSeverityBadge } from "@/features/incidents/components/incident-severity-badge";
 import { IncidentStatusBadge } from "@/features/incidents/components/incident-status-badge";
+import { formatIncidentSeat } from "@/features/incidents/lib/incident-seat";
 import type { IncidentStatus } from "@/features/incidents/lib/incident-status";
 import type {
   IncidentDetailItem,
@@ -92,7 +93,7 @@ export function IncidentDetail({
         <h2 className="text-lg font-medium text-foreground">Details</h2>
         <dl className="grid gap-4 sm:grid-cols-2">
           <Detail label="Partner">{incident.partner?.name ?? "-"}</Detail>
-          <Detail label="Seat">{incident.seat?.serial_number ?? "-"}</Detail>
+          <Detail label="Seat">{formatIncidentSeat(incident.seat) ?? "-"}</Detail>
           <Detail label="Booking">
             {incident.booking?.booking_number ?? "-"}
           </Detail>

@@ -369,7 +369,7 @@ The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
 |---|---|---|
 | partner_id | uuid not null, FK → partners.id ON DELETE RESTRICT | |
 | booking_id | uuid, FK → bookings.id ON DELETE SET NULL | nullable |
-| seat_id | uuid, FK → seats.id ON DELETE SET NULL | nullable |
+| seat_id | uuid, FK → seats.id ON DELETE RESTRICT | nullable; a seat an incident refers to cannot be deleted (it is retired instead) |
 | technician_job_id | uuid, FK → technician_jobs.id ON DELETE SET NULL | nullable |
 | type | text not null | |
 | severity | incident_severity not null | |
@@ -480,7 +480,7 @@ No `ON DELETE CASCADE` is used anywhere in this schema. Two buckets only:
   `bookings.flight_id`, `booking_events.seat_id`, `booking_events.user_id`,
   `installations.created_by`, `cleaning_records.booking_id`,
   `inspection_records.booking_id`, `incidents.booking_id`,
-  `incidents.seat_id`, `incidents.technician_job_id`,
+  `incidents.technician_job_id`,
   `incidents.resolved_by`, `ai_queries.partner_id`, `ai_queries.user_id`.
 
 **Practical consequence**: because almost every core table uses

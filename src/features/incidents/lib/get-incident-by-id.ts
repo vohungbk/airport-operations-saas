@@ -18,7 +18,7 @@ export const INCIDENT_DETAIL_SELECT = [
   "resolved_at",
   "technician_job_id",
   "partner:partners(name)",
-  "seat:seats(serial_number)",
+  "seat:seats(serial_number, status)",
   "booking:bookings(booking_number)",
   "reporter:users!reported_by(full_name)",
   "resolver:users!resolved_by(full_name)",

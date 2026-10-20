@@ -31,7 +31,7 @@ function incident(
     resolved_at: null,
     technician_job_id: "j-1",
     partner: { name: "Emirates Rent A Car" },
-    seat: { serial_number: "SN-2" },
+    seat: { serial_number: "SN-2", status: "available" },
     booking: { booking_number: "BK-00002" },
     reporter: { full_name: "Ahmed" },
     resolver: null,
@@ -119,6 +119,21 @@ describe("IncidentDetail", () => {
 
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("should keep the seat of the incident and say it is retired when the seat was retired", () => {
+    const html = render(
+      incident({ seat: { serial_number: "SN-2", status: "retired" } }),
+    );
+
+    expect(html).toContain("SN-2 (Retired)");
+  });
+
+  it("should show the serial number alone while the seat is in use", () => {
+    const html = render();
+
+    expect(html).toContain("SN-2");
+    expect(html).not.toContain("Retired");
   });
 
   it("should leave out the staff names and the job link for a partner user", () => {

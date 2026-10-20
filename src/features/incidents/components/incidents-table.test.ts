@@ -24,7 +24,7 @@ function incident(overrides: Partial<IncidentListItem> = {}): IncidentListItem {
     status: "investigating",
     description: "Torn",
     created_at: "2026-10-16T08:05:00Z",
-    seat: { serial_number: "SN-2" },
+    seat: { serial_number: "SN-2", status: "available" },
     booking: { booking_number: "BK-00002" },
     reporter: { full_name: "Ahmed" },
     ...overrides,
@@ -56,6 +56,14 @@ describe("IncidentsTable", () => {
 
     expect(html).toContain("SN-2");
     expect(html).not.toContain("BK-00002");
+  });
+
+  it("should keep the seat in the list and say it is retired when the seat was retired", () => {
+    const html = render([
+      incident({ seat: { serial_number: "SN-2", status: "retired" } }),
+    ]);
+
+    expect(html).toContain("SN-2 (Retired)");
   });
 
   it("should fall back to the booking number, then to a dash", () => {
