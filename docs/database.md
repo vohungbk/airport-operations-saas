@@ -664,8 +664,8 @@ with a real address.
 |---|---|---|
 | `admin@airportops.example` | admin | everything |
 | `ops.manager@airportops.example` | operations_manager | everything, and runs the bookings, jobs and incidents |
-| `partner.erac@airportops.example` | partner_user (ERAC) | only the bookings, seats and incidents of ERAC |
-| `partner.afm@airportops.example` | partner_user (AFM) | only the bookings, seats and incidents of AFM |
+| `partner.dcr@airportops.example` | partner_user (Demo Car Rental, `DCR`) | only the bookings, seats and incidents of Demo Car Rental |
+| `partner.dmo@airportops.example` | partner_user (Demo Mobility, `DMO`) | only the bookings, seats and incidents of Demo Mobility |
 | `technician1@airportops.example` | technician | only their own jobs (also `technician2`, `technician3`) |
 
 **What is in it.** On top of the base seed: ten more bookings `BK-00021` to
@@ -695,8 +695,25 @@ app is `BK-00031`.
   `updated_at` triggers and the immutability triggers of the audit tables) and
   turns them on again inside the same statement. It is all or nothing, it
   touches only the seeded rows, and a test checks that no trigger is left off.
-- *Nothing real (R3).* Every address ends in `.example`; there is no personal,
-  financial or credential data.
+- *Nothing real (R3).* No real personal, financial or credential data, and no
+  real person or company. Every person and company of the seed is named as a demo
+  one (`Demo Technician One`, `Demo Car Rental`, `Demo Mobility`...); every email
+  ends in `.example`; the only credential is the public demo password, which is
+  also the only value the checks allow. The airport (DXB) is a public place, not
+  personal data. This is checked, not only promised, by
+  `src/lib/demo/sensitive-data.ts`, which looks for: an email that is not a demo
+  address, a phone number, an Emirates ID or SSN, a card number that passes the
+  Luhn check, an IBAN that passes mod 97, a JWT, an API or cloud key, a private
+  key, a full password hash, a password or secret written in the text, a long
+  secret-looking token, and a link to a host that is not a demo or local one. It
+  runs on the text of both seed files (with every `npm test`) and on every column
+  of every seeded row once loaded (`demo:verify`), including the Auth accounts; a
+  test plants real-looking data and shows that it is caught. A new table must be
+  added to the scan or to the list of tables the seed leaves empty, or the check
+  fails. A new demo value that is public on purpose is added to the allowed list
+  in the test, with a reason. The demo accounts cannot read the `auth` schema (the
+  password hashes), no public table has a password, secret or hash column, and a
+  partner account sees only its own partner's contact details.
 - *Roles and isolation (R4).* One account per role and two partners, each with
   its own bookings, so the isolation can be shown.
 - *Honest figures (R5).* Nothing on a dashboard is stored: the figures are counted

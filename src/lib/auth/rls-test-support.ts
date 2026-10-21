@@ -93,8 +93,8 @@ export interface TestIdentityDef {
 }
 
 /** Seeded from supabase/seed.sql (fixed literal uuids, stable across `db reset`). */
-export const PARTNER_A_ID = "b0000000-0000-0000-0000-000000000001"; // Emirates Rent A Car
-export const PARTNER_B_ID = "b0000000-0000-0000-0000-000000000002"; // Al Futtaim Mobility
+export const PARTNER_A_ID = "b0000000-0000-0000-0000-000000000001"; // Demo Car Rental
+export const PARTNER_B_ID = "b0000000-0000-0000-0000-000000000002"; // Demo Mobility
 
 const PASSWORD = "Rls-Test-Password-1!";
 

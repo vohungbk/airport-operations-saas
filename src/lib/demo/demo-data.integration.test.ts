@@ -7,6 +7,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
+import { findSensitiveData } from "@/lib/demo/sensitive-data";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
 import {
   createServiceRoleClient,
@@ -34,14 +35,14 @@ function demoLogin(): string {
   return /c_password constant text := '([^']+)'/.exec(seed)![1];
 }
 
-const ERAC = "b0000000-0000-0000-0000-000000000001";
-const AFM = "b0000000-0000-0000-0000-000000000002";
+const DCR = "b0000000-0000-0000-0000-000000000001";
+const DMO = "b0000000-0000-0000-0000-000000000002";
 
 const DEMO_ACCOUNTS = [
   ["admin@airportops.example", "admin"],
   ["ops.manager@airportops.example", "operations_manager"],
-  ["partner.erac@airportops.example", "partner_user"],
-  ["partner.afm@airportops.example", "partner_user"],
+  ["partner.dcr@airportops.example", "partner_user"],
+  ["partner.dmo@airportops.example", "partner_user"],
   ["technician1@airportops.example", "technician"],
   ["technician2@airportops.example", "technician"],
   ["technician3@airportops.example", "technician"],
@@ -138,7 +139,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
       expect(await rows("bookings", SEED_BOOKING_IDS)).toHaveLength(30);
       expect(await rows("seats", SEED_SEAT_IDS)).toHaveLength(40);
       expect(
-        (await rows("partners")).filter((p) => [ERAC, AFM].includes(p.id)),
+        (await rows("partners")).filter((p) => [DCR, DMO].includes(p.id)),
       ).toHaveLength(2);
       expect(await rows("seat_categories")).toHaveLength(4);
     });
@@ -346,13 +347,147 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     });
   });
 
-  describe("no real data (spec R3)", () => {
-    it("should use only demo addresses for the accounts of the seed", async () => {
-      const demo = await demoUsers();
-      const partners = (await rows("partners")).filter((p) => [ERAC, AFM].includes(p.id));
+  describe("no real data (spec R3, VI-F07-S03)", () => {
+    // Every table the seed puts rows in. A table that is not here and not in
+    // NOT_SEEDED fails the check below, so a new table forces a decision.
+    const NOT_SEEDED = ["flights", "settlements", "invoices", "partner_commercial_terms", "ai_queries"];
 
-      expect(demo.every((u) => /^[a-z0-9.]+@airportops\.example$/.test(u.email))).toBe(true);
-      expect(partners.every((p) => p.contact_email.endsWith(".example"))).toBe(true);
+    /** The rows of the seed, every column of them, by table. */
+    async function seededRows() {
+      const auth = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
+
+      return {
+        users: await demoUsers(),
+        partners: await rows("partners", [DCR, DMO]),
+        airports: await rows("airports", ["a0000000-0000-0000-0000-000000000001"]),
+        seat_categories: await rows("seat_categories", [1, 2, 3, 4].map((n) => idOf("c0000000", n))),
+        seats: await rows("seats", SEED_SEAT_IDS),
+        bookings: await rows("bookings", SEED_BOOKING_IDS),
+        technician_jobs: await rows("technician_jobs", JOB_IDS),
+        installations: await rows("installations", INSTALLATION_IDS),
+        cleaning_records: await rows("cleaning_records", CLEANING_IDS),
+        inspection_records: await rows("inspection_records", INSPECTION_IDS),
+        incidents: await rows("incidents", INCIDENT_IDS),
+        booking_events: await eventsOfBookings(SEED_BOOKING_IDS),
+        seat_status_history: await rows("seat_status_history", undefined, { column: "seat_id", in: SEED_SEAT_IDS }),
+        technician_job_events: await rows("technician_job_events", undefined, {
+          column: "technician_job_id",
+          in: JOB_IDS,
+        }),
+        incident_status_history: await rows("incident_status_history", undefined, {
+          column: "incident_id",
+          in: INCIDENT_IDS,
+        }),
+        auth_users: auth.data.users.filter((u) => u.email?.endsWith("@airportops.example")),
+      };
+    }
+
+    it("should have no real personal, financial or credential data in any column of any seeded row", async () => {
+      const tables = await seededRows();
+      const findings: string[] = [];
+
+      for (const [table, list] of Object.entries(tables)) {
+        expect(list.length, table).toBeGreaterThan(0);
+        for (const row of list as unknown as Record<string, unknown>[]) {
+          for (const found of findSensitiveData(JSON.stringify(row))) {
+            findings.push(`${table} ${String(row.id)}: ${found.kind} (${found.match})`);
+          }
+        }
+      }
+
+      expect(findings).toEqual([]);
+    });
+
+    it("should name every person and company of the seed as a demo one", async () => {
+      const tables = await seededRows();
+
+      for (const user of [...tables.users]) {
+        expect(user.full_name.startsWith("Demo "), user.email).toBe(true);
+      }
+      for (const partner of tables.partners) {
+        expect(partner.name.startsWith("Demo "), partner.name).toBe(true);
+        expect(partner.contact_email.endsWith(".example")).toBe(true);
+      }
+    });
+
+    it("should use only demo addresses for the accounts of the seed", async () => {
+      const { users, auth_users } = await seededRows();
+
+      expect(users.every((u) => /^[a-z0-9.]+@airportops\.example$/.test(u.email))).toBe(true);
+      expect(auth_users.every((u) => /^[a-z0-9.]+@airportops\.example$/.test(u.email ?? ""))).toBe(true);
+    });
+
+    it("should know every table of the schema: seeded and scanned, or on the list of tables the seed leaves empty", () => {
+      const result = runSql(
+        "select string_agg(table_name, ',' order by table_name) from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';",
+      );
+      if (!result) return; // No Docker: nothing to ask the database with.
+
+      expect(result.ok, result.output).toBe(true);
+      const tables = (/[a-z_,]+/.exec(result.output.split("\n").find((l) => l.includes("users")) ?? "")?.[0] ?? "").split(",");
+      const known = new Set([
+        ...Object.keys({
+          users: 0, partners: 0, airports: 0, seat_categories: 0, seats: 0, bookings: 0,
+          technician_jobs: 0, installations: 0, cleaning_records: 0, inspection_records: 0,
+          incidents: 0, booking_events: 0, seat_status_history: 0, technician_job_events: 0,
+          incident_status_history: 0,
+        }),
+        ...NOT_SEEDED,
+      ]);
+
+      expect(tables.length).toBeGreaterThan(10);
+      expect(tables.filter((t) => !known.has(t))).toEqual([]);
+    });
+
+    it("should not put a credential in any column a user can read: no password, secret or hash column in the public tables", () => {
+      const result = runSql(
+        "select string_agg(table_name || '.' || column_name, ',') from information_schema.columns where table_schema = 'public' and column_name ~* '(password|passwd|secret|hash|credential|api_key)';",
+      );
+      if (!result) return;
+
+      expect(result.ok, result.output).toBe(true);
+      expect(result.output).not.toMatch(/\w+\.\w+/);
+    });
+  });
+
+  describe("the demo accounts cannot reach credentials or another partner's details (VI-F07-S03, TC02)", () => {
+    it.each(DEMO_ACCOUNTS)("should not let %s read the auth schema, where the password hashes are", async (email) => {
+      const client = await signInTestUser(cfg, email, demoLogin());
+      const result = await client.schema("auth" as never).from("users" as never).select("*");
+
+      expect(result.data).toBeNull();
+      expect(result.error).not.toBeNull();
+    });
+
+    it("should give each partner account only the contact details of its own partner", async () => {
+      for (const [email, own] of [
+        ["partner.dcr@airportops.example", DCR],
+        ["partner.dmo@airportops.example", DMO],
+      ] as const) {
+        const client = await signInTestUser(cfg, email, demoLogin());
+        const { data, error } = await client.from("partners").select("id, contact_email");
+
+        expect(error).toBeNull();
+        expect(data!.map((p) => p.id)).toEqual([own]);
+        expect(data![0].contact_email.endsWith(".example")).toBe(true);
+      }
+    });
+
+    it("should give a technician no partner contact details at all", async () => {
+      const client = await signInTestUser(cfg, "technician1@airportops.example", demoLogin());
+      const { data, error } = await client.from("partners").select("id, contact_email");
+
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+    });
+
+    it("should show the contact details of both partners only to admin and the operations manager", async () => {
+      for (const email of ["admin@airportops.example", "ops.manager@airportops.example"]) {
+        const client = await signInTestUser(cfg, email, demoLogin());
+        const { data } = await client.from("partners").select("id").in("id", [DCR, DMO]);
+
+        expect(data!.map((p) => p.id).sort(), email).toEqual([DCR, DMO].sort());
+      }
     });
   });
 
@@ -383,8 +518,8 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     });
 
     it.each([
-      ["partner.erac@airportops.example", ERAC, AFM],
-      ["partner.afm@airportops.example", AFM, ERAC],
+      ["partner.dcr@airportops.example", DCR, DMO],
+      ["partner.dmo@airportops.example", DMO, DCR],
     ])("should give %s only the bookings of their own partner, and no seat or booking of the other", async (email, own, other) => {
       const client = await signInTestUser(cfg, email, demoLogin());
       const { data, error } = await client
@@ -434,8 +569,8 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     it.each([
       ["admin@airportops.example", "admin"],
       ["ops.manager@airportops.example", "operations_manager"],
-      ["partner.erac@airportops.example", "partner_user"],
-      ["partner.afm@airportops.example", "partner_user"],
+      ["partner.dcr@airportops.example", "partner_user"],
+      ["partner.dmo@airportops.example", "partner_user"],
       ["technician1@airportops.example", "technician"],
     ] as const)("should show %s figures counted from the data, with something to demo", async (email, role) => {
       const client = await signInTestUser(cfg, email, demoLogin());

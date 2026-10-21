@@ -25,8 +25,8 @@
 -- Accounts (all with the demo password, see docs/database.md):
 --   admin@airportops.example            admin
 --   ops.manager@airportops.example      operations_manager
---   partner.erac@airportops.example     partner_user of ERAC
---   partner.afm@airportops.example      partner_user of AFM
+--   partner.dcr@airportops.example      partner_user of Demo Car Rental
+--   partner.dmo@airportops.example      partner_user of Demo Mobility
 --   technician1..3@airportops.example   technician
 
 do $demo$
@@ -37,8 +37,8 @@ declare
   c_instance constant uuid := '00000000-0000-0000-0000-000000000000';
   -- The one moment every system timestamp of the seed is set to.
   c_base constant timestamptz := timestamptz '2026-08-01 00:00:00+00';
-  c_erac constant uuid := 'b0000000-0000-0000-0000-000000000001';
-  c_afm constant uuid := 'b0000000-0000-0000-0000-000000000002';
+  c_dcr constant uuid := 'b0000000-0000-0000-0000-000000000001';
+  c_dmo constant uuid := 'b0000000-0000-0000-0000-000000000002';
   c_dxb constant uuid := 'a0000000-0000-0000-0000-000000000001';
   c_ops constant uuid := 'a1000000-0000-0000-0000-000000000002';
   c_tech1 constant uuid := 'd0000000-0000-0000-0000-000000000001';
@@ -70,8 +70,8 @@ begin
   values
     ('a1000000-0000-0000-0000-000000000001', 'admin@airportops.example', 'Demo Admin', 'admin', null, true),
     (c_ops, 'ops.manager@airportops.example', 'Demo Operations Manager', 'operations_manager', null, true),
-    ('a1000000-0000-0000-0000-000000000003', 'partner.erac@airportops.example', 'Demo ERAC Partner User', 'partner_user', c_erac, true),
-    ('a1000000-0000-0000-0000-000000000004', 'partner.afm@airportops.example', 'Demo AFM Partner User', 'partner_user', c_afm, true)
+    ('a1000000-0000-0000-0000-000000000003', 'partner.dcr@airportops.example', 'Demo Car Rental Partner User', 'partner_user', c_dcr, true),
+    ('a1000000-0000-0000-0000-000000000004', 'partner.dmo@airportops.example', 'Demo Mobility Partner User', 'partner_user', c_dmo, true)
   on conflict (id) do nothing;
 
   insert into auth.users (
@@ -234,8 +234,8 @@ begin
     id, partner_id, technician_job_id, type, severity, description, reported_by
   )
   values
-    ('14000000-0000-0000-0000-000000000001', c_afm, '10000000-0000-0000-0000-000000000006', 'inspection', 'high', 'Harness clip cracked at inspection; seat quarantined', c_tech3),
-    ('14000000-0000-0000-0000-000000000002', c_erac, '10000000-0000-0000-0000-000000000001', 'installation', 'low', 'Small scratch on the shell found at installation', c_tech1);
+    ('14000000-0000-0000-0000-000000000001', c_dmo, '10000000-0000-0000-0000-000000000006', 'inspection', 'high', 'Harness clip cracked at inspection; seat quarantined', c_tech3),
+    ('14000000-0000-0000-0000-000000000002', c_dcr, '10000000-0000-0000-0000-000000000001', 'installation', 'low', 'Small scratch on the shell found at installation', c_tech1);
 
   perform set_config('app.incident_status_change', 'on', false);
 
@@ -281,7 +281,7 @@ begin
   alter table public.seat_status_history disable trigger user;
 
   update public.users set created_at = c_base, updated_at = c_base where email like '%.example';
-  update public.partners set created_at = c_base, updated_at = c_base where id in (c_erac, c_afm);
+  update public.partners set created_at = c_base, updated_at = c_base where id in (c_dcr, c_dmo);
   update public.airports set created_at = c_base, updated_at = c_base where id = c_dxb;
   update public.seat_categories set created_at = c_base, updated_at = c_base where id::text like 'c0000000-%';
   update public.seats set created_at = c_base, updated_at = c_base where id::text like 'e0000000-%';
