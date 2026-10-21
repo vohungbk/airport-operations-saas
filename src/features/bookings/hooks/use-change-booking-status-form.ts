@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { changeBookingStatusAction } from "@/features/bookings/actions/change-booking-status.action";
 import type { BookingActionResult } from "@/features/bookings/lib/booking-errors";
+import { runBookingAction } from "@/features/bookings/lib/run-booking-action";
 import {
   changeBookingStatusSchema,
   type ChangeBookingStatusInput,
@@ -38,7 +39,9 @@ export function useChangeBookingStatusForm({
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
     startTransition(async () => {
-      const next = await changeBookingStatusAction(values);
+      const next = await runBookingAction(() =>
+        changeBookingStatusAction(values),
+      );
       setResult(next);
 
       if (next.success) {

@@ -17,6 +17,7 @@ export interface BookingActionError {
     | "SEAT_NOT_FOUND"
     | "NO_SEAT_AVAILABLE"
     | "STALE_DATA"
+    | "NETWORK_ERROR"
     | "INTERNAL_ERROR";
   message: string;
 }
@@ -82,6 +83,12 @@ export const STALE_DATA_ERROR: BookingActionError = {
   code: "STALE_DATA",
   message:
     "This booking was changed by someone else. Reload the page and try again.",
+};
+
+export const NETWORK_ERROR: BookingActionError = {
+  code: "NETWORK_ERROR",
+  message:
+    "Could not reach the server. Your input is kept; check your connection and try again.",
 };
 
 export const INTERNAL_ERROR: BookingActionError = {
