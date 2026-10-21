@@ -231,7 +231,7 @@ call these functions directly):
 | function | purpose |
 |---|---|
 | `current_user_role()` | The caller's role from `public.users`, or `null` if there is no session, the profile is missing, or the account is inactive. `SECURITY DEFINER` lets it read `public.users` from inside that table's own policies without RLS recursion (see "RLS recursion" below). Reused by nearly every other policy. |
-| `current_user_partner_id()` | The caller's `partner_id`, or `null` for internal roles and for any inactive/missing-profile `partner_user`. A `null` result makes a `partner_id = current_user_partner_id()` clause return zero rows rather than error or "all rows," turning the partner-isolation design principle above into a database fact. |
+| `current_user_partner_id()` | The caller's `partner_id`, or `null` for internal roles, for any inactive/missing-profile `partner_user`, and (since VI-F03-S07) for a `partner_user` whose partner is not `active`. A `null` result makes a `partner_id = current_user_partner_id()` clause return zero rows rather than error or "all rows," turning the partner-isolation design principle above into a database fact. |
 | `is_internal_user()` | True for `admin`/`operations_manager`/`technician` — the three internal, non-partner roles. |
 | `is_admin_or_ops_manager()` | True for `admin`/`operations_manager` — the single most repeated gate in the migration (write access on `partners`/`airports`/`seat_categories`/`seats`/`flights`/`bookings`/`technician_jobs`, and broad SELECT-all on most other tables). |
 | `booking_partner_id(uuid)` | Not part of the ticket's original 4-function list. Returns a booking's `partner_id`, bypassing `bookings`' own RLS. Exists solely to break a real RLS recursion cycle discovered while testing this migration (see "RLS recursion" below) — `bookings`' technician-visibility policy queries `technician_jobs`, and without this function `technician_jobs`' `partner_user`-visibility policy would query `bookings` back, which Postgres detects as infinite policy recursion (`42P17`). |
@@ -1611,6 +1611,44 @@ time at the airport and converted to UTC with `airports.timezone`.
   finance rows through the API, because RLS allows it; nothing hides them before
   release. Gating the rows in the database until release was not done here: it
   needs a release setting in the database and is for VI-F04 to decide.
+
+## Deactivated partner (VI-F03-S07)
+
+- **The rule (spec E1, decided here).** A partner user can use the portal only
+  while their partner is `active`. `pending`, `suspended` and `inactive` are all
+  refused, the same as `create_booking` already required for an operations
+  booking. It holds while the user is signed in: the check is made at every
+  request, so the next request after the partner is deactivated is refused,
+  with no need to sign in again. Admin, operations manager and technician are
+  not affected, and operations can still see the partner and its bookings.
+- **Two layers, both fail closed.**
+  1. *Database.* `current_user_partner_id()` (migration
+     `20261102090000_current_user_partner_requires_active_partner.sql`) returns
+     the partner only when the partner is `active`. Every partner policy is built
+     on it (bookings, seats, incidents, jobs, finance, and the `partners` row), so
+     the users of a partner that is not active get no rows through the API either,
+     and the booking functions refuse them (`42501`). The change only narrows: no
+     case that returned `null` before returns a partner now.
+  2. *Application.* `requireAuth()` reads the profile together with the status of
+     the partner in one query (`partner:partners(status)`; no extra round trip) and
+     `getPartnerAccessIssue()` (pure) returns `partner_inactive` when the status is
+     not `active`. The user is sent to `/forbidden?reason=partner_inactive`:
+     "Your organization's account is not active... Contact your administrator",
+     with the sign-out button. When the partner row cannot be read (the database
+     hides it from its own users once it is not active) the answer is the same,
+     not a pass. The message does not say which status the partner has.
+- **What a user sees.** Sign-in lands on `/dashboard`, whose layout goes through
+  `requireAuth`, so the user gets the message at once and never sees a screen
+  that would fail or be empty. A partner with no partner at all keeps its own
+  message (`no_partner`, VI-F03-S05).
+- **Rollout.** Apply the migration with the code. Code without the migration still
+  shows the message but the API would still return the partner's rows.
+- Covered by unit tests (the rule per status and per role, `requireAuth` and every
+  guard built on it, the check at every request, one query for profile and
+  status, the forbidden page) and the "deactivated partner (VI-F03-S07)"
+  integration tests (the scope function, every portal read returning nothing for
+  each status with a session opened before, another active partner unaffected,
+  booking functions refused, operations unaffected).
 
 ## Installation record errors (FO-F02-S05)
 
