@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -54,6 +55,15 @@ const SEED_BOOKING_IDS = Array.from({ length: 30 }, (_, i) => bookingId(i + 1));
 const SEED_SEAT_IDS = Array.from({ length: 40 }, (_, i) => seatId(i + 1));
 const ACTIVE = ["pending", "confirmed", "assigned", "in_progress"];
 
+/** A fixed id: a prefix and a number, as the seed writes them. */
+const idOf = (prefix: string, n: number) =>
+  `${prefix}-0000-0000-0000-${String(n).padStart(12, "0")}`;
+const JOB_IDS = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => idOf("10000000", n));
+const INSTALLATION_IDS = [1, 3, 4].map((n) => idOf("11000000", n));
+const CLEANING_IDS = [idOf("12000000", 5)];
+const INSPECTION_IDS = [idOf("13000000", 6)];
+const INCIDENT_IDS = [1, 2].map((n) => idOf("14000000", n));
+
 /** The database container of the local stack, found from the project id. */
 function dbContainer(): string | null {
   try {
@@ -88,16 +98,28 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
   const cfg = config as LocalSupabaseConfig;
   let service: SupabaseClient<Database>;
 
+  /**
+   * The rows of a table, asked for by id, or by a column that is in a list or
+   * like a pattern. Never "everything": a busy database has more rows than one
+   * request returns, and the rows of the seed must not be among those left out.
+   */
   async function rows<T extends keyof Database["public"]["Tables"]>(
     table: T,
     ids?: string[],
+    where?: { column: string; in?: string[]; like?: string },
   ) {
     let query = service.from(table).select("*");
     if (ids) query = query.in("id" as never, ids as never);
+    if (where?.in) query = query.in(where.column as never, where.in as never);
+    if (where?.like) query = query.like(where.column as never, where.like as never);
     const { data, error } = await query.limit(1000);
     expect(error, String(table)).toBeNull();
     return (data ?? []) as unknown as Database["public"]["Tables"][T]["Row"][];
   }
+
+  const demoUsers = () => rows("users", undefined, { column: "email", like: "%@airportops.example" });
+  const eventsOfBookings = (ids: string[]) =>
+    rows("booking_events", undefined, { column: "booking_id", in: ids });
 
   beforeAll(async () => {
     service = createServiceRoleClient(cfg);
@@ -156,7 +178,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     it("should have unique identifiers: booking numbers, seat serials and emails", async () => {
       const bookings = await rows("bookings", SEED_BOOKING_IDS);
       const seats = await rows("seats", SEED_SEAT_IDS);
-      const users = (await rows("users")).filter((u) => u.email.endsWith(".example"));
+      const users = await rows("users", undefined, { column: "email", like: "%.example" });
 
       for (const values of [
         bookings.map((b) => b.booking_number),
@@ -181,9 +203,8 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     });
 
     it("should have a booking history that ends at the booking's status, with each step starting where the last ended", async () => {
-      const events = await rows("booking_events");
       const byBooking = Map.groupBy(
-        events.filter((e) => SEED_BOOKING_IDS.includes(e.booking_id)),
+        await eventsOfBookings(SEED_BOOKING_IDS),
         (e) => e.booking_id,
       );
 
@@ -207,9 +228,8 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     });
 
     it("should have a seat history that ends at the seat's status", async () => {
-      const history = await rows("seat_status_history");
       const bySeat = Map.groupBy(
-        history.filter((h) => SEED_SEAT_IDS.includes(h.seat_id)),
+        await rows("seat_status_history", undefined, { column: "seat_id", in: SEED_SEAT_IDS }),
         (h) => h.seat_id,
       );
 
@@ -224,9 +244,12 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     });
 
     it("should tie every job to an active technician and an existing booking, with a history that ends at its status", async () => {
-      const users = new Map((await rows("users")).map((u) => [u.id, u]));
-      const jobs = (await rows("technician_jobs")).filter((j) => j.id.startsWith("10000000-"));
-      const events = await rows("technician_job_events");
+      const users = new Map((await demoUsers()).map((u) => [u.id, u]));
+      const jobs = await rows("technician_jobs", JOB_IDS);
+      const events = await rows("technician_job_events", undefined, {
+        column: "technician_job_id",
+        in: JOB_IDS,
+      });
 
       expect(jobs).toHaveLength(8);
       for (const job of jobs) {
@@ -252,7 +275,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     });
 
     it("should tie every record of work to a job of the same type and to the seat of its booking", async () => {
-      const jobs = new Map((await rows("technician_jobs")).map((j) => [j.id, j]));
+      const jobs = new Map((await rows("technician_jobs", JOB_IDS)).map((j) => [j.id, j]));
       const bookings = new Map((await rows("bookings", SEED_BOOKING_IDS)).map((b) => [b.id, b]));
       const check = (kind: string, id: string, jobId: string | null, seat: string | null) => {
         const job = jobs.get(jobId ?? "");
@@ -260,9 +283,9 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
         expect(seat, `${kind} ${id}`).toBe(bookings.get(job!.booking_id)?.assigned_seat_id);
       };
 
-      const installations = (await rows("installations")).filter((r) => r.id.startsWith("11000000-"));
-      const cleanings = (await rows("cleaning_records")).filter((r) => r.id.startsWith("12000000-"));
-      const inspections = (await rows("inspection_records")).filter((r) => r.id.startsWith("13000000-"));
+      const installations = await rows("installations", INSTALLATION_IDS);
+      const cleanings = await rows("cleaning_records", CLEANING_IDS);
+      const inspections = await rows("inspection_records", INSPECTION_IDS);
 
       expect(installations).toHaveLength(3);
       expect(cleanings).toHaveLength(1);
@@ -274,7 +297,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
 
     it("should quarantine the seat of the failed inspection, with the reason in its history, and keep the other seats consistent", async () => {
       const seat = (await rows("seats", [seatId(26)]))[0];
-      const history = (await rows("seat_status_history")).filter((h) => h.seat_id === seat.id);
+      const history = await rows("seat_status_history", undefined, { column: "seat_id", in: [seat.id] });
 
       expect(seat.status).toBe("quarantine");
       expect(seat.quarantine_reason).toBeTruthy();
@@ -282,10 +305,13 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     });
 
     it("should have incidents whose partner, booking and seat are those of their job, with a history that ends at their status", async () => {
-      const jobs = new Map((await rows("technician_jobs")).map((j) => [j.id, j]));
+      const jobs = new Map((await rows("technician_jobs", JOB_IDS)).map((j) => [j.id, j]));
       const bookings = new Map((await rows("bookings", SEED_BOOKING_IDS)).map((b) => [b.id, b]));
-      const history = await rows("incident_status_history");
-      const incidents = (await rows("incidents")).filter((i) => i.id.startsWith("14000000-"));
+      const history = await rows("incident_status_history", undefined, {
+        column: "incident_id",
+        in: INCIDENT_IDS,
+      });
+      const incidents = await rows("incidents", INCIDENT_IDS);
 
       expect(incidents).toHaveLength(2);
       for (const incident of incidents) {
@@ -310,7 +336,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     });
 
     it("should have users whose role and partner agree: a partner user has a partner, the other roles have none", async () => {
-      const demo = (await rows("users")).filter((u) => u.email.endsWith("@airportops.example"));
+      const demo = await demoUsers();
 
       expect(demo).toHaveLength(7);
       for (const user of demo) {
@@ -322,7 +348,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
 
   describe("no real data (spec R3)", () => {
     it("should use only demo addresses for the accounts of the seed", async () => {
-      const demo = (await rows("users")).filter((u) => u.email.endsWith("@airportops.example"));
+      const demo = await demoUsers();
       const partners = (await rows("partners")).filter((p) => [ERAC, AFM].includes(p.id));
 
       expect(demo.every((u) => /^[a-z0-9.]+@airportops\.example$/.test(u.email))).toBe(true);
@@ -453,45 +479,121 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     });
   });
 
+  describe("same data on every load (spec R2, VI-F07-S02)", () => {
+    const BASE = "2026-08-01T00:00:00.000Z";
+
+    it("should have every system timestamp of the seeded rows at one fixed moment", async () => {
+      const at = (value: string) => new Date(value).toISOString();
+      const demoRows = [
+        ...(await rows("bookings", SEED_BOOKING_IDS.slice(20))),
+        ...(await rows("technician_jobs", JOB_IDS)),
+        ...(await demoUsers()),
+        // Seats 31 to 40: other suites use the first seats and change them.
+        ...(await rows("seats", SEED_SEAT_IDS.slice(30))),
+      ];
+
+      expect(demoRows.length).toBeGreaterThan(25);
+      for (const row of demoRows) {
+        expect(at(row.created_at)).toBe(BASE);
+        expect(at(row.updated_at)).toBe(BASE);
+      }
+    });
+
+    it("should write the audit rows of the seed at fixed times in order: the base moment plus their rank in seconds", async () => {
+      const events = await eventsOfBookings(SEED_BOOKING_IDS.slice(20));
+      const times = events.map((e) => (new Date(e.created_at).getTime() - Date.parse(BASE)) / 1000);
+
+      expect(events.length).toBeGreaterThan(20);
+      expect(times.every((t) => Number.isInteger(t) && t >= 1 && t < 3600)).toBe(true);
+      expect(new Set(times).size).toBe(times.length);
+    });
+
+    it("should leave every trigger of the database turned on after the load", () => {
+      const result = runSql(
+        "select count(*) from pg_trigger where not tgisinternal and tgenabled <> 'O';",
+      );
+      if (!result) return; // No Docker: nothing to ask the database with.
+
+      expect(result.ok, result.output).toBe(true);
+      expect(result.output).toMatch(/\b0\b/);
+    });
+  });
+
   describe("rerun and real data (spec E1, E2)", () => {
     const demoSql = () => readFileSync(join(process.cwd(), "supabase", "seeds", "demo.sql"), "utf8");
+    const baseSql = () => readFileSync(join(process.cwd(), "supabase", "seed.sql"), "utf8");
 
-    // Only rows that this seed makes and no other suite touches, so a suite
-    // running at the same time cannot change them.
-    async function counts() {
-      const out: Record<string, number | null> = {};
-      const head = (table: keyof Database["public"]["Tables"]) =>
-        service.from(table).select("id", { count: "exact", head: true });
+    const digest = (value: unknown) =>
+      createHash("md5").update(JSON.stringify(value)).digest("hex");
 
-      out.demo_users = (await head("users").like("email", "%@airportops.example")).count;
-      out.new_bookings = (await head("bookings").in("id", SEED_BOOKING_IDS.slice(20))).count;
-      out.new_jobs = (await head("technician_jobs").like("id", "10000000-%")).count;
-      out.new_incidents = (await head("incidents").like("id", "14000000-%")).count;
-      out.new_booking_events = (
-        await head("booking_events").in("booking_id", SEED_BOOKING_IDS.slice(20))
-      ).count;
-      out.job_events = (await head("technician_job_events").in(
-        "technician_job_id",
-        Array.from({ length: 8 }, (_, i) => `10000000-0000-0000-0000-${String(i + 1).padStart(12, "0")}`),
-      )).count;
-
+    // The content of the rows of the seed that no other suite changes, as a
+    // digest per group, so a rerun that changed a single column shows.
+    async function fingerprint() {
+      const sorted = <T extends { id: string }>(list: T[]) =>
+        [...list].sort((a, b) => a.id.localeCompare(b.id));
       const auth = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      out.demo_auth_users = auth.data.users.filter((u) => u.email?.endsWith("@airportops.example")).length;
-      return out;
+      const eventsOf = (ids: string[]) => eventsOfBookings(ids);
+
+      return {
+        demo_users: digest(sorted(await rows("users", undefined, { column: "email", like: "%.example" }))),
+        categories: digest(sorted(await rows("seat_categories"))),
+        airports: digest(sorted(await rows("airports"))),
+        unused_seats: digest(sorted(await rows("seats", SEED_SEAT_IDS.slice(30)))),
+        new_bookings: digest(sorted(await rows("bookings", SEED_BOOKING_IDS.slice(20)))),
+        new_booking_events: digest(sorted(await eventsOf(SEED_BOOKING_IDS.slice(20)))),
+        jobs: digest(sorted(await rows("technician_jobs", JOB_IDS))),
+        incidents: digest(sorted(await rows("incidents", INCIDENT_IDS))),
+        auth_users: digest(
+          auth.data.users
+            .filter((u) => u.email?.endsWith("@airportops.example"))
+            .map((u) => [u.id, u.email, u.created_at, u.email_confirmed_at])
+            .sort(),
+        ),
+      };
     }
 
-    it("should do nothing, and say so, when it is loaded again on loaded data", async () => {
-      const before = await counts();
+    it("should do nothing, and say so, when the demo seed is loaded again on loaded data", async () => {
+      const before = await fingerprint();
       const result = runSql(demoSql());
       if (!result) return; // No Docker: nothing to run it with.
 
       expect(result.ok, result.output).toBe(true);
       expect(result.output).toContain("already loaded");
-      expect(await counts()).toEqual(before);
+      expect(await fingerprint()).toEqual(before);
+    });
+
+    it("should fail on nothing, add nothing and change nothing when the base seed is loaded again", async () => {
+      const before = await fingerprint();
+      const result = runSql(baseSql());
+      if (!result) return;
+
+      expect(result.ok, result.output).toBe(true);
+      expect(await fingerprint()).toEqual(before);
+      expect(await rows("seats", SEED_SEAT_IDS)).toHaveLength(40);
+      expect(await rows("bookings", SEED_BOOKING_IDS)).toHaveLength(30);
+    });
+
+    it("should not put back a seeded row that was changed since: only a reset does that", () => {
+      // Inside a transaction that is rolled back, so the seeded row is not
+      // left changed for the checks that run next to this one.
+      const result = runSql(`
+        begin;
+        update public.seats set manufacturer = 'Edited since the load' where id = '${seatId(40)}';
+        ${baseSql()}
+        ${demoSql()}
+        select 'manufacturer=' || manufacturer || ' seats=' || (select count(*) from public.seats where id::text like 'e0000000-%')
+          from public.seats where id = '${seatId(40)}';
+        rollback;
+      `);
+      if (!result) return;
+
+      expect(result.ok, result.output).toBe(true);
+      expect(result.output).toContain("manufacturer=Edited since the load");
+      expect(result.output).toMatch(/seats=40\b/);
     });
 
     it("should refuse to load, and change nothing, when an account with a real address exists", async () => {
-      const before = await counts();
+      const before = await fingerprint();
       const result = runSql(`
         begin;
         insert into public.users (id, email, full_name, role, is_active)
@@ -503,7 +605,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
 
       expect(result.ok).toBe(false);
       expect(result.output).toContain("refusing to load demo data");
-      expect(await counts()).toEqual(before);
+      expect(await fingerprint()).toEqual(before);
     });
   });
 });

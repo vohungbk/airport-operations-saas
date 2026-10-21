@@ -3,9 +3,11 @@
 -- Runs after supabase/seed.sql (see [db.seed] in supabase/config.toml), so
 -- `npx supabase db reset` loads both. Nothing in the base seed is changed.
 --
---   * Every row has a fixed literal id, so two loads give the same data. Only
---     the system timestamps (created_at, and the audit log's) are the time of
---     the load.
+--   * Every column of every row is the same on every load (VI-F07-S02): the ids
+--     are fixed literals, and the values the system would set (created_at,
+--     updated_at, the ids and times of the audit rows the triggers write) are
+--     made fixed in the last step below. Nothing here reads the clock, a random
+--     number or a sequence that other data can move.
 --   * It is one statement, so it is all or nothing: if anything fails, nothing
 --     of it is kept (spec E3, rerun `npm run demo:reset`).
 --   * It refuses to run next to real data (spec E1): if a user with an address
@@ -33,6 +35,8 @@ declare
   -- bcrypt with a fixed salt, so the stored hash is the same on every load.
   c_hash constant text := extensions.crypt(c_password, '$2a$10$DemoSeedFixedSaltAbcd.');
   c_instance constant uuid := '00000000-0000-0000-0000-000000000000';
+  -- The one moment every system timestamp of the seed is set to.
+  c_base constant timestamptz := timestamptz '2026-08-01 00:00:00+00';
   c_erac constant uuid := 'b0000000-0000-0000-0000-000000000001';
   c_afm constant uuid := 'b0000000-0000-0000-0000-000000000002';
   c_dxb constant uuid := 'a0000000-0000-0000-0000-000000000001';
@@ -76,21 +80,21 @@ begin
     confirmation_token, recovery_token, email_change_token_new, email_change
   )
   select
-    c_instance, u.id, 'authenticated', 'authenticated', u.email, c_hash, now(),
+    c_instance, u.id, 'authenticated', 'authenticated', u.email, c_hash, c_base,
     '{"provider": "email", "providers": ["email"]}'::jsonb,
     jsonb_build_object('full_name', u.full_name),
-    now(), now(), '', '', '', ''
+    c_base, c_base, '', '', '', ''
   from public.users u
   where u.email like '%@airportops.example'
   on conflict (id) do nothing;
 
   insert into auth.identities (
-    provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+    id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
   )
   select
-    u.id::text, u.id,
+    md5('identity:' || u.id::text)::uuid, u.id::text, u.id,
     jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
-    'email', now(), now(), now()
+    'email', c_base, c_base, c_base
   from public.users u
   where u.email like '%@airportops.example'
     and not exists (select 1 from auth.identities i where i.user_id = u.id);
@@ -240,10 +244,117 @@ begin
    where id = '14000000-0000-0000-0000-000000000002';
 
   perform set_config('app.incident_status_notes', 'Cosmetic only; seat is safe', false);
-  update public.incidents set status = 'resolved', resolved_by = c_ops, resolved_at = created_at + interval '1 hour'
+  update public.incidents set status = 'resolved', resolved_by = c_ops, resolved_at = timestamptz '2026-09-06 12:00:00+04'
    where id = '14000000-0000-0000-0000-000000000002';
 
   perform set_config('app.incident_status_notes', '', false);
   perform set_config('app.incident_status_change', '', false);
+
+  ---------------------------------------------------------------------------
+  -- Last step (VI-F07-S02): make fixed what the system set, so that two loads
+  -- give the same data in every column, not only in the business columns.
+  --
+  --   * created_at and updated_at of the seeded rows are set to c_base. The
+  --     triggers that keep updated_at and guard updates are off for this step.
+  --   * The audit rows the triggers wrote (booking events, seat history, job
+  --     events, incident history) get an id made from their table and their rank,
+  --     and a time of c_base plus that rank in seconds. The rank keeps the order
+  --     the events happened in, so every history still ends at the current
+  --     status. The immutability triggers of these tables are off for this step
+  --     only.
+  --
+  -- It touches only the seeded rows (found by their fixed ids), never the rows
+  -- another suite added. The triggers are on again at the end of this block, and
+  -- if anything fails the whole statement, the DDL included, is rolled back.
+  ---------------------------------------------------------------------------
+  alter table public.users disable trigger user;
+  alter table public.partners disable trigger user;
+  alter table public.airports disable trigger user;
+  alter table public.seat_categories disable trigger user;
+  alter table public.seats disable trigger user;
+  alter table public.bookings disable trigger user;
+  alter table public.technician_jobs disable trigger user;
+  alter table public.incidents disable trigger user;
+  alter table public.booking_events disable trigger user;
+  alter table public.technician_job_events disable trigger user;
+  alter table public.incident_status_history disable trigger user;
+  alter table public.seat_status_history disable trigger user;
+
+  update public.users set created_at = c_base, updated_at = c_base where email like '%.example';
+  update public.partners set created_at = c_base, updated_at = c_base where id in (c_erac, c_afm);
+  update public.airports set created_at = c_base, updated_at = c_base where id = c_dxb;
+  update public.seat_categories set created_at = c_base, updated_at = c_base where id::text like 'c0000000-%';
+  update public.seats set created_at = c_base, updated_at = c_base where id::text like 'e0000000-%';
+  update public.bookings set created_at = c_base, updated_at = c_base where id::text like 'f0000000-%';
+  update public.technician_jobs set created_at = c_base, updated_at = c_base where id::text like '10000000-%';
+  update public.installations set created_at = c_base where id::text like '11000000-%';
+  update public.cleaning_records set created_at = c_base where id::text like '12000000-%';
+  update public.inspection_records set created_at = c_base where id::text like '13000000-%';
+  update public.incidents set created_at = c_base, updated_at = c_base where id::text like '14000000-%';
+
+  update public.booking_events e
+     set id = md5('booking_events:' || r.n)::uuid,
+         created_at = c_base + (r.n || ' seconds')::interval
+    from (
+      select id, row_number() over (
+               order by created_at, booking_id, coalesce(from_status::text, ''),
+                        to_status::text, coalesce(metadata::text, ''), coalesce(notes, '')
+             ) as n
+        from public.booking_events
+       where booking_id::text like 'f0000000-%'
+    ) r
+   where e.id = r.id;
+
+  update public.seat_status_history h
+     set id = md5('seat_status_history:' || r.n)::uuid,
+         created_at = c_base + (r.n || ' seconds')::interval
+    from (
+      select id, row_number() over (
+               order by created_at, seat_id, coalesce(from_status::text, ''),
+                        to_status::text, coalesce(reason, ''), coalesce(changed_by::text, '')
+             ) as n
+        from public.seat_status_history
+       where seat_id::text like 'e0000000-%'
+    ) r
+   where h.id = r.id;
+
+  update public.technician_job_events e
+     set id = md5('technician_job_events:' || r.n)::uuid,
+         created_at = c_base + (r.n || ' seconds')::interval
+    from (
+      select id, row_number() over (
+               order by created_at, technician_job_id, coalesce(from_status::text, ''),
+                        to_status::text, coalesce(notes, '')
+             ) as n
+        from public.technician_job_events
+       where technician_job_id::text like '10000000-%'
+    ) r
+   where e.id = r.id;
+
+  update public.incident_status_history h
+     set id = md5('incident_status_history:' || r.n)::uuid,
+         created_at = c_base + (r.n || ' seconds')::interval
+    from (
+      select id, row_number() over (
+               order by created_at, incident_id, coalesce(from_status::text, ''),
+                        to_status::text, coalesce(notes, '')
+             ) as n
+        from public.incident_status_history
+       where incident_id::text like '14000000-%'
+    ) r
+   where h.id = r.id;
+
+  alter table public.users enable trigger user;
+  alter table public.partners enable trigger user;
+  alter table public.airports enable trigger user;
+  alter table public.seat_categories enable trigger user;
+  alter table public.seats enable trigger user;
+  alter table public.bookings enable trigger user;
+  alter table public.technician_jobs enable trigger user;
+  alter table public.incidents enable trigger user;
+  alter table public.booking_events enable trigger user;
+  alter table public.technician_job_events enable trigger user;
+  alter table public.incident_status_history enable trigger user;
+  alter table public.seat_status_history enable trigger user;
 end
 $demo$;

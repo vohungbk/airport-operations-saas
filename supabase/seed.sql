@@ -1,6 +1,12 @@
 -- F02: deterministic development seed data.
 -- Every row uses a fixed literal UUID (never gen_random_uuid()) so that
 -- repeated `supabase db reset` runs produce byte-identical ids.
+--
+-- VI-F07-S02: every insert is `on conflict (id) do nothing`, so loading this
+-- file again on data that is already there changes nothing and fails on
+-- nothing. A row that was changed or deleted since is not put back; only
+-- `supabase db reset` does that. The timestamps the system sets are made fixed
+-- at the end of supabase/seeds/demo.sql.
 
 -- 1 airport (DXB)
 insert into public.airports (id, code, name, city, country, timezone)
@@ -11,13 +17,15 @@ values (
   'Dubai',
   'United Arab Emirates',
   'Asia/Dubai'
-);
+)
+on conflict (id) do nothing;
 
 -- 2 partners
 insert into public.partners (id, name, code, contact_email, status)
 values
   ('b0000000-0000-0000-0000-000000000001', 'Emirates Rent A Car', 'ERAC', 'ops@emiratesrentacar.example', 'active'),
-  ('b0000000-0000-0000-0000-000000000002', 'Al Futtaim Mobility', 'AFM', 'ops@alfuttaimmobility.example', 'active');
+  ('b0000000-0000-0000-0000-000000000002', 'Al Futtaim Mobility', 'AFM', 'ops@alfuttaimmobility.example', 'active')
+on conflict (id) do nothing;
 
 -- 4 seat categories (ages in months)
 insert into public.seat_categories (id, name, description, min_child_age, max_child_age, safety_standard, is_active)
@@ -25,23 +33,27 @@ values
   ('c0000000-0000-0000-0000-000000000001', 'Infant Carrier', 'Rear-facing infant carrier', 0, 15, 'UN R129 (i-Size)', true),
   ('c0000000-0000-0000-0000-000000000002', 'Convertible', 'Rear- and forward-facing convertible seat', 6, 48, 'UN R129 (i-Size)', true),
   ('c0000000-0000-0000-0000-000000000003', 'Booster', 'High-back booster seat', 36, 96, 'UN R44/04', true),
-  ('c0000000-0000-0000-0000-000000000004', 'All-in-One', 'Infant through booster convertible seat', 0, 96, 'UN R129 (i-Size)', true);
+  ('c0000000-0000-0000-0000-000000000004', 'All-in-One', 'Infant through booster convertible seat', 0, 96, 'UN R129 (i-Size)', true)
+on conflict (id) do nothing;
 
 -- 3 technician users
 insert into public.users (id, email, full_name, role, partner_id, is_active)
 values
   ('d0000000-0000-0000-0000-000000000001', 'technician1@airportops.example', 'Ahmed Al Mazrouei', 'technician', null, true),
   ('d0000000-0000-0000-0000-000000000002', 'technician2@airportops.example', 'Fatima Al Suwaidi', 'technician', null, true),
-  ('d0000000-0000-0000-0000-000000000003', 'technician3@airportops.example', 'Rashid Al Nuaimi', 'technician', null, true);
+  ('d0000000-0000-0000-0000-000000000003', 'technician3@airportops.example', 'Rashid Al Nuaimi', 'technician', null, true)
+on conflict (id) do nothing;
 
 -- 40 seats, deterministic uuids via a fixed prefix + zero-padded sequence
 insert into public.seats (
-  id, serial_number, manufacturer, model, category_id, airport_id,
+  id, serial_number, public_token, manufacturer, model, category_id, airport_id,
   status, manufacture_date, purchase_date, max_rental_cycles
 )
 select
   ('e0000000-0000-0000-0000-' || lpad(gs::text, 12, '0'))::uuid,
   'SEAT-' || lpad(gs::text, 4, '0'),
+  -- The public token is a random uuid by default; here it is made from the number.
+  md5('seat-public-token:' || gs)::uuid::text,
   case (gs % 3) when 0 then 'Britax' when 1 then 'Chicco' else 'Maxi-Cosi' end,
   case (gs % 4)
     when 0 then 'Infant Carrier X1'
@@ -60,7 +72,8 @@ select
   date '2024-01-01' + (gs || ' days')::interval,
   date '2024-02-01' + (gs || ' days')::interval,
   500
-from generate_series(1, 40) as gs;
+from generate_series(1, 40) as gs
+on conflict (id) do nothing;
 
 -- 20 bookings, deterministic uuids via a fixed prefix + zero-padded sequence
 insert into public.bookings (
@@ -93,4 +106,5 @@ select
   75.00,
   3,
   'confirmed'
-from generate_series(1, 20) as gs;
+from generate_series(1, 20) as gs
+on conflict (id) do nothing;
