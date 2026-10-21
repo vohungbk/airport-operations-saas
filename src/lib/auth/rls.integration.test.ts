@@ -16,6 +16,8 @@ import { parseJobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
 import { seatsQuerySchema } from "@/features/seats/schemas/seats-query.schema";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
 import { requireAnyPermission } from "@/lib/auth/current-user";
+import { getPartnerSeats } from "@/features/seats/lib/get-partner-seats";
+import { partnerSeatsQuerySchema } from "@/features/seats/schemas/partner-seats-query.schema";
 import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
 import { DASHBOARD_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { INCIDENT_DETAIL_SELECT } from "@/features/incidents/lib/get-incident-by-id";
@@ -5446,6 +5448,119 @@ describe.skipIf(!config)("F05 RLS integration", () => {
 
       expect(a.data).toEqual([]);
       expect(b.data).toEqual([]);
+    });
+  });
+
+  describe("partner seats (VI-F03-S04)", () => {
+    // The seats a partner may see are those assigned to one of its bookings.
+    // The truth is asked seat by seat with a head count: a plain select on
+    // bookings is capped by the API row limit, and there are many bookings.
+    async function expectedSeatIds(partnerId: string) {
+      const { data: all, error } = await service.from("seats").select("id");
+      expect(error).toBeNull();
+
+      const linked = await Promise.all(
+        all!.map(async ({ id }) => {
+          const { count, error: countError } = await service
+            .from("bookings")
+            .select("id", { count: "exact", head: true })
+            .eq("partner_id", partnerId)
+            .eq("assigned_seat_id", id);
+          expect(countError).toBeNull();
+          return count! > 0 ? id : null;
+        }),
+      );
+      return linked.filter((id): id is string => id !== null).sort();
+    }
+
+    const query = (raw: Record<string, string> = {}) =>
+      partnerSeatsQuerySchema.parse({ page_size: "100", ...raw });
+
+    it("each partner user is given exactly the seats assigned to their own partner's bookings", async () => {
+      for (const [client, partnerId] of [
+        [partnerAClient, PARTNER_A_ID],
+        [partnerBClient, PARTNER_B_ID],
+      ] as const) {
+        const expected = await expectedSeatIds(partnerId);
+        expect(expected.length).toBeGreaterThan(0);
+
+        const { seats, total } = await getPartnerSeats(query(), client);
+
+        expect(seats.map((seat) => seat.id).sort()).toEqual(expected);
+        expect(total).toBe(expected.length);
+      }
+    });
+
+    it("a seat of another partner's booking cannot be found by its serial number", async () => {
+      const ownA = await expectedSeatIds(PARTNER_A_ID);
+      expect(ownA).not.toContain(SEAT_B_ID);
+
+      const { data, error } = await service
+        .from("seats")
+        .select("serial_number")
+        .eq("id", SEAT_B_ID)
+        .single();
+      expect(error).toBeNull();
+
+      const { seats, total } = await getPartnerSeats(
+        query({ q: data!.serial_number }),
+        partnerAClient,
+      );
+
+      expect(total).toBe(0);
+      expect(seats).toEqual([]);
+    });
+
+    it("a partner id, airport or category put in the address does not widen the list", async () => {
+      const expected = await expectedSeatIds(PARTNER_A_ID);
+
+      const { seats } = await getPartnerSeats(
+        query({
+          partner_id: PARTNER_B_ID,
+          airport_id: "a0000000-0000-0000-0000-000000000001",
+        }),
+        partnerAClient,
+      );
+
+      expect(seats.map((seat) => seat.id).sort()).toEqual(expected);
+    });
+
+    it("a row carries only the serial, status, category and airport: no public token or internal data", async () => {
+      const { seats } = await getPartnerSeats(query(), partnerAClient);
+
+      expect(seats.length).toBeGreaterThan(0);
+      for (const seat of seats) {
+        expect(Object.keys(seat).sort()).toEqual([
+          "airport",
+          "category",
+          "id",
+          "serial_number",
+          "status",
+        ]);
+      }
+    });
+
+    it("the status filter and the sort stay inside the partner's own seats", async () => {
+      const own = new Set(await expectedSeatIds(PARTNER_B_ID));
+
+      const cases: Record<string, string>[] = [
+        { status: "available" },
+        { status: "quarantine" },
+        { sort: "status", order: "desc" },
+      ];
+
+      for (const raw of cases) {
+        const { seats } = await getPartnerSeats(query(raw), partnerBClient);
+
+        expect(seats.every((seat) => own.has(seat.id))).toBe(true);
+      }
+    });
+
+    it("a partner user with no partner is given no seat at all", async () => {
+      const { seats, total } = await getPartnerSeats(query(), partnerNullClient);
+
+      expect(total).toBe(0);
+      expect(seats).toEqual([]);
     });
   });
 

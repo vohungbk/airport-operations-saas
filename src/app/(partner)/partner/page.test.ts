@@ -86,13 +86,12 @@ describe("PartnerPage", () => {
     expect(getMetricsMock).toHaveBeenCalledWith("partner_user");
   });
 
-  it("should lead to the bookings list and mark seats as not available yet, with no dead link", async () => {
+  it("should lead to the bookings list and to the partner seats view, with no link to the admin seats", async () => {
     const html = await render();
 
     expect(html).toContain('href="/bookings"');
-    expect(html).toContain("Seats");
-    expect(html).toContain("Not available yet");
-    expect(html).not.toContain("/partner/seats");
+    expect(html).toContain('href="/partner/seats"');
+    expect(html).not.toContain('href="/seats');
   });
 
   it("should say the account is not linked and read nothing when partner_id is null", async () => {
