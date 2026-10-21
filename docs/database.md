@@ -647,6 +647,7 @@ operational flows a demo needs. The base seed is not changed by it.
 ```bash
 npm run demo:reset    # resets the LOCAL database, loads both seeds, checks them
 npm run demo:verify   # only runs the checks, on what is loaded
+npm run demo:determinism   # resets twice and shows that both loads are the same
 ```
 
 `demo:reset` replaces everything in the local database and refuses to run
@@ -682,9 +683,18 @@ app is `BK-00031`.
   history, job events, incident history) is written by the same triggers the app
   uses, by moving each record through its real statuses, so the last step of each
   history is the current status.
-- *Same input, same data (R2).* Every row has a fixed id and fixed values. Only
-  the system timestamps (`created_at`, and the time of audit events) are the time
-  of the load.
+- *Same input, same data (R2).* Two loads give the same data in every column of
+  every table, not only the same ids. The ids are fixed. The values the system
+  would set are made fixed in the last step of `demo.sql`: `created_at` and
+  `updated_at` of the seeded rows are `2026-08-01 00:00:00+00`; each audit row
+  (booking events, seat history, job events, incident history) gets an id made
+  from its table and its rank, and a time of that moment plus its rank in
+  seconds, which keeps the order it happened in; the seats' public tokens, the
+  identity ids and the password hash (a fixed salt) are made from fixed input.
+  To do that, the step turns off the triggers of the tables it touches (the
+  `updated_at` triggers and the immutability triggers of the audit tables) and
+  turns them on again inside the same statement. It is all or nothing, it
+  touches only the seeded rows, and a test checks that no trigger is left off.
 - *Nothing real (R3).* Every address ends in `.example`; there is no personal,
   financial or credential data.
 - *Roles and isolation (R4).* One account per role and two partners, each with
@@ -693,8 +703,26 @@ app is `BK-00031`.
   from these rows when the page loads.
 - *Real data (E1).* `demo.sql` stops with an error if any account has an address
   that is not `.example` or `@test.local`.
-- *Loaded twice (E2).* A second run of `demo.sql` prints "already loaded" and
-  changes nothing.
+- *Loaded again (E2).* Both files can be run again on a database that already
+  has them. Every insert of `seed.sql` is `on conflict (id) do nothing`, and
+  `demo.sql` prints "already loaded" and stops. Nothing fails, nothing is added,
+  nothing is changed. A seeded row that was changed or deleted since is **not**
+  put back by a rerun: only `npm run demo:reset` (a reset) does that.
+
+**Proof that two loads are the same.**
+
+```bash
+npm run demo:determinism   # resets the LOCAL database twice and compares
+```
+
+After each reset it takes a fingerprint of 22 tables (`scripts/demo-fingerprint.sql`:
+the row count and an md5 of every column of every row, in an order that does not
+depend on where the rows are stored, with nothing left out) and the two must be
+equal; if not, it prints the tables that differ. It takes about a minute and
+replaces the local database, so it is not part of `npm test`. What does run with
+`npm test`: the seed files hold no random number, uuid generator or clock, every
+insert of the base seed can be run again, and a rerun of both seeds on the loaded
+database changes no column of any seeded row.
 
 The checks are `src/lib/demo/demo-data.integration.test.ts`: they cover the rules
 above, that each account signs in, what each role sees, and the two guards.
