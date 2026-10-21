@@ -2,20 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import { findSensitiveData } from "@/lib/demo/sensitive-data";
 
-// Samples of what the detector must catch. They are put together here, from
-// parts, so that this file holds no secret-shaped text of its own for a secret
-// scanner (such as the commit hook) to take for a real one.
+// Samples of what the detector must catch. None of them is a real value, or
+// even looks random: each is a plain pattern repeated ("aaaa..."), put together
+// here from parts, so that this file holds no secret-shaped or high-entropy text
+// of its own for a secret scanner (the commit hook, GitGuardian) to take for a
+// real one. The detector matches on the shape, so these are enough.
 const word = (...parts: string[]) => parts.join("");
 const FAKE = {
-  jwt: word("eyJ", "hbGciOiJIUzI1NiJ9", ".eyJzdWIiOiIxMjM0NTY3ODkwIn0", ".abcDEFghiJKL"),
-  awsKey: word("AK", "IAIOSFODNN7EXAMPLE"),
+  jwt: word("eyJ", "a".repeat(12), ".", "eyJ", "b".repeat(12), ".", "c".repeat(12)),
+  awsKey: word("AK", "IA", "A".repeat(16)),
   privateKey: word("-----BEGIN RSA ", "PRIVATE KEY-----"),
-  stripeKey: word("sk_", "live_", "51H8abcDEF123456"),
-  longStripeKey: word("sk_", "live_", "51H8abcDEF1234567890abcdef"),
-  bcryptHash: word("$2a$10$", "N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"),
+  stripeKey: word("sk_", "live_", "a".repeat(12)),
+  longStripeKey: word("sk_", "live_", "a".repeat(20)),
+  bcryptHash: word("$2a$10$", "a".repeat(53)),
   assigned: (name: string, value: string) => `${name} = '${value}'`,
   typed: (name: string, value: string) => `${name} constant text := '${value}'`,
-  longToken: word("abcdEFGH1234", "abcdEFGH1234", "abcdEFGH1234", "abcdEFGH1234"),
+  longToken: "a1".repeat(24),
 };
 
 const kinds = (text: string, allow?: string[]) =>
@@ -39,8 +41,8 @@ describe("findSensitiveData: what it catches", () => {
     ["an AWS access key", FAKE.awsKey, "aws key"],
     ["a private key block", FAKE.privateKey, "private key"],
     ["a full bcrypt hash", FAKE.bcryptHash, "password hash"],
-    ["a password written in the text", FAKE.assigned("pass" + "word", "hunter2hunter2"), "credential in text"],
-    ["a secret assigned with :=", FAKE.typed("c_" + "secret", "abcd1234efgh"), "credential in text"],
+    ["a password written in the text", FAKE.assigned("pass" + "word", "x".repeat(12)), "credential in text"],
+    ["a secret assigned with :=", FAKE.typed("c_" + "secret", "y1".repeat(6)), "credential in text"],
     ["a link to a real site", "see https://www.example.com/path and https://emirates.com/x", "url"],
     ["a long secret-looking token", `token ${FAKE.longToken}`, "long token"],
   ])("should catch %s", (_label, text, kind) => {

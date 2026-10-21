@@ -39,7 +39,7 @@ describe("the seed files hold no real personal, financial or credential data", (
 
     expect(passwordWords).toEqual([`'${demoPassword()}'`]);
     // Left allowed, the same text anywhere else in the files would be a finding.
-    expect(findSensitiveData(assigned("pass" + "word", "another-one-1234"), { allow: [demoPassword()] }).length).toBeGreaterThan(0);
+    expect(findSensitiveData(assigned("pass" + "word", "z".repeat(14)), { allow: [demoPassword()] }).length).toBeGreaterThan(0);
   });
 
   it("should use only demo addresses: every email ends in .example", () => {
@@ -89,8 +89,8 @@ describe("the scan would catch real data if it were added to a seed", () => {
     ["a real email address", "insert into users values ('x', 'maria.garcia@gmail.com');", "email"],
     ["a card number", "update bookings set notes = 'paid with 4111 1111 1111 1111';", "card number"],
     ["a phone number", "update bookings set notes = 'call +971 50 123 4567';", "phone number"],
-    ["an API key", `-- stripe ${"sk_" + "live_"}51H8abcDEF123456`, "api key"],
-    ["another password", `c_other_${"pass" + "word"} constant text := 'S3cretValue99';`, "credential in text"],
+    ["an API key", `-- stripe ${"sk_" + "live_"}${"a".repeat(12)}`, "api key"],
+    ["another password", `c_other_${"pass" + "word"} constant text := '${"q".repeat(12)}';`, "credential in text"],
     ["a link to a real site", "-- see https://www.dubaiairports.ae/", "url"],
   ])("should catch %s added to the demo seed", (_label, line, kind) => {
     expect(scan(`${seed}\n${line}`).map((f) => f.kind)).toContain(kind);
