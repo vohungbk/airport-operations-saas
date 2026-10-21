@@ -45,6 +45,9 @@ const ACTIVE_ROW = {
   is_active: true,
 };
 
+/** What getCurrentUser returns for ACTIVE_ROW: no partner, so no partner status. */
+const ACTIVE_USER = { ...ACTIVE_ROW, partner_status: null };
+
 function resetMocks() {
   getAuthUserMock.mockReset();
   singleMock.mockReset();
@@ -71,7 +74,7 @@ describe("getCurrentUser", () => {
 
     const user = await getCurrentUser();
 
-    expect(user).toEqual(ACTIVE_ROW);
+    expect(user).toEqual(ACTIVE_USER);
   });
 
   it("should scope the users lookup to the caller's own authenticated id (self-lookup, not a list query)", async () => {
@@ -189,7 +192,7 @@ describe("requireAuth", () => {
 
     const user = await requireAuth();
 
-    expect(user).toEqual(ACTIVE_ROW);
+    expect(user).toEqual(ACTIVE_USER);
   });
 });
 
@@ -200,6 +203,7 @@ describe("requireAuth and a partner user with no partner (VI-F03-S05)", () => {
     ...ACTIVE_ROW,
     role: "partner_user" as const,
     partner_id,
+    partner: partner_id ? { status: "active" } : null,
   });
 
   it("should send a partner user with no partner to the no-partner page, not to the app", async () => {
@@ -251,6 +255,94 @@ describe("requireAuth and a partner user with no partner (VI-F03-S05)", () => {
   });
 });
 
+describe("requireAuth and a partner that is not active (VI-F03-S07)", () => {
+  beforeEach(resetMocks);
+
+  const partnerRow = (partner: { status: string } | null) => ({
+    ...ACTIVE_ROW,
+    role: "partner_user" as const,
+    partner_id: "partner-a",
+    partner,
+  });
+
+  it.each(["pending", "suspended", "inactive"])(
+    "should send a partner user of a %s partner to the partner-inactive page",
+    async (status) => {
+      getAuthUserMock.mockResolvedValue(AUTH_USER);
+      singleMock.mockResolvedValue({ data: partnerRow({ status }), error: null });
+
+      await expect(requireAuth()).rejects.toThrow(
+        "REDIRECT:/forbidden?reason=partner_inactive",
+      );
+    },
+  );
+
+  it("should refuse, not let through, when the partner row cannot be read (the database hides it)", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: partnerRow(null), error: null });
+
+    await expect(requireAuth()).rejects.toThrow("partner_inactive");
+  });
+
+  it("should let a partner user of an active partner through, with the partner status on the user", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: partnerRow({ status: "active" }), error: null });
+
+    await expect(requireAuth()).resolves.toMatchObject({
+      partner_id: "partner-a",
+      partner_status: "active",
+    });
+  });
+
+  it("should check the partner at every request, so a partner deactivated while the user is signed in is refused at the next one", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock
+      .mockResolvedValueOnce({ data: partnerRow({ status: "active" }), error: null })
+      .mockResolvedValueOnce({ data: partnerRow({ status: "inactive" }), error: null });
+
+    await expect(requireAuth()).resolves.toMatchObject({ partner_status: "active" });
+    await expect(requireAuth()).rejects.toThrow("partner_inactive");
+  });
+
+  it("should apply to every guard built on requireAuth", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: partnerRow({ status: "suspended" }), error: null });
+
+    await expect(requirePermission("bookings:view_own_partner")).rejects.toThrow(
+      "partner_inactive",
+    );
+    await expect(requireAnyPermission(["bookings:view_own_partner"])).rejects.toThrow(
+      "partner_inactive",
+    );
+    await expect(requirePartnerScope("bookings:view_own_partner")).rejects.toThrow(
+      "partner_inactive",
+    );
+  });
+
+  it.each(["admin", "operations_manager", "technician"] as const)(
+    "should not touch the %s role, whatever the status of any partner",
+    async (role) => {
+      getAuthUserMock.mockResolvedValue(AUTH_USER);
+      singleMock.mockResolvedValue({
+        data: { ...ACTIVE_ROW, role, partner_id: null, partner: null },
+        error: null,
+      });
+
+      await expect(requireAuth()).resolves.toMatchObject({ role });
+    },
+  );
+
+  it("should read the status of the partner in the same query as the profile, not in one more", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: partnerRow({ status: "active" }), error: null });
+
+    await requireAuth();
+
+    expect(fromMock).toHaveBeenCalledTimes(1);
+    expect(selectMock).toHaveBeenCalledWith(expect.stringContaining("partner:partners(status)"));
+  });
+});
+
 describe("requirePartnerScope (VI-F03-S05)", () => {
   beforeEach(resetMocks);
 
@@ -258,6 +350,7 @@ describe("requirePartnerScope (VI-F03-S05)", () => {
     ...ACTIVE_ROW,
     role,
     partner_id,
+    partner: partner_id ? { status: "active" } : null,
   });
 
   it("should return the user with the partner on their own profile", async () => {
@@ -305,7 +398,7 @@ describe("requireRole", () => {
 
     const user = await requireRole(["technician"]);
 
-    expect(user).toEqual(ACTIVE_ROW);
+    expect(user).toEqual(ACTIVE_USER);
   });
 
   it("should redirect to /forbidden when the user's role is not in the allowed list", async () => {
@@ -350,7 +443,7 @@ describe("requirePermission", () => {
 
     const user = await requirePermission("jobs:view_assigned");
 
-    expect(user).toEqual(ACTIVE_ROW);
+    expect(user).toEqual(ACTIVE_USER);
   });
 
   it("should redirect to /forbidden when the user's role lacks the required permission", async () => {
@@ -397,7 +490,12 @@ describe("requireAnyPermission", () => {
   it("should return the user when their role holds only one of the listed permissions", async () => {
     getAuthUserMock.mockResolvedValue(AUTH_USER);
     singleMock.mockResolvedValue({
-      data: { ...ACTIVE_ROW, role: "partner_user", partner_id: "partner-a" },
+      data: {
+        ...ACTIVE_ROW,
+        role: "partner_user",
+        partner_id: "partner-a",
+        partner: { status: "active" },
+      },
       error: null,
     });
 

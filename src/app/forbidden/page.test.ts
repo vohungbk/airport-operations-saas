@@ -30,6 +30,15 @@ describe("ForbiddenPage", () => {
     expect(html).toContain("LOGOUT");
   });
 
+  it("should say the organization is not active, without naming a status, for a partner that is not active", async () => {
+    const html = await render("partner_inactive");
+
+    expect(html).toContain("Access denied");
+    expect(html).toContain("organization&#x27;s account is not active");
+    expect(html).not.toMatch(/suspended|inactive status|deactivated/i);
+    expect(html).toContain("LOGOUT");
+  });
+
   it("should keep the generic copy, which confirms nothing, when there is no reason", async () => {
     const html = await render();
 
