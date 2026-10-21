@@ -126,7 +126,7 @@ to redirect back into the app.
   | `admin` | all (bypass, no explicit list) |
   | `operations_manager` | `airports:manage`, `partners:manage`, `seat_categories:manage`, `seats:manage`, `bookings:manage`, `technicians:manage`, `cleaning:manage`, `inspections:manage`, `incidents:view`, `finance:view`, `dashboards:view` |
   | `technician` | `jobs:view_assigned`, `jobs:update_assigned`, `installation:perform`, `cleaning:create`, `inspections:create`, `incidents:report` |
-  | `partner_user` | `bookings:view_own_partner`, `seats:view_own_partner`, `operations:view_own_partner`, `finance:view_own_partner` |
+  | `partner_user` | `bookings:view_own_partner`, `bookings:manage_own_partner`, `seats:view_own_partner`, `operations:view_own_partner`, `finance:view_own_partner` |
 
 - **Authorization-layer helpers** (`src/lib/auth/current-user.ts`), built
   on top of the existing JWT-only `getAuthUser()`/`requireUser()`
@@ -470,12 +470,12 @@ The `/bookings*` routes live under `src/app/(dashboard)/bookings/**`
 (the `(dashboard)` layout already provides `AppShell`). The list and
 detail routes are gated by `requireAnyPermission(["bookings:manage",
 "bookings:view_own_partner"])` in `layout.tsx` and again in each page;
-`technician` is forbidden. `/bookings/new` and `/bookings/[id]/edit`, and
-every Server Action (create, update, change status, available seats),
-require `bookings:manage` (admin and `operations_manager`). **`partner_user`
-is view-only**: RLS already limits it to its own partner's bookings
-(`bookings_select_partner_user`) and gives it no INSERT/UPDATE policy; the
-UI hides the edit/status controls. No RBAC permission was added; the any-of
+`technician` is forbidden. The Server Actions for changing the status and
+for the available seats require `bookings:manage` (admin and
+`operations_manager`). `/bookings/new` and `/bookings/[id]/edit` take
+`bookings:manage` or, since VI-F03-S03, `bookings:manage_own_partner` (see
+"Partner creates and edits bookings"). A `partner_user` still has no
+INSERT/UPDATE policy on `bookings` and cannot change a status. The any-of
 helper `requireAnyPermission()` (`src/lib/auth/current-user.ts`) and any-of
 nav items (`src/config/nav.ts`) are small additions to F04.
 
@@ -1464,6 +1464,55 @@ time at the airport and converted to UTC with `airports.timezone`.
   "partner bookings (VI-F03-S02)" integration tests (each partner is listed all
   of their own bookings and none of the other's, search and address tampering,
   filters and sorting, no partner).
+
+## Partner creates and edits bookings (VI-F03-S03)
+
+- **Who.** A new permission, `bookings:manage_own_partner`, is given to
+  `partner_user` (the matrix above and `BOOKINGS_WRITE_PERMISSIONS`). "Where
+  authorized" means: an active partner user whose partner is active. Admin and
+  operations manager keep `bookings:manage` and the existing screens.
+- **How the write is done.** Only through two new database functions,
+  `create_partner_booking()` and `update_partner_booking()`
+  (`20261101090000_partner_booking_rpcs.sql`), called by the Server Actions
+  `createPartnerBookingAction` and `updatePartnerBookingAction`. **No INSERT or
+  UPDATE policy was added on `bookings` for partner users**, so a direct write
+  through the API is still refused, and the booking guard triggers still hold.
+- **Why `SECURITY DEFINER`.** The availability check must count the seats and
+  the bookings of every partner, which RLS hides from a partner user, so a
+  `SECURITY INVOKER` function would give a wrong answer. This is a reviewed
+  exception to "RLS is the boundary", kept as small as it can be:
+  - each function checks the caller itself: an active `partner_user` with an
+    active partner (`current_partner_user_partner_id()`), else `42501`;
+  - the partner is never an argument: it is the caller's own;
+  - a booking of another partner is `P0002` not found, the same as one that
+    does not exist; messages never name another partner's booking;
+  - the capacity helper (`partner_booking_free_seats()`) returns one number and
+    cannot be called by a signed-in user; both helpers are revoked from
+    `public`, `anon` and `authenticated`;
+  - `search_path` is empty, and the cross-partner denial is tested.
+- **Rules.** The status is always `pending`; the number is generated. A partner
+  user picks no seat (operations assign it later). Availability is by capacity:
+  the seats that are available for the airport and category, minus the active
+  bookings that overlap the period (assigned or not); touching endpoints do not
+  overlap; if none is free the error is `BK006` ("No seat is available...").
+  Creates for one airport and category are serialized with an advisory lock.
+- **Edit.** Only a `pending` booking of the caller's partner (`55000` otherwise),
+  with the lost-update guard (`BK004`). The airport, category, rate, status,
+  number and seat are not arguments. If the schedule changes, the capacity is
+  checked again without counting this booking, and a seat that operations
+  already assigned must still be free (`BK002`).
+- **Daily rate.** The partner user enters the daily rate when creating, as the
+  manager form does, and it is read-only afterwards. This feeds the settlement
+  later (VI-F04), so the rate a partner enters is a risk to review there; it was
+  accepted as the only source for the rate today.
+- **Not in this story.** Cancelling a booking, choosing a seat, and the
+  "not linked" note for the bookings view (VI-F03-S05).
+- Covered by unit tests (schemas, actions, RPC arguments, error mapping, pages,
+  forms, detail) and the "partner creates and edits bookings (VI-F03-S03)"
+  integration tests (own partner only, no partner argument, every other caller
+  refused, edit of another partner's booking not found, confirmed booking not
+  editable, no direct write, helpers not callable, capacity and touching
+  periods, suspended partner).
 
 ## Installation record errors (FO-F02-S05)
 
