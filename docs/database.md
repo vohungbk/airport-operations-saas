@@ -615,7 +615,8 @@ three tables.
 
 ## Seed strategy
 
-`supabase/seed.sql` is applied automatically by `npx supabase db reset`.
+`supabase/seed.sql` is applied automatically by `npx supabase db reset`
+(followed by the demo seed, see "Demo data" below).
 Every seeded row uses a **fixed literal UUID** — never a table's
 `gen_random_uuid()` default — so repeated `db reset` runs produce
 byte-identical ids every time. Ids are grouped by a fixed per-entity
@@ -633,6 +634,70 @@ Seeded data:
 - 20 bookings — generated via `generate_series`, cycling across the 2
   partners, 4 seat categories, 3 technicians, and referencing the seeded
   seats 1:1 by sequence number
+
+## Demo data (VI-F07-S01)
+
+`npx supabase db reset` loads two seed files, in this order
+(`[db.seed]` in `supabase/config.toml`): the base seed above, then
+`supabase/seeds/demo.sql`, which adds an account for every role and the
+operational flows a demo needs. The base seed is not changed by it.
+
+**One command:**
+
+```bash
+npm run demo:reset    # resets the LOCAL database, loads both seeds, checks them
+npm run demo:verify   # only runs the checks, on what is loaded
+```
+
+`demo:reset` replaces everything in the local database and refuses to run
+against a database that is not local. If a load fails halfway, run it again: a
+reset always returns to a clean state, and `demo.sql` is one statement, so it
+keeps nothing of a load that fails.
+
+**Accounts.** All use the same public demo password, `DemoPassw0rd!`. It is a
+demo value for a local database, not a credential: the script that loads it
+refuses a non-local database, and `demo.sql` refuses to run next to an account
+with a real address.
+
+| Email | Role | Sees |
+|---|---|---|
+| `admin@airportops.example` | admin | everything |
+| `ops.manager@airportops.example` | operations_manager | everything, and runs the bookings, jobs and incidents |
+| `partner.erac@airportops.example` | partner_user (ERAC) | only the bookings, seats and incidents of ERAC |
+| `partner.afm@airportops.example` | partner_user (AFM) | only the bookings, seats and incidents of AFM |
+| `technician1@airportops.example` | technician | only their own jobs (also `technician2`, `technician3`) |
+
+**What is in it.** On top of the base seed: ten more bookings `BK-00021` to
+`BK-00030` (pending, in progress, completed, cancelled, no-show and confirmed),
+eight technician jobs (installation, cleaning, inspection; assigned, in progress
+and completed) with the installation, cleaning and inspection records of the
+finished ones, a seat in quarantine after a failed inspection, and two incidents
+(one open, one resolved by the operations manager). The next booking made in the
+app is `BK-00031`.
+
+**Rules the data follows.**
+- *Coherence (R1).* Every reference is valid; a seat has the airport and category
+  of its booking and no two active bookings share one for overlapping periods;
+  numbers, serials and emails are unique; the history (booking events, seat
+  history, job events, incident history) is written by the same triggers the app
+  uses, by moving each record through its real statuses, so the last step of each
+  history is the current status.
+- *Same input, same data (R2).* Every row has a fixed id and fixed values. Only
+  the system timestamps (`created_at`, and the time of audit events) are the time
+  of the load.
+- *Nothing real (R3).* Every address ends in `.example`; there is no personal,
+  financial or credential data.
+- *Roles and isolation (R4).* One account per role and two partners, each with
+  its own bookings, so the isolation can be shown.
+- *Honest figures (R5).* Nothing on a dashboard is stored: the figures are counted
+  from these rows when the page loads.
+- *Real data (E1).* `demo.sql` stops with an error if any account has an address
+  that is not `.example` or `@test.local`.
+- *Loaded twice (E2).* A second run of `demo.sql` prints "already loaded" and
+  changes nothing.
+
+The checks are `src/lib/demo/demo-data.integration.test.ts`: they cover the rules
+above, that each account signs in, what each role sees, and the two guards.
 
 ## Types
 
