@@ -23,8 +23,8 @@ on conflict (id) do nothing;
 -- 2 partners
 insert into public.partners (id, name, code, contact_email, status)
 values
-  ('b0000000-0000-0000-0000-000000000001', 'Emirates Rent A Car', 'ERAC', 'ops@emiratesrentacar.example', 'active'),
-  ('b0000000-0000-0000-0000-000000000002', 'Al Futtaim Mobility', 'AFM', 'ops@alfuttaimmobility.example', 'active')
+  ('b0000000-0000-0000-0000-000000000001', 'Demo Car Rental', 'DCR', 'ops@democarrental.example', 'active'),
+  ('b0000000-0000-0000-0000-000000000002', 'Demo Mobility', 'DMO', 'ops@demomobility.example', 'active')
 on conflict (id) do nothing;
 
 -- 4 seat categories (ages in months)
@@ -39,9 +39,9 @@ on conflict (id) do nothing;
 -- 3 technician users
 insert into public.users (id, email, full_name, role, partner_id, is_active)
 values
-  ('d0000000-0000-0000-0000-000000000001', 'technician1@airportops.example', 'Ahmed Al Mazrouei', 'technician', null, true),
-  ('d0000000-0000-0000-0000-000000000002', 'technician2@airportops.example', 'Fatima Al Suwaidi', 'technician', null, true),
-  ('d0000000-0000-0000-0000-000000000003', 'technician3@airportops.example', 'Rashid Al Nuaimi', 'technician', null, true)
+  ('d0000000-0000-0000-0000-000000000001', 'technician1@airportops.example', 'Demo Technician One', 'technician', null, true),
+  ('d0000000-0000-0000-0000-000000000002', 'technician2@airportops.example', 'Demo Technician Two', 'technician', null, true),
+  ('d0000000-0000-0000-0000-000000000003', 'technician3@airportops.example', 'Demo Technician Three', 'technician', null, true)
 on conflict (id) do nothing;
 
 -- 40 seats, deterministic uuids via a fixed prefix + zero-padded sequence
