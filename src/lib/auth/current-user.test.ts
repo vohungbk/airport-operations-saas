@@ -29,6 +29,7 @@ import {
   getCurrentUser,
   requireAnyPermission,
   requireAuth,
+  requirePartnerScope,
   requirePermission,
   requireRole,
 } from "@/lib/auth/current-user";
@@ -192,6 +193,101 @@ describe("requireAuth", () => {
   });
 });
 
+describe("requireAuth and a partner user with no partner (VI-F03-S05)", () => {
+  beforeEach(resetMocks);
+
+  const partnerRow = (partner_id: string | null) => ({
+    ...ACTIVE_ROW,
+    role: "partner_user" as const,
+    partner_id,
+  });
+
+  it("should send a partner user with no partner to the no-partner page, not to the app", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: partnerRow(null), error: null });
+
+    await expect(requireAuth()).rejects.toThrow(
+      "REDIRECT:/forbidden?reason=no_partner",
+    );
+  });
+
+  it("should let a partner user with a partner through", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: partnerRow("partner-a"), error: null });
+
+    await expect(requireAuth()).resolves.toMatchObject({ partner_id: "partner-a" });
+  });
+
+  it.each(["admin", "operations_manager", "technician"] as const)(
+    "should not touch the %s role, which has no partner by design",
+    async (role) => {
+      getAuthUserMock.mockResolvedValue(AUTH_USER);
+      singleMock.mockResolvedValue({
+        data: { ...ACTIVE_ROW, role, partner_id: null },
+        error: null,
+      });
+
+      await expect(requireAuth()).resolves.toMatchObject({ role, partner_id: null });
+    },
+  );
+
+  it("should apply to every guard built on requireAuth, so no signed-in area is missed", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: partnerRow(null), error: null });
+
+    await expect(requirePermission("bookings:view_own_partner")).rejects.toThrow(
+      "no_partner",
+    );
+    await expect(
+      requireAnyPermission(["bookings:view_own_partner", "bookings:manage"]),
+    ).rejects.toThrow("no_partner");
+    await expect(requireRole(["partner_user"])).rejects.toThrow("no_partner");
+  });
+
+  it("should still send an unauthenticated visitor to /login, not to the no-partner page", async () => {
+    getAuthUserMock.mockResolvedValue(null);
+
+    await expect(requireAuth()).rejects.toThrow("REDIRECT:/login");
+  });
+});
+
+describe("requirePartnerScope (VI-F03-S05)", () => {
+  beforeEach(resetMocks);
+
+  const row = (role: "partner_user" | "admin", partner_id: string | null) => ({
+    ...ACTIVE_ROW,
+    role,
+    partner_id,
+  });
+
+  it("should return the user with the partner on their own profile", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: row("partner_user", "partner-a"), error: null });
+
+    const user = await requirePartnerScope("bookings:view_own_partner");
+
+    expect(user.partner_id).toBe("partner-a");
+  });
+
+  it("should send an admin with no partner to the no-partner page: the portal is per partner", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: row("admin", null), error: null });
+
+    await expect(requirePartnerScope("bookings:view_own_partner")).rejects.toThrow(
+      "REDIRECT:/forbidden?reason=no_partner",
+    );
+  });
+
+  it("should send a user without the permission to /forbidden", async () => {
+    getAuthUserMock.mockResolvedValue(AUTH_USER);
+    singleMock.mockResolvedValue({ data: ACTIVE_ROW, error: null });
+
+    await expect(requirePartnerScope("seats:view_own_partner")).rejects.toThrow(
+      "REDIRECT:/forbidden",
+    );
+  });
+});
+
 describe("requireRole", () => {
   beforeEach(resetMocks);
 
@@ -301,7 +397,7 @@ describe("requireAnyPermission", () => {
   it("should return the user when their role holds only one of the listed permissions", async () => {
     getAuthUserMock.mockResolvedValue(AUTH_USER);
     singleMock.mockResolvedValue({
-      data: { ...ACTIVE_ROW, role: "partner_user" },
+      data: { ...ACTIVE_ROW, role: "partner_user", partner_id: "partner-a" },
       error: null,
     });
 

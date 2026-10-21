@@ -1,12 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const requirePermissionMock = vi.hoisted(() => vi.fn());
+const requirePartnerScopeMock = vi.hoisted(() => vi.fn());
 const getMetricsMock = vi.hoisted(() => vi.fn());
 const getSummaryMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
-  requirePermission: requirePermissionMock,
+  requirePartnerScope: requirePartnerScopeMock,
 }));
 
 vi.mock("@/features/dashboard/lib/get-dashboard-metrics", () => ({
@@ -44,8 +44,8 @@ async function render() {
 
 describe("PartnerPage", () => {
   beforeEach(() => {
-    requirePermissionMock.mockReset();
-    requirePermissionMock.mockResolvedValue(USER);
+    requirePartnerScopeMock.mockReset();
+    requirePartnerScopeMock.mockResolvedValue(USER);
     getMetricsMock.mockReset();
     getMetricsMock.mockResolvedValue([
       result("bookings_pending", 4),
@@ -58,11 +58,11 @@ describe("PartnerPage", () => {
   it("should guard the page with bookings:view_own_partner (defense-in-depth alongside the layout)", async () => {
     await render();
 
-    expect(requirePermissionMock).toHaveBeenCalledWith("bookings:view_own_partner");
+    expect(requirePartnerScopeMock).toHaveBeenCalledWith("bookings:view_own_partner");
   });
 
   it("should propagate the guard's redirect without reading anything", async () => {
-    requirePermissionMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
+    requirePartnerScopeMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
 
     await expect(render()).rejects.toThrow("REDIRECT:/forbidden");
     expect(getSummaryMock).not.toHaveBeenCalled();
@@ -92,16 +92,6 @@ describe("PartnerPage", () => {
     expect(html).toContain('href="/bookings"');
     expect(html).toContain('href="/partner/seats"');
     expect(html).not.toContain('href="/seats');
-  });
-
-  it("should say the account is not linked and read nothing when partner_id is null", async () => {
-    requirePermissionMock.mockResolvedValue({ ...USER, partner_id: null });
-
-    const html = await render();
-
-    expect(html).toContain("Your account is not linked to a partner yet");
-    expect(getSummaryMock).not.toHaveBeenCalled();
-    expect(getMetricsMock).not.toHaveBeenCalled();
   });
 
   it("should say the partner could not be found, not show zeros, when the partner row is not visible", async () => {

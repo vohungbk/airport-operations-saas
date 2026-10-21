@@ -16,6 +16,9 @@ import { parseJobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
 import { seatsQuerySchema } from "@/features/seats/schemas/seats-query.schema";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
 import { requireAnyPermission } from "@/lib/auth/current-user";
+import { getBookingById } from "@/features/bookings/lib/get-booking-by-id";
+import { getBookingEvents } from "@/features/bookings/lib/get-booking-events";
+import { getIncidentById } from "@/features/incidents/lib/get-incident-by-id";
 import { getPartnerSeats } from "@/features/seats/lib/get-partner-seats";
 import { partnerSeatsQuerySchema } from "@/features/seats/schemas/partner-seats-query.schema";
 import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
@@ -5561,6 +5564,116 @@ describe.skipIf(!config)("F05 RLS integration", () => {
 
       expect(total).toBe(0);
       expect(seats).toEqual([]);
+    });
+  });
+
+  describe("partner portal scope (VI-F03-S05)", () => {
+    const NO_SUCH_ID = "00000000-0000-4000-8000-0000000000aa";
+
+    async function as<T>(client: SupabaseClient<Database>, read: () => Promise<T>) {
+      listClient.current = client;
+      try {
+        return await read();
+      } finally {
+        listClient.current = null;
+      }
+    }
+
+    // Everything the portal reads by an id that can be typed into the address.
+    const readById = (bookingId: string, incidentId: string) => async () => ({
+      booking: await getBookingById(bookingId),
+      events: await getBookingEvents(bookingId),
+      incident: await getIncidentById(incidentId),
+    });
+
+    it("a partner user reads their own booking, its events and its incident (the control)", async () => {
+      for (const [client, bookingId, incidentId] of [
+        [partnerAClient, BOOKING_A_ID, fixtureIds.incidentA],
+        [partnerBClient, BOOKING_B_ID, fixtureIds.incidentB],
+      ] as const) {
+        const read = await as(client, readById(bookingId, incidentId));
+
+        expect(read.booking?.id).toBe(bookingId);
+        expect(read.events.items.length).toBeGreaterThan(0);
+        expect(read.incident?.id).toBe(incidentId);
+      }
+    });
+
+    it("another partner's booking, events and incident look exactly like ones that do not exist, so the address reveals nothing", async () => {
+      const nothing = await as(partnerAClient, readById(NO_SUCH_ID, NO_SUCH_ID));
+
+      for (const [client, bookingId, incidentId] of [
+        [partnerAClient, BOOKING_B_ID, fixtureIds.incidentB],
+        [partnerBClient, BOOKING_A_ID, fixtureIds.incidentA],
+      ] as const) {
+        const read = await as(client, readById(bookingId, incidentId));
+
+        expect(read).toEqual(nothing);
+        expect(read.booking).toBeNull();
+        expect(read.events).toEqual({ items: [], truncated: false });
+        expect(read.incident).toBeNull();
+      }
+    });
+
+    it("a partner user with no partner reads none of them", async () => {
+      const read = await as(
+        partnerNullClient,
+        readById(BOOKING_A_ID, fixtureIds.incidentA),
+      );
+
+      expect(read.booking).toBeNull();
+      expect(read.events.items).toEqual([]);
+      expect(read.incident).toBeNull();
+    });
+
+    it("an edit of another partner's booking is refused in the same words as an edit of a booking that does not exist", async () => {
+      const edit = (bookingId: string) =>
+        partnerAClient.rpc("update_partner_booking", {
+          p_booking_id: bookingId,
+          p_expected_updated_at: "2030-01-01T00:00:00Z",
+          p_pickup_at: "2040-01-01T00:00:00Z",
+          p_return_at: "2040-01-02T00:00:00Z",
+          p_notes: "cross-partner attempt",
+        });
+
+      const other = await edit(BOOKING_B_ID);
+      const missing = await edit(NO_SUCH_ID);
+
+      expect(other.error?.code).toBe("P0002");
+      expect(other.error?.code).toBe(missing.error?.code);
+      expect(other.error?.message.replace(BOOKING_B_ID, "")).toBe(
+        missing.error?.message.replace(NO_SUCH_ID, ""),
+      );
+      expect(other.error?.message).not.toContain(BOOKING_B_ID);
+    });
+
+    it("the scope follows the profile in the database, not the token: moving a user to another partner, or to none, changes what they are given on the next request", async () => {
+      // Only an admin may change a profile's partner (guard on public.users).
+      const setPartner = async (partnerId: string | null) => {
+        const { error } = await adminClient
+          .from("users")
+          .update({ partner_id: partnerId })
+          .eq("id", identities.partnerA.id);
+        expect(error).toBeNull();
+      };
+
+      try {
+        await setPartner(PARTNER_B_ID);
+        expect(await getPartnerSummary(PARTNER_B_ID, partnerAClient)).not.toBeNull();
+        expect(await getPartnerSummary(PARTNER_A_ID, partnerAClient)).toBeNull();
+        const asB = await as(partnerAClient, readById(BOOKING_B_ID, fixtureIds.incidentB));
+        expect(asB.booking?.id).toBe(BOOKING_B_ID);
+
+        await setPartner(null);
+        expect(await getPartnerSummary(PARTNER_A_ID, partnerAClient)).toBeNull();
+        expect(await getPartnerSummary(PARTNER_B_ID, partnerAClient)).toBeNull();
+        const none = await as(partnerAClient, readById(BOOKING_A_ID, fixtureIds.incidentA));
+        expect(none.booking).toBeNull();
+      } finally {
+        await setPartner(PARTNER_A_ID);
+      }
+
+      expect(await getPartnerSummary(PARTNER_A_ID, partnerAClient)).not.toBeNull();
     });
   });
 
