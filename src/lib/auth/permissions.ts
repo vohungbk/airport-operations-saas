@@ -2,9 +2,9 @@ import type { Role } from "@/lib/auth/roles";
 
 /**
  * The full permission model. Matches the ticket's role/permission table
- * exactly — do not invent additional permissions (e.g. per-area `*:access`
- * grants; nav/route guards reuse these business permissions instead, see
- * `src/config/nav.ts`).
+ * (plus `bookings:manage_own_partner`, added for VI-F03-S03) — do not invent
+ * further permissions (e.g. per-area `*:access` grants; nav/route guards reuse
+ * these business permissions instead, see `src/config/nav.ts`).
  */
 export type Permission =
   | "airports:manage"
@@ -25,6 +25,7 @@ export type Permission =
   | "inspections:create"
   | "incidents:report"
   | "bookings:view_own_partner"
+  | "bookings:manage_own_partner"
   | "seats:view_own_partner"
   | "operations:view_own_partner"
   | "finance:view_own_partner";
@@ -59,6 +60,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<Role, "admin">, Permission[]> =
     ],
     partner_user: [
       "bookings:view_own_partner",
+      "bookings:manage_own_partner",
       "seats:view_own_partner",
       "operations:view_own_partner",
       "finance:view_own_partner",
@@ -95,6 +97,17 @@ export function hasAnyPermission(
 export const BOOKINGS_ACCESS_PERMISSIONS = [
   "bookings:manage",
   "bookings:view_own_partner",
+] as const satisfies readonly Permission[];
+
+/**
+ * Who may create and edit bookings: managers (`bookings:manage`, any partner)
+ * and partner users (`bookings:manage_own_partner`, only their own partner's
+ * bookings, through their own database functions). The permission matrix gains
+ * `bookings:manage_own_partner` for `partner_user`; this is an any-of set.
+ */
+export const BOOKINGS_WRITE_PERMISSIONS = [
+  "bookings:manage",
+  "bookings:manage_own_partner",
 ] as const satisfies readonly Permission[];
 
 /** Who may enter `/jobs`: managers (all jobs) and technicians (own jobs). */
