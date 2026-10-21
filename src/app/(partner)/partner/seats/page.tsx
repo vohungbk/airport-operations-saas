@@ -1,5 +1,4 @@
-import { requirePermission } from "@/lib/auth/current-user";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { requirePartnerScope } from "@/lib/auth/current-user";
 import { PageEmpty } from "@/components/shared/page-state";
 import { BackToPartnerHome } from "@/features/partners/components/back-to-partner-home";
 import { PartnerSeatsFilters } from "@/features/seats/components/partner-seats-filters";
@@ -31,32 +30,14 @@ function Heading() {
  * here and `bookings:view_own_partner` by the layout. The scope is never taken
  * from the address: RLS gives a partner user only the seats assigned to a
  * booking of their own partner, and the query schema has no partner, airport
- * or category key. An account with no partner reads nothing and says so
- * (spec E2). A failed read is thrown to the error boundary, never shown as an
+ * or category key. An account with no partner never gets here:
+ * `requirePartnerScope` sends it to the no-partner page (spec E2). A failed read is thrown to the error boundary, never shown as an
  * empty list.
  */
 export default async function PartnerSeatsPage({
   searchParams,
 }: PartnerSeatsPageProps) {
-  const user = await requirePermission("seats:view_own_partner");
-
-  if (user.partner_id === null) {
-    return (
-      <div className="flex flex-1 flex-col gap-6 p-8">
-        <div>
-          <BackToPartnerHome />
-        </div>
-        <Heading />
-        <Alert>
-          <AlertTitle>Your account is not linked to a partner yet</AlertTitle>
-          <AlertDescription>
-            There is nothing to show until it is linked. Ask an administrator
-            to link your account to your partner.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  await requirePartnerScope("seats:view_own_partner");
 
   const requestedQuery = partnerSeatsQuerySchema.parse(await searchParams);
   const { seats, total, page } = await getPartnerSeats(requestedQuery);

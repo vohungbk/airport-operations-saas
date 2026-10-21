@@ -1,4 +1,4 @@
-import { requirePermission } from "@/lib/auth/current-user";
+import { requirePartnerScope } from "@/lib/auth/current-user";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DashboardFigures } from "@/features/dashboard/components/dashboard-figures";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
@@ -27,25 +27,11 @@ function Heading({ title, subtitle }: HeadingProps) {
  * signed-in user's own profile, and every read goes through RLS, so another
  * partner's id cannot be reached from here. The figures are the partner
  * figures of the dashboard (same formulas, same gaps said out loud). An account
- * with no partner reads nothing and says so (spec E2).
+ * with no partner never gets here: `requirePartnerScope` sends it to the
+ * no-partner page (spec E2).
  */
 export default async function PartnerPage() {
-  const user = await requirePermission("bookings:view_own_partner");
-
-  if (user.partner_id === null) {
-    return (
-      <div className="flex flex-1 flex-col gap-6 p-8">
-        <Heading title="Partner home" subtitle="Your organization." />
-        <Alert>
-          <AlertTitle>Your account is not linked to a partner yet</AlertTitle>
-          <AlertDescription>
-            There is nothing to show until it is linked. Ask an administrator
-            to link your account to your partner.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  const user = await requirePartnerScope("bookings:view_own_partner");
 
   const [summary, results] = await Promise.all([
     getPartnerSummary(user.partner_id),
