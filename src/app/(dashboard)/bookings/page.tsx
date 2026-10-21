@@ -13,6 +13,7 @@ import { BookingsFilters } from "@/features/bookings/components/bookings-filters
 import { BookingsPagination } from "@/features/bookings/components/bookings-pagination";
 import { BookingsTable } from "@/features/bookings/components/bookings-table";
 import { PageEmpty } from "@/components/shared/page-state";
+import { BackToPartnerHome } from "@/features/partners/components/back-to-partner-home";
 
 interface BookingsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -21,7 +22,9 @@ interface BookingsPageProps {
 /**
  * Independent second guard alongside the layout's — same
  * defense-in-depth precedent as `seats/page.tsx`. A partner_user only
- * ever receives its own partner's rows: RLS, not this page, enforces it.
+ * ever receives its own partner's rows: RLS, not this page, enforces it. This
+ * is also the partner bookings view (VI-F03-S02): whoever cannot manage
+ * bookings arrives from the partner home and gets a way back to it.
  */
 export default async function BookingsPage({ searchParams }: BookingsPageProps) {
   const user = await requireAnyPermission(BOOKINGS_ACCESS_PERMISSIONS);
@@ -38,6 +41,11 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
+      {!canManage && (
+        <div>
+          <BackToPartnerHome />
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Bookings

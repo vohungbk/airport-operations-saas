@@ -1443,6 +1443,28 @@ time at the airport and converted to UTC with `airports.timezone`.
   reads its own summary, another partner's id gives nothing, no partner and
   technician read nothing).
 
+## Partner bookings (VI-F03-S02)
+
+- **Where.** The partner bookings view is `/bookings`, reused as the spec allows
+  (R3). A partner user reaches it from the Bookings card of the partner home and
+  gets a "Back to Partner home" link (spec NAV-3) to `/partner`. The link shows
+  only to someone who cannot manage bookings; admin and operations manager do
+  not come from the partner home and do not see it. Booking detail has no such
+  link.
+- **Scope (spec R3, R6).** The list lists only the signed-in partner's bookings,
+  and RLS decides which rows exist for the user. The query schema has no partner
+  filter, so a partner id typed into the address is dropped, and a search for
+  another partner's booking number lists nothing. A partner user with no partner
+  is listed nothing. No finance column is selected.
+- **States.** Loading, error with retry, empty, success and forbidden are the
+  ones of the bookings list. A partner user with no partner gets the empty
+  state; the specific "not linked" note for the bookings view belongs to
+  VI-F03-S05.
+- Covered by the unit tests of the page (the way back, per role) and the
+  "partner bookings (VI-F03-S02)" integration tests (each partner is listed all
+  of their own bookings and none of the other's, search and address tampering,
+  filters and sorting, no partner).
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone
