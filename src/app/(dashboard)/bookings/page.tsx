@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import {
   BOOKINGS_ACCESS_PERMISSIONS,
+  BOOKINGS_WRITE_PERMISSIONS,
+  hasAnyPermission,
   hasPermission,
 } from "@/lib/auth/permissions";
 import { buttonVariants } from "@/components/ui/button";
@@ -38,6 +40,8 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
   // An out-of-range page is served as the last valid page.
   const query = { ...requestedQuery, page };
   const canManage = hasPermission(user.role, "bookings:manage");
+  // Managers and partner users (for their own partner) may add a booking.
+  const canCreate = hasAnyPermission(user.role, BOOKINGS_WRITE_PERMISSIONS);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
@@ -50,7 +54,7 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Bookings
         </h1>
-        {canManage && (
+        {canCreate && (
           <Link href="/bookings/new" className={buttonVariants()}>
             Add Booking
           </Link>
@@ -71,7 +75,7 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
       {total === 0 ? (
         <PageEmpty
           message={
-            canManage
+            canCreate
               ? "No bookings found. Try adjusting the search or filters, or add a new booking."
               : "No bookings found. Try adjusting the search or filters."
           }

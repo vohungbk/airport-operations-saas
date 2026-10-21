@@ -85,3 +85,43 @@ export async function getBookingFormOptions(): Promise<BookingFormOptions> {
     ),
   };
 }
+
+export type PartnerBookingFormOptions = Omit<BookingFormOptions, "partners">;
+
+/**
+ * Server-only dropdown data for a partner user's create form: airports and
+ * active seat categories (reference data every signed-in user can read). No
+ * partner list: the partner is the user's own and is not chosen.
+ */
+export async function getPartnerBookingFormOptions(): Promise<PartnerBookingFormOptions> {
+  const supabase = await createClient();
+
+  const [airports, categories] = await Promise.all([
+    supabase
+      .from("airports")
+      .select("id, code, name, timezone")
+      .order("code", { ascending: true }),
+    supabase
+      .from("seat_categories")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name", { ascending: true }),
+  ]);
+
+  for (const { error } of [airports, categories]) {
+    if (error) {
+      throw error;
+    }
+  }
+
+  return {
+    airports: (airports.data ?? []).map(toAirportOption),
+    categories: (categories.data ?? []).map((category) => ({
+      value: category.id,
+      label: category.name,
+    })),
+    airport_timezones: Object.fromEntries(
+      (airports.data ?? []).map((airport) => [airport.id, airport.timezone]),
+    ),
+  };
+}

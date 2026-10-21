@@ -79,3 +79,12 @@ const EDITABLE_STATUSES: readonly BookingStatus[] = ["pending", "confirmed"];
 export function isBookingEditable(status: BookingStatus): boolean {
   return EDITABLE_STATUSES.includes(status);
 }
+
+/**
+ * A partner user may edit only a booking that is still `pending`: once
+ * operations confirm it, changes go through them. Managers use
+ * `isBookingEditable`. The database function checks the same rule.
+ */
+export function isPartnerBookingEditable(status: BookingStatus): boolean {
+  return status === "pending";
+}

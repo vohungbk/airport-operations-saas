@@ -29,11 +29,14 @@ export default async function BookingDetailPage({
     notFound();
   }
 
+  const canManage = hasPermission(user.role, "bookings:manage");
+
   return (
     <BookingDetail
       booking={booking}
       events={events}
-      canManage={hasPermission(user.role, "bookings:manage")}
+      canManage={canManage}
+      canEditOwn={!canManage && hasPermission(user.role, "bookings:manage_own_partner")}
     />
   );
 }
