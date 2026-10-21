@@ -5,6 +5,7 @@ import {
   BOOKING_STATUSES,
   getAllowedManualTransitions,
   isBookingEditable,
+  isPartnerBookingEditable,
   isReasonRequired,
 } from "@/features/bookings/lib/booking-status";
 
@@ -72,5 +73,23 @@ describe("ACTIVE_BOOKING_STATUSES", () => {
       "assigned",
       "in_progress",
     ]);
+  });
+});
+
+describe("isPartnerBookingEditable (VI-F03-S03)", () => {
+  it("should let a partner user edit only a pending booking", () => {
+    for (const status of BOOKING_STATUSES) {
+      expect(isPartnerBookingEditable(status)).toBe(status === "pending");
+    }
+  });
+
+  it("should be narrower than what managers can edit", () => {
+    for (const status of BOOKING_STATUSES) {
+      if (isPartnerBookingEditable(status)) {
+        expect(isBookingEditable(status)).toBe(true);
+      }
+    }
+    expect(isBookingEditable("confirmed")).toBe(true);
+    expect(isPartnerBookingEditable("confirmed")).toBe(false);
   });
 });

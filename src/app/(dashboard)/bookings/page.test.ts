@@ -96,8 +96,8 @@ describe("BookingsPage", () => {
       expect(markup).toContain("Back to Partner home");
     });
 
-    it("should not give a partner user an Add Booking button", async () => {
-      expect(await html(PARTNER)).not.toContain("Add Booking");
+    it("should give a partner user an Add Booking button, since they may create bookings for their own partner", async () => {
+      expect(await html(PARTNER)).toContain("Add Booking");
     });
 
     it.each([

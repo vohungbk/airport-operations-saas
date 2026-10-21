@@ -25,6 +25,7 @@ describe("mapBookingError", () => {
     ["BK003", "SEAT_CATEGORY_MISMATCH"],
     ["BK004", "STALE_DATA"],
     ["BK005", "SEAT_NOT_FOUND"],
+    ["BK006", "NO_SEAT_AVAILABLE"],
   ])("should map %s to %s", (code, expected) => {
     expect(mapBookingError(err(code)).code).toBe(expected);
   });
