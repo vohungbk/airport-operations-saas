@@ -33,6 +33,13 @@ export const FORBIDDEN_ROUTE = "/forbidden";
 export const NO_PARTNER_ROUTE = `${FORBIDDEN_ROUTE}?reason=no_partner`;
 
 /**
+ * Where a partner user is sent when their partner is not active (VI-F03-S07,
+ * spec E1): the same forbidden page, with one fixed reason. It does not say
+ * which status the partner has.
+ */
+export const PARTNER_INACTIVE_ROUTE = `${FORBIDDEN_ROUTE}?reason=partner_inactive`;
+
+/**
  * Routes reachable without an authenticated session. `/` is the F01
  * landing page and stays public. `/api/auth/confirm` is the email
  * confirmation / recovery callback — it must be reachable while signed
