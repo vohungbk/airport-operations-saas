@@ -1,13 +1,17 @@
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { PARTNER_HOME_ITEMS } from "@/features/partners/lib/partner-home-items";
+import type { PartnerHomeItem } from "@/features/partners/lib/partner-home-items";
+
+interface PartnerHomeNavProps {
+  items: readonly PartnerHomeItem[];
+}
 
 /** One card per view; a view that is not released says so and has no link. */
-export function PartnerHomeNav() {
+export function PartnerHomeNav({ items }: PartnerHomeNavProps) {
   return (
     <nav aria-label="Partner views" className="grid gap-4 sm:grid-cols-2">
-      {PARTNER_HOME_ITEMS.map((item) => {
+      {items.map((item) => {
         const body = (
           <Card className="h-full transition-colors hover:bg-muted/50">
             <CardContent className="flex flex-col gap-1">

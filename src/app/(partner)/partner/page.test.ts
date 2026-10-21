@@ -94,6 +94,14 @@ describe("PartnerPage", () => {
     expect(html).not.toContain('href="/seats');
   });
 
+  it("should show finance as not available yet, with no link, until it is released (VI-F03-S06)", async () => {
+    const html = await render();
+
+    expect(html).toContain("Finance");
+    expect(html).toContain("Not available yet");
+    expect(html).not.toMatch(/href="[^"]*finance/);
+  });
+
   it("should say the partner could not be found, not show zeros, when the partner row is not visible", async () => {
     getSummaryMock.mockResolvedValue(null);
 

@@ -1581,6 +1581,37 @@ time at the airport and converted to UTC with `airports.timezone`.
   `requirePartnerScope`, the forbidden page and its reasons, the partner pages) and
   the "partner portal scope (VI-F03-S05)" integration tests.
 
+## Partner finance (VI-F03-S06)
+
+- **State: not released.** Partner finance depends on VI-F04, which has no spec or
+  code yet, so there is no finance screen. The story therefore adds only the
+  switch and the proof. `PARTNER_FINANCE_RELEASED` (`partner-home-items.ts`) is
+  `false`: the partner home shows a Finance card as "Not available yet", with no
+  link, and there is no finance route (a test fails if a link points at a page
+  that is not there, or if a finance page appears while the flag is off). The card
+  is offered only to a role that holds `finance:view_own_partner`
+  (`partner_user`). The acceptance criterion ("when finance is released, only the
+  relevant partner's information") cannot be seen end to end until VI-F04 exists.
+- **Already true at the data level (spec R7).** `settlements`, `invoices` and
+  `partner_commercial_terms` have RLS that gives a partner user only the rows of
+  their own partner and no write. The "partner finance scope (VI-F03-S06)"
+  integration tests show it for each table: each partner gets its own rows and
+  none of the other's (by list and by id), a partner with no partner and a
+  technician get none, and a partner cannot insert, change or remove a row, their
+  own included.
+- **What VI-F04 must do when it releases finance** (the contract):
+  1. read through RLS with the user's own client, and guard the route with
+     `finance:view_own_partner` (`requirePartnerScope`, so a user with no partner
+     never gets there);
+  2. name the columns: no `select *`. `partner_commercial_terms` holds the
+     platform's share and fees, so a partner view must choose what it shows;
+  3. turn the flag on in the same change, add the route, and add the isolation
+     tests for what it reads.
+- **"Visible" means the screen.** A partner user can already read their own
+  finance rows through the API, because RLS allows it; nothing hides them before
+  release. Gating the rows in the database until release was not done here: it
+  needs a release setting in the database and is for VI-F04 to decide.
+
 ## Installation record errors (FO-F02-S05)
 
 - Conflict: the form keeps the user's entry on screen and says "Someone

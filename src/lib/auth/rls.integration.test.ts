@@ -5677,6 +5677,104 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  describe("partner finance scope (VI-F03-S06)", () => {
+    const TABLES = ["settlements", "invoices", "partner_commercial_terms"] as const;
+    const FIXTURE_IDS = {
+      settlements: () => [fixtureIds.settlementA, fixtureIds.settlementB],
+      invoices: () => [fixtureIds.invoiceA, fixtureIds.invoiceB],
+      partner_commercial_terms: () => [fixtureIds.pctA, fixtureIds.pctB],
+    };
+
+    it.each(TABLES)(
+      "each partner user is given the %s of their own partner and none of the other's",
+      async (table) => {
+        const [idA, idB] = FIXTURE_IDS[table]();
+
+        for (const [client, own, other] of [
+          [partnerAClient, idA, idB],
+          [partnerBClient, idB, idA],
+        ] as const) {
+          const { data, error } = await client.from(table).select("id, partner_id");
+
+          expect(error).toBeNull();
+          expect(data!.some((row) => row.id === own)).toBe(true);
+          expect(data!.some((row) => row.id === other)).toBe(false);
+          expect(new Set(data!.map((row) => row.partner_id)).size).toBe(1);
+        }
+      },
+    );
+
+    it.each(TABLES)(
+      "a partner user with no partner, and a technician, are given no %s",
+      async (table) => {
+        for (const client of [partnerNullClient, technicianClient]) {
+          const { data, error } = await client.from(table).select("id");
+
+          expect(error).toBeNull();
+          expect(data).toEqual([]);
+        }
+      },
+    );
+
+    it.each(TABLES)(
+      "another partner's %s row cannot be read even by asking for its id",
+      async (table) => {
+        const [idA, idB] = FIXTURE_IDS[table]();
+
+        const a = await partnerAClient.from(table).select("id").eq("id", idB);
+        const b = await partnerBClient.from(table).select("id").eq("id", idA);
+
+        expect(a.data).toEqual([]);
+        expect(b.data).toEqual([]);
+      },
+    );
+
+    it("a partner user cannot create, change or remove finance rows, their own included", async () => {
+      const insertSettlement = await partnerAClient.from("settlements").insert({
+        partner_id: PARTNER_A_ID,
+        period_start: "2030-01-01",
+        period_end: "2030-01-31",
+      });
+      const insertInvoice = await partnerAClient.from("invoices").insert({
+        partner_id: PARTNER_A_ID,
+        invoice_number: `RLS-DENIED-${Date.now()}`,
+        issue_date: "2030-01-01",
+        due_date: "2030-01-15",
+        subtotal: 1,
+        total: 1,
+      });
+      const insertTerms = await partnerAClient.from("partner_commercial_terms").insert({
+        partner_id: PARTNER_A_ID,
+        partner_share_percent: 99,
+        platform_share_percent: 1,
+        effective_from: "2030-01-01",
+      });
+
+      expect(insertSettlement.error).not.toBeNull();
+      expect(insertInvoice.error).not.toBeNull();
+      expect(insertTerms.error).not.toBeNull();
+
+      await partnerAClient
+        .from("partner_commercial_terms")
+        .update({ partner_share_percent: 99 })
+        .eq("id", fixtureIds.pctA);
+      await partnerAClient.from("invoices").delete().eq("id", fixtureIds.invoiceA);
+
+      const terms = await service
+        .from("partner_commercial_terms")
+        .select("partner_share_percent")
+        .eq("id", fixtureIds.pctA)
+        .single();
+      const invoice = await service
+        .from("invoices")
+        .select("id")
+        .eq("id", fixtureIds.invoiceA);
+
+      expect(Number(terms.data!.partner_share_percent)).toBe(70);
+      expect(invoice.data).toHaveLength(1);
+    });
+  });
+
   describe("technician list access (FO-F01-S01)", () => {
     it("admin and operations_manager can list technician users", async () => {
       for (const client of [adminClient, opsClient]) {

@@ -125,6 +125,19 @@ describe("hasPermission", () => {
   });
 });
 
+describe("finance access (VI-F03-S06)", () => {
+  it("should give finance:view_own_partner to partner users only (admin by its bypass)", () => {
+    expect(hasPermission("partner_user", "finance:view_own_partner")).toBe(true);
+    expect(hasPermission("admin", "finance:view_own_partner")).toBe(true);
+    expect(hasPermission("operations_manager", "finance:view_own_partner")).toBe(false);
+    expect(hasPermission("technician", "finance:view_own_partner")).toBe(false);
+  });
+
+  it("should not give a partner user the manager-wide finance:view", () => {
+    expect(hasPermission("partner_user", "finance:view")).toBe(false);
+  });
+});
+
 describe("booking write access (VI-F03-S03)", () => {
   it.each([
     ["admin", true],
