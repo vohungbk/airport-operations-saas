@@ -5532,7 +5532,9 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         partner_id: null,
       });
 
+      // Both rows go: the auth user, and the profile row written above.
       await service.auth.admin.deleteUser(signUpData.user!.id);
+      await service.from("users").delete().eq("id", signUpData.user!.id);
     });
   });
 
@@ -6366,20 +6368,28 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
 
     it("partner_user sees only seats assigned to their own partner's bookings, never unrelated inventory", async () => {
-      const { data: ownBookings } = await service
-        .from("bookings")
-        .select("assigned_seat_id")
-        .eq("partner_id", PARTNER_A_ID)
-        .not("assigned_seat_id", "is", null);
-      const allowed = new Set(ownBookings?.map((b) => b.assigned_seat_id));
-
       const { data, error } = await partnerAClient.from("seats").select("id");
       expect(error).toBeNull();
       expect(data!.length).toBeGreaterThan(0);
-      expect(data!.length).toBeLessThan(40);
-      for (const seat of data!) {
-        expect(allowed.has(seat.id)).toBe(true);
-      }
+
+      // Every seat the partner is given must have a booking of that partner.
+      // This is asked seat by seat, so it holds however many bookings the
+      // database has: a fixed bound on the number of seats cannot, because
+      // audit-logged bookings (booking_events is append-only and restricts
+      // deletes) pile up in a local database across runs.
+      const links = await Promise.all(
+        data!.map(async (seat) => {
+          const { count, error: linkError } = await service
+            .from("bookings")
+            .select("id", { count: "exact", head: true })
+            .eq("partner_id", PARTNER_A_ID)
+            .eq("assigned_seat_id", seat.id);
+          expect(linkError).toBeNull();
+          return { id: seat.id, count: count! };
+        }),
+      );
+
+      expect(links.filter((link) => link.count === 0)).toEqual([]);
     });
 
     it("partner_user with no partner_id sees no seats", async () => {
