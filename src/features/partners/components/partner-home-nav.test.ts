@@ -1,24 +1,24 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// One released view and one that is not, whatever the real list says today.
+vi.mock("@/features/partners/lib/partner-home-items", () => ({
+  PARTNER_HOME_ITEMS: [
+    { id: "bookings", label: "Bookings", description: "b", href: "/bookings" },
+    { id: "seats", label: "Seats", description: "s", href: null },
+  ],
+}));
 
 import { PartnerHomeNav } from "@/features/partners/components/partner-home-nav";
-import { PARTNER_HOME_ITEMS } from "@/features/partners/lib/partner-home-items";
 
 describe("PartnerHomeNav", () => {
-  it("should link each released view and show an unreleased one without a link", () => {
+  it("should link a released view and show an unreleased one without a link", () => {
     const html = renderToStaticMarkup(createElement(PartnerHomeNav));
 
-    for (const item of PARTNER_HOME_ITEMS) {
-      expect(html).toContain(item.label);
-      if (item.href) {
-        expect(html).toContain(`href="${item.href}"`);
-      }
-    }
     expect(html).toContain('href="/bookings"');
-    expect(html.match(/<a /g)).toHaveLength(
-      PARTNER_HOME_ITEMS.filter((item) => item.href).length,
-    );
+    expect(html.match(/<a /g)).toHaveLength(1);
+    expect(html).toContain("Seats");
     expect(html).toContain("Not available yet");
   });
 });
