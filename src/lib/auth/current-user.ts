@@ -9,7 +9,12 @@ import {
   type Permission,
 } from "@/lib/auth/permissions";
 import type { Role } from "@/lib/auth/roles";
-import { FORBIDDEN_ROUTE, LOGIN_ROUTE } from "@/lib/constants/routes";
+import { isUnlinkedPartnerUser } from "@/lib/auth/partner-scope";
+import {
+  FORBIDDEN_ROUTE,
+  LOGIN_ROUTE,
+  NO_PARTNER_ROUTE,
+} from "@/lib/constants/routes";
 
 /** PostgREST code for `.single()` finding no row. */
 const NO_ROW_ERROR_CODE = "PGRST116";
@@ -65,12 +70,20 @@ export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
 /**
  * Server Component / layout guard: no session -> `/login`; session but
  * missing/inactive/invalid `public.users` profile -> `/forbidden` (never
- * leaks which case it is). Returns the resolved `AppUser` otherwise.
+ * leaks which case it is). A partner user with no partner -> `/forbidden`
+ * with the reason `no_partner` (VI-F03-S05, spec E2): this is the one place
+ * every signed-in area goes through, so the rule holds for each present and
+ * future route, and it is read from the profile, never from the request.
+ * Returns the resolved `AppUser` otherwise.
  */
 export async function requireAuth(): Promise<AppUser> {
   const user = await getCurrentUser();
 
   if (user) {
+    if (isUnlinkedPartnerUser(user)) {
+      redirect(NO_PARTNER_ROUTE);
+    }
+
     return user;
   }
 
@@ -132,4 +145,23 @@ export async function requireAnyPermission(
   }
 
   return user;
+}
+
+/**
+ * For the pages of the partner portal itself (`/partner`, `/partner/seats`):
+ * the permission check, and a partner that is not null. The partner is the one
+ * on the signed-in user's own profile, so it is what a page reads for, never a
+ * value from the address. A user with no partner (an admin or manager opening
+ * the portal, for example) is sent to the same no-partner page.
+ */
+export async function requirePartnerScope(
+  permission: Permission,
+): Promise<AppUser & { partner_id: string }> {
+  const user = await requirePermission(permission);
+
+  if (user.partner_id === null) {
+    redirect(NO_PARTNER_ROUTE);
+  }
+
+  return { ...user, partner_id: user.partner_id };
 }

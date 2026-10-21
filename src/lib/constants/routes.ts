@@ -26,6 +26,13 @@ export const PARTNER_HOME_ROUTE = "/partner";
 export const FORBIDDEN_ROUTE = "/forbidden";
 
 /**
+ * Where a partner user with no partner is sent (VI-F03-S05, spec E2): the same
+ * forbidden page, with a reason that says what is missing. The reason is one
+ * fixed value the page recognizes; nothing else in the query is trusted.
+ */
+export const NO_PARTNER_ROUTE = `${FORBIDDEN_ROUTE}?reason=no_partner`;
+
+/**
  * Routes reachable without an authenticated session. `/` is the F01
  * landing page and stays public. `/api/auth/confirm` is the email
  * confirmation / recovery callback — it must be reachable while signed
