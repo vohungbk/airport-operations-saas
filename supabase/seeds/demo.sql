@@ -1,0 +1,249 @@
+-- VI-F07-S01: demo accounts and operational flows on top of the F02 base seed.
+--
+-- Runs after supabase/seed.sql (see [db.seed] in supabase/config.toml), so
+-- `npx supabase db reset` loads both. Nothing in the base seed is changed.
+--
+--   * Every row has a fixed literal id, so two loads give the same data. Only
+--     the system timestamps (created_at, and the audit log's) are the time of
+--     the load.
+--   * It is one statement, so it is all or nothing: if anything fails, nothing
+--     of it is kept (spec E3, rerun `npm run demo:reset`).
+--   * It refuses to run next to real data (spec E1): if a user with an address
+--     that is not a demo or test address exists, it stops, even on a rerun.
+--   * Loading it again does nothing (spec E2): a marker row says it is loaded.
+--   * No real person, address, number or credential (spec R3): every address
+--     ends in .example, and the one password below is a public demo value for
+--     a local database only.
+--
+-- History (booking events, seat history, job events, incident history) is made
+-- by the same triggers the app uses, by moving each record through its real
+-- statuses, so it matches the current state. The signals the guard triggers
+-- read (app.*) are set only for the statements that need them.
+--
+-- Accounts (all with the demo password, see docs/database.md):
+--   admin@airportops.example            admin
+--   ops.manager@airportops.example      operations_manager
+--   partner.erac@airportops.example     partner_user of ERAC
+--   partner.afm@airportops.example      partner_user of AFM
+--   technician1..3@airportops.example   technician
+
+do $demo$
+declare
+  c_password constant text := 'DemoPassw0rd!';
+  -- bcrypt with a fixed salt, so the stored hash is the same on every load.
+  c_hash constant text := extensions.crypt(c_password, '$2a$10$DemoSeedFixedSaltAbcd.');
+  c_instance constant uuid := '00000000-0000-0000-0000-000000000000';
+  c_erac constant uuid := 'b0000000-0000-0000-0000-000000000001';
+  c_afm constant uuid := 'b0000000-0000-0000-0000-000000000002';
+  c_dxb constant uuid := 'a0000000-0000-0000-0000-000000000001';
+  c_ops constant uuid := 'a1000000-0000-0000-0000-000000000002';
+  c_tech1 constant uuid := 'd0000000-0000-0000-0000-000000000001';
+  c_tech2 constant uuid := 'd0000000-0000-0000-0000-000000000002';
+  c_tech3 constant uuid := 'd0000000-0000-0000-0000-000000000003';
+begin
+  -- Spec E1: real accounts exist, so this is not a demo or test database.
+  if exists (
+    select 1 from public.users
+     where email !~* '(\.example|@test\.local)$'
+  ) or exists (
+    select 1 from auth.users
+     where email !~* '(\.example|@test\.local)$'
+  ) then
+    raise exception 'refusing to load demo data: accounts with real addresses exist';
+  end if;
+
+  -- Spec E2: already loaded.
+  if exists (select 1 from public.users where id = 'a1000000-0000-0000-0000-000000000001') then
+    raise notice 'demo data is already loaded; nothing to do';
+    return;
+  end if;
+
+  ---------------------------------------------------------------------------
+  -- Accounts: one per role, two partner users (one per partner, to show
+  -- isolation), and the three technicians of the base seed made able to sign in.
+  ---------------------------------------------------------------------------
+  insert into public.users (id, email, full_name, role, partner_id, is_active)
+  values
+    ('a1000000-0000-0000-0000-000000000001', 'admin@airportops.example', 'Demo Admin', 'admin', null, true),
+    (c_ops, 'ops.manager@airportops.example', 'Demo Operations Manager', 'operations_manager', null, true),
+    ('a1000000-0000-0000-0000-000000000003', 'partner.erac@airportops.example', 'Demo ERAC Partner User', 'partner_user', c_erac, true),
+    ('a1000000-0000-0000-0000-000000000004', 'partner.afm@airportops.example', 'Demo AFM Partner User', 'partner_user', c_afm, true)
+  on conflict (id) do nothing;
+
+  insert into auth.users (
+    instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  )
+  select
+    c_instance, u.id, 'authenticated', 'authenticated', u.email, c_hash, now(),
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    jsonb_build_object('full_name', u.full_name),
+    now(), now(), '', '', '', ''
+  from public.users u
+  where u.email like '%@airportops.example'
+  on conflict (id) do nothing;
+
+  insert into auth.identities (
+    provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+  )
+  select
+    u.id::text, u.id,
+    jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
+    'email', now(), now(), now()
+  from public.users u
+  where u.email like '%@airportops.example'
+    and not exists (select 1 from auth.identities i where i.user_id = u.id);
+
+  ---------------------------------------------------------------------------
+  -- Bookings: ten more, in the statuses a demo needs. Seats 21 to 28 are unused
+  -- by the base seed; a seat always has the category and the airport of its
+  -- booking, and no two active bookings share a seat. They are made `pending`
+  -- and moved through their real statuses below, so the history is real.
+  -- Numbers follow the base seed (BK-00001 to BK-00020), and the sequence the
+  -- app uses is moved past them, so the next booking made in the app is BK-00031.
+  ---------------------------------------------------------------------------
+  insert into public.bookings (
+    id, booking_number, partner_id, airport_id, seat_category_id, assigned_seat_id,
+    pickup_at, return_at, daily_rate, status, notes
+  )
+  select
+    ('f0000000-0000-0000-0000-' || lpad(v.n::text, 12, '0'))::uuid,
+    'BK-' || lpad(v.n::text, 5, '0'),
+    v.partner_id::uuid, c_dxb, v.category_id::uuid, v.seat_id::uuid,
+    v.pickup_at::timestamptz, v.return_at::timestamptz, v.daily_rate, 'pending', v.notes
+  from (
+    values
+      (21, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', null,                                   '2026-09-10 09:00:00+04', '2026-09-13 09:00:00+04', 75.00, 'Waiting for confirmation'),
+      (22, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000002', null,                                   '2026-09-10 10:00:00+04', '2026-09-12 10:00:00+04', 80.00, null),
+      (23, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000021', '2026-09-05 08:00:00+04', '2026-09-08 08:00:00+04', 80.00, 'On rental'),
+      (24, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000022', '2026-09-05 09:00:00+04', '2026-09-09 09:00:00+04', 70.00, 'On rental'),
+      (25, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000004', 'e0000000-0000-0000-0000-000000000023', '2026-08-20 08:00:00+04', '2026-08-23 08:00:00+04', 90.00, null),
+      (26, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000024', '2026-08-21 08:00:00+04', '2026-08-24 08:00:00+04', 75.00, null),
+      (27, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003', null,                                   '2026-09-12 08:00:00+04', '2026-09-14 08:00:00+04', 70.00, null),
+      (28, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000004', 'e0000000-0000-0000-0000-000000000027', '2026-09-01 08:00:00+04', '2026-09-03 08:00:00+04', 90.00, null),
+      (29, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000025', '2026-09-15 08:00:00+04', '2026-09-18 08:00:00+04', 80.00, 'Upcoming: seat is being prepared'),
+      (30, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000026', '2026-09-16 08:00:00+04', '2026-09-19 08:00:00+04', 70.00, 'Upcoming: seat failed inspection')
+  ) as v(n, partner_id, category_id, seat_id, pickup_at, return_at, daily_rate, notes);
+
+  perform setval('public.booking_number_seq', 30);
+
+  -- Statuses. The guard on bookings lets a status change only while this signal
+  -- is on; each change writes its event through the trigger.
+  perform set_config('app.booking_change', 'on', false);
+
+  update public.bookings set status = 'confirmed'
+   where id in (select ('f0000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid
+                  from unnest(array[23, 24, 25, 26, 28, 29, 30]) as n);
+
+  update public.bookings set status = 'in_progress'
+   where id in (select ('f0000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid
+                  from unnest(array[23, 24, 25, 26]) as n);
+
+  perform set_config('app.booking_event_notes', 'Customer changed their plans', false);
+  update public.bookings set status = 'cancelled'
+   where id = 'f0000000-0000-0000-0000-000000000027';
+
+  perform set_config('app.booking_event_notes', 'Customer did not arrive', false);
+  update public.bookings set status = 'no_show'
+   where id = 'f0000000-0000-0000-0000-000000000028';
+  perform set_config('app.booking_event_notes', '', false);
+
+  ---------------------------------------------------------------------------
+  -- Technician jobs. A job is made while its booking is active, then moved
+  -- through its statuses (the update trigger writes the job events). The record
+  -- of the work (installation, cleaning, inspection) is made while the job is
+  -- active, as the app does.
+  ---------------------------------------------------------------------------
+  insert into public.technician_jobs (id, booking_id, technician_id, job_type, assigned_at, vehicle_bay)
+  values
+    ('10000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000023', c_tech1, 'installation', '2026-09-04 18:00:00+04', 'Bay 3'),
+    ('10000000-0000-0000-0000-000000000002', 'f0000000-0000-0000-0000-000000000024', c_tech2, 'installation', '2026-09-04 18:30:00+04', 'Bay 5'),
+    ('10000000-0000-0000-0000-000000000003', 'f0000000-0000-0000-0000-000000000025', c_tech1, 'installation', '2026-08-19 18:00:00+04', 'Bay 2'),
+    ('10000000-0000-0000-0000-000000000004', 'f0000000-0000-0000-0000-000000000026', c_tech2, 'installation', '2026-08-20 18:00:00+04', 'Bay 4'),
+    ('10000000-0000-0000-0000-000000000005', 'f0000000-0000-0000-0000-000000000029', c_tech3, 'cleaning',     '2026-09-14 10:00:00+04', null),
+    ('10000000-0000-0000-0000-000000000006', 'f0000000-0000-0000-0000-000000000030', c_tech3, 'inspection',   '2026-09-15 10:00:00+04', null),
+    ('10000000-0000-0000-0000-000000000007', 'f0000000-0000-0000-0000-000000000029', c_tech3, 'inspection',   '2026-09-15 11:00:00+04', null),
+    ('10000000-0000-0000-0000-000000000008', 'f0000000-0000-0000-0000-000000000029', c_tech1, 'installation', '2026-09-15 12:00:00+04', 'Bay 1');
+
+  -- Records of the work, written while the job is still active.
+  insert into public.installations (
+    id, technician_job_id, seat_verified, category_verified, installation_completed,
+    vehicle_location, notes, completed_at
+  )
+  values
+    ('11000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', true, true, true, 'Bay 3', 'Installed and checked', '2026-09-05 07:30:00+04'),
+    ('11000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003', true, true, true, 'Bay 2', 'Installed and checked', '2026-08-20 07:30:00+04'),
+    ('11000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000004', true, true, true, 'Bay 4', 'Installed and checked', '2026-08-21 07:30:00+04');
+
+  insert into public.cleaning_records (
+    id, seat_id, booking_id, employee_id, started_at, completed_at, checklist, passed, notes, technician_job_id
+  )
+  values (
+    '12000000-0000-0000-0000-000000000005', 'e0000000-0000-0000-0000-000000000025',
+    'f0000000-0000-0000-0000-000000000029', c_tech3,
+    '2026-09-14 11:00:00+04', '2026-09-14 11:00:00+04',
+    '{"surfaces_wiped": true, "harness_checked": true}'::jsonb, true, 'Cleaned for the next rental',
+    '10000000-0000-0000-0000-000000000005'
+  );
+
+  -- A failed inspection quarantines the seat (the guard does it, with history).
+  insert into public.inspection_records (
+    id, seat_id, booking_id, inspector_id, inspection_type, result, checklist, notes, technician_job_id
+  )
+  values (
+    '13000000-0000-0000-0000-000000000006', 'e0000000-0000-0000-0000-000000000026',
+    'f0000000-0000-0000-0000-000000000030', c_tech3, 'general', 'fail',
+    '{"harness_clip": "cracked", "shell": "ok"}'::jsonb, 'Harness clip is cracked',
+    '10000000-0000-0000-0000-000000000006'
+  );
+
+  -- Job statuses.
+  perform set_config('app.job_status_change', 'on', false);
+
+  update public.technician_jobs set status = 'in_progress', started_at = assigned_at + interval '30 minutes'
+   where id in (
+     '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002',
+     '10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000004',
+     '10000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000006');
+
+  update public.technician_jobs set status = 'completed', completed_at = started_at + interval '45 minutes'
+   where id in (
+     '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003',
+     '10000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000005',
+     '10000000-0000-0000-0000-000000000006');
+
+  perform set_config('app.job_status_change', '', false);
+
+  -- The rentals that are over.
+  update public.bookings set status = 'completed', paid_days = 3
+   where id in ('f0000000-0000-0000-0000-000000000025', 'f0000000-0000-0000-0000-000000000026');
+
+  perform set_config('app.booking_change', '', false);
+
+  ---------------------------------------------------------------------------
+  -- Incidents. The guard takes the booking, seat, partner and type from the job.
+  -- One is still open (the failed inspection); one went through its statuses and
+  -- is resolved by the operations manager.
+  ---------------------------------------------------------------------------
+  insert into public.incidents (
+    id, partner_id, technician_job_id, type, severity, description, reported_by
+  )
+  values
+    ('14000000-0000-0000-0000-000000000001', c_afm, '10000000-0000-0000-0000-000000000006', 'inspection', 'high', 'Harness clip cracked at inspection; seat quarantined', c_tech3),
+    ('14000000-0000-0000-0000-000000000002', c_erac, '10000000-0000-0000-0000-000000000001', 'installation', 'low', 'Small scratch on the shell found at installation', c_tech1);
+
+  perform set_config('app.incident_status_change', 'on', false);
+
+  perform set_config('app.incident_status_notes', 'Looking into it', false);
+  update public.incidents set status = 'investigating'
+   where id = '14000000-0000-0000-0000-000000000002';
+
+  perform set_config('app.incident_status_notes', 'Cosmetic only; seat is safe', false);
+  update public.incidents set status = 'resolved', resolved_by = c_ops, resolved_at = created_at + interval '1 hour'
+   where id = '14000000-0000-0000-0000-000000000002';
+
+  perform set_config('app.incident_status_notes', '', false);
+  perform set_config('app.incident_status_change', '', false);
+end
+$demo$;
