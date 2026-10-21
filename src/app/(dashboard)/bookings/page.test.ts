@@ -1,3 +1,4 @@
+import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
@@ -14,6 +15,11 @@ vi.mock("@/features/bookings/lib/get-bookings", () => ({
 
 vi.mock("@/features/bookings/lib/get-booking-form-options", () => ({
   getBookingFilterOptions: getFilterOptionsMock,
+}));
+
+// A client component that needs the app router; not what these tests are about.
+vi.mock("@/features/bookings/components/bookings-filters", () => ({
+  BookingsFilters: () => null,
 }));
 
 import BookingsPage from "@/app/(dashboard)/bookings/page";
@@ -73,5 +79,42 @@ describe("BookingsPage", () => {
       BookingsPage({ searchParams: Promise.resolve({}) }),
     ).rejects.toThrow("REDIRECT:/forbidden");
     expect(getBookingsMock).not.toHaveBeenCalled();
+  });
+
+  describe("way back to the partner home (VI-F03-S02)", () => {
+    async function html(user: { id: string; role: string }) {
+      requireAnyPermissionMock.mockResolvedValue(user);
+      return renderToStaticMarkup(
+        await BookingsPage({ searchParams: Promise.resolve({}) }),
+      );
+    }
+
+    it("should offer a link back to the partner home to a partner user", async () => {
+      const markup = await html(PARTNER);
+
+      expect(markup).toContain('href="/partner"');
+      expect(markup).toContain("Back to Partner home");
+    });
+
+    it("should not give a partner user an Add Booking button", async () => {
+      expect(await html(PARTNER)).not.toContain("Add Booking");
+    });
+
+    it.each([
+      ["operations_manager"],
+      ["admin"],
+    ])("should not offer the link back to %s, who does not come from the partner home", async (role) => {
+      const markup = await html({ id: "u3", role });
+
+      expect(markup).not.toContain("Back to Partner home");
+      expect(markup).toContain("Add Booking");
+    });
+
+    it("should show the empty state, not an error, to a partner with no bookings, and still offer the way back", async () => {
+      const markup = await html(PARTNER);
+
+      expect(markup).toContain("No bookings found");
+      expect(markup).toContain("Back to Partner home");
+    });
   });
 });

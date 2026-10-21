@@ -5031,6 +5031,104 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  describe("partner bookings (VI-F03-S02)", () => {
+    // The number of bookings is a head count: a plain select is capped by the
+    // API row limit, and the local database holds more rows than that.
+    async function countOf(partnerId: string) {
+      const { count, error } = await service
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("partner_id", partnerId);
+      expect(error).toBeNull();
+      return count!;
+    }
+
+    async function someNumbersOf(partnerId: string, limit = 50) {
+      const { data, error } = await service
+        .from("bookings")
+        .select("booking_number")
+        .eq("partner_id", partnerId)
+        .limit(limit);
+      expect(error).toBeNull();
+      return data!.map((row) => row.booking_number);
+    }
+
+    async function listAs(
+      client: SupabaseClient<Database>,
+      raw: Record<string, string> = {},
+    ) {
+      listClient.current = client;
+      try {
+        return await getBookings(bookingsQuerySchema.parse(raw));
+      } finally {
+        listClient.current = null;
+      }
+    }
+
+    it("each partner user is listed all of their own partner's bookings and no other partner's", async () => {
+      const countA = await countOf(PARTNER_A_ID);
+      const countB = await countOf(PARTNER_B_ID);
+      expect(countA).toBeGreaterThan(0);
+      expect(countB).toBeGreaterThan(0);
+
+      for (const [client, partnerId, count, other] of [
+        [partnerAClient, PARTNER_A_ID, countA, await someNumbersOf(PARTNER_B_ID)],
+        [partnerBClient, PARTNER_B_ID, countB, await someNumbersOf(PARTNER_A_ID)],
+      ] as const) {
+        const { bookings, total } = await listAs(client, { page_size: "100" });
+        const numbers = bookings.map((b) => b.booking_number);
+
+        expect(total).toBe(count);
+        expect(bookings.every((b) => b.partner?.id === partnerId)).toBe(true);
+        expect(numbers.some((n) => other.includes(n))).toBe(false);
+      }
+    });
+
+    it("searching for another partner's booking number lists nothing", async () => {
+      const [ownB] = await someNumbersOf(PARTNER_B_ID, 1);
+
+      const { total, bookings } = await listAs(partnerAClient, { q: ownB });
+
+      expect(total).toBe(0);
+      expect(bookings).toEqual([]);
+    });
+
+    it("a partner id typed into the address is ignored: the list is still the signed-in partner's", async () => {
+      const count = await countOf(PARTNER_A_ID);
+
+      const { total, bookings } = await listAs(partnerAClient, {
+        partner_id: PARTNER_B_ID,
+        page_size: "100",
+      });
+
+      expect(total).toBe(count);
+      expect(bookings.every((b) => b.partner?.id === PARTNER_A_ID)).toBe(true);
+    });
+
+    it("filters and sorting stay inside the partner's own bookings", async () => {
+      const cases: Record<string, string>[] = [
+        { status: "pending" },
+        { status: "in_progress", sort: "pickup_at", order: "asc" },
+        { sort: "booking_number", order: "desc", page_size: "100" },
+      ];
+
+      for (const raw of cases) {
+        const { bookings } = await listAs(partnerBClient, raw);
+
+        expect(bookings.every((b) => b.partner?.id === PARTNER_B_ID)).toBe(true);
+      }
+    });
+
+    it("a partner user with no partner is listed no booking at all", async () => {
+      const { total, bookings } = await listAs(partnerNullClient, {
+        page_size: "100",
+      });
+
+      expect(total).toBe(0);
+      expect(bookings).toEqual([]);
+    });
+  });
+
   describe("technician list access (FO-F01-S01)", () => {
     it("admin and operations_manager can list technician users", async () => {
       for (const client of [adminClient, opsClient]) {
