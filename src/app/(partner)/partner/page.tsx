@@ -4,6 +4,7 @@ import { DashboardFigures } from "@/features/dashboard/components/dashboard-figu
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
 import { PartnerHomeNav } from "@/features/partners/components/partner-home-nav";
 import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
+import { getPartnerHomeItems } from "@/features/partners/lib/partner-home-items";
 
 interface HeadingProps {
   title: string;
@@ -59,7 +60,7 @@ export default async function PartnerPage() {
         title={summary.name}
         subtitle={`Partner ${summary.code}. Counts for your organization, as of now.`}
       />
-      <PartnerHomeNav />
+      <PartnerHomeNav items={getPartnerHomeItems(user.role)} />
       <DashboardFigures results={results} />
     </div>
   );
