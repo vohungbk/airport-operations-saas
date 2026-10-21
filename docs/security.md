@@ -1370,9 +1370,9 @@ time at the airport and converted to UTC with `airports.timezone`.
     page adds a note. Such a figure is neither a zero nor a failed read, so it
     does not make the dashboard "empty" or "partial".
   - *A partner user who is not linked to a partner* gets no rows from RLS, so
-    every figure would be 0. The partner home reads nothing and says "Your
-    account is not linked to a partner yet" instead of a screen of zeros
-    (VI-F03-S01; a partner user no longer stays on `/dashboard`).
+    every figure would be 0. Such a user is not shown a dashboard at all: they are
+    sent to the "Access denied" page that says "Your account is not linked to a
+    partner yet" (VI-F03-S05, below).
   When every figure that was read is zero the page says there is no operational
   data yet. Loading and error states use the shared components.
 - **Role scope (VI-F01-S04).** The role only chooses which figures are shown
@@ -1431,7 +1431,7 @@ time at the airport and converted to UTC with `airports.timezone`.
 - **States.** Loading (`loading.tsx`), error with retry (`error.tsx`, and the
   Unavailable note with "Try again" for figures that could not be read), empty
   (every figure read and zero), forbidden (the guard), and an account with no
-  partner (reads nothing, says so; spec E2). A partner row that cannot be seen
+  partner (never gets here: VI-F03-S05, below). A partner row that cannot be seen
   says "Your partner could not be found".
 - **Navigation (spec R2).** A Bookings card opens `/bookings`, the list a partner
   user can already open (read-only, their partner's rows by RLS). A Seats card
@@ -1458,9 +1458,8 @@ time at the airport and converted to UTC with `airports.timezone`.
   another partner's booking number lists nothing. A partner user with no partner
   is listed nothing. No finance column is selected.
 - **States.** Loading, error with retry, empty, success and forbidden are the
-  ones of the bookings list. A partner user with no partner gets the empty
-  state; the specific "not linked" note for the bookings view belongs to
-  VI-F03-S05.
+  ones of the bookings list. A partner user with no partner is sent to the
+  no-partner page before the list is read (VI-F03-S05, below).
 - Covered by the unit tests of the page (the way back, per role) and the
   "partner bookings (VI-F03-S02)" integration tests (each partner is listed all
   of their own bookings and none of the other's, search and address tampering,
@@ -1506,8 +1505,7 @@ time at the airport and converted to UTC with `airports.timezone`.
   manager form does, and it is read-only afterwards. This feeds the settlement
   later (VI-F04), so the rate a partner enters is a risk to review there; it was
   accepted as the only source for the rate today.
-- **Not in this story.** Cancelling a booking, choosing a seat, and the
-  "not linked" note for the bookings view (VI-F03-S05).
+- **Not in this story.** Cancelling a booking and choosing a seat.
 - Covered by unit tests (schemas, actions, RPC arguments, error mapping, pages,
   forms, detail) and the "partner creates and edits bookings (VI-F03-S03)"
   integration tests (own partner only, no partner argument, every other caller
@@ -1527,8 +1525,8 @@ time at the airport and converted to UTC with `airports.timezone`.
   stays visible while a booking of the partner points at it, past bookings
   included). The query adds no `partner_id` filter, and the address schema
   (`partnerSeatsQuerySchema`) has no partner, airport or category key, so
-  putting one there changes nothing. A partner user with no partner reads
-  nothing and is told so (spec E2).
+  putting one there changes nothing. A partner user with no partner never
+  gets here: they are sent to the no-partner page (VI-F03-S05, below).
 - **Read-only, and only what a partner needs.** A row has the serial number, the
   status, and the category and airport names. The list never selects the public
   token, manufacturer, model, dates, rental cycles or the quarantine reason; the
@@ -1544,6 +1542,44 @@ time at the airport and converted to UTC with `airports.timezone`.
   (VI-F03-S04)" integration tests (each partner is given exactly the seats of
   their own bookings, another partner's seat cannot be found by serial, address
   tampering changes nothing, no internal column, no partner).
+
+## Partner scope (VI-F03-S05)
+
+- **Where the scope comes from (spec R6).** Only from the signed-in user's own
+  profile row in `public.users`, read by their verified id (`getCurrentUser`),
+  and from RLS, which reads the same row. It never comes from the address, a
+  form, a Server Action argument, or a claim in the token. `create_partner_booking`
+  and `update_partner_booking` have no partner argument; the seats address schema
+  has no partner, airport or category key; the pages read `user.partner_id`. An
+  integration test moves a user to another partner and then to none in the
+  database, and shows that what they are given changes on the next request
+  without a new sign-in.
+- **No partner means no access (spec E2).** `requireAuth()` is the one door of
+  every signed-in area, so it holds the rule: a `partner_user` whose profile has
+  no partner is sent to `/forbidden?reason=no_partner` ("Access denied", "Your
+  account is not linked to a partner yet... ask an administrator", and the
+  sign-out button). That covers the dashboard, bookings, incidents, the partner
+  home and every route added later, and it fails closed. Admin, operations
+  manager and technician have no partner by design and are not affected. A new
+  sign-up is a partner user with no partner, so it lands on this page until an
+  administrator links the account. `requirePartnerScope(permission)` is for the
+  partner pages themselves: it also sends anyone with no partner (an admin, for
+  example) to the same page, because the portal is per partner, and it narrows
+  `partner_id` to a string for the page. The page only recognizes the fixed
+  reason `no_partner`; any other value in the address gets the generic text.
+- **An address to another partner's record (spec E3).** `/bookings/<id>`,
+  `/bookings/<id>/edit` and `/incidents/<id>` read the record through RLS, so the
+  record of another partner is not there for the user. The pages answer with the
+  standard not-found page, the same as for an id that does not exist, so the
+  answer does not say whether the id exists. Integration tests compare the two
+  cases and the booking events, and compare the error of an edit of another
+  partner's booking with the error of an edit of a booking that does not exist.
+  The record's id and details are not in the answer.
+- **Not changed.** No new table, policy, migration or permission. The deactivated
+  partner (VI-F03-S07) and finance (VI-F03-S06) are their own stories.
+- Covered by unit tests (the rule in `requireAuth` and every guard built on it,
+  `requirePartnerScope`, the forbidden page and its reasons, the partner pages) and
+  the "partner portal scope (VI-F03-S05)" integration tests.
 
 ## Installation record errors (FO-F02-S05)
 
