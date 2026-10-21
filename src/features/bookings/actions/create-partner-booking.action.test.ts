@@ -116,12 +116,10 @@ describe("createPartnerBookingAction", () => {
     expect(result.error?.message).not.toContain("internal");
   });
 
-  it("should return FORBIDDEN when the database says the caller is not a partner user (42501)", async () => {
+  it("should send the user to the forbidden state, not show a message in the form, when the database says the caller is no longer a partner user (42501)", async () => {
     rpcMock.mockResolvedValue({ data: null, error: { code: "42501", message: "Not allowed" } });
 
-    const result = await createPartnerBookingAction(VALID_INPUT);
-
-    expect(result.error?.code).toBe("FORBIDDEN");
+    await expect(createPartnerBookingAction(VALID_INPUT)).rejects.toThrow("REDIRECT:/forbidden");
   });
 
   it("should return a clear NOT_FOUND error when the airport cannot be found", async () => {

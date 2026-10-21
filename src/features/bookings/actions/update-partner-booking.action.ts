@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth/current-user";
+import { FORBIDDEN_ROUTE } from "@/lib/constants/routes";
 import {
   bookingIdSchema,
   updatePartnerBookingSchema,
@@ -68,6 +69,13 @@ export async function updatePartnerBookingAction(
   const { error } = await supabase.rpc("update_partner_booking", resolved.args);
 
   if (error) {
+    // The database refuses a caller who is no longer a partner user of an
+    // active partner: the permission was revoked since the page was opened.
+    // That is the forbidden state, not a message inside the form.
+    if (error.code === "42501") {
+      redirect(FORBIDDEN_ROUTE);
+    }
+
     return { success: false, error: mapBookingError(error) };
   }
 

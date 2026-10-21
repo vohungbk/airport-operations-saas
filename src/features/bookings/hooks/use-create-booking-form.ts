@@ -6,6 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { createBookingAction } from "@/features/bookings/actions/create-booking.action";
 import type { BookingActionResult } from "@/features/bookings/lib/booking-errors";
+import { runBookingAction } from "@/features/bookings/lib/run-booking-action";
 import { useAvailableSeats } from "@/features/bookings/hooks/use-available-seats";
 import {
   createBookingSchema,
@@ -49,7 +50,7 @@ export function useCreateBookingForm(airportTimezones: Record<string, string>) {
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
     startTransition(async () => {
-      setResult(await createBookingAction(values));
+      setResult(await runBookingAction(() => createBookingAction(values)));
     });
   });
 

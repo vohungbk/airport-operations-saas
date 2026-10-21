@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { updatePartnerBookingAction } from "@/features/bookings/actions/update-partner-booking.action";
 import type { BookingActionResult } from "@/features/bookings/lib/booking-errors";
+import { runBookingAction } from "@/features/bookings/lib/run-booking-action";
 import {
   updatePartnerBookingSchema,
   type UpdatePartnerBookingInput,
@@ -30,7 +31,11 @@ export function useUpdatePartnerBookingForm({
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
     startTransition(async () => {
-      setResult(await updatePartnerBookingAction(bookingId, values));
+      setResult(
+        await runBookingAction(() =>
+          updatePartnerBookingAction(bookingId, values),
+        ),
+      );
     });
   });
 

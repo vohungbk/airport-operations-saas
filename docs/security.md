@@ -231,7 +231,7 @@ call these functions directly):
 | function | purpose |
 |---|---|
 | `current_user_role()` | The caller's role from `public.users`, or `null` if there is no session, the profile is missing, or the account is inactive. `SECURITY DEFINER` lets it read `public.users` from inside that table's own policies without RLS recursion (see "RLS recursion" below). Reused by nearly every other policy. |
-| `current_user_partner_id()` | The caller's `partner_id`, or `null` for internal roles, for any inactive/missing-profile `partner_user`, and (since VI-F03-S07) for a `partner_user` whose partner is not `active`. A `null` result makes a `partner_id = current_user_partner_id()` clause return zero rows rather than error or "all rows," turning the partner-isolation design principle above into a database fact. |
+| `current_user_partner_id()` | The caller's `partner_id`, or `null` for internal roles, for any inactive/missing-profile `partner_user`, (since VI-F03-S07) for a `partner_user` whose partner is not `active`, and (since VI-F03-S08) for any user whose role is not `partner_user`. A `null` result makes a `partner_id = current_user_partner_id()` clause return zero rows rather than error or "all rows," turning the partner-isolation design principle above into a database fact. |
 | `is_internal_user()` | True for `admin`/`operations_manager`/`technician` — the three internal, non-partner roles. |
 | `is_admin_or_ops_manager()` | True for `admin`/`operations_manager` — the single most repeated gate in the migration (write access on `partners`/`airports`/`seat_categories`/`seats`/`flights`/`bookings`/`technician_jobs`, and broad SELECT-all on most other tables). |
 | `booking_partner_id(uuid)` | Not part of the ticket's original 4-function list. Returns a booking's `partner_id`, bypassing `bookings`' own RLS. Exists solely to break a real RLS recursion cycle discovered while testing this migration (see "RLS recursion" below) — `bookings`' technician-visibility policy queries `technician_jobs`, and without this function `technician_jobs`' `partner_user`-visibility policy would query `bookings` back, which Postgres detects as infinite policy recursion (`42P17`). |
@@ -1649,6 +1649,44 @@ time at the airport and converted to UTC with `airports.timezone`.
   integration tests (the scope function, every portal read returning nothing for
   each status with a session opened before, another active partner unaffected,
   booking functions refused, operations unaffected).
+
+## Partner portal errors (VI-F03-S08)
+
+- **Network or database failure while loading (spec E4).** Every page a partner
+  user can open has an error boundary of its own segment (`error.tsx`, a client
+  component with "Try again" that never prints the error message); a structural
+  test fails if a portal page has none. A failed read is thrown to that boundary,
+  never shown as an empty list or a zero: the partner home and seats page throw, a
+  figure that could not be counted shows "Unavailable" with a retry, and a failed
+  profile read in a layout is caught by `src/app/error.tsx` (VI-F01-S06). None of
+  these is shown as "forbidden".
+- **Network failure while saving.** The booking forms (create, edit, change
+  status, and the partner versions) call their Server Action through
+  `runBookingAction()`: a call that fails because the network is down becomes a
+  `NETWORK_ERROR` result inside the form ("Could not reach the server. Your input
+  is kept..."), so the user keeps what they typed and can submit again. It is never
+  taken as a success, and the raw failure is not shown. A Next redirect or
+  not-found is re-thrown, so navigation, including the one to `/forbidden`, still
+  happens.
+- **Permission revoked while a screen is open (spec E5).** The next request is
+  refused by three independent paths, each tested on a session opened before the
+  change:
+  1. every page and Server Action goes through `requireAuth()` (profile, role,
+     partner and partner status read again), which sends the user to `/forbidden`;
+  2. the database gives the user no rows: `current_user_partner_id()` (migration
+     `20261103090000_current_user_partner_requires_partner_role.sql`) now returns
+     a partner only to an active `partner_user` of an active partner, so changing a
+     partner user to another role (with the partner left on the profile),
+     deactivating the account, taking the partner off the profile, or
+     deactivating the partner all end the access at the next request;
+  3. the partner booking functions refuse the caller (`42501`), and the two partner
+     Server Actions turn that into a redirect to `/forbidden`, the forbidden state,
+     not a message in the form.
+- **Rollout.** Apply the migration with the code.
+- Covered by unit tests (`runBookingAction`, the actions' `42501` redirect, the
+  boundaries of the portal pages) and the "partner portal permission revoked
+  while open (VI-F03-S08)" integration tests (role changed, account deactivated,
+  partner taken off the profile; another partner's session unaffected).
 
 ## Installation record errors (FO-F02-S05)
 

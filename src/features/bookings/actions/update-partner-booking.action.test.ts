@@ -108,11 +108,18 @@ describe("updatePartnerBookingAction", () => {
     ["55000", "INVALID_TRANSITION"],
     ["BK002", "SEAT_CONFLICT"],
     ["P0002", "NOT_FOUND"],
-    ["42501", "FORBIDDEN"],
   ])("should map database error %s to %s", async (dbCode, code) => {
     rpcMock.mockResolvedValue({ data: null, error: { code: dbCode, message: "x" } });
 
     expect((await updatePartnerBookingAction(ID, VALID_INPUT)).error?.code).toBe(code);
+  });
+
+  it("should send the user to the forbidden state when the database says the caller is no longer a partner user (42501)", async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { code: "42501", message: "Not allowed" } });
+
+    await expect(updatePartnerBookingAction(ID, VALID_INPUT)).rejects.toThrow(
+      "REDIRECT:/forbidden",
+    );
   });
 
   it("should propagate the guard's redirect for a user without the permission", async () => {

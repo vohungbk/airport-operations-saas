@@ -6,6 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { updateBookingAction } from "@/features/bookings/actions/update-booking.action";
 import type { BookingActionResult } from "@/features/bookings/lib/booking-errors";
+import { runBookingAction } from "@/features/bookings/lib/run-booking-action";
 import { useAvailableSeats } from "@/features/bookings/hooks/use-available-seats";
 import {
   updateBookingSchema,
@@ -47,7 +48,9 @@ export function useUpdateBookingForm({
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
     startTransition(async () => {
-      setResult(await updateBookingAction(bookingId, values));
+      setResult(
+        await runBookingAction(() => updateBookingAction(bookingId, values)),
+      );
     });
   });
 

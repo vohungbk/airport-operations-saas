@@ -22,7 +22,10 @@ import { getIncidentById } from "@/features/incidents/lib/get-incident-by-id";
 import { getPartnerSeats } from "@/features/seats/lib/get-partner-seats";
 import { partnerSeatsQuerySchema } from "@/features/seats/schemas/partner-seats-query.schema";
 import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
-import { DASHBOARD_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
+import {
+  BOOKINGS_ACCESS_PERMISSIONS,
+  DASHBOARD_ACCESS_PERMISSIONS,
+} from "@/lib/auth/permissions";
 import { INCIDENT_DETAIL_SELECT } from "@/features/incidents/lib/get-incident-by-id";
 import { INCIDENT_LIST_SELECT } from "@/features/incidents/lib/get-incidents";
 import {
@@ -5928,6 +5931,107 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         expect(bookings.count).toBeGreaterThan(0);
       } finally {
         await setStatus(PARTNER_A_ID, "active");
+      }
+    });
+  });
+
+  describe("partner portal permission revoked while open (VI-F03-S08)", () => {
+    type Change = { role?: "technician"; is_active?: false; partner_id?: null };
+
+    // Only an admin may change a profile's role, partner or active flag.
+    async function changeProfile(change: Change) {
+      const { error } = await adminClient
+        .from("users")
+        .update(change)
+        .eq("id", identities.partnerA.id);
+      expect(error).toBeNull();
+    }
+
+    async function restoreProfile() {
+      const { error } = await adminClient
+        .from("users")
+        .update({ role: "partner_user", is_active: true, partner_id: PARTNER_A_ID })
+        .eq("id", identities.partnerA.id);
+      expect(error).toBeNull();
+    }
+
+    // What the next request of the session opened before is given, by every
+    // path the portal has: the scope function, the reads, and the write.
+    async function nextRequest() {
+      const scope = await partnerAClient.rpc("current_user_partner_id");
+      const bookings = await partnerAClient
+        .from("bookings")
+        .select("id", { count: "exact", head: true });
+      const seats = await partnerAClient
+        .from("seats")
+        .select("id", { count: "exact", head: true });
+      const write = await partnerAClient.rpc("update_partner_booking", {
+        p_booking_id: BOOKING_A_ID,
+        p_expected_updated_at: "2030-01-01T00:00:00Z",
+        p_pickup_at: "2040-01-01T00:00:00Z",
+        p_return_at: "2040-01-02T00:00:00Z",
+      });
+
+      listClient.current = partnerAClient;
+      let guard: unknown = null;
+      try {
+        await requireAnyPermission(BOOKINGS_ACCESS_PERMISSIONS);
+      } catch (error) {
+        guard = (error as { digest?: string }).digest ?? String(error);
+      } finally {
+        listClient.current = null;
+      }
+
+      return {
+        scope: scope.data,
+        bookings: bookings.count,
+        seats: seats.count,
+        writeCode: write.error?.code,
+        guard,
+      };
+    }
+
+    it("a partner user who still holds the permission is let in by every path (the control)", async () => {
+      const next = await nextRequest();
+
+      expect(next).toMatchObject({ scope: PARTNER_A_ID, guard: null });
+      expect(next.bookings).toBeGreaterThan(0);
+      // The write is refused for its own reason (state or stale data), not
+      // because the caller lost the permission.
+      expect(next.writeCode).not.toBe("42501");
+    });
+
+    it.each([
+      ["their role is changed to another one", { role: "technician" }],
+      ["their account is deactivated", { is_active: false }],
+      ["their partner is taken off the profile", { partner_id: null }],
+    ] as const)(
+      "when %s, the next request of the open session is refused: no scope, no rows, no write, and the guard sends them to forbidden",
+      async (_label, change) => {
+        await changeProfile(change);
+        try {
+          const next = await nextRequest();
+
+          expect(next.scope).toBeNull();
+          expect(next.bookings).toBe(0);
+          expect(next.writeCode).toBe("42501");
+          expect(String(next.guard)).toContain("/forbidden");
+        } finally {
+          await restoreProfile();
+        }
+
+        expect(await nextRequest()).toMatchObject({ scope: PARTNER_A_ID, guard: null });
+      },
+    );
+
+    it("another partner user's open session is not affected by the change", async () => {
+      await changeProfile({ role: "technician" });
+      try {
+        const scope = await partnerBClient.rpc("current_user_partner_id");
+
+        expect(scope.data).toBe(PARTNER_B_ID);
+      } finally {
+        await restoreProfile();
       }
     });
   });
