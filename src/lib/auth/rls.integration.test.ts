@@ -15,7 +15,7 @@ import { getJobs } from "@/features/jobs/lib/get-jobs";
 import { parseJobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
 import { seatsQuerySchema } from "@/features/seats/schemas/seats-query.schema";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
-import { requireAnyPermission } from "@/lib/auth/current-user";
+import { getCurrentUser, requireAnyPermission } from "@/lib/auth/current-user";
 import { getBookingById } from "@/features/bookings/lib/get-booking-by-id";
 import { getBookingEvents } from "@/features/bookings/lib/get-booking-events";
 import { getIncidentById } from "@/features/incidents/lib/get-incident-by-id";
@@ -5772,6 +5772,163 @@ describe.skipIf(!config)("F05 RLS integration", () => {
 
       expect(Number(terms.data!.partner_share_percent)).toBe(70);
       expect(invoice.data).toHaveLength(1);
+    });
+  });
+
+  describe("deactivated partner (VI-F03-S07)", () => {
+    type NotActive = "pending" | "suspended" | "inactive";
+    const NOT_ACTIVE: NotActive[] = ["pending", "suspended", "inactive"];
+
+    async function setStatus(partnerId: string, status: NotActive | "active") {
+      // Only admin or operations manager may change a partner (RLS).
+      const { error } = await opsClient
+        .from("partners")
+        .update({ status })
+        .eq("id", partnerId);
+      expect(error).toBeNull();
+    }
+
+    /** What partner A is given by each read the portal uses, as the signed-in client. */
+    async function readsOfPartnerA() {
+      const [bookings, seats, incidents, summary, settlements, terms] = await Promise.all([
+        partnerAClient.from("bookings").select("id", { count: "exact", head: true }),
+        partnerAClient.from("seats").select("id", { count: "exact", head: true }),
+        partnerAClient.from("incidents").select("id", { count: "exact", head: true }),
+        getPartnerSummary(PARTNER_A_ID, partnerAClient),
+        partnerAClient.from("settlements").select("id", { count: "exact", head: true }),
+        partnerAClient.from("partner_commercial_terms").select("id", { count: "exact", head: true }),
+      ]);
+
+      return {
+        bookings: bookings.count,
+        seats: seats.count,
+        incidents: incidents.count,
+        settlements: settlements.count,
+        terms: terms.count,
+        summary,
+      };
+    }
+
+    it("the function that scopes every partner policy gives a partner user their partner only while the partner is active", async () => {
+      const read = async () => (await partnerAClient.rpc("current_user_partner_id")).data;
+
+      expect(await read()).toBe(PARTNER_A_ID);
+      for (const status of NOT_ACTIVE) {
+        await setStatus(PARTNER_A_ID, status);
+        try {
+          expect(await read(), status).toBeNull();
+        } finally {
+          await setStatus(PARTNER_A_ID, "active");
+        }
+      }
+      expect(await read()).toBe(PARTNER_A_ID);
+    });
+
+    it.each(NOT_ACTIVE)(
+      "a partner that is %s gives its users no booking, seat, incident, finance row or partner row, with a session opened before",
+      async (status) => {
+        const before = await readsOfPartnerA();
+        expect(before.bookings).toBeGreaterThan(0);
+        expect(before.summary).not.toBeNull();
+
+        await setStatus(PARTNER_A_ID, status);
+        try {
+          expect(await readsOfPartnerA()).toEqual({
+            bookings: 0,
+            seats: 0,
+            incidents: 0,
+            settlements: 0,
+            terms: 0,
+            summary: null,
+          });
+        } finally {
+          await setStatus(PARTNER_A_ID, "active");
+        }
+
+        expect(await readsOfPartnerA()).toEqual(before);
+      },
+    );
+
+    it("another partner that is still active is not affected", async () => {
+      const before = await getPartnerSummary(PARTNER_B_ID, partnerBClient);
+      const bookings = await partnerBClient
+        .from("bookings")
+        .select("id", { count: "exact", head: true });
+
+      await setStatus(PARTNER_A_ID, "inactive");
+      try {
+        expect(await getPartnerSummary(PARTNER_B_ID, partnerBClient)).toEqual(before);
+        const after = await partnerBClient
+          .from("bookings")
+          .select("id", { count: "exact", head: true });
+        expect(after.count).toBe(bookings.count);
+      } finally {
+        await setStatus(PARTNER_A_ID, "active");
+      }
+    });
+
+    it("the profile read behind requireAuth shows the partner as not active, or not at all, so the next request is refused", async () => {
+      const profile = async () => {
+        listClient.current = partnerAClient;
+        try {
+          return await getCurrentUser();
+        } finally {
+          listClient.current = null;
+        }
+      };
+
+      await setStatus(PARTNER_A_ID, "suspended");
+      try {
+        const user = await profile();
+        // Hidden by the database, so no status; either way it is not "active".
+        expect(user?.partner_status).not.toBe("active");
+      } finally {
+        await setStatus(PARTNER_A_ID, "active");
+      }
+
+      expect((await profile())?.partner_status).toBe("active");
+    });
+
+    it("a partner user of a partner that is not active cannot create or edit a booking", async () => {
+      const args = {
+        p_airport_id: "00000000-0000-0000-0000-000000000000",
+        p_seat_category_id: "00000000-0000-0000-0000-000000000000",
+        p_pickup_at: "2040-01-01T00:00:00Z",
+        p_return_at: "2040-01-02T00:00:00Z",
+        p_daily_rate: 1,
+      };
+
+      await setStatus(PARTNER_A_ID, "inactive");
+      try {
+        const create = await partnerAClient.rpc("create_partner_booking", args);
+        const edit = await partnerAClient.rpc("update_partner_booking", {
+          p_booking_id: BOOKING_A_ID,
+          p_expected_updated_at: "2030-01-01T00:00:00Z",
+          p_pickup_at: "2040-01-01T00:00:00Z",
+          p_return_at: "2040-01-02T00:00:00Z",
+        });
+
+        expect(create.error?.code).toBe("42501");
+        expect(edit.error?.code).toBe("42501");
+      } finally {
+        await setStatus(PARTNER_A_ID, "active");
+      }
+    });
+
+    it("operations still see the partner and its bookings while it is not active", async () => {
+      await setStatus(PARTNER_A_ID, "inactive");
+      try {
+        const partner = await opsClient.from("partners").select("id").eq("id", PARTNER_A_ID);
+        const bookings = await opsClient
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("partner_id", PARTNER_A_ID);
+
+        expect(partner.data).toHaveLength(1);
+        expect(bookings.count).toBeGreaterThan(0);
+      } finally {
+        await setStatus(PARTNER_A_ID, "active");
+      }
     });
   });
 

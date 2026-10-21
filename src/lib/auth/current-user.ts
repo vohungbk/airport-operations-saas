@@ -9,11 +9,13 @@ import {
   type Permission,
 } from "@/lib/auth/permissions";
 import type { Role } from "@/lib/auth/roles";
-import { isUnlinkedPartnerUser } from "@/lib/auth/partner-scope";
+import { getPartnerAccessIssue } from "@/lib/auth/partner-scope";
+import type { PartnerStatus } from "@/features/partners/types";
 import {
   FORBIDDEN_ROUTE,
   LOGIN_ROUTE,
   NO_PARTNER_ROUTE,
+  PARTNER_INACTIVE_ROUTE,
 } from "@/lib/constants/routes";
 
 /** PostgREST code for `.single()` finding no row. */
@@ -25,6 +27,11 @@ export interface AppUser {
   full_name: string;
   role: Role;
   partner_id: string | null;
+  /**
+   * The status of the partner, `null` when there is no partner or it could not
+   * be read (the database hides a partner that is not active from its users).
+   */
+  partner_status: PartnerStatus | null;
   is_active: boolean;
 }
 
@@ -48,7 +55,9 @@ export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("users")
-    .select("id, email, full_name, role, partner_id, is_active")
+    .select(
+      "id, email, full_name, role, partner_id, is_active, partner:partners(status)",
+    )
     .eq("id", authUser.id)
     .single();
 
@@ -64,24 +73,37 @@ export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
     return null;
   }
 
-  return data;
+  const { partner, ...profile } = data as typeof data & {
+    partner: { status: PartnerStatus } | null;
+  };
+
+  return { ...profile, partner_status: partner?.status ?? null };
 });
 
 /**
  * Server Component / layout guard: no session -> `/login`; session but
  * missing/inactive/invalid `public.users` profile -> `/forbidden` (never
- * leaks which case it is). A partner user with no partner -> `/forbidden`
- * with the reason `no_partner` (VI-F03-S05, spec E2): this is the one place
- * every signed-in area goes through, so the rule holds for each present and
- * future route, and it is read from the profile, never from the request.
- * Returns the resolved `AppUser` otherwise.
+ * leaks which case it is). A partner user with no partner, or whose partner
+ * is not active -> `/forbidden` with the reason `no_partner` (VI-F03-S05, spec
+ * E2) or `partner_inactive` (VI-F03-S07, spec E1): this is the one place every
+ * signed-in area goes through, so the rule holds for each present and future
+ * route and on every request (a partner deactivated while the user is signed
+ * in is refused at the next one), and it is read from the profile and the
+ * partner row, never from the request. Returns the resolved `AppUser`
+ * otherwise.
  */
 export async function requireAuth(): Promise<AppUser> {
   const user = await getCurrentUser();
 
   if (user) {
-    if (isUnlinkedPartnerUser(user)) {
+    const issue = getPartnerAccessIssue(user);
+
+    if (issue === "no_partner") {
       redirect(NO_PARTNER_ROUTE);
+    }
+
+    if (issue === "partner_inactive") {
+      redirect(PARTNER_INACTIVE_ROUTE);
     }
 
     return user;
