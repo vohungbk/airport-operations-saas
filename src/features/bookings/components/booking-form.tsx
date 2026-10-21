@@ -21,7 +21,9 @@ import type { AvailableSeat } from "@/features/bookings/actions/get-available-se
 import type { BookingFormOptions } from "@/features/bookings/lib/get-booking-form-options";
 import type {
   CreateBookingInput,
+  CreatePartnerBookingInput,
   UpdateBookingInput,
+  UpdatePartnerBookingInput,
 } from "@/features/bookings/schemas/booking.schema";
 
 interface SeatPickerState {
@@ -52,7 +54,29 @@ type EditModeProps = {
   currentSeat: AvailableSeat | null;
 };
 
-type BookingFormProps = CreateModeProps | EditModeProps;
+/** A partner user picks no partner and no seat: operations assign the seat. */
+type PartnerCreateModeProps = {
+  mode: "partner-create";
+  register: UseFormRegister<CreatePartnerBookingInput>;
+  errors: FieldErrors<CreatePartnerBookingInput>;
+  isPending: boolean;
+  options: Pick<BookingFormOptions, "airports" | "categories">;
+  timeZone: string | null;
+};
+
+type PartnerEditModeProps = {
+  mode: "partner-edit";
+  register: UseFormRegister<UpdatePartnerBookingInput>;
+  errors: FieldErrors<UpdatePartnerBookingInput>;
+  isPending: boolean;
+  timeZone: string;
+};
+
+type BookingFormProps =
+  | CreateModeProps
+  | EditModeProps
+  | PartnerCreateModeProps
+  | PartnerEditModeProps;
 
 const CONTROL_CLASS =
   "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30";
@@ -190,12 +214,13 @@ interface SharedFieldsProps<TFieldValues extends FieldValues> {
   register: UseFormRegister<TFieldValues>;
   errors: FieldErrors<TFieldValues>;
   isPending: boolean;
-  availableSeats: SeatPickerState;
+  /** `null` hides the seat field (a partner user does not pick a seat). */
+  availableSeats: SeatPickerState | null;
   timeZone: string | null;
   currentSeat: AvailableSeat | null;
 }
 
-/** Fields editable in both modes. */
+/** Fields editable in every mode; the seat only where `availableSeats` is set. */
 function SharedFields<TFieldValues extends FieldValues>({
   register,
   errors,
@@ -209,19 +234,19 @@ function SharedFields<TFieldValues extends FieldValues>({
     ? `Local time at the airport (${timeZone}).`
     : "Local time at the selected airport.";
 
-  const seatChoices = [...availableSeats.seats];
+  const seatChoices = [...(availableSeats?.seats ?? [])];
   if (currentSeat && !seatChoices.some((seat) => seat.id === currentSeat.id)) {
     seatChoices.unshift(currentSeat);
   }
 
   let seatHint = "Optional. You can assign a seat later.";
-  if (!availableSeats.isReady) {
+  if (availableSeats && !availableSeats.isReady) {
     seatHint = "Choose airport, category, pickup and return to list seats.";
-  } else if (availableSeats.isLoading) {
+  } else if (availableSeats?.isLoading) {
     seatHint = "Loading available seats...";
-  } else if (availableSeats.failed) {
+  } else if (availableSeats?.failed) {
     seatHint = "Could not load available seats.";
-  } else if (seatChoices.length === 0) {
+  } else if (availableSeats && seatChoices.length === 0) {
     seatHint = "No seats are available for this period.";
   }
 
@@ -241,17 +266,19 @@ function SharedFields<TFieldValues extends FieldValues>({
         type="datetime-local"
         hint={timeHint}
       />
-      <SelectField
-        {...shell}
-        name="assigned_seat_id"
-        label="Seat"
-        placeholder="No seat (assign later)"
-        hint={seatHint}
-        choices={seatChoices.map((seat) => ({
-          value: seat.id,
-          label: seat.serial_number,
-        }))}
-      />
+      {availableSeats && (
+        <SelectField
+          {...shell}
+          name="assigned_seat_id"
+          label="Seat"
+          placeholder="No seat (assign later)"
+          hint={seatHint}
+          choices={seatChoices.map((seat) => ({
+            value: seat.id,
+            label: seat.serial_number,
+          }))}
+        />
+      )}
       <TextField
         {...shell}
         name="external_booking_number"
@@ -277,6 +304,58 @@ function SharedFields<TFieldValues extends FieldValues>({
  * `booking_number` are never form fields.
  */
 export function BookingForm(props: BookingFormProps) {
+  if (props.mode === "partner-create") {
+    const { register, errors, isPending, options, timeZone } = props;
+    const shell = { register, errors, isPending };
+
+    return (
+      <FieldGroup>
+        <SelectField
+          {...shell}
+          name="airport_id"
+          label="Airport"
+          choices={options.airports}
+        />
+        <SelectField
+          {...shell}
+          name="seat_category_id"
+          label="Seat category"
+          choices={options.categories}
+        />
+        <TextField
+          {...shell}
+          name="daily_rate"
+          label="Daily rate"
+          type="number"
+          hint="Cannot be changed after the booking is created."
+        />
+        <SharedFields
+          {...shell}
+          availableSeats={null}
+          timeZone={timeZone}
+          currentSeat={null}
+        />
+      </FieldGroup>
+    );
+  }
+
+  if (props.mode === "partner-edit") {
+    const { register, errors, isPending, timeZone } = props;
+
+    return (
+      <FieldGroup>
+        <SharedFields
+          register={register}
+          errors={errors}
+          isPending={isPending}
+          availableSeats={null}
+          timeZone={timeZone}
+          currentSeat={null}
+        />
+      </FieldGroup>
+    );
+  }
+
   if (props.mode === "create") {
     const { register, errors, isPending, options, availableSeats, timeZone } =
       props;

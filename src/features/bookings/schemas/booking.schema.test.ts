@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   changeBookingStatusSchema,
   createBookingSchema,
+  createPartnerBookingSchema,
   updateBookingSchema,
+  updatePartnerBookingSchema,
 } from "@/features/bookings/schemas/booking.schema";
 
 const VALID_CREATE = {
@@ -174,6 +176,99 @@ describe("changeBookingStatusSchema", () => {
           reason: "x",
         }).success,
       ).toBe(false);
+    }
+  });
+});
+
+describe("createPartnerBookingSchema (VI-F03-S03)", () => {
+  const VALID = {
+    airport_id: "a0000000-0000-0000-0000-000000000001",
+    seat_category_id: "c0000000-0000-0000-0000-000000000001",
+    daily_rate: "75",
+    pickup_at: "2026-09-01T08:00",
+    return_at: "2026-09-04T08:00",
+  };
+
+  it("should accept a valid booking with no partner and no seat", () => {
+    expect(createPartnerBookingSchema.safeParse(VALID).success).toBe(true);
+  });
+
+  it("should strip a partner, a seat, a status and a number if the client sends them", () => {
+    const parsed = createPartnerBookingSchema.parse({
+      ...VALID,
+      partner_id: "b0000000-0000-0000-0000-000000000002",
+      assigned_seat_id: "e0000000-0000-0000-0000-000000000001",
+      status: "confirmed",
+      booking_number: "BK-99999",
+    });
+
+    for (const key of ["partner_id", "assigned_seat_id", "status", "booking_number"]) {
+      expect(parsed).not.toHaveProperty(key);
+    }
+  });
+
+  it("should reject a return time before the pickup time", () => {
+    const result = createPartnerBookingSchema.safeParse({
+      ...VALID,
+      return_at: "2026-08-31T08:00",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it.each([["-1"], ["abc"], ["1.234"], ["1000001"], [""]])(
+    "should reject the daily rate %j",
+    (daily_rate) => {
+      expect(createPartnerBookingSchema.safeParse({ ...VALID, daily_rate }).success).toBe(false);
+    },
+  );
+
+  it("should require the airport and the seat category", () => {
+    expect(createPartnerBookingSchema.safeParse({ ...VALID, airport_id: "" }).success).toBe(false);
+    expect(createPartnerBookingSchema.safeParse({ ...VALID, seat_category_id: "" }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("updatePartnerBookingSchema (VI-F03-S03)", () => {
+  const VALID = {
+    expected_updated_at: "2026-09-01T00:00:00.000Z",
+    pickup_at: "2026-09-02T08:00",
+    return_at: "2026-09-05T08:00",
+  };
+
+  it("should accept a valid update with no seat", () => {
+    expect(updatePartnerBookingSchema.safeParse(VALID).success).toBe(true);
+  });
+
+  it("should require expected_updated_at, the lost-update guard", () => {
+    const { expected_updated_at, ...rest } = VALID;
+    void expected_updated_at;
+
+    expect(updatePartnerBookingSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("should strip the seat, partner, airport, category, status and rate", () => {
+    const parsed = updatePartnerBookingSchema.parse({
+      ...VALID,
+      assigned_seat_id: "e0000000-0000-0000-0000-000000000001",
+      partner_id: "b0000000-0000-0000-0000-000000000002",
+      airport_id: "a0000000-0000-0000-0000-000000000001",
+      seat_category_id: "c0000000-0000-0000-0000-000000000001",
+      status: "confirmed",
+      daily_rate: "1",
+    });
+
+    for (const key of [
+      "assigned_seat_id",
+      "partner_id",
+      "airport_id",
+      "seat_category_id",
+      "status",
+      "daily_rate",
+    ]) {
+      expect(parsed).not.toHaveProperty(key);
     }
   });
 });

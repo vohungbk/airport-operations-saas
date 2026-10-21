@@ -62,16 +62,21 @@ const seatIdField = z
   })
   .optional();
 
-const sharedBookingFields = {
+/** Everything a booking form edits except the seat, which operations assign. */
+const bookingDetailFields = {
   pickup_at: localDateTimeField("Pickup"),
   return_at: localDateTimeField("Return"),
-  assigned_seat_id: seatIdField,
   external_booking_number: optionalText("External booking number", 100),
   child_age_band: optionalText("Child age band", 50),
   child_height: childHeightField,
   vehicle: optionalText("Vehicle", 100),
   vehicle_bay: optionalText("Vehicle bay", 50),
   notes: optionalText("Notes", 2000),
+};
+
+const sharedBookingFields = {
+  ...bookingDetailFields,
+  assigned_seat_id: seatIdField,
 };
 
 /** `YYYY-MM-DDTHH:mm` strings compare correctly as plain strings. */
@@ -100,6 +105,41 @@ export const createBookingSchema = z
   .refine(returnNotBeforePickup, RETURN_BEFORE_PICKUP_ISSUE);
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
+
+/**
+ * What a partner user sends to create a booking (VI-F03-S03). There is no
+ * `partner_id` (it is the user's own partner, set by the database function),
+ * no seat (operations assign it), no status and no number.
+ */
+export const createPartnerBookingSchema = z
+  .object({
+    airport_id: z.guid("Airport is required."),
+    seat_category_id: z.guid("Seat category is required."),
+    daily_rate: dailyRateField,
+    ...bookingDetailFields,
+  })
+  .refine(returnNotBeforePickup, RETURN_BEFORE_PICKUP_ISSUE);
+
+export type CreatePartnerBookingInput = z.infer<
+  typeof createPartnerBookingSchema
+>;
+
+/** What a partner user sends to edit a pending booking: no seat either. */
+export const updatePartnerBookingSchema = z
+  .object({
+    expected_updated_at: z
+      .string()
+      .refine(
+        (value) => !Number.isNaN(Date.parse(value)),
+        "Reload the page and try again.",
+      ),
+    ...bookingDetailFields,
+  })
+  .refine(returnNotBeforePickup, RETURN_BEFORE_PICKUP_ISSUE);
+
+export type UpdatePartnerBookingInput = z.infer<
+  typeof updatePartnerBookingSchema
+>;
 
 /**
  * Partner, airport, category, status, number and `daily_rate` are

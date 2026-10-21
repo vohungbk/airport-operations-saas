@@ -5129,6 +5129,326 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  describe("partner creates and edits bookings (VI-F03-S03)", () => {
+    // Bookings cannot be deleted (booking_events is append-only), so each run
+    // leaves its bookings behind; keep them few, and give every run its own
+    // window far in the future so runs never fill each other's capacity.
+    const DAY = 86_400_000;
+    const base = Date.UTC(2040, 0, 1) + Math.floor(Math.random() * 3000) * DAY;
+    const at = (day: number) => new Date(base + day * DAY).toISOString();
+
+    let airportId: string;
+    let categoryId: string;
+    type BookingRow = Database["public"]["Tables"]["bookings"]["Row"];
+    let bookingA: BookingRow;
+    let bookingB: BookingRow;
+
+    const createArgs = (overrides: Record<string, unknown> = {}) => ({
+      p_airport_id: airportId,
+      p_seat_category_id: categoryId,
+      p_pickup_at: at(0),
+      p_return_at: at(3),
+      p_daily_rate: 75,
+      ...overrides,
+    });
+
+    async function freeSeats(pickupDay: number, returnDay: number) {
+      // The internal helper is callable by the service role only.
+      const { data, error } = await service.rpc("partner_booking_free_seats", {
+        p_airport_id: airportId,
+        p_seat_category_id: categoryId,
+        p_pickup_at: at(pickupDay),
+        p_return_at: at(returnDay),
+        p_exclude_booking_id: null as unknown as string,
+      });
+      expect(error).toBeNull();
+      return data as number;
+    }
+
+    async function notesOf(id: string) {
+      const { data, error } = await service
+        .from("bookings")
+        .select("notes, pickup_at, status, partner_id, updated_at")
+        .eq("id", id)
+        .single();
+      expect(error).toBeNull();
+      return data!;
+    }
+
+    beforeAll(async () => {
+      const seed = await service
+        .from("bookings")
+        .select("airport_id, seat_category_id")
+        .eq("id", BOOKING_A_ID)
+        .single();
+      if (seed.error) throw seed.error;
+      airportId = seed.data.airport_id;
+      categoryId = seed.data.seat_category_id;
+
+      const a = await partnerAClient.rpc("create_partner_booking", createArgs());
+      if (a.error) throw a.error;
+      bookingA = a.data;
+      const b = await partnerBClient.rpc(
+        "create_partner_booking",
+        createArgs({ p_notes: "partner B booking" }),
+      );
+      if (b.error) throw b.error;
+      bookingB = b.data;
+    }, 60_000);
+
+    it("a partner user creates a booking for their own partner: pending, numbered, no seat, with a created event", async () => {
+      expect(bookingA).toMatchObject({
+        partner_id: PARTNER_A_ID,
+        status: "pending",
+        assigned_seat_id: null,
+        airport_id: airportId,
+        seat_category_id: categoryId,
+        daily_rate: 75,
+      });
+      expect(bookingA.booking_number).toMatch(/^BK-/);
+      expect(bookingB.partner_id).toBe(PARTNER_B_ID);
+
+      const { count, error } = await service
+        .from("booking_events")
+        .select("id", { count: "exact", head: true })
+        .eq("booking_id", bookingA.id);
+      expect(error).toBeNull();
+      expect(count).toBeGreaterThan(0);
+    });
+
+    it("the partner is the caller's: the function has no partner argument, so one cannot be passed", async () => {
+      const { error } = await partnerAClient.rpc(
+        "create_partner_booking",
+        createArgs({ p_partner_id: PARTNER_B_ID }) as never,
+      );
+
+      expect(error).not.toBeNull();
+    });
+
+    it("a booking uses up capacity only for the periods it overlaps, and touching periods do not overlap", async () => {
+      const inside = await freeSeats(1, 2);
+      const touchingAfter = await freeSeats(3, 5);
+      const touchingBefore = await freeSeats(-2, 0);
+
+      // The same window with this run's two bookings removed would be two
+      // higher; windows that only touch them are not reduced.
+      expect(touchingAfter).toBe(touchingBefore);
+      expect(touchingAfter - inside).toBe(2);
+    });
+
+    it("a booking is refused when no seat is free for the period (BK006)", async () => {
+      const category = await service
+        .from("seat_categories")
+        .insert({
+          name: `RLS no seats ${Date.now()}`,
+          min_child_age: 1,
+          max_child_age: 2,
+          safety_standard: "test",
+        })
+        .select("id")
+        .single();
+      expect(category.error).toBeNull();
+
+      try {
+        const { data, error } = await partnerAClient.rpc(
+          "create_partner_booking",
+          createArgs({ p_seat_category_id: category.data!.id }),
+        );
+
+        expect(data).toBeNull();
+        expect(error?.code).toBe("BK006");
+        expect(error?.message).not.toMatch(/BK-\d/);
+      } finally {
+        await service.from("seat_categories").delete().eq("id", category.data!.id);
+      }
+    });
+
+    it("invalid input is refused: return before pickup, negative rate, unknown airport, inactive category", async () => {
+      const cases = [
+        createArgs({ p_return_at: at(-1) }),
+        createArgs({ p_daily_rate: -1 }),
+        createArgs({ p_airport_id: "00000000-0000-0000-0000-000000000000" }),
+        createArgs({ p_seat_category_id: "00000000-0000-0000-0000-000000000000" }),
+      ];
+
+      for (const args of cases) {
+        const { error } = await partnerAClient.rpc("create_partner_booking", args);
+        expect(error?.code).toBe("22023");
+      }
+    });
+
+    it("only an active partner user of an active partner may create: managers, technician, no partner and inactive users are refused (42501)", async () => {
+      for (const client of [
+        adminClient,
+        opsClient,
+        technicianClient,
+        partnerNullClient,
+        inactiveClient,
+      ]) {
+        const { data, error } = await client.rpc("create_partner_booking", createArgs());
+
+        expect(data).toBeNull();
+        expect(error?.code).toBe("42501");
+      }
+
+      const anon = await anonClient.rpc("create_partner_booking", createArgs());
+      expect(anon.error).not.toBeNull();
+    });
+
+    it("a partner user of a suspended partner may not create, and may again when it is active", async () => {
+      const set = async (status: "suspended" | "active") => {
+        const { error } = await service
+          .from("partners")
+          .update({ status })
+          .eq("id", PARTNER_A_ID);
+        expect(error).toBeNull();
+      };
+
+      await set("suspended");
+      try {
+        const { error } = await partnerAClient.rpc("create_partner_booking", createArgs());
+        expect(error?.code).toBe("42501");
+      } finally {
+        await set("active");
+      }
+    });
+
+    it("a partner user edits their own pending booking: details and schedule change, and the capacity follows", async () => {
+      const before = await freeSeats(10, 12);
+
+      const { data, error } = await partnerAClient.rpc("update_partner_booking", {
+        p_booking_id: bookingA.id,
+        p_expected_updated_at: bookingA.updated_at,
+        p_pickup_at: at(10),
+        p_return_at: at(12),
+        p_notes: "moved by partner A",
+        p_vehicle: "Van 7",
+      });
+
+      expect(error).toBeNull();
+      expect(data).toMatchObject({
+        id: bookingA.id,
+        partner_id: PARTNER_A_ID,
+        status: "pending",
+        notes: "moved by partner A",
+        vehicle: "Van 7",
+        daily_rate: 75,
+      });
+      expect(await freeSeats(10, 12)).toBe(before - 1);
+      bookingA = data!;
+    });
+
+    it("an edit with a stale updated_at is refused (BK004) and changes nothing", async () => {
+      const { error } = await partnerAClient.rpc("update_partner_booking", {
+        p_booking_id: bookingA.id,
+        p_expected_updated_at: "2000-01-01T00:00:00Z",
+        p_pickup_at: at(10),
+        p_return_at: at(12),
+        p_notes: "stale",
+      });
+
+      expect(error?.code).toBe("BK004");
+      expect((await notesOf(bookingA.id)).notes).toBe("moved by partner A");
+    });
+
+    it("a partner user cannot edit another partner's booking: it is reported as not found and stays unchanged", async () => {
+      const { data, error } = await partnerAClient.rpc("update_partner_booking", {
+        p_booking_id: bookingB.id,
+        p_expected_updated_at: bookingB.updated_at,
+        p_pickup_at: at(0),
+        p_return_at: at(3),
+        p_notes: "hijacked by partner A",
+      });
+
+      expect(data).toBeNull();
+      expect(error?.code).toBe("P0002");
+      expect(error?.message).not.toContain(bookingB.id);
+      expect(await notesOf(bookingB.id)).toMatchObject({
+        notes: "partner B booking",
+        partner_id: PARTNER_B_ID,
+      });
+    });
+
+    it("managers, technician, a user with no partner and anonymous callers cannot use the partner edit function", async () => {
+      const args = {
+        p_booking_id: bookingA.id,
+        p_expected_updated_at: bookingA.updated_at,
+        p_pickup_at: at(10),
+        p_return_at: at(12),
+        p_notes: "not allowed",
+      };
+
+      for (const client of [adminClient, opsClient, technicianClient, partnerNullClient]) {
+        const { data, error } = await client.rpc("update_partner_booking", args);
+        expect(data).toBeNull();
+        expect(error?.code).toBe("42501");
+      }
+      expect((await anonClient.rpc("update_partner_booking", args)).error).not.toBeNull();
+      expect((await notesOf(bookingA.id)).notes).toBe("moved by partner A");
+    });
+
+    it("a booking that operations confirmed can no longer be edited by the partner user (55000)", async () => {
+      const confirmed = await opsClient.rpc("change_booking_status", {
+        p_booking_id: bookingB.id,
+        p_to_status: "confirmed",
+      });
+      expect(confirmed.error).toBeNull();
+
+      const { error } = await partnerBClient.rpc("update_partner_booking", {
+        p_booking_id: bookingB.id,
+        p_expected_updated_at: confirmed.data!.updated_at,
+        p_pickup_at: at(0),
+        p_return_at: at(3),
+        p_notes: "too late",
+      });
+
+      expect(error?.code).toBe("55000");
+      expect((await notesOf(bookingB.id)).notes).toBe("partner B booking");
+    });
+
+    it("a partner user still cannot write the bookings table directly: no insert, no update", async () => {
+      const insert = await partnerAClient.from("bookings").insert({
+        booking_number: "BK-DIRECT",
+        partner_id: PARTNER_A_ID,
+        airport_id: airportId,
+        seat_category_id: categoryId,
+        pickup_at: at(20),
+        return_at: at(21),
+        daily_rate: 1,
+        status: "confirmed",
+      });
+      expect(insert.error).not.toBeNull();
+
+      await partnerAClient
+        .from("bookings")
+        .update({ notes: "direct write" })
+        .eq("id", bookingA.id);
+      expect((await notesOf(bookingA.id)).notes).toBe("moved by partner A");
+    });
+
+    it("the internal helper functions are not callable by a signed-in user", async () => {
+      const free = await partnerAClient.rpc("partner_booking_free_seats", {
+        p_airport_id: airportId,
+        p_seat_category_id: categoryId,
+        p_pickup_at: at(0),
+        p_return_at: at(1),
+        p_exclude_booking_id: null as unknown as string,
+      });
+      const who = await partnerAClient.rpc("current_partner_user_partner_id");
+
+      expect(free.error).not.toBeNull();
+      expect(who.error).not.toBeNull();
+    });
+
+    it("each partner still lists only their own bookings, new ones included", async () => {
+      const a = await partnerAClient.from("bookings").select("id").eq("id", bookingB.id);
+      const b = await partnerBClient.from("bookings").select("id").eq("id", bookingA.id);
+
+      expect(a.data).toEqual([]);
+      expect(b.data).toEqual([]);
+    });
+  });
+
   describe("technician list access (FO-F01-S01)", () => {
     it("admin and operations_manager can list technician users", async () => {
       for (const client of [adminClient, opsClient]) {

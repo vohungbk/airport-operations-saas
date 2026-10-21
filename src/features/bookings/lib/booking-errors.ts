@@ -15,6 +15,7 @@ export interface BookingActionError {
     | "SEAT_CONFLICT"
     | "SEAT_CATEGORY_MISMATCH"
     | "SEAT_NOT_FOUND"
+    | "NO_SEAT_AVAILABLE"
     | "STALE_DATA"
     | "INTERNAL_ERROR";
   message: string;
@@ -71,6 +72,12 @@ export const SEAT_NOT_FOUND_ERROR: BookingActionError = {
   message: "The selected seat was not found.",
 };
 
+export const NO_SEAT_AVAILABLE_ERROR: BookingActionError = {
+  code: "NO_SEAT_AVAILABLE",
+  message:
+    "No seat is available for that airport, category and period. Try other times.",
+};
+
 export const STALE_DATA_ERROR: BookingActionError = {
   code: "STALE_DATA",
   message:
@@ -112,6 +119,8 @@ export function mapBookingError(error: PostgrestError): BookingActionError {
       return SEAT_NOT_FOUND_ERROR;
     case "BK004":
       return STALE_DATA_ERROR;
+    case "BK006":
+      return NO_SEAT_AVAILABLE_ERROR;
     default:
       return INTERNAL_ERROR;
   }

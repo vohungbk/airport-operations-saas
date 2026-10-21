@@ -6,7 +6,9 @@ import {
 import { zonedLocalToUtcIso } from "@/features/bookings/lib/booking-time";
 import type {
   CreateBookingInput,
+  CreatePartnerBookingInput,
   UpdateBookingInput,
+  UpdatePartnerBookingInput,
 } from "@/features/bookings/schemas/booking.schema";
 
 /** Blank optional text becomes `undefined` so the RPC default (NULL) applies. */
@@ -19,10 +21,14 @@ function heightOrUndefined(value: string | undefined): number | undefined {
 }
 
 type SharedInput = CreateBookingInput | UpdateBookingInput;
+type DetailInput =
+  | SharedInput
+  | CreatePartnerBookingInput
+  | UpdatePartnerBookingInput;
 
-function toSharedRpcArgs(input: SharedInput) {
+/** The detail fields every booking RPC takes; the seat is not one of them. */
+function toDetailRpcArgs(input: DetailInput) {
   return {
-    p_assigned_seat_id: textOrUndefined(input.assigned_seat_id),
     p_external_booking_number: textOrUndefined(input.external_booking_number),
     p_child_age_band: textOrUndefined(input.child_age_band),
     p_child_height: heightOrUndefined(input.child_height),
@@ -32,8 +38,15 @@ function toSharedRpcArgs(input: SharedInput) {
   };
 }
 
+function toSharedRpcArgs(input: SharedInput) {
+  return {
+    p_assigned_seat_id: textOrUndefined(input.assigned_seat_id),
+    ...toDetailRpcArgs(input),
+  };
+}
+
 /** Wall-clock pickup/return at the airport -> UTC; `null` for an unknown timezone. */
-function toUtcTimes(input: SharedInput, timeZone: string) {
+function toUtcTimes(input: DetailInput, timeZone: string) {
   const pickupAt = zonedLocalToUtcIso(input.pickup_at, timeZone);
   const returnAt = zonedLocalToUtcIso(input.return_at, timeZone);
 
@@ -78,6 +91,45 @@ export function toUpdateBookingRpcArgs(
     p_expected_updated_at: input.expected_updated_at,
     ...times,
     ...toSharedRpcArgs(input),
+  };
+}
+
+/** No partner and no seat: the database function uses the caller's partner. */
+export function toCreatePartnerBookingRpcArgs(
+  input: CreatePartnerBookingInput,
+  timeZone: string,
+) {
+  const times = toUtcTimes(input, timeZone);
+
+  if (!times) {
+    return null;
+  }
+
+  return {
+    p_airport_id: input.airport_id,
+    p_seat_category_id: input.seat_category_id,
+    ...times,
+    p_daily_rate: Number(input.daily_rate),
+    ...toDetailRpcArgs(input),
+  };
+}
+
+export function toUpdatePartnerBookingRpcArgs(
+  bookingId: string,
+  input: UpdatePartnerBookingInput,
+  timeZone: string,
+) {
+  const times = toUtcTimes(input, timeZone);
+
+  if (!times) {
+    return null;
+  }
+
+  return {
+    p_booking_id: bookingId,
+    p_expected_updated_at: input.expected_updated_at,
+    ...times,
+    ...toDetailRpcArgs(input),
   };
 }
 

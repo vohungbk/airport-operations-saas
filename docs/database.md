@@ -227,7 +227,10 @@ number`. Triggers on `bookings`: `record_bookings_event_insert` and
 `booking_events`) and `guard_bookings_update` (function
 `guard_booking_update()`, see `docs/security.md` F11). Functions:
 `create_booking`, `update_booking`, `change_booking_status`,
-`get_available_seats`, `assert_booking_seat_assignable`. Seed inserts now
+`get_available_seats`, `assert_booking_seat_assignable`. VI-F03-S03 adds
+`create_partner_booking`, `update_partner_booking` (callable by signed-in
+partner users, `SECURITY DEFINER`, see `docs/security.md`) and the internal
+`partner_booking_free_seats`, `current_partner_user_partner_id`. Seed inserts now
 also produce one `created` event per booking (`user_id` null). Rollback SQL
 is in a comment at the bottom of each migration file.
 

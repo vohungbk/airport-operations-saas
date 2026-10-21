@@ -7,6 +7,7 @@ import { ChangeBookingStatusDialog } from "@/features/bookings/components/change
 import {
   getAllowedManualTransitions,
   isBookingEditable,
+  isPartnerBookingEditable,
 } from "@/features/bookings/lib/booking-status";
 import { formatBookingDateTime } from "@/features/bookings/lib/booking-time";
 import type { BookingEventsResult } from "@/features/bookings/lib/get-booking-events";
@@ -15,8 +16,10 @@ import type { BookingDetailItem } from "@/features/bookings/lib/get-bookings";
 interface BookingDetailProps {
   booking: BookingDetailItem;
   events: BookingEventsResult;
-  /** `bookings:manage` — partner users get a view-only page. */
+  /** `bookings:manage`: edit and change the status of any booking. */
   canManage: boolean;
+  /** `bookings:manage_own_partner`: a partner user may edit a pending booking. */
+  canEditOwn: boolean;
 }
 
 function Detail({
@@ -38,6 +41,7 @@ export function BookingDetail({
   booking,
   events,
   canManage,
+  canEditOwn,
 }: BookingDetailProps) {
   const timeZone = booking.airport?.timezone ?? "UTC";
   const allowedTransitions = getAllowedManualTransitions(booking.status);
@@ -55,9 +59,11 @@ export function BookingDetail({
             <BookingStatusBadge status={booking.status} />
           </div>
         </div>
-        {canManage && (
+        {(canManage || canEditOwn) && (
           <div className="flex items-center gap-2">
-            {isBookingEditable(booking.status) && (
+            {(canManage
+              ? isBookingEditable(booking.status)
+              : isPartnerBookingEditable(booking.status)) && (
               <Link
                 href={`/bookings/${booking.id}/edit`}
                 className={buttonVariants({ variant: "outline" })}
@@ -65,7 +71,7 @@ export function BookingDetail({
                 Edit
               </Link>
             )}
-            {allowedTransitions.length > 0 && (
+            {canManage && allowedTransitions.length > 0 && (
               <ChangeBookingStatusDialog
                 bookingId={booking.id}
                 bookingNumber={booking.booking_number}

@@ -1517,6 +1517,61 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_partner_booking: {
+        Args: {
+          p_airport_id: string
+          p_child_age_band?: string
+          p_child_height?: number
+          p_daily_rate: number
+          p_external_booking_number?: string
+          p_notes?: string
+          p_pickup_at: string
+          p_return_at: string
+          p_seat_category_id: string
+          p_vehicle?: string
+          p_vehicle_bay?: string
+        }
+        Returns: {
+          actual_arrival_at: string | null
+          airport_id: string
+          assigned_seat_id: string | null
+          assigned_technician_id: string | null
+          booking_number: string
+          child_age_band: string | null
+          child_height: number | null
+          created_at: string
+          daily_rate: number
+          estimated_arrival_at: string | null
+          external_booking_number: string | null
+          flight_id: string | null
+          gross_revenue: number | null
+          id: string
+          incident_status: Database["public"]["Enums"]["incident_status"] | null
+          notes: string | null
+          paid_days: number
+          partner_id: string
+          partner_share: number | null
+          pickup_at: string
+          platform_share: number | null
+          return_at: string
+          scheduled_arrival_at: string | null
+          seat_category_id: string
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
+          vehicle: string | null
+          vehicle_bay: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      current_partner_user_partner_id: {
+        Args: never
+        Returns: string
+      }
       current_user_partner_id: {
         Args: never
         Returns: string
@@ -1547,9 +1602,69 @@ export type Database = {
         Returns: boolean
       }
       is_internal_user: { Args: never; Returns: boolean }
+      partner_booking_free_seats: {
+        Args: {
+          p_airport_id: string
+          p_exclude_booking_id: string
+          p_pickup_at: string
+          p_return_at: string
+          p_seat_category_id: string
+        }
+        Returns: number
+      }
       update_booking: {
         Args: {
           p_assigned_seat_id?: string
+          p_booking_id: string
+          p_child_age_band?: string
+          p_child_height?: number
+          p_expected_updated_at: string
+          p_external_booking_number?: string
+          p_notes?: string
+          p_pickup_at: string
+          p_return_at: string
+          p_vehicle?: string
+          p_vehicle_bay?: string
+        }
+        Returns: {
+          actual_arrival_at: string | null
+          airport_id: string
+          assigned_seat_id: string | null
+          assigned_technician_id: string | null
+          booking_number: string
+          child_age_band: string | null
+          child_height: number | null
+          created_at: string
+          daily_rate: number
+          estimated_arrival_at: string | null
+          external_booking_number: string | null
+          flight_id: string | null
+          gross_revenue: number | null
+          id: string
+          incident_status: Database["public"]["Enums"]["incident_status"] | null
+          notes: string | null
+          paid_days: number
+          partner_id: string
+          partner_share: number | null
+          pickup_at: string
+          platform_share: number | null
+          return_at: string
+          scheduled_arrival_at: string | null
+          seat_category_id: string
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
+          vehicle: string | null
+          vehicle_bay: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      update_partner_booking: {
+        Args: {
           p_booking_id: string
           p_child_age_band?: string
           p_child_height?: number

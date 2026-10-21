@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BOOKINGS_WRITE_PERMISSIONS,
   CLEANING_RECORD_PERMISSIONS,
   INCIDENTS_ACCESS_PERMISSIONS,
   INCIDENT_REPORT_PERMISSIONS,
@@ -31,6 +32,7 @@ const ALL_PERMISSIONS: Permission[] = [
   "inspections:create",
   "incidents:report",
   "bookings:view_own_partner",
+  "bookings:manage_own_partner",
   "seats:view_own_partner",
   "operations:view_own_partner",
   "finance:view_own_partner",
@@ -115,6 +117,28 @@ describe("hasPermission", () => {
     it("should return false for a technician-only permission", () => {
       expect(hasPermission("partner_user", "jobs:view_assigned")).toBe(false);
     });
+
+    it("should be allowed to manage its own partner's bookings but not any booking", () => {
+      expect(hasPermission("partner_user", "bookings:manage_own_partner")).toBe(true);
+      expect(hasPermission("partner_user", "bookings:manage")).toBe(false);
+    });
+  });
+});
+
+describe("booking write access (VI-F03-S03)", () => {
+  it.each([
+    ["admin", true],
+    ["operations_manager", true],
+    ["partner_user", true],
+    ["technician", false],
+  ] as const)("should give %s booking write access: %s", (role, expected) => {
+    expect(hasAnyPermission(role, BOOKINGS_WRITE_PERMISSIONS)).toBe(expected);
+  });
+
+  it("should not give the own-partner permission to managers or technicians (managers use bookings:manage)", () => {
+    expect(hasPermission("operations_manager", "bookings:manage")).toBe(true);
+    expect(ROLE_PERMISSIONS.operations_manager).not.toContain("bookings:manage_own_partner");
+    expect(ROLE_PERMISSIONS.technician).not.toContain("bookings:manage_own_partner");
   });
 });
 
