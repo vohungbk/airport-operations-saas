@@ -1434,10 +1434,11 @@ time at the airport and converted to UTC with `airports.timezone`.
   partner (reads nothing, says so; spec E2). A partner row that cannot be seen
   says "Your partner could not be found".
 - **Navigation (spec R2).** A Bookings card opens `/bookings`, the list a partner
-  user can already open (read-only, their partner's rows by RLS). The Seats card
-  says "Not available yet" and has no link: the partner seats view is
-  VI-F03-S04, and the home does not point at a page that is not there. Booking
-  actions for partners are VI-F03-S03.
+  user can already open (read-only, their partner's rows by RLS). A Seats card
+  opens `/partner/seats` (VI-F03-S04, below). A view that is not released has
+  `href: null` in `PARTNER_HOME_ITEMS` and shows "Not available yet" without a
+  link, so the home never points at a page that is not there. Booking actions
+  for partners are VI-F03-S03.
 - Covered by unit tests (page states, navigation, summary read, redirect from the
   dashboard) and the "partner home (VI-F03-S01)" integration tests (each partner
   reads its own summary, another partner's id gives nothing, no partner and
@@ -1513,6 +1514,36 @@ time at the airport and converted to UTC with `airports.timezone`.
   refused, edit of another partner's booking not found, confirmed booking not
   editable, no direct write, helpers not callable, capacity and touching
   periods, suspended partner).
+
+## Partner seats (VI-F03-S04)
+
+- **Where.** `/partner/seats`, in the partner area: the layout guards
+  `bookings:view_own_partner` and the page guards `seats:view_own_partner`. It is
+  reached from the Seats card of the partner home, and has a "Back to Partner
+  home" link (spec NAV-4). The admin seats list (`/seats`, `seats:manage`) is not
+  used and a partner user cannot open it.
+- **Scope (spec R5, R6).** RLS decides: `seats_select_partner_user` gives a
+  partner user only the seats assigned to a booking of their own partner (a seat
+  stays visible while a booking of the partner points at it, past bookings
+  included). The query adds no `partner_id` filter, and the address schema
+  (`partnerSeatsQuerySchema`) has no partner, airport or category key, so
+  putting one there changes nothing. A partner user with no partner reads
+  nothing and is told so (spec E2).
+- **Read-only, and only what a partner needs.** A row has the serial number, the
+  status, and the category and airport names. The list never selects the public
+  token, manufacturer, model, dates, rental cycles or the quarantine reason; the
+  search matches the serial number only. The table has no link to a seat and no
+  action.
+- **States.** Loading (`loading.tsx`), error with retry (`error.tsx`; a failed
+  read is thrown, never shown as an empty list), empty ("No seats yet" when
+  unfiltered, "No seats found" when a search or status is active), success, and
+  forbidden (the guards). The search and status filter is a plain GET form, so
+  there is no client component.
+- Covered by unit tests (address schema, filters, links, the read, table,
+  filters, pagination, page and its states) and the "partner seats
+  (VI-F03-S04)" integration tests (each partner is given exactly the seats of
+  their own bookings, another partner's seat cannot be found by serial, address
+  tampering changes nothing, no internal column, no partner).
 
 ## Installation record errors (FO-F02-S05)
 
