@@ -8,6 +8,7 @@
     "start": "next start",
     "demo:reset": "bash scripts/demo-reset.sh",
     "demo:verify": "vitest run src/lib/demo",
+    "demo:determinism": "bash scripts/demo-determinism.sh",
     "lint": "eslint",
     "test": "vitest run",
     "prepare": "bash scripts/setup-git-hooks.sh"

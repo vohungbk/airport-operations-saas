@@ -13,20 +13,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-if ! status_json=$(npx supabase status -o json 2>/dev/null); then
-  echo "The local Supabase stack is not running. Start it with: npx supabase start" >&2
-  exit 1
-fi
-
-api_url=$(printf '%s' "$status_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).API_URL||""))')
-
-case "$api_url" in
-  http://127.0.0.1:* | http://localhost:* | "http://[::1]:"*) ;;
-  *)
-    echo "Refusing to reset: the database is not local (API URL: ${api_url:-unknown})." >&2
-    exit 1
-    ;;
-esac
+# shellcheck source=scripts/lib/require-local.sh
+source scripts/lib/require-local.sh
 
 echo "Resetting the local database at ${api_url}. Everything in it will be replaced."
 npx supabase db reset
