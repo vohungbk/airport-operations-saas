@@ -76,10 +76,10 @@ vi.mock("@/lib/supabase/server", async (importOriginal) => {
 const config = getLocalSupabaseConfig();
 
 // Seeded from supabase/seed.sql - fixed literal uuids, stable across
-// `supabase db reset`. gs=2 -> partner index 1 (ERAC/A); gs=1 -> partner
-// index 2 (AFM/B) per the seed's `(gs % 2) + 1` array indexing.
-const BOOKING_A_ID = "f0000000-0000-0000-0000-000000000002"; // partner A (ERAC)
-const BOOKING_B_ID = "f0000000-0000-0000-0000-000000000001"; // partner B (AFM)
+// `supabase db reset`. gs=2 -> partner index 1 (DCR/A); gs=1 -> partner
+// index 2 (DMO/B) per the seed's `(gs % 2) + 1` array indexing.
+const BOOKING_A_ID = "f0000000-0000-0000-0000-000000000002"; // partner A (DCR)
+const BOOKING_B_ID = "f0000000-0000-0000-0000-000000000001"; // partner B (DMO)
 const SEAT_A_ID = "e0000000-0000-0000-0000-000000000002"; // assigned_seat_id of BOOKING_A_ID
 const SEAT_B_ID = "e0000000-0000-0000-0000-000000000001"; // assigned_seat_id of BOOKING_B_ID
 // Seeded technician with no real Auth account (F03) - only ever used here
