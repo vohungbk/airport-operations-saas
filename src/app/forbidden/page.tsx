@@ -18,10 +18,11 @@ interface ForbiddenPageProps {
  * which permission/profile case occurred — the one exception is
  * `reason=confirm_profile_failed`, a specific, accurate message for a
  * caller who just confirmed their email and hit a real (likely
- * transient) write failure, not a permissions problem. That value is the
- * only one recognized; anything else (or nothing) falls back to the
- * generic copy, so the query string can't be used to inject arbitrary
- * text.
+ * transient) write failure, not a permissions problem; and
+ * `reason=no_partner`, for a partner user whose account is not linked to a
+ * partner (VI-F03-S05). Those two values are the only ones recognized;
+ * anything else (or nothing) falls back to the generic copy, so the query
+ * string can't be used to inject arbitrary text.
  *
  * Must NOT call `requireAuth()` — that's exactly the redirect-loop risk
  * this page exists to be a safe landing spot for. Uses `getAuthUser()`
@@ -33,6 +34,7 @@ export default async function ForbiddenPage({
 }: ForbiddenPageProps) {
   const [user, { reason }] = await Promise.all([getAuthUser(), searchParams]);
   const isConfirmProfileFailure = reason === "confirm_profile_failed";
+  const isNoPartner = reason === "no_partner";
 
   return (
     <PageForbidden
@@ -42,7 +44,9 @@ export default async function ForbiddenPage({
       description={
         isConfirmProfileFailure
           ? "Your email was confirmed, but we couldn't finish setting up your account. Please sign out and sign up again, or contact your administrator if this keeps happening."
-          : undefined
+          : isNoPartner
+            ? "Your account is not linked to a partner yet, so there is nothing to show. Ask an administrator to link your account to your partner."
+            : undefined
       }
     >
       {user ? (

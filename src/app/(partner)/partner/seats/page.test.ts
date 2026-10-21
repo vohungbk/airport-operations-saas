@@ -1,11 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const requirePermissionMock = vi.hoisted(() => vi.fn());
+const requirePartnerScopeMock = vi.hoisted(() => vi.fn());
 const getSeatsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
-  requirePermission: requirePermissionMock,
+  requirePartnerScope: requirePartnerScopeMock,
 }));
 
 vi.mock("@/features/seats/lib/get-partner-seats", () => ({
@@ -39,8 +39,8 @@ async function render(raw: Record<string, string> = {}) {
 
 describe("PartnerSeatsPage", () => {
   beforeEach(() => {
-    requirePermissionMock.mockReset();
-    requirePermissionMock.mockResolvedValue(USER);
+    requirePartnerScopeMock.mockReset();
+    requirePartnerScopeMock.mockResolvedValue(USER);
     getSeatsMock.mockReset();
     getSeatsMock.mockResolvedValue({ seats: [SEAT], total: 1, page: 1 });
   });
@@ -48,11 +48,11 @@ describe("PartnerSeatsPage", () => {
   it("should guard the page with seats:view_own_partner", async () => {
     await render();
 
-    expect(requirePermissionMock).toHaveBeenCalledWith("seats:view_own_partner");
+    expect(requirePartnerScopeMock).toHaveBeenCalledWith("seats:view_own_partner");
   });
 
   it("should propagate the guard's redirect without reading any seat", async () => {
-    requirePermissionMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
+    requirePartnerScopeMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
 
     await expect(render()).rejects.toThrow("REDIRECT:/forbidden");
     expect(getSeatsMock).not.toHaveBeenCalled();
@@ -95,16 +95,6 @@ describe("PartnerSeatsPage", () => {
     getSeatsMock.mockResolvedValue({ seats: [], total: 0, page: 1 });
 
     expect(await render({ q: "zzz" })).toContain("No seats found");
-  });
-
-  it("should say the account is not linked and read nothing when partner_id is null", async () => {
-    requirePermissionMock.mockResolvedValue({ ...USER, partner_id: null });
-
-    const html = await render();
-
-    expect(html).toContain("Your account is not linked to a partner yet");
-    expect(html).toContain("Back to Partner home");
-    expect(getSeatsMock).not.toHaveBeenCalled();
   });
 
   it("should let a failed read reach the error boundary instead of showing an empty list", async () => {
