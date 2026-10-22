@@ -1,0 +1,309 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+import { beforeAll, describe, expect, it } from "vitest";
+
+import { findDataRuleGaps } from "@/lib/data-rules/coverage";
+import { dbContainer, runSql } from "@/lib/db-test-support";
+
+/**
+ * VI-F08-S03 (spec R3): constraints, business rules and history consistency are
+ * verified. Runs against the local database. Every statement here is made inside
+ * a transaction that is rolled back, so nothing is left behind and other suites
+ * are not affected.
+ *
+ * Constraints: for each CHECK, UNIQUE and standalone unique index of the schema,
+ * a row that is just inside the rule is accepted and a row just outside it is
+ * refused with the name of that rule. `session_replication_role = replica`
+ * switches off the triggers and the foreign keys for these inserts, so a case
+ * needs no parent rows and tests the constraint alone; CHECK and UNIQUE stay on.
+ * A new constraint with no case fails the last test of the first group.
+ *
+ * Business rules (the status transitions) are tested with their RPCs in the RLS
+ * suite; this file checks that each `change_*` function has such a test. History:
+ * the three history tables refuse UPDATE and DELETE even for the database owner.
+ *
+ * Skipped when the local stack is not running, like the RLS suite.
+ */
+const available = dbContainer() !== null && runSql("select 1;")?.ok === true;
+
+const uuid = (n: number) => `'c3000000-0000-0000-0000-${String(n).padStart(12, "0")}'`;
+const PARTNER = uuid(1);
+const AIRPORT = uuid(2);
+const CATEGORY = uuid(3);
+const SEAT = uuid(4);
+const USER = uuid(5);
+const BOOKING = uuid(6);
+
+const airport = (code: string) =>
+  `insert into public.airports (code, name, city, country, timezone) values ('${code}', 'Test', 'Test', 'Test', 'UTC');`;
+const partner = (code: string) =>
+  `insert into public.partners (name, code, contact_email) values ('Test', '${code}', 'p@test.example');`;
+const booking = (number: string, pickup = "2030-01-01 10:00+00", ret = "2030-01-02 10:00+00", paidDays = 0) =>
+  `insert into public.bookings (booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate, paid_days)
+   values ('${number}', ${PARTNER}, ${AIRPORT}, '${pickup}', '${ret}', ${CATEGORY}, 10, ${paidDays});`;
+const seat = (serial: string, token: string, maxCycles = 10, cycles = 0) =>
+  `insert into public.seats (serial_number, public_token, manufacturer, model, category_id, airport_id, manufacture_date, purchase_date, max_rental_cycles, rental_cycles)
+   values ('${serial}', '${token}', 'Test', 'Test', ${CATEGORY}, ${AIRPORT}, '2025-01-01', '2025-02-01', ${maxCycles}, ${cycles});`;
+const terms = (partnerShare: string, platformShare: string) =>
+  `insert into public.partner_commercial_terms (partner_id, partner_share_percent, platform_share_percent, effective_from)
+   values (${PARTNER}, ${partnerShare}, ${platformShare}, '2030-01-01');`;
+const job = (type: string, status: string) =>
+  `insert into public.technician_jobs (booking_id, technician_id, job_type, status) values (${BOOKING}, ${USER}, '${type}', '${status}');`;
+const user = (email: string) =>
+  `insert into public.users (email, full_name, role) values ('${email}', 'Test', 'technician');`;
+const inspection = (jobId: string | null, followUp: string | null = null) =>
+  `insert into public.inspection_records (seat_id, inspector_id, inspection_type, result, technician_job_id, follow_up)
+   values (${SEAT}, ${USER}, 'handover', 'pass', ${jobId ?? "null"}, ${followUp === null ? "null" : `'${followUp}'`});`;
+const cleaning = (jobId: string | null) =>
+  `insert into public.cleaning_records (seat_id, employee_id, started_at, technician_job_id)
+   values (${SEAT}, ${USER}, '2030-01-01 10:00+00', ${jobId ?? "null"});`;
+const installation = (jobId: string) =>
+  `insert into public.installations (technician_job_id) values (${jobId});`;
+
+interface Case {
+  /** The constraint the violation must be refused by. */
+  constraint: string;
+  /** Rows just inside the rule: all accepted. */
+  inside: string;
+  /** The row just outside it: refused. */
+  outside: string;
+  /** SQLSTATE of the refusal: 23514 check_violation or 23505 unique_violation. */
+  code: "23514" | "23505";
+}
+
+const CASES: Case[] = [
+  { constraint: "airports_code_key", code: "23505", inside: airport("DR1"), outside: airport("DR1") },
+  { constraint: "partners_code_key", code: "23505", inside: partner("DR1"), outside: partner("DR1") },
+  { constraint: "users_email_key", code: "23505", inside: user("dr1@test.example"), outside: user("dr1@test.example") },
+  { constraint: "bookings_booking_number_key", code: "23505", inside: booking("DR-1"), outside: booking("DR-1") },
+  {
+    constraint: "bookings_paid_days_check",
+    code: "23514",
+    inside: booking("DR-2", undefined, undefined, 0),
+    outside: booking("DR-3", undefined, undefined, -1),
+  },
+  {
+    constraint: "bookings_return_after_pickup_check",
+    code: "23514",
+    inside: booking("DR-4", "2030-01-01 10:00+00", "2030-01-01 10:00+00"),
+    outside: booking("DR-5", "2030-01-01 10:00:01+00", "2030-01-01 10:00+00"),
+  },
+  {
+    constraint: "invoices_invoice_number_key",
+    code: "23505",
+    inside: `insert into public.invoices (partner_id, invoice_number, issue_date, due_date, subtotal, total) values (${PARTNER}, 'DR-INV-1', '2030-01-01', '2030-01-31', 1, 1);`,
+    outside: `insert into public.invoices (partner_id, invoice_number, issue_date, due_date, subtotal, total) values (${PARTNER}, 'DR-INV-1', '2030-02-01', '2030-02-28', 1, 1);`,
+  },
+  {
+    constraint: "partner_commercial_terms_partner_share_check",
+    code: "23514",
+    inside: `${terms("0", "100")} ${terms("100", "0")}`,
+    outside: terms("100.01", "0"),
+  },
+  {
+    constraint: "partner_commercial_terms_platform_share_check",
+    code: "23514",
+    inside: `${terms("0", "0")} ${terms("0", "100")}`,
+    outside: terms("0", "-0.01"),
+  },
+  {
+    constraint: "seat_categories_age_range_check",
+    code: "23514",
+    inside: `insert into public.seat_categories (name, min_child_age, max_child_age, safety_standard) values ('DR-A', 10, 10, 'S');`,
+    outside: `insert into public.seat_categories (name, min_child_age, max_child_age, safety_standard) values ('DR-B', 10, 9, 'S');`,
+  },
+  { constraint: "seats_max_rental_cycles_check", code: "23514", inside: seat("DR-S1", "dr-t1", 1), outside: seat("DR-S2", "dr-t2", 0) },
+  { constraint: "seats_rental_cycles_check", code: "23514", inside: seat("DR-S3", "dr-t3", 10, 0), outside: seat("DR-S4", "dr-t4", 10, -1) },
+  { constraint: "seats_serial_number_key", code: "23505", inside: seat("DR-S5", "dr-t5"), outside: seat("DR-S5", "dr-t6") },
+  { constraint: "seats_public_token_key", code: "23505", inside: seat("DR-S6", "dr-t7"), outside: seat("DR-S7", "dr-t7") },
+  {
+    constraint: "settlements_period_check",
+    code: "23514",
+    inside: `insert into public.settlements (partner_id, period_start, period_end) values (${PARTNER}, '2030-01-01', '2030-01-01');`,
+    outside: `insert into public.settlements (partner_id, period_start, period_end) values (${PARTNER}, '2030-01-01', '2029-12-31');`,
+  },
+  {
+    constraint: "inspection_records_follow_up_check",
+    code: "23514",
+    inside: `${inspection(null, null)} ${inspection(null, "seat_quarantined")} ${inspection(null, "seat_quarantined_active_booking")}`,
+    outside: inspection(null, "seat_released"),
+  },
+  {
+    // A job that is finished does not count: only assigned and in progress are open.
+    constraint: "technician_jobs_open_booking_type_uidx",
+    code: "23505",
+    inside: `${job("installation", "completed")} ${job("installation", "assigned")} ${job("cleaning", "assigned")}`,
+    outside: job("installation", "in_progress"),
+  },
+  {
+    constraint: "installations_technician_job_id_uidx",
+    code: "23505",
+    inside: installation(uuid(11)),
+    outside: installation(uuid(11)),
+  },
+  {
+    // Many records with no job are fine: the rule is on a job that is set.
+    constraint: "cleaning_records_technician_job_id_uidx",
+    code: "23505",
+    inside: `${cleaning(null)} ${cleaning(null)} ${cleaning(uuid(12))}`,
+    outside: cleaning(uuid(12)),
+  },
+  {
+    constraint: "inspection_records_technician_job_id_uidx",
+    code: "23505",
+    inside: `${inspection(null)} ${inspection(null)} ${inspection(uuid(13))}`,
+    outside: inspection(uuid(13)),
+  },
+];
+
+const HISTORY_TABLES = ["booking_events", "technician_job_events", "incident_status_history"];
+
+/** SQL with plain output: one value per line, no headers. */
+const plain = (sql: string) => `\\set QUIET on\n\\pset tuples_only on\n\\pset format unaligned\n${sql}`;
+
+function column(sql: string): string[] {
+  const result = runSql(plain(sql));
+  expect(result?.ok, result?.output).toBe(true);
+  return result!.output.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
+describe.skipIf(!available)("constraints (VI-F08-S03, spec R3)", () => {
+  /** What happened to each case: `CASE|constraint|result|constraint name|sqlstate`. */
+  const outcome = new Map<string, { result: string; name: string; code: string }>();
+
+  beforeAll(() => {
+    const blocks = CASES.map(
+      ({ constraint, inside, outside }) => `
+        do $case$
+        declare v_name text;
+        begin
+          begin
+            ${inside}
+          exception when others then
+            raise notice 'CASE|${constraint}|inside_failed|%|%', sqlerrm, sqlstate;
+            return;
+          end;
+          begin
+            ${outside}
+            raise notice 'CASE|${constraint}|not_refused||';
+          exception when others then
+            get stacked diagnostics v_name = constraint_name;
+            raise notice 'CASE|${constraint}|refused|%|%', coalesce(v_name, sqlerrm), sqlstate;
+          end;
+        end
+        $case$;`,
+    );
+    const result = runSql(
+      `begin;\nset local session_replication_role = replica;\n${blocks.join("\n")}\nrollback;\n`,
+    );
+    expect(result?.ok, result?.output).toBe(true);
+
+    for (const line of result!.output.split("\n")) {
+      const match = /CASE\|([^|]+)\|([^|]+)\|([^|]*)\|(\w*)/.exec(line);
+      if (match) outcome.set(match[1], { result: match[2], name: match[3], code: match[4] });
+    }
+  }, 60_000);
+
+  it.each(CASES.map((c) => [c.constraint, c] as const))(
+    "should accept a row just inside %s and refuse the row just outside it",
+    (name, c) => {
+      expect(outcome.get(name), `no outcome for ${name}`).toBeDefined();
+      expect(outcome.get(name)).toEqual({ result: "refused", name, code: c.code });
+    },
+  );
+
+  it("should have a case for every CHECK, UNIQUE and standalone unique index of the schema, and no case for a rule that is gone", () => {
+    const constraints = column(`
+      select conname from pg_constraint
+       where connamespace = 'public'::regnamespace and contype in ('c', 'u')
+      union all
+      select indexname from pg_indexes
+       where schemaname = 'public' and indexdef ilike 'create unique index%'
+         and indexname not in (select conname from pg_constraint where connamespace = 'public'::regnamespace);`);
+    const gaps = findDataRuleGaps({
+      constraints,
+      casedConstraints: CASES.map((c) => c.constraint),
+      statusFunctions: [],
+      historyTables: [],
+      casedHistoryTables: [],
+      tests: [],
+    });
+
+    expect(constraints.length).toBeGreaterThanOrEqual(20);
+    expect(gaps.map((gap) => gap.message)).toEqual([]);
+  });
+});
+
+describe.skipIf(!available)("history and business rules (VI-F08-S03, spec R3)", () => {
+  it.each(HISTORY_TABLES)(
+    "should refuse to update or delete a row of %s, even for the database owner",
+    (table) => {
+      const result = runSql(`
+        begin;
+        do $hist$
+        declare v_id uuid; v_state text;
+        begin
+          select id into v_id from public.${table} limit 1;
+          if v_id is null then
+            raise notice 'HIST|${table}|no_row';
+            return;
+          end if;
+          begin
+            update public.${table} set id = id where id = v_id;
+            raise notice 'HIST|${table}|update|not_refused';
+          exception when sqlstate '55000' then
+            raise notice 'HIST|${table}|update|refused';
+          end;
+          begin
+            delete from public.${table} where id = v_id;
+            raise notice 'HIST|${table}|delete|not_refused';
+          exception when sqlstate '55000' then
+            raise notice 'HIST|${table}|delete|refused';
+          end;
+        end
+        $hist$;
+        rollback;
+      `);
+
+      expect(result?.ok, result?.output).toBe(true);
+      expect(result!.output).not.toContain(`HIST|${table}|no_row`);
+      expect(result!.output).toContain(`HIST|${table}|update|refused`);
+      expect(result!.output).toContain(`HIST|${table}|delete|refused`);
+    },
+  );
+
+  it("should also refuse TRUNCATE of the history tables, by a trigger on each", () => {
+    const withTruncateTrigger = column(`
+      select distinct c.relname from pg_trigger t join pg_class c on c.oid = t.tgrelid
+       where not t.tgisinternal and t.tgname like 'prevent\\_%\\_truncate' and c.relnamespace = 'public'::regnamespace;`);
+
+    expect(withTruncateTrigger.sort()).toEqual([...HISTORY_TABLES].sort());
+  });
+
+  it("should have a test of a refused transition for every change_*_status function, and a case for every history table", () => {
+    const statusFunctions = column(
+      `select proname from pg_proc where pronamespace = 'public'::regnamespace and proname like 'change\\_%';`,
+    );
+    const historyTables = column(`
+      select distinct c.relname from pg_trigger t join pg_class c on c.oid = t.tgrelid
+       where not t.tgisinternal and t.tgname like 'prevent\\_%\\_update' and c.relnamespace = 'public'::regnamespace;`);
+    const src = join(process.cwd(), "src");
+    const tests = (readdirSync(src, { recursive: true }) as string[])
+      .filter((file) => file.endsWith(".test.ts"))
+      .map((file) => ({ file, text: readFileSync(join(src, file), "utf8") }));
+
+    const gaps = findDataRuleGaps({
+      constraints: [],
+      casedConstraints: [],
+      statusFunctions,
+      historyTables,
+      casedHistoryTables: HISTORY_TABLES,
+      tests,
+    });
+
+    expect(statusFunctions.length).toBeGreaterThanOrEqual(4);
+    expect(historyTables.length).toBeGreaterThanOrEqual(3);
+    expect(gaps.map((gap) => gap.message)).toEqual([]);
+  });
+});
