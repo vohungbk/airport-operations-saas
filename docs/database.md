@@ -703,7 +703,7 @@ app is `BK-00031`.
   personal data. This is checked, not only promised, by
   `src/lib/demo/sensitive-data.ts`, which looks for: an email that is not a demo
   address, a phone number, an Emirates ID or SSN, a card number that passes the
-  Luhn check, an IBAN that passes mod 97, a JWT, an API or cloud key, a private
+  Luhn check and starts like a card, an IBAN that passes mod 97, a JWT, an API or cloud key, a private
   key, a full password hash, a password or secret written in the text, a long
   secret-looking token, and a link to a host that is not a demo or local one. It
   runs on the text of both seed files (with every `npm test`) and on every column
@@ -740,6 +740,31 @@ replaces the local database, so it is not part of `npm test`. What does run with
 `npm test`: the seed files hold no random number, uuid generator or clock, every
 insert of the base seed can be run again, and a rerun of both seeds on the loaded
 database changes no column of any seeded row.
+
+**Every role has records, and the history says who did what (VI-F07-S04).**
+Each step of the seed is done as the person who would do it: it sets
+`request.jwt.claim.sub`, which is what `auth.uid()` reads, so the triggers write
+that person as the actor of the event, and the actors are constants (two loads
+stay equal). Partner users make their pending requests; the operations manager
+confirms and completes bookings, and looks into and resolves incidents; the admin
+marks a no-show; each technician starts and completes their own jobs, records the
+installation, cleaning or inspection, and reports incidents. The 20 bookings of
+the base seed and the 40 seats' first status have no actor (the system made them).
+
+| Account | Sees (of the seeded records) | Did |
+|---|---|---|
+| admin, operations manager | every booking, seat, job, record of the work, incident and history, both partners, all seven demo users | operations: confirms, completes, resolves an incident; admin: marks a no-show |
+| partner user (each partner) | its own partner's bookings and their events, the seats on them, the jobs and installation, cleaning and inspection records on them, its own incidents, its own partner and its own user. No seat history, job events or incident history. | its own pending request |
+| technician (each) | its own jobs and their events, the bookings and seats of those jobs, its own records of the work, the incidents it reported or that are on its jobs, its own user. No partner row. | starts and completes its jobs, records the work, reports incidents |
+
+The two partners have different data on purpose, so the isolation shows: Demo Car
+Rental has a resolved incident and Demo Mobility an open one with a seat in
+quarantine; each has bookings in every state a demo needs. The operations manager
+sees the name of whoever did each step of a timeline; a partner user sees only
+their own name there. Finance (settlements, invoices, commercial terms) has no
+records: it waits for VI-F04. To see the "Access denied" screens, make the state
+by hand in the local database (for example, take the partner off a partner user's
+profile, or suspend a partner) and reset to put it back.
 
 The checks are `src/lib/demo/demo-data.integration.test.ts`: they cover the rules
 above, that each account signs in, what each role sees, and the two guards.
