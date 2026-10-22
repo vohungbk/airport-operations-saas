@@ -6,10 +6,12 @@ import {
   getDashboardState,
   hasUnreleasedMetrics,
 } from "@/features/dashboard/lib/dashboard-state";
+import type { DashboardChartResult } from "@/features/dashboard/lib/get-dashboard-charts";
 import type { DashboardMetricResult } from "@/features/dashboard/lib/get-dashboard-metrics";
 
 interface DashboardFiguresProps {
   results: readonly DashboardMetricResult[];
+  charts?: readonly DashboardChartResult[];
 }
 
 /**
@@ -17,7 +19,7 @@ interface DashboardFiguresProps {
  * dashboard and the partner home so both show gaps the same way: Unavailable
  * with a retry, Not available yet, or no data yet. None of them is shown as 0.
  */
-export function DashboardFigures({ results }: DashboardFiguresProps) {
+export function DashboardFigures({ results, charts = [] }: DashboardFiguresProps) {
   const state = getDashboardState(results);
 
   return (
@@ -49,7 +51,7 @@ export function DashboardFigures({ results }: DashboardFiguresProps) {
       {state === "empty" ? (
         <PageEmpty message="No operational data yet. Figures appear here once there are seats, bookings, jobs or incidents." />
       ) : (
-        <DashboardMetricsGrid results={results} />
+        <DashboardMetricsGrid results={results} charts={charts} />
       )}
     </>
   );

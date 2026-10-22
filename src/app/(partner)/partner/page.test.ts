@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requirePartnerScopeMock = vi.hoisted(() => vi.fn());
 const getMetricsMock = vi.hoisted(() => vi.fn());
+const getChartsMock = vi.hoisted(() => vi.fn());
 const getSummaryMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
@@ -11,6 +12,10 @@ vi.mock("@/lib/auth/current-user", () => ({
 
 vi.mock("@/features/dashboard/lib/get-dashboard-metrics", () => ({
   getDashboardMetrics: getMetricsMock,
+}));
+
+vi.mock("@/features/dashboard/lib/get-dashboard-charts", () => ({
+  getDashboardCharts: getChartsMock,
 }));
 
 vi.mock("@/features/partners/lib/get-partner-summary", () => ({
@@ -46,6 +51,8 @@ describe("PartnerPage", () => {
   beforeEach(() => {
     requirePartnerScopeMock.mockReset();
     requirePartnerScopeMock.mockResolvedValue(USER);
+    getChartsMock.mockReset();
+    getChartsMock.mockResolvedValue([]);
     getMetricsMock.mockReset();
     getMetricsMock.mockResolvedValue([
       result("bookings_pending", 4),
@@ -67,6 +74,7 @@ describe("PartnerPage", () => {
     await expect(render()).rejects.toThrow("REDIRECT:/forbidden");
     expect(getSummaryMock).not.toHaveBeenCalled();
     expect(getMetricsMock).not.toHaveBeenCalled();
+    expect(getChartsMock).not.toHaveBeenCalled();
   });
 
   it("should show the partner's name, code and figures, and never its raw id", async () => {
@@ -84,6 +92,7 @@ describe("PartnerPage", () => {
 
     expect(getSummaryMock).toHaveBeenCalledWith("partner-a");
     expect(getMetricsMock).toHaveBeenCalledWith("partner_user");
+    expect(getChartsMock).toHaveBeenCalledWith("partner_user");
   });
 
   it("should lead to the bookings list and to the partner seats view, with no link to the admin seats", async () => {

@@ -27,7 +27,7 @@ export interface DashboardMetricResult {
  */
 export async function countMetric(
   supabase: SupabaseClient<Database>,
-  metric: DashboardMetric,
+  metric: Pick<DashboardMetric, "source" | "filters">,
 ): Promise<number | null> {
   let query = supabase
     .from(metric.source)

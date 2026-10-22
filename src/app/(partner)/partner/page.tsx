@@ -1,6 +1,7 @@
 import { requirePartnerScope } from "@/lib/auth/current-user";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DashboardFigures } from "@/features/dashboard/components/dashboard-figures";
+import { getDashboardCharts } from "@/features/dashboard/lib/get-dashboard-charts";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
 import { PartnerHomeNav } from "@/features/partners/components/partner-home-nav";
 import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
@@ -34,9 +35,10 @@ function Heading({ title, subtitle }: HeadingProps) {
 export default async function PartnerPage() {
   const user = await requirePartnerScope("bookings:view_own_partner");
 
-  const [summary, results] = await Promise.all([
+  const [summary, results, charts] = await Promise.all([
     getPartnerSummary(user.partner_id),
     getDashboardMetrics(user.role),
+    getDashboardCharts(user.role),
   ]);
 
   if (summary === null) {
@@ -61,7 +63,7 @@ export default async function PartnerPage() {
         subtitle={`Partner ${summary.code}. Counts for your organization, as of now.`}
       />
       <PartnerHomeNav items={getPartnerHomeItems(user.role)} />
-      <DashboardFigures results={results} />
+      <DashboardFigures results={results} charts={charts} />
     </div>
   );
 }

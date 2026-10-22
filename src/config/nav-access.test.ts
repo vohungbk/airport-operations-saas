@@ -45,6 +45,9 @@ vi.mock("@/components/layout/app-shell", () => ({ AppShell: () => null }));
 vi.mock("@/features/dashboard/lib/get-dashboard-metrics", () => ({
   getDashboardMetrics: async () => [],
 }));
+vi.mock("@/features/dashboard/lib/get-dashboard-charts", () => ({
+  getDashboardCharts: async () => [],
+}));
 
 import { NAV_ITEMS, getVisibleNavItems } from "@/config/nav";
 
