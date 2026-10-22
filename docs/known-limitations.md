@@ -33,4 +33,9 @@ has been checked; remove a line when it is fixed.
   source on every change, and three screens were walked by hand. Contrast, zoom,
   dialog focus and a screen reader were not checked. A required field is not marked
   before the submit, and a table has no caption. See [accessibility-review.md](accessibility-review.md).
+- **Responsive layout is checked in part, and no devices are claimed.** The search
+  boxes, fixed widths, tables and zoom are checked from the source on every change,
+  and most pages were measured at 320, 375, 768 and 1280 px in one browser. Real
+  devices, other browsers, text zoom, and the small touch size of links in tables
+  were not checked, and a table scrolls sideways on a phone. See [responsive-review.md](responsive-review.md).
 
