@@ -711,6 +711,41 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
       expect(result.output).toMatch(/seats=40\b/);
     });
 
+    it.each([
+      ["someone.real@gmail.com"],
+      ["lookalike@evil.example.com"],
+      ["person@example.org"],
+    ])("should refuse to load the base seed, and change nothing, when an account has the address %s", async (email) => {
+      const before = await fingerprint();
+      const result = runSql(`
+        begin;
+        insert into public.users (id, email, full_name, role, is_active)
+        values ('99999999-9999-9999-9999-999999999999', '${email}', 'Someone', 'technician', true);
+        ${baseSql()}
+        rollback;
+      `);
+      if (!result) return;
+
+      expect(result.ok).toBe(false);
+      expect(result.output).toContain("refusing to load demo data");
+      expect(await fingerprint()).toEqual(before);
+    });
+
+    it("should let the base seed load next to demo and test addresses only", () => {
+      const result = runSql(`
+        begin;
+        insert into public.users (id, email, full_name, role, is_active)
+        values ('99999999-9999-9999-9999-999999999999', 'qa@test.local', 'QA', 'technician', true);
+        ${baseSql()}
+        select 'guard-passed';
+        rollback;
+      `);
+      if (!result) return;
+
+      expect(result.ok, result.output).toBe(true);
+      expect(result.output).toContain("guard-passed");
+    });
+
     it("should refuse to load, and change nothing, when an account with a real address exists", async () => {
       const before = await fingerprint();
       const result = runSql(`
