@@ -1,12 +1,16 @@
+import { DashboardChart } from "@/features/dashboard/components/dashboard-chart";
 import { MetricTile } from "@/features/dashboard/components/metric-tile";
 import {
   DASHBOARD_MODULE_LABEL,
   type DashboardModule,
 } from "@/features/dashboard/lib/dashboard-metrics";
+import type { DashboardChartResult } from "@/features/dashboard/lib/get-dashboard-charts";
 import type { DashboardMetricResult } from "@/features/dashboard/lib/get-dashboard-metrics";
 
 interface DashboardMetricsGridProps {
   results: readonly DashboardMetricResult[];
+  /** The charts of the groups, shown under the count cards of their group. */
+  charts?: readonly DashboardChartResult[];
 }
 
 const MODULE_ORDER: readonly DashboardModule[] = [
@@ -16,8 +20,11 @@ const MODULE_ORDER: readonly DashboardModule[] = [
   "incidents",
 ];
 
-/** Tiles grouped by module; a module the role cannot open has no section. */
-export function DashboardMetricsGrid({ results }: DashboardMetricsGridProps) {
+/**
+ * Tiles grouped by module, with the chart of the group under them; a module the
+ * role cannot open has no section. The count cards stay beside the chart.
+ */
+export function DashboardMetricsGrid({ results, charts = [] }: DashboardMetricsGridProps) {
   return (
     <div className="flex flex-col gap-6">
       {MODULE_ORDER.map((module) => {
@@ -51,6 +58,11 @@ export function DashboardMetricsGrid({ results }: DashboardMetricsGridProps) {
                 />
               ))}
             </div>
+            {charts
+              .filter(({ chart }) => chart.module === module)
+              .map((chartResult) => (
+                <DashboardChart key={chartResult.chart.id} result={chartResult} />
+              ))}
           </section>
         );
       })}

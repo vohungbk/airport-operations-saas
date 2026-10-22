@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { DASHBOARD_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { DashboardFigures } from "@/features/dashboard/components/dashboard-figures";
+import { getDashboardCharts } from "@/features/dashboard/lib/get-dashboard-charts";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
 import { PARTNER_HOME_ROUTE } from "@/lib/constants/routes";
 
@@ -37,12 +38,15 @@ export default async function DashboardPage() {
     redirect(PARTNER_HOME_ROUTE);
   }
 
-  const results = await getDashboardMetrics(user.role);
+  const [results, charts] = await Promise.all([
+    getDashboardMetrics(user.role),
+    getDashboardCharts(user.role),
+  ]);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
       <Heading />
-      <DashboardFigures results={results} />
+      <DashboardFigures results={results} charts={charts} />
     </div>
   );
 }
