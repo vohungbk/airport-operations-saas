@@ -49,7 +49,7 @@ export function TechniciansFilters({ query }: TechniciansFiltersProps) {
           placeholder="Search by name or email..."
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          className="w-64"
+          className="min-w-0 flex-1 sm:w-64 sm:flex-none"
           aria-label="Search technicians"
           aria-invalid={searchError !== null}
           aria-describedby={searchError ? "technician-search-error" : undefined}

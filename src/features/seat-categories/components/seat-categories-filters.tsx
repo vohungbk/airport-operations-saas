@@ -73,13 +73,13 @@ export function SeatCategoriesFilters({
       <form
         onSubmit={handleSearchSubmit}
         role="search"
-        className="flex items-center gap-2"
+        className="flex w-full items-center gap-2 sm:w-auto"
       >
         <Input
           placeholder="Search by name or safety standard..."
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          className="w-72"
+          className="min-w-0 flex-1 sm:w-72 sm:flex-none"
           aria-label="Search seat categories"
         />
         <Button type="submit" variant="outline">

@@ -45,12 +45,15 @@ export function AirportsFilters({ q, sort, order }: AirportsFiltersProps) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+      <form
+        onSubmit={handleSearchSubmit}
+        className="flex w-full items-center gap-2 sm:w-auto"
+      >
         <Input
           placeholder="Search by code, name, or city..."
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          className="w-64"
+          className="min-w-0 flex-1 sm:w-64 sm:flex-none"
           aria-label="Search airports"
         />
         <Button type="submit" variant="outline">

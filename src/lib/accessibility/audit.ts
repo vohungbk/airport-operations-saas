@@ -49,7 +49,7 @@ const UNLABELLED_TYPES = new Set(["hidden", "submit", "button", "reset", "image"
 const attrName = (attr: ts.JsxAttributeLike) =>
   ts.isJsxAttribute(attr) ? attr.name.getText() : null;
 
-function literalOf(attr: ts.JsxAttribute | undefined): string | null {
+export function literalOf(attr: ts.JsxAttribute | undefined): string | null {
   const init = attr?.initializer;
   if (!init) return null;
   if (ts.isStringLiteral(init)) return init.text;

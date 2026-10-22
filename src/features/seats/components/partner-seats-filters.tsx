@@ -33,7 +33,7 @@ export function PartnerSeatsFilters({ query }: PartnerSeatsFiltersProps) {
         name="q"
         defaultValue={query.q ?? ""}
         placeholder="Search by serial number..."
-        className="w-72"
+        className="w-full sm:w-72"
         aria-label="Search seats"
       />
       <select

@@ -63,13 +63,13 @@ export function IncidentsFilters({ query }: IncidentsFiltersProps) {
           onSubmit={handleSearchSubmit}
           role="search"
           noValidate
-          className="flex items-center gap-2"
+          className="flex w-full items-center gap-2 sm:w-auto"
         >
           <Input
             placeholder="Search by type or description..."
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            className="w-72"
+            className="min-w-0 flex-1 sm:w-72 sm:flex-none"
             aria-label="Search incidents"
             aria-invalid={searchError !== null}
             aria-describedby={searchError ? "incident-search-error" : undefined}
