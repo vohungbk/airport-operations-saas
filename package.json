@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "prepare": "bash scripts/setup-git-hooks.sh",
-    "release:gates": "bash scripts/release-gates.sh"
+    "release:gates": "bash scripts/release-gates.sh",
+    "perf:measure": "vitest run --config vitest.perf.config.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -38,4 +38,9 @@ has been checked; remove a line when it is fixed.
   and most pages were measured at 320, 375, 768 and 1280 px in one browser. Real
   devices, other browsers, text zoom, and the small touch size of links in tables
   were not checked, and a table scrolls sideways on a phone. See [responsive-review.md](responsive-review.md).
+- **Performance is measured, and no target is claimed.** No target or test load is agreed
+  (spec Q2), so `npm run perf:measure` only reports figures, for one user on a local
+  machine, and is not part of the release gates. It does not cover a production
+  database, many users, a real network or the time the browser takes to draw the page.
+  See [performance.md](performance.md).
 
