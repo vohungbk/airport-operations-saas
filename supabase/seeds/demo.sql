@@ -22,6 +22,14 @@
 -- statuses, so it matches the current state. The signals the guard triggers
 -- read (app.*) are set only for the statements that need them.
 --
+-- Each step is done as the person who would do it (VI-F07-S04): the seed sets
+-- request.jwt.claim.sub, which is what auth.uid() reads, so the triggers write
+-- that person as the actor of the event. Partner users make their requests,
+-- the operations manager confirms and completes bookings and resolves incidents,
+-- the admin marks a no-show, and each technician runs their own jobs, records
+-- the work and reports incidents. So every role has records of its own, and the
+-- timelines say who did what. The actors are constants, so two loads are equal.
+--
 -- Accounts (all with the demo password, see docs/database.md):
 --   admin@airportops.example            admin
 --   ops.manager@airportops.example      operations_manager
@@ -44,6 +52,10 @@ declare
   c_tech1 constant uuid := 'd0000000-0000-0000-0000-000000000001';
   c_tech2 constant uuid := 'd0000000-0000-0000-0000-000000000002';
   c_tech3 constant uuid := 'd0000000-0000-0000-0000-000000000003';
+  c_admin constant uuid := 'a1000000-0000-0000-0000-000000000001';
+  c_partner_dcr constant uuid := 'a1000000-0000-0000-0000-000000000003';
+  c_partner_dmo constant uuid := 'a1000000-0000-0000-0000-000000000004';
+  v record;
 begin
   -- Spec E1: real accounts exist, so this is not a demo or test database.
   if exists (
@@ -68,10 +80,10 @@ begin
   ---------------------------------------------------------------------------
   insert into public.users (id, email, full_name, role, partner_id, is_active)
   values
-    ('a1000000-0000-0000-0000-000000000001', 'admin@airportops.example', 'Demo Admin', 'admin', null, true),
+    (c_admin, 'admin@airportops.example', 'Demo Admin', 'admin', null, true),
     (c_ops, 'ops.manager@airportops.example', 'Demo Operations Manager', 'operations_manager', null, true),
-    ('a1000000-0000-0000-0000-000000000003', 'partner.dcr@airportops.example', 'Demo Car Rental Partner User', 'partner_user', c_dcr, true),
-    ('a1000000-0000-0000-0000-000000000004', 'partner.dmo@airportops.example', 'Demo Mobility Partner User', 'partner_user', c_dmo, true)
+    (c_partner_dcr, 'partner.dcr@airportops.example', 'Demo Car Rental Partner User', 'partner_user', c_dcr, true),
+    (c_partner_dmo, 'partner.dmo@airportops.example', 'Demo Mobility Partner User', 'partner_user', c_dmo, true)
   on conflict (id) do nothing;
 
   insert into auth.users (
@@ -107,28 +119,37 @@ begin
   -- Numbers follow the base seed (BK-00001 to BK-00020), and the sequence the
   -- app uses is moved past them, so the next booking made in the app is BK-00031.
   ---------------------------------------------------------------------------
-  insert into public.bookings (
-    id, booking_number, partner_id, airport_id, seat_category_id, assigned_seat_id,
-    pickup_at, return_at, daily_rate, status, notes
-  )
-  select
-    ('f0000000-0000-0000-0000-' || lpad(v.n::text, 12, '0'))::uuid,
-    'BK-' || lpad(v.n::text, 5, '0'),
-    v.partner_id::uuid, c_dxb, v.category_id::uuid, v.seat_id::uuid,
-    v.pickup_at::timestamptz, v.return_at::timestamptz, v.daily_rate, 'pending', v.notes
-  from (
-    values
-      (21, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', null,                                   '2026-09-10 09:00:00+04', '2026-09-13 09:00:00+04', 75.00, 'Waiting for confirmation'),
-      (22, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000002', null,                                   '2026-09-10 10:00:00+04', '2026-09-12 10:00:00+04', 80.00, null),
-      (23, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000021', '2026-09-05 08:00:00+04', '2026-09-08 08:00:00+04', 80.00, 'On rental'),
-      (24, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000022', '2026-09-05 09:00:00+04', '2026-09-09 09:00:00+04', 70.00, 'On rental'),
-      (25, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000004', 'e0000000-0000-0000-0000-000000000023', '2026-08-20 08:00:00+04', '2026-08-23 08:00:00+04', 90.00, null),
-      (26, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000024', '2026-08-21 08:00:00+04', '2026-08-24 08:00:00+04', 75.00, null),
-      (27, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003', null,                                   '2026-09-12 08:00:00+04', '2026-09-14 08:00:00+04', 70.00, null),
-      (28, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000004', 'e0000000-0000-0000-0000-000000000027', '2026-09-01 08:00:00+04', '2026-09-03 08:00:00+04', 90.00, null),
-      (29, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000025', '2026-09-15 08:00:00+04', '2026-09-18 08:00:00+04', 80.00, 'Upcoming: seat is being prepared'),
-      (30, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000026', '2026-09-16 08:00:00+04', '2026-09-19 08:00:00+04', 70.00, 'Upcoming: seat failed inspection')
-  ) as v(n, partner_id, category_id, seat_id, pickup_at, return_at, daily_rate, notes);
+  -- A partner user makes their own pending request; operations make the rest,
+  -- with the seat. One insert per booking, each as its own actor.
+  for v in
+    select * from (
+      values
+        (21, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', null,                                   '2026-09-10 09:00:00+04', '2026-09-13 09:00:00+04', 75.00, 'Waiting for confirmation', c_partner_dcr),
+        (22, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000002', null,                                   '2026-09-10 10:00:00+04', '2026-09-12 10:00:00+04', 80.00, null, c_partner_dmo),
+        (23, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000021', '2026-09-05 08:00:00+04', '2026-09-08 08:00:00+04', 80.00, 'On rental', c_ops),
+        (24, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000022', '2026-09-05 09:00:00+04', '2026-09-09 09:00:00+04', 70.00, 'On rental', c_ops),
+        (25, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000004', 'e0000000-0000-0000-0000-000000000023', '2026-08-20 08:00:00+04', '2026-08-23 08:00:00+04', 90.00, null, c_ops),
+        (26, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000024', '2026-08-21 08:00:00+04', '2026-08-24 08:00:00+04', 75.00, null, c_ops),
+        (27, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003', null,                                   '2026-09-12 08:00:00+04', '2026-09-14 08:00:00+04', 70.00, null, c_ops),
+        (28, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000004', 'e0000000-0000-0000-0000-000000000027', '2026-09-01 08:00:00+04', '2026-09-03 08:00:00+04', 90.00, null, c_ops),
+        (29, 'b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000025', '2026-09-15 08:00:00+04', '2026-09-18 08:00:00+04', 80.00, 'Upcoming: seat is being prepared', c_ops),
+        (30, 'b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000026', '2026-09-16 08:00:00+04', '2026-09-19 08:00:00+04', 70.00, 'Upcoming: seat failed inspection', c_ops)
+    ) as t(n, partner_id, category_id, seat_id, pickup_at, return_at, daily_rate, notes, actor)
+    order by n
+  loop
+    perform set_config('request.jwt.claim.sub', v.actor::text, false);
+
+    insert into public.bookings (
+      id, booking_number, partner_id, airport_id, seat_category_id, assigned_seat_id,
+      pickup_at, return_at, daily_rate, status, notes
+    )
+    values (
+      ('f0000000-0000-0000-0000-' || lpad(v.n::text, 12, '0'))::uuid,
+      'BK-' || lpad(v.n::text, 5, '0'),
+      v.partner_id::uuid, c_dxb, v.category_id::uuid, v.seat_id::uuid,
+      v.pickup_at::timestamptz, v.return_at::timestamptz, v.daily_rate, 'pending', v.notes
+    );
+  end loop;
 
   perform setval('public.booking_number_seq', 30);
 
@@ -136,18 +157,29 @@ begin
   -- is on; each change writes its event through the trigger.
   perform set_config('app.booking_change', 'on', false);
 
+  -- Operations confirm.
+  perform set_config('request.jwt.claim.sub', c_ops::text, false);
   update public.bookings set status = 'confirmed'
    where id in (select ('f0000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid
                   from unnest(array[23, 24, 25, 26, 28, 29, 30]) as n);
 
-  update public.bookings set status = 'in_progress'
-   where id in (select ('f0000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid
-                  from unnest(array[23, 24, 25, 26]) as n);
+  -- The rental starts: the technician who installed the seat.
+  for v in
+    select * from (values (23, c_tech1), (24, c_tech2), (25, c_tech1), (26, c_tech2)) as t(n, actor)
+    order by n
+  loop
+    perform set_config('request.jwt.claim.sub', v.actor::text, false);
+    update public.bookings set status = 'in_progress'
+     where id = ('f0000000-0000-0000-0000-' || lpad(v.n::text, 12, '0'))::uuid;
+  end loop;
 
+  perform set_config('request.jwt.claim.sub', c_ops::text, false);
   perform set_config('app.booking_event_notes', 'Customer changed their plans', false);
   update public.bookings set status = 'cancelled'
    where id = 'f0000000-0000-0000-0000-000000000027';
 
+  -- The admin marks the no-show.
+  perform set_config('request.jwt.claim.sub', c_admin::text, false);
   perform set_config('app.booking_event_notes', 'Customer did not arrive', false);
   update public.bookings set status = 'no_show'
    where id = 'f0000000-0000-0000-0000-000000000028';
@@ -170,15 +202,26 @@ begin
     ('10000000-0000-0000-0000-000000000007', 'f0000000-0000-0000-0000-000000000029', c_tech3, 'inspection',   '2026-09-15 11:00:00+04', null),
     ('10000000-0000-0000-0000-000000000008', 'f0000000-0000-0000-0000-000000000029', c_tech1, 'installation', '2026-09-15 12:00:00+04', 'Bay 1');
 
-  -- Records of the work, written while the job is still active.
+  -- Records of the work, written while the job is still active, as the
+  -- technician who did it.
+  perform set_config('request.jwt.claim.sub', c_tech1::text, false);
   insert into public.installations (
     id, technician_job_id, seat_verified, category_verified, installation_completed,
     vehicle_location, notes, completed_at
   )
   values
     ('11000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', true, true, true, 'Bay 3', 'Installed and checked', '2026-09-05 07:30:00+04'),
-    ('11000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003', true, true, true, 'Bay 2', 'Installed and checked', '2026-08-20 07:30:00+04'),
+    ('11000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003', true, true, true, 'Bay 2', 'Installed and checked', '2026-08-20 07:30:00+04');
+
+  perform set_config('request.jwt.claim.sub', c_tech2::text, false);
+  insert into public.installations (
+    id, technician_job_id, seat_verified, category_verified, installation_completed,
+    vehicle_location, notes, completed_at
+  )
+  values
     ('11000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000004', true, true, true, 'Bay 4', 'Installed and checked', '2026-08-21 07:30:00+04');
+
+  perform set_config('request.jwt.claim.sub', c_tech3::text, false);
 
   insert into public.cleaning_records (
     id, seat_id, booking_id, employee_id, started_at, completed_at, checklist, passed, notes, technician_job_id
@@ -205,21 +248,40 @@ begin
   -- Job statuses.
   perform set_config('app.job_status_change', 'on', false);
 
-  update public.technician_jobs set status = 'in_progress', started_at = assigned_at + interval '30 minutes'
-   where id in (
-     '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002',
-     '10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000004',
-     '10000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000006');
+  -- Each job is moved by its own technician: started, then (the first five of
+  -- these) completed.
+  for v in
+    select id, technician_id from public.technician_jobs
+     where id in (
+       '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002',
+       '10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000004',
+       '10000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000006')
+     order by id
+  loop
+    perform set_config('request.jwt.claim.sub', v.technician_id::text, false);
+    update public.technician_jobs
+       set status = 'in_progress', started_at = assigned_at + interval '30 minutes'
+     where id = v.id;
+  end loop;
 
-  update public.technician_jobs set status = 'completed', completed_at = started_at + interval '45 minutes'
-   where id in (
-     '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003',
-     '10000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000005',
-     '10000000-0000-0000-0000-000000000006');
+  for v in
+    select id, technician_id from public.technician_jobs
+     where id in (
+       '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003',
+       '10000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000005',
+       '10000000-0000-0000-0000-000000000006')
+     order by id
+  loop
+    perform set_config('request.jwt.claim.sub', v.technician_id::text, false);
+    update public.technician_jobs
+       set status = 'completed', completed_at = started_at + interval '45 minutes'
+     where id = v.id;
+  end loop;
 
   perform set_config('app.job_status_change', '', false);
 
-  -- The rentals that are over.
+  -- The rentals that are over, closed by operations.
+  perform set_config('request.jwt.claim.sub', c_ops::text, false);
   update public.bookings set status = 'completed', paid_days = 3
    where id in ('f0000000-0000-0000-0000-000000000025', 'f0000000-0000-0000-0000-000000000026');
 
@@ -230,13 +292,23 @@ begin
   -- One is still open (the failed inspection); one went through its statuses and
   -- is resolved by the operations manager.
   ---------------------------------------------------------------------------
+  -- Each is reported by the technician of the job.
+  perform set_config('request.jwt.claim.sub', c_tech3::text, false);
   insert into public.incidents (
     id, partner_id, technician_job_id, type, severity, description, reported_by
   )
   values
-    ('14000000-0000-0000-0000-000000000001', c_dmo, '10000000-0000-0000-0000-000000000006', 'inspection', 'high', 'Harness clip cracked at inspection; seat quarantined', c_tech3),
+    ('14000000-0000-0000-0000-000000000001', c_dmo, '10000000-0000-0000-0000-000000000006', 'inspection', 'high', 'Harness clip cracked at inspection; seat quarantined', c_tech3);
+
+  perform set_config('request.jwt.claim.sub', c_tech1::text, false);
+  insert into public.incidents (
+    id, partner_id, technician_job_id, type, severity, description, reported_by
+  )
+  values
     ('14000000-0000-0000-0000-000000000002', c_dcr, '10000000-0000-0000-0000-000000000001', 'installation', 'low', 'Small scratch on the shell found at installation', c_tech1);
 
+  -- Operations look into the second and resolve it.
+  perform set_config('request.jwt.claim.sub', c_ops::text, false);
   perform set_config('app.incident_status_change', 'on', false);
 
   perform set_config('app.incident_status_notes', 'Looking into it', false);
@@ -249,6 +321,7 @@ begin
 
   perform set_config('app.incident_status_notes', '', false);
   perform set_config('app.incident_status_change', '', false);
+  perform set_config('request.jwt.claim.sub', '', false);
 
   ---------------------------------------------------------------------------
   -- Last step (VI-F07-S02): make fixed what the system set, so that two loads
