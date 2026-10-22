@@ -653,7 +653,8 @@ npm run demo:determinism   # resets twice and shows that both loads are the same
 `demo:reset` replaces everything in the local database and refuses to run
 against a database that is not local. If a load fails halfway, run it again: a
 reset always returns to a clean state, and `demo.sql` is one statement, so it
-keeps nothing of a load that fails.
+keeps nothing of a load that fails (spec E3). When `demo:reset` fails it says so,
+and tells you to run it again. `demo-guard.test.ts` keeps `demo.sql` one statement.
 
 **Accounts.** All use the same public demo password, `DemoPassw0rd!`. It is a
 demo value for a local database, not a credential: the script that loads it
@@ -723,8 +724,14 @@ app is `BK-00031`.
   that role. The two must be equal. The same figure has different values for
   different accounts, and the two partners add up to the operations manager's,
   so no fixed number could pass. A real 0 (critical open incidents) is shown as 0.
-- *Real data (E1).* `demo.sql` stops with an error if any account has an address
-  that is not `.example` or `@test.local`.
+- *Real data (E1, VI-F07-S06).* Both `seed.sql` and `demo.sql` stop with an error,
+  before they insert anything, if any account (profile or Auth) has an address that
+  is not `.example` or `@test.local`. The base seed is guarded as well because it
+  runs first and would otherwise put demo airports, partners, seats and bookings
+  next to real data. Loading by hand, use `psql -v ON_ERROR_STOP=1 -f ...`, or psql
+  goes on with the next statement after the error. The guard is a check in SQL, so
+  it stops a mistake, not someone with access to the database who means to get
+  round it. Which environments may receive demo data stays local only (spec Q3).
 - *Loaded again (E2).* Both files can be run again on a database that already
   has them. Every insert of `seed.sql` is `on conflict (id) do nothing`, and
   `demo.sql` prints "already loaded" and stops. Nothing fails, nothing is added,

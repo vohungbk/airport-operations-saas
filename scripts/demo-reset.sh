@@ -17,7 +17,11 @@ cd "$(dirname "$0")/.."
 source scripts/lib/require-local.sh
 
 echo "Resetting the local database at ${api_url}. Everything in it will be replaced."
-npx supabase db reset
+if ! npx supabase db reset; then
+  echo "The load failed. The local database may be half loaded; it is not repaired in place." >&2
+  echo "Run 'npm run demo:reset' again: a reset replaces everything and returns to a clean state." >&2
+  exit 1
+fi
 
 echo "Checking the demo data."
 npx vitest run src/lib/demo

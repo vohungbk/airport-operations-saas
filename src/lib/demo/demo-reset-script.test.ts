@@ -16,7 +16,7 @@ const SCRIPT = join(process.cwd(), "scripts", "demo-reset.sh");
 let dir: string;
 let log: string;
 
-function run(env: { apiUrl?: string; stackDown?: boolean }) {
+function run(env: { apiUrl?: string; stackDown?: boolean; resetFails?: boolean }) {
   const result = spawnSync("bash", [SCRIPT], {
     encoding: "utf8",
     env: {
@@ -25,6 +25,7 @@ function run(env: { apiUrl?: string; stackDown?: boolean }) {
       FAKE_LOG: log,
       FAKE_API_URL: env.apiUrl ?? "",
       FAKE_STATUS: env.stackDown ? "down" : "ok",
+      FAKE_RESET_FAILS: env.resetFails ? "1" : "",
     },
   });
   const calls = readFileSync(log, "utf8").split("\n").filter(Boolean);
@@ -47,6 +48,7 @@ describe("scripts/demo-reset.sh (VI-F07-S01, spec E1, E3)", () => {
         '  if [ "$FAKE_STATUS" = "down" ]; then exit 1; fi',
         '  echo "{\\"API_URL\\":\\"$FAKE_API_URL\\"}"',
         "fi",
+        'if [ "$1" = "supabase" ] && [ "$2" = "db" ] && [ -n "$FAKE_RESET_FAILS" ]; then exit 1; fi',
         "exit 0",
         "",
       ].join("\n"),
@@ -88,4 +90,13 @@ describe("scripts/demo-reset.sh (VI-F07-S01, spec E1, E3)", () => {
       ]);
     },
   );
+
+  it("should say the database may be half loaded and how to start again, and check nothing, when the load fails (E3)", () => {
+    const { status, output, calls } = run({ apiUrl: "http://127.0.0.1:54321", resetFails: true });
+
+    expect(status).toBe(1);
+    expect(output).toContain("half loaded");
+    expect(output).toContain("npm run demo:reset");
+    expect(calls.some((call) => call.startsWith("vitest"))).toBe(false);
+  });
 });
