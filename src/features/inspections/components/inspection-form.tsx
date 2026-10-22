@@ -7,6 +7,8 @@ import {
   Field,
   FieldError as FieldErrorMessage,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InspectionConflictAlert } from "@/features/inspections/components/inspection-conflict-alert";
@@ -69,8 +71,12 @@ export function InspectionForm({
         />
       </Field>
 
-      <Field data-invalid={!!errors.result}>
-        <FieldLabel>Inspection result</FieldLabel>
+      <FieldSet
+        className="data-[invalid=true]:text-destructive"
+        data-invalid={!!errors.result}
+        aria-describedby={errors.result ? "result-error" : undefined}
+      >
+        <FieldLegend variant="label">Inspection result</FieldLegend>
         <div className="flex flex-col gap-2 text-sm">
           {INSPECTION_RESULTS.map((value) => (
             <label key={value} className="flex items-center gap-2">
@@ -88,7 +94,7 @@ export function InspectionForm({
           id="result-error"
           errors={errors.result ? [errors.result] : undefined}
         />
-      </Field>
+      </FieldSet>
 
       <Field data-invalid={!!errors.notes}>
         <FieldLabel htmlFor="notes">Inspection notes (optional)</FieldLabel>

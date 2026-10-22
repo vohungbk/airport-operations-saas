@@ -7,6 +7,8 @@ import {
   Field,
   FieldError as FieldErrorMessage,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 import { CleaningConflictAlert } from "@/features/cleaning/components/cleaning-conflict-alert";
 import { isAlreadyRecordedError } from "@/features/cleaning/lib/cleaning-errors";
@@ -68,8 +70,12 @@ export function CleaningCompleteForm({
         </div>
       </dl>
 
-      <Field data-invalid={!!errors.result}>
-        <FieldLabel>Result</FieldLabel>
+      <FieldSet
+        className="data-[invalid=true]:text-destructive"
+        data-invalid={!!errors.result}
+        aria-describedby={errors.result ? "result-error" : undefined}
+      >
+        <FieldLegend variant="label">Result</FieldLegend>
         <div className="flex flex-col gap-2 text-sm">
           <label className="flex items-center gap-2">
             <input
@@ -94,7 +100,7 @@ export function CleaningCompleteForm({
           id="result-error"
           errors={errors.result ? [errors.result] : undefined}
         />
-      </Field>
+      </FieldSet>
 
       <Field data-invalid={!!errors.notes}>
         <FieldLabel htmlFor="notes">Cleaning notes (optional)</FieldLabel>

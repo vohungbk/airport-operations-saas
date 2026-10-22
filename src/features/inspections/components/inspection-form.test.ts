@@ -140,4 +140,24 @@ describe("InspectionForm", () => {
     expect(html).not.toContain('href="/jobs"');
     expect(html).toContain("Inspection notes");
   });
+
+  it("should name the group of results with a legend, so a screen reader reads the question with each choice", () => {
+    hookMock.mockReturnValue(hookState(null));
+
+    const html = render();
+
+    expect(html).toMatch(/<fieldset[^>]*>\s*<legend[^>]*>Inspection result<\/legend>/);
+    expect(html).not.toMatch(/<label[^>]*>Inspection result<\/label>/);
+  });
+
+  it("should tie the error of the results to the group when no result is chosen", () => {
+    hookMock.mockReturnValue(
+      hookState(null, { result: { message: "Choose the result." } }),
+    );
+
+    const html = render();
+
+    expect(html).toMatch(/<fieldset[^>]*aria-describedby="result-error"/);
+    expect(html).toContain('id="result-error"');
+  });
 });
