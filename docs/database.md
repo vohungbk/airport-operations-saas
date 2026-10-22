@@ -717,7 +717,12 @@ app is `BK-00031`.
 - *Roles and isolation (R4).* One account per role and two partners, each with
   its own bookings, so the isolation can be shown.
 - *Honest figures (R5).* Nothing on a dashboard is stored: the figures are counted
-  from these rows when the page loads.
+  from these rows when the page loads. `demo-honest-metrics.integration.test.ts`
+  (VI-F07-S05) signs in as each demo account and compares every figure with a
+  count made another way: the rows read with the service role, in the scope of
+  that role. The two must be equal. The same figure has different values for
+  different accounts, and the two partners add up to the operations manager's,
+  so no fixed number could pass. A real 0 (critical open incidents) is shown as 0.
 - *Real data (E1).* `demo.sql` stops with an error if any account has an address
   that is not `.example` or `@test.local`.
 - *Loaded again (E2).* Both files can be run again on a database that already
