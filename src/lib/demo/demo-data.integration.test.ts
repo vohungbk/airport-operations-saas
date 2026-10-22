@@ -7,6 +7,23 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database.types";
+import {
+  CATEGORY_IDS,
+  CLEANING_IDS,
+  DCR,
+  DEMO_ACCOUNTS,
+  DMO,
+  INCIDENT_IDS,
+  INSPECTION_IDS,
+  INSTALLATION_IDS,
+  JOB_IDS,
+  SEED_BOOKING_IDS,
+  SEED_SEAT_IDS,
+  bookingId,
+  demoLogin,
+  idOf,
+  seatId,
+} from "@/lib/demo/demo-seed";
 import { findSensitiveData } from "@/lib/demo/sensitive-data";
 import { getDashboardMetrics } from "@/features/dashboard/lib/get-dashboard-metrics";
 import {
@@ -29,41 +46,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 
 const config = getLocalSupabaseConfig();
 
-/** The demo login is public and lives in one place: the seed that sets it. */
-function demoLogin(): string {
-  const seed = readFileSync(join(process.cwd(), "supabase", "seeds", "demo.sql"), "utf8");
-  return /c_password constant text := '([^']+)'/.exec(seed)![1];
-}
-
-const DCR = "b0000000-0000-0000-0000-000000000001";
-const DMO = "b0000000-0000-0000-0000-000000000002";
-
-const DEMO_ACCOUNTS = [
-  ["admin@airportops.example", "admin"],
-  ["ops.manager@airportops.example", "operations_manager"],
-  ["partner.dcr@airportops.example", "partner_user"],
-  ["partner.dmo@airportops.example", "partner_user"],
-  ["technician1@airportops.example", "technician"],
-  ["technician2@airportops.example", "technician"],
-  ["technician3@airportops.example", "technician"],
-] as const;
-
-const bookingId = (n: number) =>
-  `f0000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
-const seatId = (n: number) =>
-  `e0000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
-const SEED_BOOKING_IDS = Array.from({ length: 30 }, (_, i) => bookingId(i + 1));
-const SEED_SEAT_IDS = Array.from({ length: 40 }, (_, i) => seatId(i + 1));
 const ACTIVE = ["pending", "confirmed", "assigned", "in_progress"];
-
-/** A fixed id: a prefix and a number, as the seed writes them. */
-const idOf = (prefix: string, n: number) =>
-  `${prefix}-0000-0000-0000-${String(n).padStart(12, "0")}`;
-const JOB_IDS = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => idOf("10000000", n));
-const INSTALLATION_IDS = [1, 3, 4].map((n) => idOf("11000000", n));
-const CLEANING_IDS = [idOf("12000000", 5)];
-const INSPECTION_IDS = [idOf("13000000", 6)];
-const INCIDENT_IDS = [1, 2].map((n) => idOf("14000000", n));
 
 /** The database container of the local stack, found from the project id. */
 function dbContainer(): string | null {
@@ -360,15 +343,16 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
         users: await demoUsers(),
         partners: await rows("partners", [DCR, DMO]),
         airports: await rows("airports", ["a0000000-0000-0000-0000-000000000001"]),
-        seat_categories: await rows("seat_categories", [1, 2, 3, 4].map((n) => idOf("c0000000", n))),
+        seat_categories: await rows("seat_categories", CATEGORY_IDS),
         seats: await rows("seats", SEED_SEAT_IDS),
-        bookings: await rows("bookings", SEED_BOOKING_IDS),
+        // Not the first two bookings: the RLS suite writes its own test text into them.
+        bookings: await rows("bookings", SEED_BOOKING_IDS.slice(2)),
         technician_jobs: await rows("technician_jobs", JOB_IDS),
         installations: await rows("installations", INSTALLATION_IDS),
         cleaning_records: await rows("cleaning_records", CLEANING_IDS),
         inspection_records: await rows("inspection_records", INSPECTION_IDS),
         incidents: await rows("incidents", INCIDENT_IDS),
-        booking_events: await eventsOfBookings(SEED_BOOKING_IDS),
+        booking_events: await eventsOfBookings(SEED_BOOKING_IDS.slice(2)),
         seat_status_history: await rows("seat_status_history", undefined, { column: "seat_id", in: SEED_SEAT_IDS }),
         technician_job_events: await rows("technician_job_events", undefined, {
           column: "technician_job_id",
