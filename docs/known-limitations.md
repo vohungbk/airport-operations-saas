@@ -48,4 +48,8 @@ has been checked; remove a line when it is fixed.
   message, and these are checked from the source on every change. The error state was
   not seen on a screen, and the loading state only in the streamed response. The
   `/forbidden` page offers only "Sign out". See [ui-states-review.md](ui-states-review.md).
+- **The release readiness report states facts and does not judge.** It lists the gates, the
+  migrations, the names of the variables and the settings of the project, the limitations and
+  the open decisions, and records no sign-off (spec Q4). The regression journeys are checked to
+  have a test in place; a deliberate break was not run (see [release-readiness.md](release-readiness.md)).
 
