@@ -1346,6 +1346,35 @@ time at the airport and converted to UTC with `airports.timezone`.
 - **Same rule as the list (spec E3).** The filter pairs of a figure are also the
   query string of its link, so the count and the list use one rule. The
   integration tests check each figure against the total of the list select.
+- **Charts (VI-F01-S07).** Under the cards of each group there is a chart of the
+  same data as horizontal bars: seats, bookings and jobs by status, and open
+  incidents by severity (Critical first, with an icon and a heavier label, red
+  only when it has something to count). Source: `dashboard-charts.ts`,
+  `get-dashboard-charts.ts`, `dashboard-chart.tsx`.
+  - *Same count as the card.* A bar is the number of rows of one table that match a
+    filter, counted with the same function as the cards (`countMetric`), in the
+    scope of the viewer's RLS. A bar that has a card with the same filters has the
+    same number, and the open incidents by severity add up to the open incidents
+    card. The integration test `dashboard-charts.integration.test.ts` checks this
+    for the seven demo accounts, and that the two partners do not see each other's
+    rows. The cards are kept beside the chart (spec Q6).
+  - *Who sees which chart.* The roles that see the cards of the group: admin and
+    operations manager all four, a technician jobs and incidents, a partner user
+    bookings and incidents (on the partner home). A module that is not released has
+    no chart and no query.
+  - *Never colour alone (R8).* Every bar is a row with its word, its count and its
+    share; the drawn bar is hidden from a screen reader. The tone of a bar repeats
+    the tone of the status badge.
+  - *No chart of zeros (E6).* A group whose counts are all zero shows "No ... to
+    chart yet", and a group with a count that could not be read shows Unavailable.
+    Inside a chart that has data, a bar of 0 is a real zero and is shown.
+  - *Width (R9).* The bars take the width of their card and the labels wrap: no
+    sideways scroll at 320 or 375 px. The width of a bar is a CSS custom property.
+  - *No library (spec Q5).* The charts are HTML and Tailwind, drawn on the server,
+    so no chart library is added. The choice of library and chart type is open (Q5);
+    the bars are a text list that a chart library could replace.
+  - *Cost.* A chart takes one count query for each bar, run in parallel: 22 for an
+    admin, in addition to the 8 of the cards. The number does not grow with the rows.
 - **Drill-down (VI-F01-S02).** Selecting a tile opens the list it counts, with the
   filter of the figure in the link. Three things keep the count and the list on
   one rule, and a mismatch is a defect:

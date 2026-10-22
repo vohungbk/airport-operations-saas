@@ -52,4 +52,8 @@ has been checked; remove a line when it is fixed.
   migrations, the names of the variables and the settings of the project, the limitations and
   the open decisions, and records no sign-off (spec Q4). The regression journeys are checked to
   have a test in place; a deliberate break was not run (see [release-readiness.md](release-readiness.md)).
+- **The dashboard charts are bars made of text and CSS.** The chart library and the chart
+  types are an open decision (spec VI-F01 Q5), so no library is added. Each bar is a count
+  query of its own (22 for an admin, with the 8 of the cards); a count of all statuses in
+  one query would need a function in the database.
 
