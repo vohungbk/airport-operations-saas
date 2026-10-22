@@ -25,3 +25,6 @@ has been checked; remove a line when it is fixed.
   history row), so a check over all rows of a shared test database would report
   false problems. See [data-rules.md](data-rules.md).
 
+- **The security coverage check is a floor.** It finds a rule with no test, or a
+  test with no refusal case. It does not tell whether a table's isolation is tested
+  deeply: for that it only asks that the RLS integration suite names the table.
