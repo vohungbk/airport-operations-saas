@@ -49,6 +49,16 @@ function passesLuhn(digits: string): boolean {
   return sum % 10 === 0;
 }
 
+/**
+ * The first digits a card number can start with (Visa, Mastercard, Amex,
+ * Discover, JCB, Diners, UnionPay). The Luhn check alone passes one number in ten,
+ * so a long id or a time in milliseconds (13 digits, starting 17) would be taken
+ * for a card without this.
+ */
+function hasCardPrefix(digits: string): boolean {
+  return /^(?:4|5[1-5]|2(?:2[2-9]|[3-6]\d|7[01]|720)|3[47]|35|36|38|30[0-5]|6011|65|64[4-9]|62)/.test(digits);
+}
+
 /** ISO 13616 mod 97: the check every IBAN passes. */
 function passesIbanCheck(iban: string): boolean {
   const moved = iban.slice(4) + iban.slice(0, 4);
@@ -112,7 +122,9 @@ export function findSensitiveData(
 
   for (const m of plain.matchAll(/(?<![\d.])(?:\d[ -]?){13,19}(?![\d.])/g)) {
     const digits = m[0].replace(/\D/g, "");
-    if (digits.length >= 13 && digits.length <= 19 && passesLuhn(digits)) add("card number", m[0].trim());
+    if (digits.length >= 13 && digits.length <= 19 && hasCardPrefix(digits) && passesLuhn(digits)) {
+      add("card number", m[0].trim());
+    }
   }
 
   for (const m of plain.matchAll(/\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/g)) {
