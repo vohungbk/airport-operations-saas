@@ -13,13 +13,13 @@ F06 Partner Management
 F07 Airport Management
 F08 Seat Categories
 F09 Seat Inventory
-F10 Permanent QR Passport
+F10 Seat QR Code (Digital Passport is outside the MVP)
 F11 Booking Management
 F12 Booking State Machine
 F13 Booking Timeline
 F14 Technician Assignment
 F15 Technician Mobile Workflow
-F16 Cleaning Workflow
+F16 Cleaning Workflow (two steps: Start, Complete)
 F17 Inspection Workflow
 F18 Quarantine Workflow
 F19 Operations Dashboard
@@ -36,6 +36,44 @@ F29 Demo Data
 F30 QA + Security Review
 F31 Portfolio Polish
 ```
+
+## PO decisions (22 October 2026)
+
+These decisions come from the PO Decision Log in the product requirements
+document (PRD v1.1, section 20). Priority when documents disagree: the
+Decision Log, then the PRD, then this roadmap, then the schema and
+implementation. When the PRD and this roadmap differ, update both. Existing
+code is not treated as the correct business rule by itself.
+
+- **F10 Seat QR Code (MVP).** Each seat gets a permanent QR code made from
+  its unique `public_token`. The QR code carries no personal data, no
+  sensitive booking data, and no internal data. A scan only identifies the
+  seat; every action still needs authentication, RBAC, and tenant isolation.
+  A partner reaches only seats in its scope; a technician acts only within
+  assigned work. A separate Digital Passport is outside the MVP.
+- **F16 Cleaning Workflow (two steps).** Start Cleaning, then Complete
+  Cleaning. The seat is `cleaning` after Start and `available` after a
+  successful Complete when the seat is fit for use. A failed cleaning does
+  not return the seat to `available` automatically; the result is recorded
+  and the next step follows the actual seat condition. A booking that holds
+  or uses the seat in a conflicting period blocks Start.
+- **History is never deleted.** Cleaning history, booking events, and related
+  inspection records are kept.
+- **QR and cleaning.** Scanning a QR code opens the right seat; Start and
+  Complete then follow the permissions granted to the user.
+
+| Feature | Scope to add to the roadmap |
+|---|---|
+| F09 Seat Inventory | A QR code per seat and a seat detail page opened from a scan |
+| F16 Cleaning Workflow | Start, Complete, result, notes, and audit trail |
+| F11 and F12 Booking | Check booking conflicts before a cleaning starts |
+| F04 and F05 RBAC, multi-tenancy | Protect every action reached through a QR code |
+| F30 QA | Tests for forged QR codes, cross-tenant access, cleaning during an active booking, and failed cleaning |
+
+Open points: what makes a seat fit for use after cleaning; which status a
+failed cleaning gets and who decides the next step; the booking conflict
+window; which roles may Start and Complete; the QR URL format and token
+revocation.
 
 ## Status
 
@@ -126,5 +164,5 @@ F31 Portfolio Polish
   written by a trigger and are append-only. Manual transitions:
   `pending -> confirmed | cancelled`, `confirmed -> cancelled | no_show`.
   Two migrations; DROPS the two `booking_events` INSERT policies (see
-  `docs/security.md` F11). Not included: QR passport (F10), technician
+  `docs/security.md` F11). Not included: seat QR code (F10), technician
   workflow, flight integration, finance, deleting bookings.
