@@ -28,3 +28,9 @@ has been checked; remove a line when it is fixed.
 - **The security coverage check is a floor.** It finds a rule with no test, or a
   test with no refusal case. It does not tell whether a table's isolation is tested
   deeply: for that it only asks that the RLS integration suite names the table.
+- **Accessibility is checked in part, and no WCAG level is claimed.** Labels, keyboard
+  rules, visible focus, validation messages and status cues are checked from the
+  source on every change, and three screens were walked by hand. Contrast, zoom,
+  dialog focus and a screen reader were not checked. A required field is not marked
+  before the submit, and a table has no caption. See [accessibility-review.md](accessibility-review.md).
+
