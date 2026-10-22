@@ -61,13 +61,13 @@ export function JobsFilters({ query, technicians }: JobsFiltersProps) {
           onSubmit={handleSearchSubmit}
           role="search"
           noValidate
-          className="flex items-center gap-2"
+          className="flex w-full items-center gap-2 sm:w-auto"
         >
           <Input
             placeholder="Search by booking number..."
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            className="w-60"
+            className="min-w-0 flex-1 sm:w-60 sm:flex-none"
             aria-label="Search jobs"
             aria-invalid={searchError !== null}
             aria-describedby={searchError ? "job-search-error" : undefined}

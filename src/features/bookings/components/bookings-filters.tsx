@@ -94,13 +94,13 @@ export function BookingsFilters({
       <form
         onSubmit={handleSearchSubmit}
         role="search"
-        className="flex items-center gap-2"
+        className="flex w-full items-center gap-2 sm:w-auto"
       >
         <Input
           placeholder="Search by booking number..."
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          className="w-60"
+          className="min-w-0 flex-1 sm:w-60 sm:flex-none"
           aria-label="Search bookings"
         />
         <Button type="submit" variant="outline">

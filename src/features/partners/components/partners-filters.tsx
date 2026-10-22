@@ -64,12 +64,15 @@ export function PartnersFilters({ q, status, sort, order }: PartnersFiltersProps
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+      <form
+        onSubmit={handleSearchSubmit}
+        className="flex w-full items-center gap-2 sm:w-auto"
+      >
         <Input
           placeholder="Search by name or code..."
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          className="w-64"
+          className="min-w-0 flex-1 sm:w-64 sm:flex-none"
           aria-label="Search partners"
         />
         <Button type="submit" variant="outline">
