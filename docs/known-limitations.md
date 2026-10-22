@@ -43,4 +43,9 @@ has been checked; remove a line when it is fixed.
   machine, and is not part of the release gates. It does not cover a production
   database, many users, a real network or the time the browser takes to draw the page.
   See [performance.md](performance.md).
+- **UI states are checked in part.** Every page that reads data has a loading and an
+  error state, every page with an id handles a missing record, every list has an empty
+  message, and these are checked from the source on every change. The error state was
+  not seen on a screen, and the loading state only in the streamed response. The
+  `/forbidden` page offers only "Sign out". See [ui-states-review.md](ui-states-review.md).
 
