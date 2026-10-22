@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const getMetricsMock = vi.hoisted(() => vi.fn());
+const getChartsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
   requireAnyPermission: requireAnyPermissionMock,
@@ -20,6 +21,10 @@ vi.mock("@/features/dashboard/components/dashboard-retry-button", () => ({
 
 vi.mock("@/features/dashboard/lib/get-dashboard-metrics", () => ({
   getDashboardMetrics: getMetricsMock,
+}));
+
+vi.mock("@/features/dashboard/lib/get-dashboard-charts", () => ({
+  getDashboardCharts: getChartsMock,
 }));
 
 import DashboardPage from "@/app/(dashboard)/dashboard/page";
@@ -44,6 +49,8 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     requireAnyPermissionMock.mockReset();
     requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role: "admin" });
+    getChartsMock.mockReset();
+    getChartsMock.mockResolvedValue([]);
     getMetricsMock.mockReset();
     getMetricsMock.mockResolvedValue([
       result("seats_available", 12),
@@ -66,6 +73,7 @@ describe("DashboardPage", () => {
 
     await expect(render()).rejects.toThrow("REDIRECT:/forbidden");
     expect(getMetricsMock).not.toHaveBeenCalled();
+    expect(getChartsMock).not.toHaveBeenCalled();
   });
 
   it("should read the figures for the role of the user", async () => {
@@ -74,6 +82,7 @@ describe("DashboardPage", () => {
     await render();
 
     expect(getMetricsMock).toHaveBeenCalledWith("technician");
+    expect(getChartsMock).toHaveBeenCalledWith("technician");
   });
 
   it("should show each figure with its label and a link to the list it counts", async () => {
@@ -173,6 +182,7 @@ describe("DashboardPage", () => {
 
     await expect(render()).rejects.toThrow("REDIRECT:/partner");
     expect(getMetricsMock).not.toHaveBeenCalled();
+    expect(getChartsMock).not.toHaveBeenCalled();
   });
 
   it("should send a partner user with no partner to the partner home too, which says so", async () => {
