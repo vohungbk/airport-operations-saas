@@ -19,3 +19,9 @@ has been checked; remove a line when it is fixed.
   load (Q2), supported browsers and devices (Q3), and who signs off release
   readiness (Q4). Until they are answered, no target is claimed and the spec has
   no sign-off.
+- **History is not audited across every row.** The history chains are checked on the
+  demo data and in the lifecycles the RLS suite creates itself. Other suites insert
+  records directly as fixtures (for example incidents that are not `open`, with no
+  history row), so a check over all rows of a shared test database would report
+  false problems. See [data-rules.md](data-rules.md).
+
