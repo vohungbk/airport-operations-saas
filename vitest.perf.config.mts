@@ -1,8 +1,9 @@
 import { defineConfig } from "vitest/config";
 
 /**
- * Config of `npm run perf:measure` (VI-F08-S06). The measurement is a run against
- * a running app, so it is not part of `npm test`: it only matches `*.perf.ts`.
+ * Config of the tools that run on request and are not part of `npm test`:
+ * `npm run perf:measure` (VI-F08-S06, a run against a running app, `*.perf.ts`) and
+ * `npm run release:report` (VI-F08-S08, `*.report.ts`).
  */
 export default defineConfig({
   resolve: {
@@ -10,7 +11,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.perf.ts"],
+    include: ["src/**/*.perf.ts", "src/**/*.report.ts"],
     testTimeout: 600_000,
     fileParallelism: false,
   },
