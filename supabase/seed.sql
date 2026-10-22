@@ -8,6 +8,25 @@
 -- `supabase db reset` does that. The timestamps the system sets are made fixed
 -- at the end of supabase/seeds/demo.sql.
 
+-- VI-F07-S06 (spec E1): demo data is not loaded next to real data. If an account
+-- with an address that is not a demo or test address exists, this stops before
+-- anything is inserted. The same rule is the first step of supabase/seeds/demo.sql.
+-- Run it with ON_ERROR_STOP when loading by hand (psql -v ON_ERROR_STOP=1 -f ...),
+-- or psql goes on with the next statement after the error.
+do $guard$
+begin
+  if exists (
+    select 1 from public.users
+     where email !~* '(\.example|@test\.local)$'
+  ) or exists (
+    select 1 from auth.users
+     where email !~* '(\.example|@test\.local)$'
+  ) then
+    raise exception 'refusing to load demo data: accounts with real addresses exist';
+  end if;
+end
+$guard$;
+
 -- 1 airport (DXB)
 insert into public.airports (id, code, name, city, country, timezone)
 values (
