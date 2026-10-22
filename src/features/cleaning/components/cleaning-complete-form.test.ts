@@ -143,4 +143,24 @@ describe("CleaningCompleteForm", () => {
     expect(html).toContain("Reload the page");
     expect(html).toContain("Complete cleaning");
   });
+
+  it("should name the group of results with a legend, so a screen reader reads the question with each choice", () => {
+    hookMock.mockReturnValue(hookState(null));
+
+    const html = render();
+
+    expect(html).toMatch(/<fieldset[^>]*>\s*<legend[^>]*>Result<\/legend>/);
+    expect(html).not.toMatch(/<label[^>]*>Result<\/label>/);
+  });
+
+  it("should tie the error of the results to the group when no result is chosen", () => {
+    hookMock.mockReturnValue(
+      hookState(null, { result: { message: "Choose the result." } }),
+    );
+
+    const html = render();
+
+    expect(html).toMatch(/<fieldset[^>]*aria-describedby="result-error"/);
+    expect(html).toContain('id="result-error"');
+  });
 });
