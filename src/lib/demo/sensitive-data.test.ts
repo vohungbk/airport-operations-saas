@@ -73,6 +73,8 @@ describe("findSensitiveData: what it leaves alone", () => {
     ["a plain sentence", "Customer changed their plans; seat is safe"],
     ["a password hash salt only", "crypt(c_password, '$2a$10$DemoSeedFixedSaltAbcd.')"],
     ["a number that is not a card number", "4111 1111 1111 1112"],
+    ["a time in milliseconds, which is 13 digits", "1792627451413"],
+    ["a long number with a Luhn-valid check but no card prefix", "7992739871003"],
     ["an IBAN-shaped text that fails the check", "GB00WEST12345698765432"],
   ])("should not report %s", (_label, text) => {
     expect(findSensitiveData(text)).toEqual([]);

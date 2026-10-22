@@ -5142,7 +5142,9 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     // leaves its bookings behind; keep them few, and give every run its own
     // window far in the future so runs never fill each other's capacity.
     const DAY = 86_400_000;
-    const base = Date.UTC(2040, 0, 1) + Math.floor(Math.random() * 3000) * DAY;
+    // Every run starts after the last booking of any earlier run, so a window
+    // never overlaps a booking left by another run (a random day sometimes did).
+    let base = Date.UTC(2040, 0, 1);
     const at = (day: number) => new Date(base + day * DAY).toISOString();
 
     let airportId: string;
@@ -5192,6 +5194,17 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       if (seed.error) throw seed.error;
       airportId = seed.data.airport_id;
       categoryId = seed.data.seat_category_id;
+
+      const latest = await service
+        .from("bookings")
+        .select("return_at")
+        .eq("airport_id", airportId)
+        .eq("seat_category_id", categoryId)
+        .order("return_at", { ascending: false })
+        .limit(1)
+        .single();
+      if (latest.error) throw latest.error;
+      base = Math.max(base, Date.parse(latest.data.return_at) + 10 * DAY);
 
       const a = await partnerAClient.rpc("create_partner_booking", createArgs());
       if (a.error) throw a.error;
