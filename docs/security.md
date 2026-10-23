@@ -1847,6 +1847,25 @@ Source: PO Decision Log, PRD v1.1 section 20 (QR code rules).
   The quarantine reason is shown to staff and not to a partner, as in the partner seat list. The
   card carries no token, price, partner, rental count or booking data.
 
+### Protect QR access (CO-F04-S14)
+
+- **Proven with the real lookup.** The tests in "QR access protection (CO-F04-S14)" call
+  `getSeatByPublicToken()`, the lookup of the scan page, with the session of each role against
+  the local database. A forged, empty, filter-trick, wildcard, path-like or very long token gives
+  `null` and no error to every role and to anon (AC01). The valid token of a seat in another
+  tenant gives a result equal (`toStrictEqual`) to the one a forged token gets, so a scan does not
+  show that the seat exists (AC02). A technician gets nothing for a seat outside their work.
+- **What a seat in scope returns (AC03).** Exactly the columns of `SCANNED_SEAT_SELECT`, no more.
+  The rendered card holds no booking number, no price, no email of a user, no partner name and
+  not the token. A quarantine reason is shown to staff and not to a partner.
+- **The address holds the token.** `/q/[token]` and its not-found page set `robots: noindex,
+  nofollow` and `referrer: no-referrer`, so the token is not indexed and does not leave the
+  app in a Referer header. The files on the scan path log nothing, the error page prints no
+  error, and the lookup never uses the service role (checked in a test).
+- **Not covered: guessing at scale.** There is no limit on the number of scans a user makes. A
+  token is a random UUID (122 bits), so guessing one is not practical; a rate limit would need
+  infrastructure the project does not have. See [known-limitations.md](known-limitations.md).
+
 ### QA of the QR and cleaning rules (DL-T4)
 
 Tests in `src/lib/auth/rls.integration.test.ts`, named "QR token lookup (DL-T4)", "a failed
@@ -1865,7 +1884,7 @@ Supabase stack and skip without it.
 | A booking that holds the seat blocks Start | Nine tests of the cleaning period | Tested |
 | A failed cleaning does not return the seat to available | Result recorded, seat in quarantine, same job cannot start again, a technician cannot release the seat, an internal role can, the failed record stays | Tested |
 | History is never deleted | Completed cleaning, seat history, job events and incident history refuse update and delete | Tested (older tests) |
-| The route that reads a code, the redirect, the not-found page and the response body | Built in CO-F04-S13 (page, not-found, sign-in redirect tested) | Tested for the page; the full forged-token matrix at the route is **to be added with CO-F04-S14** |
+| The route that reads a code, the redirect, the not-found page and the response body | CO-F04-S13 and S14 | Tested: the real lookup for every role, forged and foreign tokens, the rendered card (see "Protect QR access") |
 
 ## Storage
 
