@@ -15,8 +15,8 @@ interface CleaningStartPanelProps {
 
 /**
  * Step one. Starting moves the seat to cleaning, so it is a button with its
- * own result, not a form. Why a start can be refused (another booking is
- * using the seat) comes back from the database and is shown here.
+ * own result, not a form. Why a start can be refused (a booking holds or uses
+ * the seat in the cleaning period) comes back from the database and is shown here.
  */
 export function CleaningStartPanel({ jobId, seatLabel }: CleaningStartPanelProps) {
   const { start, isPending, result, viewCleaning } = useStartCleaning(jobId);

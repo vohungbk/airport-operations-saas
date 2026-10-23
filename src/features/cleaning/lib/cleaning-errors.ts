@@ -28,7 +28,7 @@ const SEAT_NOT_AVAILABLE_ERROR: JobActionError = {
 const SEAT_IN_USE_ERROR: JobActionError = {
   code: "SEAT_IN_USE",
   message:
-    "Another booking is using the seat now. Handle that booking first, then start the cleaning.",
+    "Another booking holds or uses the seat now or soon. Handle that booking first, then start the cleaning.",
 };
 
 const NOT_STARTED_ERROR: JobActionError = {
@@ -55,7 +55,7 @@ export function isAlreadyRecordedError(
 /**
  * Codes raised by `start_cleaning()` and `complete_cleaning()`:
  * `JB005` not a cleaning job, `JB006` job not active, `JB007` no seat,
- * `JB008` seat not available, `JB009` another booking is using the seat now,
+ * `JB008` seat not available, `JB009` a booking holds or uses the seat in the cleaning period,
  * `JB010` not started, `JB011` already completed, `JB012` the seat is no
  * longer being cleaned, `23505` already started. Everything else is handled
  * like any other job error (forbidden, not found, bad input).

@@ -56,4 +56,8 @@ has been checked; remove a line when it is fixed.
   types are an open decision (spec VI-F01 Q5), so no library is added. Each bar is a count
   query of its own (22 for an admin, with the 8 of the cards); a count of all statuses in
   one query would need a function in the database.
+- **How long a cleaning is taken to last is an assumption.** A cleaning cannot start while a
+  booking holds or uses the seat in the next two hours (spec FO-F03 Q6 is open, ticket
+  assumption FO-F03-S09-ASM01). The two hours are one constant in `start_cleaning()`; there is no
+  cleaning time in the data. See [security.md](security.md), "Cleaning and availability".
 

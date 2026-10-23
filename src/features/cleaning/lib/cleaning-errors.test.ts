@@ -34,9 +34,12 @@ describe("mapCleaningError", () => {
     expect(mapCleaningError(pgError(code)).code).toBe(expected);
   });
 
-  it("should tell the user to handle the other booking when one is using the seat", () => {
+  it("should tell the user to handle the other booking when one holds or uses the seat", () => {
     expect(mapCleaningError(pgError("JB009")).message).toContain(
       "Handle that booking first",
+    );
+    expect(mapCleaningError(pgError("JB009")).message).toContain(
+      "holds or uses the seat now or soon",
     );
   });
 

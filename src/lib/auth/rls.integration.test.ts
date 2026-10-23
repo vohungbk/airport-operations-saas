@@ -2361,6 +2361,155 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(await recordOf(jobId)).toEqual([]);
     });
 
+    // FO-F03-S09: a booking that holds or uses the seat in the cleaning period blocks
+    // the start. The period runs from now for two hours (c_cleaning_period in
+    // start_cleaning(), an assumption until spec Q6 is decided), and the test of a
+    // clash is the one the booking functions use to allocate a seat.
+    describe("a booking in the cleaning period blocks the start (FO-F03-S09)", () => {
+      const MINUTE = 60_000;
+      // A seat of the base seed that no other test uses, and that the demo matrix
+      // (demo-role-coverage) leaves out: a booking of partner A on a demo seat would
+      // show that seat to the partner user and change what that matrix expects.
+      const SEAT_FREE_ID = "e0000000-0000-0000-0000-000000000008";
+
+      /** A booking on a seat from `fromMin` to `toMin` minutes from now. */
+      async function bookSeat(fromMin: number, toMin: number, seatId = SEAT_C_ID) {
+        const seat = await seatRow(seatId);
+        const { data, error } = await opsClient.rpc("create_booking", {
+          p_partner_id: PARTNER_A_ID,
+          p_airport_id: seat.airport_id,
+          p_seat_category_id: seat.category_id,
+          p_pickup_at: new Date(Date.now() + fromMin * MINUTE).toISOString(),
+          p_return_at: new Date(Date.now() + toMin * MINUTE).toISOString(),
+          p_daily_rate: 75,
+          p_assigned_seat_id: seatId,
+        });
+        expect(error, `booking from ${fromMin} to ${toMin} minutes`).toBeNull();
+        createdBookingIds.push(data!.id);
+        return data!;
+      }
+
+      async function bookingRow(id: string) {
+        const { data } = await service
+          .from("bookings")
+          .select("status, pickup_at, return_at, assigned_seat_id, updated_at")
+          .eq("id", id)
+          .single();
+        return data!;
+      }
+
+      async function newJob() {
+        return track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+      }
+
+      it("refuses to start while a booking begins within the cleaning period (JB009) and changes nothing (AC01, AC02)", async () => {
+        const jobId = await newJob();
+        const other = await bookSeat(30, 90);
+        const bookingBefore = await bookingRow(other.id);
+        const historyBefore = await historyCount(SEAT_C_ID);
+
+        const { error } = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(error?.code).toBe("JB009");
+        expect(error?.message).toBe("A booking holds or uses the seat in the cleaning period");
+        expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+        expect(await historyCount(SEAT_C_ID)).toBe(historyBefore);
+        expect(await recordOf(jobId)).toEqual([]);
+        expect(await bookingRow(other.id)).toEqual(bookingBefore);
+      });
+
+      it("does not tell the technician which booking is in the way", async () => {
+        const jobId = await newJob();
+        const other = await bookSeat(30, 90);
+
+        const { error } = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(error?.code).toBe("JB009");
+        expect(error?.message).not.toContain(other.booking_number);
+        expect(error?.message).not.toContain(other.id);
+        expect(error?.details ?? "").not.toContain(other.booking_number);
+      });
+
+      it("refuses when a booking begins just before the cleaning period ends", async () => {
+        const jobId = await newJob();
+        await bookSeat(115, 200);
+
+        const { error } = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(error?.code).toBe("JB009");
+      });
+
+      it("starts when a booking begins just after the cleaning period ends (AC03)", async () => {
+        const jobId = await newJob();
+        await bookSeat(125, 200);
+
+        const { error } = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(error).toBeNull();
+        expect((await seatRow(SEAT_C_ID)).status).toBe("cleaning");
+      });
+
+      it("starts when a booking on the seat has already ended (AC03)", async () => {
+        const jobId = await newJob();
+        await bookSeat(-120, -1);
+
+        const { error } = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(error).toBeNull();
+      });
+
+      it("starts when the only booking in the period is cancelled (AC03)", async () => {
+        const jobId = await newJob();
+        const other = await bookSeat(30, 90);
+        const cancelled = await opsClient.rpc("change_booking_status", {
+          p_booking_id: other.id,
+          p_to_status: "cancelled",
+          p_reason: "cleaning test",
+        });
+        expect(cancelled.error).toBeNull();
+
+        const { error } = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(error).toBeNull();
+      });
+
+      it("starts when the only booking in the period is a no-show (AC03)", async () => {
+        const jobId = await newJob();
+        const other = await bookSeat(30, 90);
+        for (const to of ["confirmed", "no_show"] as const) {
+          const moved = await opsClient.rpc("change_booking_status", {
+            p_booking_id: other.id,
+            p_to_status: to,
+            p_reason: "cleaning test",
+          });
+          expect(moved.error, to).toBeNull();
+        }
+
+        const { error } = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(error).toBeNull();
+      });
+
+      it("starts when the booking in the period is on another seat (AC03)", async () => {
+        const jobId = await newJob();
+        await bookSeat(30, 90, SEAT_FREE_ID);
+
+        const { error } = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(error).toBeNull();
+      });
+
+      it("refuses an operations manager in the same way, since the rule is in the function", async () => {
+        const jobId = await newJob();
+        await bookSeat(30, 90);
+
+        const { error } = await opsClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(error?.code).toBe("JB009");
+        expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+      });
+    });
+
     it("starts when the only active booking on the seat is the one of the job itself", async () => {
       const jobId = track(
         await createCleaningJob(identities.technician.id, BOOKING_C_ID),

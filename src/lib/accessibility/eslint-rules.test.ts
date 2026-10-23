@@ -1,5 +1,5 @@
 import { ESLint } from "eslint";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 /**
  * VI-F08-S04 (spec R4): the accessibility rules of eslint.config.mjs bite. They
@@ -19,6 +19,12 @@ async function rulesReported(code: string): Promise<string[]> {
 }
 
 describe("accessibility lint rules (VI-F08-S04)", () => {
+  // The first lint of a process loads the whole config, which can take longer than
+  // the timeout of one test when the suites run side by side. Do it once, here.
+  beforeAll(async () => {
+    await rulesReported("export const A = () => null;");
+  }, 60_000);
+
   it.each([
     ["a label with no control", `export const A = () => <div><label>Result</label><div /></div>;`, "jsx-a11y/label-has-associated-control"],
     ["a field label with no control (the group of radios that was fixed)", `export const A = () => <div><FieldLabel>Result</FieldLabel><div><label><input type="radio" /> Yes</label></div></div>;`, "jsx-a11y/label-has-associated-control"],

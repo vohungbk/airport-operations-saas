@@ -35,14 +35,14 @@ describe("CleaningStartPanel", () => {
     expect(html).not.toContain("Could not start the cleaning");
   });
 
-  it("should tell the user to handle the other booking when one is using the seat", () => {
+  it("should tell the user to handle the other booking when one holds or uses the seat", () => {
     hookMock.mockReturnValue(
       hookState({
         success: false,
         error: {
           code: "SEAT_IN_USE",
           message:
-            "Another booking is using the seat now. Handle that booking first, then start the cleaning.",
+            "Another booking holds or uses the seat now or soon. Handle that booking first, then start the cleaning.",
         },
       }),
     );
