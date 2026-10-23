@@ -65,3 +65,9 @@ export const PUBLIC_ROUTES = [
  * (back to the dashboard) instead of seeing the auth forms again.
  */
 export const AUTH_ONLY_ROUTES = ["/login", "/signup"] as const;
+
+/**
+ * The path a seat QR code opens (CO-F04-S12): `/q/<public_token>`. The page behind it is the
+ * story "Open Seat From QR" (CO-F04-S13); until it is built a scan gives a not-found page.
+ */
+export const SEAT_QR_PATH_PREFIX = "/q";

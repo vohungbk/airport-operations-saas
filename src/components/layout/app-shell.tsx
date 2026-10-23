@@ -26,7 +26,7 @@ export function AppShell({ user, children }: AppShellProps) {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col md:flex-row">
-      <header className="flex items-center gap-3 border-b border-border bg-background p-3 md:hidden">
+      <header className="flex items-center gap-3 border-b border-border bg-background p-3 md:hidden print:hidden">
         <MobileNav
           user={{ full_name: user.full_name, email: user.email }}
           items={navItems}
@@ -35,7 +35,7 @@ export function AppShell({ user, children }: AppShellProps) {
           Airport Operations
         </span>
       </header>
-      <aside className="hidden w-64 shrink-0 flex-col justify-between md:flex border-r border-border bg-background p-4">
+      <aside className="hidden w-64 shrink-0 flex-col justify-between md:flex border-r border-border bg-background p-4 print:hidden">
         <div className="flex flex-col gap-6">
           <div>
             <p className="text-sm font-medium text-foreground">
