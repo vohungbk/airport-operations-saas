@@ -20,7 +20,7 @@ vi.mock("@/features/seats/lib/get-seat-by-token", () => ({
 }));
 vi.mock("next/navigation", () => ({ notFound: notFoundMock, redirect: redirectMock }));
 
-import SeatQrPage from "@/app/(dashboard)/q/[token]/page";
+import SeatQrPage, { metadata } from "@/app/(dashboard)/q/[token]/page";
 
 const TOKEN = "00000000-0000-4000-8000-0000000000a1";
 
@@ -52,6 +52,11 @@ describe("SeatQrPage", () => {
     redirectMock.mockClear();
     asRole("technician");
     getSeatMock.mockResolvedValue(seat());
+  });
+
+  it("should not be indexed and should send no referrer, since the address holds the token", () => {
+    expect(metadata.robots).toEqual({ index: false, follow: false });
+    expect(metadata.referrer).toBe("no-referrer");
   });
 
   it("should show the seat to a technician (AC01)", async () => {

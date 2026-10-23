@@ -2,9 +2,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import SeatQrNotFound from "@/app/(dashboard)/q/[token]/not-found";
+import SeatQrNotFound, { metadata } from "@/app/(dashboard)/q/[token]/not-found";
 
 describe("SeatQrNotFound", () => {
+  it("should not be indexed and should send no referrer either", () => {
+    expect(metadata.robots).toEqual({ index: false, follow: false });
+    expect(metadata.referrer).toBe("no-referrer");
+  });
+
   it("should say the code does not match a seat the user can open, and not say why", () => {
     const html = renderToStaticMarkup(createElement(SeatQrNotFound));
 

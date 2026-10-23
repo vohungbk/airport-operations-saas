@@ -64,3 +64,7 @@ has been checked; remove a line when it is fixed.
   page stays for operations roles (CO-F04-S13). A technician does not get a seat history or the
   seat's other jobs from a scan; they use the jobs list. A seat QR code keeps the address it was
   made with (`NEXT_PUBLIC_APP_URL`), so set it before printing codes. Download is SVG only.
+- **There is no limit on QR scans.** A user can scan as many tokens as they like (CO-F04-S14). A
+  token is a random UUID of 122 bits, so guessing one is not practical, and every scan needs a
+  session, but there is no rate limit and no alert on many failed scans. That needs
+  infrastructure the project does not have.
