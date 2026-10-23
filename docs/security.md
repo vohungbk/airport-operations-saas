@@ -1804,6 +1804,28 @@ Source: PO Decision Log, PRD v1.1 section 20 (QR code rules).
   or replaced, and bulk print or export of codes. Until they are decided,
   `public_token` stays immutable (`guard_seat_update()`).
 
+### Show the seat QR code (CO-F04-S12)
+
+- **What the code holds.** The address `<NEXT_PUBLIC_APP_URL>/q/<public_token>` and nothing
+  else (`seatQrPayload`): no serial number, id, partner, booking or status (AC02). The token is
+  checked before it goes into an address (letters, digits and hyphens, at most 128), so a bad
+  value cannot add a path or a query. The image is made on the server by `qrcode-generator`
+  (pure JavaScript, no dependency of its own) and holds no text.
+- **A permanent address.** A printed code must not depend on the request that made it, so the
+  base address is `NEXT_PUBLIC_APP_URL`. It is required in production (a missing or invalid
+  value stops the page with an error that names the variable and no value) and falls back to
+  `http://localhost:3000` elsewhere. If the public address of the app changes, printed codes
+  must be printed again.
+- **Same code, always (AC04).** The image is a pure function of the token, and the token is
+  immutable (`guard_seat_update()`), so editing the other data of a seat never changes its code.
+- **Access.** The code is shown on the seat detail page (`seats:manage`) and downloaded from
+  `GET /api/seats/[id]/qr`: no session gives 401, no `seats:manage` gives 403, a malformed id
+  gives 400, and an unknown seat or one RLS hides gives the same 404, all in the standardized
+  error shape. The download is `private, no-store`. Seeing a code is not access: a scan only
+  identifies the seat (see "Seat QR code").
+- **Not here.** The page behind `/q/<token>` is CO-F04-S13 (#248); until it is built a scan
+  shows a not-found page. Only SVG is offered (a PNG would need a canvas or another library).
+
 ### QA of the QR and cleaning rules (DL-T4)
 
 Tests in `src/lib/auth/rls.integration.test.ts`, named "QR token lookup (DL-T4)", "a failed

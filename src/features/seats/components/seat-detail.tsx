@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ChangeSeatStatusDialog } from "@/features/seats/components/change-seat-status-dialog";
+import { SeatQrCard } from "@/features/seats/components/seat-qr-card";
 import { SeatStatusBadge } from "@/features/seats/components/seat-status-badge";
 import { SeatStatusHistory } from "@/features/seats/components/seat-status-history";
 import { getAllowedManualTransitions } from "@/features/seats/lib/seat-status";
@@ -38,7 +39,7 @@ export function SeatDetail({ seat, history }: SeatDetailProps) {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 print:hidden">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             {seat.serial_number}
@@ -66,7 +67,13 @@ export function SeatDetail({ seat, history }: SeatDetailProps) {
         </div>
       </div>
 
-      <dl className="grid grid-cols-1 gap-4 rounded-lg border border-border p-4 sm:grid-cols-3">
+      <SeatQrCard
+        seatId={seat.id}
+        serialNumber={seat.serial_number}
+        publicToken={seat.public_token}
+      />
+
+      <dl className="grid grid-cols-1 gap-4 rounded-lg border border-border p-4 sm:grid-cols-3 print:hidden">
         <Detail label="Category">{seat.category?.name ?? "-"}</Detail>
         <Detail label="Airport">
           {seat.airport ? `${seat.airport.code} - ${seat.airport.name}` : "-"}
@@ -100,10 +107,12 @@ export function SeatDetail({ seat, history }: SeatDetailProps) {
         )}
       </dl>
 
-      <SeatStatusHistory
-        history={history.items}
-        truncated={history.truncated}
-      />
+      <div className="print:hidden">
+        <SeatStatusHistory
+          history={history.items}
+          truncated={history.truncated}
+        />
+      </div>
     </div>
   );
 }
