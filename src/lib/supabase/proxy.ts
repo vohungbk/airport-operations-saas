@@ -1,12 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { getPublicEnv } from "@/lib/config/env";
 import {
   AUTH_ONLY_ROUTES,
   DASHBOARD_ROUTE,
   LOGIN_ROUTE,
   PUBLIC_ROUTES,
+  RETURN_TO_PARAM,
 } from "@/lib/constants/routes";
 
 /**
@@ -74,16 +76,24 @@ export async function updateSession(request: NextRequest) {
   );
 
   if (!isAuthenticated && !isPublicRoute) {
-    return withRefreshedCookies(
-      supabaseResponse,
-      NextResponse.redirect(new URL(LOGIN_ROUTE, request.url)),
-    );
+    // Sign in, then come back to the page that was asked for (a scanned seat, for
+    // example). The address is checked here and again where it is used.
+    const loginUrl = new URL(LOGIN_ROUTE, request.url);
+    const next = safeNextPath(`${pathname}${request.nextUrl.search}`);
+
+    if (next !== null && next !== DASHBOARD_ROUTE) {
+      loginUrl.searchParams.set(RETURN_TO_PARAM, next);
+    }
+
+    return withRefreshedCookies(supabaseResponse, NextResponse.redirect(loginUrl));
   }
 
   if (isAuthenticated && isAuthOnlyRoute) {
+    // Already signed in (for example in another tab): still go to the page asked for.
+    const returnTo = safeNextPath(request.nextUrl.searchParams.get(RETURN_TO_PARAM));
     return withRefreshedCookies(
       supabaseResponse,
-      NextResponse.redirect(new URL(DASHBOARD_ROUTE, request.url)),
+      NextResponse.redirect(new URL(returnTo ?? DASHBOARD_ROUTE, request.url)),
     );
   }
 

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { DASHBOARD_ROUTE } from "@/lib/constants/routes";
 import {
   LOGIN_ERROR_MESSAGES,
@@ -27,8 +28,11 @@ export async function loginAction(
   // and `redirect()` throws, so both stay outside the try/catch below.
   const supabase = await createClient();
 
+  // The return address is not part of the sign in call.
+  const { next, ...signInInput } = parsed.data;
+
   try {
-    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+    const { error } = await supabase.auth.signInWithPassword(signInInput);
 
     if (error) {
       return { error: mapLoginError(error) };
@@ -37,5 +41,6 @@ export async function loginAction(
     return { error: LOGIN_ERROR_MESSAGES.unexpected };
   }
 
-  redirect(DASHBOARD_ROUTE);
+  // Back to the page that was asked for, only when it is a safe path of this app.
+  redirect(safeNextPath(next) ?? DASHBOARD_ROUTE);
 }

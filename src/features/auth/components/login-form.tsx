@@ -8,8 +8,13 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { useLoginForm } from "@/features/auth/hooks/use-login-form";
 
-export function LoginForm() {
-  const { form, onSubmit, isPending, formError } = useLoginForm();
+interface LoginFormProps {
+  /** The page to return to after signing in, already checked by the page. */
+  next?: string;
+}
+
+export function LoginForm({ next }: LoginFormProps) {
+  const { form, onSubmit, isPending, formError } = useLoginForm(next);
   const {
     register,
     formState: { errors },

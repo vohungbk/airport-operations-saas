@@ -9,6 +9,12 @@ export const LOGIN_ROUTE = "/login";
 export const DASHBOARD_ROUTE = "/dashboard";
 
 /**
+ * The query parameter of the sign in page that holds the page to return to after
+ * signing in (FO-F03-S11). Its value is never trusted: see `safeNextPath`.
+ */
+export const RETURN_TO_PARAM = "next";
+
+/**
  * The home of a partner user. Every sign-in lands on `/dashboard`, which sends
  * a partner user here, so the one rule works for login, signup, email
  * confirmation and password reset alike.
