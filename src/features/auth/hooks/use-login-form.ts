@@ -8,10 +8,10 @@ import { loginAction } from "@/features/auth/actions/login.action";
 import { submitLogin } from "@/features/auth/lib/login-errors";
 import { loginSchema, type LoginInput } from "@/features/auth/schemas/login.schema";
 
-export function useLoginForm() {
+export function useLoginForm(next?: string) {
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: "", password: "", next },
   });
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);

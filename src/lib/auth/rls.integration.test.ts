@@ -2361,6 +2361,92 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(await recordOf(jobId)).toEqual([]);
     });
 
+    // FO-F03-S11: the QR scan of a seat lists the open cleaning jobs of that seat. It is
+    // the query of getCleaningJobsForSeat(), run here with each role's own client, so
+    // RLS (not the page) decides who sees a job. It is a read: nothing changes (AC02).
+    describe("open cleaning jobs of a seat for the QR scan (FO-F03-S11)", () => {
+      const SEAT_JOBS_SELECT =
+        "id, status, assigned_at, booking:bookings!inner(booking_number, assigned_seat_id)";
+
+      async function jobsOfSeat(client: typeof technicianClient, seatId: string) {
+        const { data, error } = await client
+          .from("technician_jobs")
+          .select(SEAT_JOBS_SELECT)
+          .eq("job_type", "cleaning")
+          .in("status", ["assigned", "in_progress"])
+          .eq("booking.assigned_seat_id", seatId)
+          .order("assigned_at", { ascending: true });
+        return { ids: (data ?? []).map((row) => row.id), error };
+      }
+
+      it("should give a technician the open cleaning job of their own for the seat (AC01)", async () => {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+
+        const { ids, error } = await jobsOfSeat(technicianClient, SEAT_C_ID);
+
+        expect(error).toBeNull();
+        expect(ids).toContain(jobId);
+      });
+
+      it("should give an internal role the job of the seat whoever it is assigned to", async () => {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+
+        expect((await jobsOfSeat(opsClient, SEAT_C_ID)).ids).toContain(jobId);
+        expect((await jobsOfSeat(adminClient, SEAT_C_ID)).ids).toContain(jobId);
+      });
+
+      it("should give a technician nothing for a seat whose cleaning job is another technician's (AC04)", async () => {
+        const jobId = track(await createCleaningJob(OTHER_TECHNICIAN_ID, BOOKING_C_ID));
+
+        expect((await jobsOfSeat(technicianClient, SEAT_C_ID)).ids).not.toContain(jobId);
+        expect((await jobsOfSeat(opsClient, SEAT_C_ID)).ids).toContain(jobId);
+      });
+
+      it("should give a partner of another tenant nothing (AC04)", async () => {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+
+        // Booking 4 belongs to partner A, so partner B is the other tenant.
+        expect((await jobsOfSeat(partnerBClient, SEAT_C_ID)).ids).not.toContain(jobId);
+      });
+
+      // The owner of the booking can read the job of their own booking (existing partner
+      // scope). A partner has no cleaning permission, so the page refuses them before
+      // this query runs; the page test covers that.
+      it("should limit a partner to the jobs of their own bookings", async () => {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+
+        expect((await jobsOfSeat(partnerAClient, SEAT_C_ID)).ids).toContain(jobId);
+        expect((await jobsOfSeat(partnerAClient, SEAT_B_ID)).ids).toEqual([]);
+      });
+
+      it("should give an inactive user and an anonymous client nothing (AC04)", async () => {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+
+        expect((await jobsOfSeat(inactiveClient, SEAT_C_ID)).ids).not.toContain(jobId);
+        expect((await jobsOfSeat(anonClient, SEAT_C_ID)).ids).not.toContain(jobId);
+      });
+
+      it("should give a technician nothing for a seat they have no job on, the same as for an unknown seat", async () => {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+        const unknownSeat = "00000000-0000-4000-8000-000000000000";
+
+        expect((await jobsOfSeat(technicianClient, SEAT_B_ID)).ids).not.toContain(jobId);
+        expect((await jobsOfSeat(technicianClient, unknownSeat)).ids).toEqual([]);
+      });
+
+      it("should not start or change anything when the seat is looked up (AC02)", async () => {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+        const seatBefore = await seatRow(SEAT_C_ID);
+        const historyBefore = await historyCount(SEAT_C_ID);
+
+        await jobsOfSeat(technicianClient, SEAT_C_ID);
+
+        expect(await seatRow(SEAT_C_ID)).toEqual(seatBefore);
+        expect(await historyCount(SEAT_C_ID)).toBe(historyBefore);
+        expect(await recordOf(jobId)).toEqual([]);
+      });
+    });
+
     // FO-F03-S09: a booking that holds or uses the seat in the cleaning period blocks
     // the start. The period runs from now for two hours (c_cleaning_period in
     // start_cleaning(), an assumption until spec Q6 is decided), and the test of a
