@@ -60,4 +60,7 @@ has been checked; remove a line when it is fixed.
   booking holds or uses the seat in the next two hours (spec FO-F03 Q6 is open, ticket
   assumption FO-F03-S09-ASM01). The two hours are one constant in `start_cleaning()`; there is no
   cleaning time in the data. See [security.md](security.md), "Cleaning and availability".
-
+- **Starting a cleaning from a QR scan depends on CO-F04-S13.** The page `/seats/[id]/cleaning`
+  and the return after sign in are built (FO-F03-S11), but the route that reads a code and finds
+  the seat from its public token is not, so no QR code leads to the page yet. The page takes the
+  seat id in the address. See [security.md](security.md), "Start cleaning from a QR scan".

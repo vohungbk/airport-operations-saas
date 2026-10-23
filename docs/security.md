@@ -1765,6 +1765,26 @@ time at the airport and converted to UTC with `airports.timezone`.
   checks the seat status and history do not change, on success and on a
   rejected insert.
 
+## Start cleaning from a QR scan (FO-F03-S11)
+
+- **A scan only opens a page.** `/seats/[id]/cleaning` reads the open cleaning jobs of the
+  seat and sends the person to the cleaning panel of the job (`/jobs/[id]/cleaning`). It
+  imports no action and calls neither `start_cleaning()` nor `complete_cleaning()`. A cleaning
+  starts only when the person presses Start on the panel (AC02).
+- **Access is checked on the server first.** The page calls `requireAnyPermission` with
+  `CLEANING_RECORD_PERMISSIONS` before any query (AC04). RLS then limits the jobs: a technician
+  gets their own jobs, an internal role gets all. A seat with no job the person can see gives
+  the same refusal as an unknown seat, so a scan does not show whether a seat exists.
+- **Return after sign in (AC03).** The proxy sends a signed-out request to
+  `/login?next=<path>`. The path comes from the address, so it is not trusted: `safeNextPath`
+  accepts only a path of this app (one leading slash, no backslash, space or control
+  character, same origin, not `/login`, `/signup`, `/forgot-password`, `/reset-password`,
+  `/forbidden` or `/api`). The login page and the login action both check it; anything else
+  goes to the dashboard. Signing in performs nothing but the redirect.
+- **The QR scan route itself is not here.** Reading a code and finding the seat from
+  `seats.public_token` belongs to CO-F04-S13. Until it exists, `/seats/[id]/cleaning` takes
+  the seat id directly.
+
 ## Public QR Passport
 
 - The permanent QR seat passport (`F10`) will have a public-facing lookup.
