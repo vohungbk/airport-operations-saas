@@ -2361,6 +2361,74 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(await recordOf(jobId)).toEqual([]);
     });
 
+    // DL-T4 (PO Decision Log, PRD v1.1 section 9.8 and 20): a failed cleaning does not
+    // return the seat to available by itself. The result is recorded, the seat waits for a
+    // decision by an internal role, and nothing of the history is lost.
+    describe("a failed cleaning (DL-T4)", () => {
+      async function failACleaning() {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+        const started = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+        expect(started.error).toBeNull();
+        const completed = await technicianClient.rpc("complete_cleaning", {
+          p_job_id: jobId,
+          p_passed: false,
+          p_notes: "Strap torn",
+        });
+        expect(completed.error).toBeNull();
+        return jobId;
+      }
+
+      it("should keep the seat out of available and record the result and the reason", async () => {
+        const jobId = await failACleaning();
+
+        expect(await seatRow(SEAT_C_ID)).toMatchObject({ status: "quarantine" });
+        expect((await seatRow(SEAT_C_ID)).quarantine_reason).toBeTruthy();
+        expect(await recordOf(jobId)).toMatchObject([{ passed: false, notes: "Strap torn" }]);
+        expect((await lastHistory(SEAT_C_ID)).to_status).toBe("quarantine");
+      });
+
+      it("should not let the same job start again after it failed (23505) and change nothing", async () => {
+        const jobId = await failACleaning();
+        const historyBefore = await historyCount(SEAT_C_ID);
+
+        const { error } = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(error?.code).toBe("23505");
+        expect((await seatRow(SEAT_C_ID)).status).toBe("quarantine");
+        expect(await historyCount(SEAT_C_ID)).toBe(historyBefore);
+        expect(await recordOf(jobId)).toHaveLength(1);
+      });
+
+      it("should not let a technician decide the next step of the seat", async () => {
+        await failACleaning();
+
+        const { error } = await technicianClient.rpc("change_seat_status", {
+          p_seat_id: SEAT_C_ID,
+          p_to_status: "available",
+          p_reason: "technician tries to release the seat",
+        });
+
+        expect(error).not.toBeNull();
+        expect((await seatRow(SEAT_C_ID)).status).toBe("quarantine");
+      });
+
+      it("should let an internal role decide, and keep the failed record and the history", async () => {
+        const jobId = await failACleaning();
+        const historyBefore = await historyCount(SEAT_C_ID);
+
+        const released = await opsClient.rpc("change_seat_status", {
+          p_seat_id: SEAT_C_ID,
+          p_to_status: "available",
+          p_reason: "Strap replaced",
+        });
+
+        expect(released.error).toBeNull();
+        expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+        expect(await historyCount(SEAT_C_ID)).toBeGreaterThan(historyBefore);
+        expect(await recordOf(jobId)).toMatchObject([{ passed: false, notes: "Strap torn" }]);
+      });
+    });
+
     // FO-F03-S11: the QR scan of a seat lists the open cleaning jobs of that seat. It is
     // the query of getCleaningJobsForSeat(), run here with each role's own client, so
     // RLS (not the page) decides who sees a job. It is a read: nothing changes (AC02).
@@ -7568,6 +7636,118 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
 
     // ----- CO-F04-S09: seat access scope (read by id and by list) ---------------
+
+    // DL-T4 (PO Decision Log, PRD v1.1 section 20.2): a QR code carries the public_token of
+    // a seat, and a scan only identifies the seat. The route that reads a code is not built
+    // yet (CO-F04-S13, S14); this is the lookup it will run with the user's own client, so
+    // RLS decides what a forged, foreign or valid token shows.
+    describe("QR token lookup (DL-T4)", () => {
+      const SEAT_FREE_ID = "e0000000-0000-0000-0000-000000000008";
+
+      async function tokenOf(seatId: string) {
+        const { data, error } = await service
+          .from("seats")
+          .select("public_token")
+          .eq("id", seatId)
+          .single();
+        if (error) throw error;
+        return data.public_token;
+      }
+
+      async function lookup(client: typeof adminClient, token: string) {
+        const { data, error } = await client
+          .from("seats")
+          .select("id, serial_number, status")
+          .eq("public_token", token)
+          .maybeSingle();
+        return { data, error };
+      }
+
+      const FORGED_TOKENS = [
+        ["a well formed token nobody has", "00000000-0000-4000-8000-00000000dead"],
+        ["an empty token", ""],
+        ["a filter trick", "x' or '1'='1"],
+        ["a wildcard", "%"],
+        ["a very long token", "a".repeat(5000)],
+      ] as const;
+
+      it.each(FORGED_TOKENS)(
+        "should show nothing, and no error, to every role for %s",
+        async (_name, token) => {
+          for (const client of [adminClient, opsClient, technicianClient, partnerAClient, partnerBClient]) {
+            expect(await lookup(client, token)).toEqual({ data: null, error: null });
+          }
+          expect(await lookup(anonClient, token)).toEqual({ data: null, error: null });
+        },
+      );
+
+      it("should show a seat of the user's own scope by its token", async () => {
+        const token = await tokenOf(SEAT_A_ID);
+
+        expect((await lookup(partnerAClient, token)).data).toMatchObject({ id: SEAT_A_ID });
+        expect((await lookup(adminClient, token)).data).toMatchObject({ id: SEAT_A_ID });
+        expect((await lookup(opsClient, token)).data).toMatchObject({ id: SEAT_A_ID });
+      });
+
+      it("should show nothing for the valid token of a seat of another tenant, the same as for a forged token", async () => {
+        const tokenB = await tokenOf(SEAT_B_ID);
+        const tokenA = await tokenOf(SEAT_A_ID);
+        const forged = await lookup(partnerAClient, "00000000-0000-4000-8000-00000000dead");
+
+        expect(await lookup(partnerAClient, tokenB)).toEqual(forged);
+        expect(await lookup(partnerBClient, tokenA)).toEqual(forged);
+      });
+
+      it("should show a partner without a partner id no seat at all", async () => {
+        expect(await lookup(partnerNullClient, await tokenOf(SEAT_A_ID))).toEqual({
+          data: null,
+          error: null,
+        });
+      });
+
+      it("should show nothing to an anonymous client or an inactive user, even for a valid token", async () => {
+        const token = await tokenOf(SEAT_A_ID);
+
+        expect(await lookup(anonClient, token)).toEqual({ data: null, error: null });
+        expect((await lookup(inactiveClient, token)).data).toBeNull();
+      });
+
+      it("should show a technician only a seat of their own work", async () => {
+        expect((await lookup(technicianClient, await tokenOf(SEAT_B_ID))).data).toBeNull();
+      });
+
+      it("should open a quarantined seat with its status for an internal role", async () => {
+        const token = await tokenOf(SEAT_FREE_ID);
+        const moved = await adminClient.rpc("change_seat_status", {
+          p_seat_id: SEAT_FREE_ID,
+          p_to_status: "quarantine",
+          p_reason: "QR lookup test",
+        });
+        expect(moved.error).toBeNull();
+
+        try {
+          expect((await lookup(adminClient, token)).data).toMatchObject({
+            id: SEAT_FREE_ID,
+            status: "quarantine",
+          });
+        } finally {
+          await adminClient.rpc("change_seat_status", {
+            p_seat_id: SEAT_FREE_ID,
+            p_to_status: "available",
+            p_reason: "QR lookup test",
+          });
+        }
+      });
+
+      it("should hold no personal, partner, price or booking data in a seat row", async () => {
+        const { data } = await service.from("seats").select("*").eq("id", SEAT_A_ID).single();
+
+        const personalOrBooking = Object.keys(data!).filter((column) =>
+          /partner|customer|passenger|email|phone|price|rate|booking|invoice/i.test(column),
+        );
+        expect(personalOrBooking).toEqual([]);
+      });
+    });
 
     describe("seat access scope (CO-F04-S09)", () => {
       it("partner_user can read a seat on their own partner's booking by id", async () => {
