@@ -36,6 +36,48 @@ describe("loginAction", () => {
     });
   });
 
+  describe("return to the page that was asked for (FO-F03-S11, spec E11)", () => {
+    const credentials = { email: "user@example.com", password: "password123" };
+
+    it("should send the person back to the seat they scanned after signing in", async () => {
+      signInWithPasswordMock.mockResolvedValue({ error: null });
+
+      await expect(
+        loginAction({ ...credentials, next: "/seats/5e2a2c8e-8f7c-4d3c-9d3f-1f7f5b5b7c11/cleaning" }),
+      ).rejects.toThrow("REDIRECT:/seats/5e2a2c8e-8f7c-4d3c-9d3f-1f7f5b5b7c11/cleaning");
+    });
+
+    it.each([
+      ["an address of another site", "https://evil.example/seats"],
+      ["a scheme-relative address", "//evil.example"],
+      ["a backslash address", "/\\evil.example"],
+      ["the sign in page", "/login"],
+      ["a path with a line break", "/\n/evil.example"],
+    ])("should go to the dashboard, not to %s", async (_name, next) => {
+      signInWithPasswordMock.mockResolvedValue({ error: null });
+
+      await expect(loginAction({ ...credentials, next })).rejects.toThrow("REDIRECT:/dashboard");
+    });
+
+    it("should not send the return address to Supabase", async () => {
+      signInWithPasswordMock.mockResolvedValue({ error: null });
+
+      await loginAction({ ...credentials, next: "/seats/x/cleaning" }).catch(() => undefined);
+
+      expect(signInWithPasswordMock).toHaveBeenCalledWith(credentials);
+    });
+
+    it("should stay on the form with the error, and not return anywhere, when the sign in fails", async () => {
+      signInWithPasswordMock.mockResolvedValue({
+        error: { code: "invalid_credentials", message: "Invalid login credentials" },
+      });
+
+      await expect(loginAction({ ...credentials, next: "/seats/x/cleaning" })).resolves.toEqual({
+        error: "Invalid email or password.",
+      });
+    });
+  });
+
   it("should return a validation error without calling Supabase when input is invalid", async () => {
     const result = await loginAction({ email: "not-an-email", password: "" });
 

@@ -31,6 +31,53 @@ describe("updateSession", () => {
     expect(response.headers.get("location")).toBe("http://localhost:3000/login");
   });
 
+  describe("sign in and come back (FO-F03-S11, spec E11)", () => {
+    const locationOf = async (path: string) => {
+      getClaimsMock.mockResolvedValue({ data: { claims: null } });
+      const response = await updateSession(makeRequest(path));
+      return response.headers.get("location");
+    };
+
+    it("should send a person who is not signed in to /login with the page they asked for", async () => {
+      expect(await locationOf("/seats/5e2a2c8e/cleaning")).toBe(
+        "http://localhost:3000/login?next=%2Fseats%2F5e2a2c8e%2Fcleaning",
+      );
+    });
+
+    it("should keep the query of the page they asked for", async () => {
+      expect(await locationOf("/bookings?status=pending&page=2")).toBe(
+        "http://localhost:3000/login?next=%2Fbookings%3Fstatus%3Dpending%26page%3D2",
+      );
+    });
+
+    it("should not add the dashboard, which is where every sign in goes anyway", async () => {
+      expect(await locationOf("/dashboard")).toBe("http://localhost:3000/login");
+    });
+
+    it("should not give an api route as the page to return to", async () => {
+      expect(await locationOf("/api/other")).toBe("http://localhost:3000/login");
+    });
+
+    it("should not perform anything for the request: it only redirects (AC03)", async () => {
+      getClaimsMock.mockResolvedValue({ data: { claims: null } });
+
+      const response = await updateSession(makeRequest("/seats/5e2a2c8e/cleaning"));
+
+      expect(response.status).toBe(307);
+      expect(getClaimsMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("should send a signed-in person on /login to the safe page they asked for, else the dashboard", async () => {
+    getClaimsMock.mockResolvedValue({ data: { claims: { sub: "u-1" } } });
+
+    const back = await updateSession(makeRequest("/login?next=%2Fseats%2Fx%2Fcleaning"));
+    const evil = await updateSession(makeRequest("/login?next=https%3A%2F%2Fevil.example"));
+
+    expect(back.headers.get("location")).toBe("http://localhost:3000/seats/x/cleaning");
+    expect(evil.headers.get("location")).toBe("http://localhost:3000/dashboard");
+  });
+
   it("should redirect an authenticated request on /login to /dashboard", async () => {
     getClaimsMock.mockResolvedValue({
       data: { claims: { sub: "user-1" } },
