@@ -11,7 +11,7 @@ const render = (props: Partial<{ serialNumber: string; publicToken: string }> = 
     createElement(SeatQrCard, {
       seatId: SEAT_ID,
       serialNumber: "SEAT-0008",
-      publicToken: "5e2a2c8e-8f7c-4d3c-9d3f-1f7f5b5b7c11",
+      publicToken: "00000000-0000-4000-8000-0000000000a1",
       ...props,
     }),
   );

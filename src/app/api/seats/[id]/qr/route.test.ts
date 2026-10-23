@@ -9,7 +9,7 @@ vi.mock("@/features/seats/lib/get-seat-by-id", () => ({ getSeatById: getSeatById
 import { GET } from "@/app/api/seats/[id]/qr/route";
 
 const SEAT_ID = "e0000000-0000-0000-0000-000000000008";
-const TOKEN = "5e2a2c8e-8f7c-4d3c-9d3f-1f7f5b5b7c11";
+const TOKEN = "00000000-0000-4000-8000-0000000000a1";
 
 const call = (id = SEAT_ID) =>
   GET(new Request("http://localhost/api/seats/x/qr") as never, { params: Promise.resolve({ id }) });

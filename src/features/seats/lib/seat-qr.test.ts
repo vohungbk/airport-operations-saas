@@ -6,7 +6,7 @@ import {
   seatQrPayload,
 } from "@/features/seats/lib/seat-qr";
 
-const TOKEN = "5e2a2c8e-8f7c-4d3c-9d3f-1f7f5b5b7c11";
+const TOKEN = "00000000-0000-4000-8000-0000000000a1";
 const APP_URL = "https://app.example.com";
 
 describe("seatQrPayload", () => {
