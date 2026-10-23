@@ -50,6 +50,12 @@ describe("updateSession", () => {
       );
     });
 
+    it("should send a scan of a seat QR code to sign in and bring the person back to it (FO-F03-S11, CO-F04-S13)", async () => {
+      expect(await locationOf("/q/00000000-0000-4000-8000-0000000000a1")).toBe(
+        "http://localhost:3000/login?next=%2Fq%2F00000000-0000-4000-8000-0000000000a1",
+      );
+    });
+
     it("should not add the dashboard, which is where every sign in goes anyway", async () => {
       expect(await locationOf("/dashboard")).toBe("http://localhost:3000/login");
     });
