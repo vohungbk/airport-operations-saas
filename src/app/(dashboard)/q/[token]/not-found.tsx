@@ -1,4 +1,7 @@
 import { PageNotFound } from "@/components/shared/page-state";
+import { SEAT_QR_PAGE_METADATA } from "@/features/seats/lib/seat-qr-metadata";
+
+export const metadata = SEAT_QR_PAGE_METADATA;
 
 /**
  * Shown for a forged token, an unknown token, and a seat outside the user's scope. The three

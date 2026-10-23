@@ -3,7 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth/current-user";
 import { ScannedSeatCard } from "@/features/seats/components/scanned-seat-card";
 import { getSeatByPublicToken } from "@/features/seats/lib/get-seat-by-token";
+import { SEAT_QR_PAGE_METADATA } from "@/features/seats/lib/seat-qr-metadata";
 import { getSeatScanView } from "@/features/seats/lib/seat-scan-access";
+
+export const metadata = SEAT_QR_PAGE_METADATA;
 
 interface SeatQrPageProps {
   params: Promise<{ token: string }>;
