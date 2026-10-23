@@ -1804,6 +1804,26 @@ Source: PO Decision Log, PRD v1.1 section 20 (QR code rules).
   or replaced, and bulk print or export of codes. Until they are decided,
   `public_token` stays immutable (`guard_seat_update()`).
 
+### QA of the QR and cleaning rules (DL-T4)
+
+Tests in `src/lib/auth/rls.integration.test.ts`, named "QR token lookup (DL-T4)", "a failed
+cleaning (DL-T4)", "a booking in the cleaning period blocks the start (FO-F03-S09)" and
+"open cleaning jobs of a seat for the QR scan (FO-F03-S11)". They run against the local
+Supabase stack and skip without it.
+
+| Decision Log rule (PRD v1.1 section 20) | Covered by | State |
+|---|---|---|
+| A forged or unknown token shows nothing | Five forged forms (unknown, empty, filter trick, wildcard, very long) give no row and no error for every role and for anon | Tested at the database |
+| A token of another tenant shows nothing, and looks the same as a forged one | Partner A with a token of partner B and the reverse give the same result as a forged token | Tested at the database |
+| A scan alone gives no access | Anon and an inactive user get nothing from a valid token | Tested at the database |
+| A technician reaches only assigned work | A technician gets nothing for the token of a seat outside their work | Tested at the database |
+| A quarantined seat opens with its status | An internal role reads it by token | Tested at the database |
+| No personal or booking data in the seat | No column of `seats` is about a partner, customer, price or booking | Tested at the database |
+| A booking that holds the seat blocks Start | Nine tests of the cleaning period | Tested |
+| A failed cleaning does not return the seat to available | Result recorded, seat in quarantine, same job cannot start again, a technician cannot release the seat, an internal role can, the failed record stays | Tested |
+| History is never deleted | Completed cleaning, seat history, job events and incident history refuse update and delete | Tested (older tests) |
+| The route that reads a code, the redirect, the not-found page and the response body | Not built (CO-F04-S13, S14) | **Not tested yet**: the route-level tests are to be added with those stories |
+
 ## Storage
 
 - Supabase Storage buckets are tenant-scoped. Access rules mirror the
