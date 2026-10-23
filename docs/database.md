@@ -130,7 +130,7 @@ Indexes: `partner_id`, `role`.
 ### `seats` (mutable)
 | column | type | notes |
 |---|---|---|
-| public_token | text not null unique default gen_random_uuid()::text | placeholder format; real QR-token format is an F10 decision |
+| public_token | text not null unique default gen_random_uuid()::text | the one token of the seat, used to make its permanent QR code. It identifies the seat only: it carries no personal or booking data, grants no access and does not authenticate (PO Decision Log, PRD v1.1 section 20). The value is the database default (a UUID as text). The URL format and token revocation are open (PRD section 17). |
 | serial_number | text not null unique | |
 | manufacturer | text not null | |
 | model | text not null | |

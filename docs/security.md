@@ -70,9 +70,9 @@ consistent policy rather than deciding it ad hoc.
     session. Server Components that render protected data additionally
     call `requireUser()` (`src/lib/auth/session.ts`) as a second,
     independent guard.
-  - The future public QR seat passport lookup (`F10`) will be added to
-    this same public-routes list when it's implemented — it does not
-    exist yet and no route for it has been created in F03.
+  - There is no public QR route. A QR scan only identifies a seat and opens
+    a page behind sign in; it is never added to this public-routes list (PO
+    Decision Log, PRD v1.1 section 20). See "Seat QR code" below.
 - **`public.users` now has RLS**, added by `F05 — Multi-tenancy + RLS`
   (see that section below). The profile-write step described above only
   ever runs with a real, server-verified `auth.uid()` (either immediately
@@ -302,14 +302,13 @@ below.
 
 **Design notes (documentation-only, not implemented by F05)**:
 
-- **Public QR seat passport (`F10`)**: RLS operates at row granularity,
-  not column granularity — it cannot selectively expose
-  `seats.public_token` to `anon` while hiding internal columns on the
-  same table/policy. Recommended approach when F10 is actually built:
-  keep `seats`' RLS scoped `to authenticated` only (never add an `anon`
-  policy to `seats`), and expose a separate `SECURITY DEFINER` RPC or a
-  narrow public view that returns only an explicit whitelist of safe
-  fields, keyed by `public_token`.
+- **Seat QR code (`F10`)**: a QR scan only identifies the seat (PO
+  Decision Log, PRD v1.1 section 20). There is no public lookup, so
+  `seats`' RLS stays scoped `to authenticated` only: never add an `anon`
+  policy to `seats`, and never a public view or `SECURITY DEFINER` RPC that
+  returns seat data by `public_token`. RLS works at row granularity, not
+  column granularity, so a public policy could not hide internal columns
+  anyway. See "Seat QR code" below for the rules.
 - **Storage**: no bucket exists yet. When a real upload feature needs one
   (inspection/cleaning photos in F16-F18, invoice PDFs in F25), its
   bucket/path convention should mirror this same `partner_id`/role
@@ -1785,15 +1784,25 @@ time at the airport and converted to UTC with `airports.timezone`.
   `seats.public_token` belongs to CO-F04-S13. Until it exists, `/seats/[id]/cleaning` takes
   the seat id directly.
 
-## Public QR Passport
+## Seat QR code
 
-- The permanent QR seat passport (`F10`) will have a public-facing lookup.
-  That lookup must expose only the minimal, safe public fields (e.g. seat
-  category, inspection status) and never partner-internal, financial, or
-  personally identifying data.
-- See the F05 section's "Design notes" above for the recommended
-  RLS-compatible approach (a `SECURITY DEFINER` RPC or narrow public view,
-  never an `anon` policy on `seats` itself) — not implemented yet.
+Source: PO Decision Log, PRD v1.1 section 20 (QR code rules).
+
+- Each seat has one permanent QR code made from its unique `public_token`.
+  The code carries no personal data, no sensitive booking data and no
+  internal data.
+- **A scan only identifies the seat.** It does not sign anyone in, does not
+  replace a booking and never performs an action. Every action after the
+  scan needs authentication, a role permission (RBAC) and tenant isolation.
+  Signed out, the person signs in first and then returns to the seat (see
+  FO-F03-S11 above).
+- A partner reaches only seats in its scope. A technician acts only within
+  assigned work. RLS decides this, not the page.
+- There is no public lookup and no public route for a QR code. A separate
+  Digital Passport is outside the MVP.
+- Open (PRD section 17): the QR URL format, whether a token can be revoked
+  or replaced, and bulk print or export of codes. Until they are decided,
+  `public_token` stays immutable (`guard_seat_update()`).
 
 ## Storage
 
