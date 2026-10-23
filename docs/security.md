@@ -934,9 +934,26 @@ time at the airport and converted to UTC with `airports.timezone`.
   incident on the seat`). The status model has no `maintenance` status, so
   `quarantine` is the existing way to hold a seat; a manager releases it with
   `change_seat_status()` (`quarantine -> available`).
-- **Start is refused** when the seat is not `available` (`JB008`) or when
-  another active booking is in force on the seat now (`JB009`). The booking
-  of the job itself is ignored: it is the booking the seat was used for.
+- **Start is refused** when the seat is not `available` (`JB008`) or when a
+  booking holds or uses the seat in the cleaning period (`JB009`, FO-F03-S09).
+  The cleaning period runs from now for two hours (`c_cleaning_period` in
+  `start_cleaning()`, migration `20261104090000_cleaning_start_blocks_on_booking_period.sql`),
+  and a booking is in the way when it is `pending`, `confirmed`, `assigned` or
+  `in_progress`, on this seat, and overlaps that period. This is the same test
+  that the booking functions use to allocate a seat
+  (`assert_booking_seat_assignable()`), and both lock the seat row, so a booking
+  and a cleaning cannot both get through at the same moment. Before FO-F03-S09
+  only a booking in force at that moment stopped a start, so a booking that began
+  in a few minutes did not. The booking of the job itself is ignored: it is the
+  booking the seat was used for. **The two hours are an assumption** until the
+  product owner decides what the conflicting period is (spec FO-F03 Q6, ticket
+  assumption FO-F03-S09-ASM01): there is no cleaning time in the data, so change
+  the one constant to change the rule. The refusal changes nothing: the checks
+  come before the seat moves or the record is created, in one transaction. The
+  message ("A booking holds or uses the seat in the cleaning period") does not
+  name the other booking, which a technician cannot read. A booking that is
+  overdue but still `in_progress` has the seat out, and the seat is not
+  `available` then, so `JB008` stops it.
   Other errors: `JB005` not a cleaning job, `JB006` job not active, `JB007`
   no seat, `23505` already started, `JB010` not started, `JB011` already
   completed, `JB012` the seat is no longer being cleaned, `22023` result
