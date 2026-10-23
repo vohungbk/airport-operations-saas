@@ -4,7 +4,7 @@ import { z } from "zod";
 import { SEAT_QR_PATH_PREFIX } from "@/lib/constants/routes";
 
 /** The token is a UUID as text today; the limit keeps a bad value out of a code. */
-const publicTokenSchema = z
+export const publicTokenSchema = z
   .string()
   .min(1)
   .max(128)

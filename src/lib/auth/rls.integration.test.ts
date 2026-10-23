@@ -2502,6 +2502,45 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         expect((await jobsOfSeat(technicianClient, unknownSeat)).ids).toEqual([]);
       });
 
+      // CO-F04-S13: the scan page looks a seat up by its token with the user's own client,
+      // joined to its category and airport. Same select as getSeatByPublicToken().
+      const SCAN_SELECT =
+        "id, serial_number, status, quarantine_reason, retired_at, category:seat_categories(name), airport:airports(code, name)";
+
+      async function scan(client: typeof technicianClient, token: string) {
+        const { data, error } = await client
+          .from("seats")
+          .select(SCAN_SELECT)
+          .eq("public_token", token)
+          .maybeSingle();
+        return { data, error };
+      }
+
+      it("should let a technician open by its token the seat of their own job, with category and airport (CO-F04-S13 AC01)", async () => {
+        track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+        const { data: row } = await service
+          .from("seats")
+          .select("public_token")
+          .eq("id", SEAT_C_ID)
+          .single();
+
+        const { data, error } = await scan(technicianClient, row!.public_token);
+
+        expect(error).toBeNull();
+        expect(data).toMatchObject({ id: SEAT_C_ID });
+        expect(data?.airport).not.toBeNull();
+        expect(data?.category).not.toBeNull();
+      });
+
+      it("should let a partner open the seat of their own booking, and not the seat of another partner (CO-F04-S13 AC04)", async () => {
+        const token = async (seatId: string) =>
+          (await service.from("seats").select("public_token").eq("id", seatId).single()).data!
+            .public_token;
+
+        expect((await scan(partnerAClient, await token(SEAT_A_ID))).data).toMatchObject({ id: SEAT_A_ID });
+        expect(await scan(partnerAClient, await token(SEAT_B_ID))).toEqual({ data: null, error: null });
+      });
+
       it("should not start or change anything when the seat is looked up (AC02)", async () => {
         const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
         const seatBefore = await seatRow(SEAT_C_ID);

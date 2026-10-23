@@ -1780,9 +1780,9 @@ time at the airport and converted to UTC with `airports.timezone`.
   character, same origin, not `/login`, `/signup`, `/forgot-password`, `/reset-password`,
   `/forbidden` or `/api`). The login page and the login action both check it; anything else
   goes to the dashboard. Signing in performs nothing but the redirect.
-- **The QR scan route itself is not here.** Reading a code and finding the seat from
-  `seats.public_token` belongs to CO-F04-S13. Until it exists, `/seats/[id]/cleaning` takes
-  the seat id directly.
+- **The QR scan route is a separate story.** `/q/[token]` (CO-F04-S13, see "Open a seat from a
+  QR scan") finds the seat from `seats.public_token`. A technician reaches this page from the
+  Cleaning button on the card it shows; the page itself takes the seat id.
 
 ## Seat QR code
 
@@ -1823,8 +1823,29 @@ Source: PO Decision Log, PRD v1.1 section 20 (QR code rules).
   gives 400, and an unknown seat or one RLS hides gives the same 404, all in the standardized
   error shape. The download is `private, no-store`. Seeing a code is not access: a scan only
   identifies the seat (see "Seat QR code").
-- **Not here.** The page behind `/q/<token>` is CO-F04-S13 (#248); until it is built a scan
-  shows a not-found page. Only SVG is offered (a PNG would need a canvas or another library).
+- **Scan page.** The page behind `/q/<token>` is CO-F04-S13 (see "Open a seat from a QR
+  scan"). Only SVG is offered (a PNG would need a canvas or another library).
+
+### Open a seat from a QR scan (CO-F04-S13)
+
+- **Where a scan leads.** `/q/[token]`. The page only identifies the seat and performs nothing:
+  it imports no action and calls no write (checked in a test). Every action after it is on
+  another page that checks authentication, permission and tenant isolation on its own.
+- **Signed out (AC02, AC05).** The proxy sends the visitor to `/login?next=/q/<token>` and the
+  person returns after signing in (see "Start cleaning from a QR scan"). The page also calls
+  `requireAuth()`, so it holds if the proxy is ever bypassed. Nothing is read before the session
+  is checked.
+- **Which seats a user reaches (AC04).** The seat is looked up by `public_token` with the
+  user's own client, so RLS decides: a partner reaches the seats of its own bookings, a
+  technician the seats of its own work, an internal role every seat. No service-role client.
+- **Forged and foreign tokens.** A token that is malformed (checked with Zod before the query),
+  unknown, or of a seat outside the user's scope gives the same "Seat not found" page, so a
+  scan does not show whether a seat exists elsewhere.
+- **What each role sees (AC06).** An operations role (`seats:manage`) is sent to the full seat
+  page. A technician or a partner gets a read-only card: serial number, status, category,
+  airport, and the retirement date. A retired or quarantined seat still opens with its status.
+  The quarantine reason is shown to staff and not to a partner, as in the partner seat list. The
+  card carries no token, price, partner, rental count or booking data.
 
 ### QA of the QR and cleaning rules (DL-T4)
 
@@ -1844,7 +1865,7 @@ Supabase stack and skip without it.
 | A booking that holds the seat blocks Start | Nine tests of the cleaning period | Tested |
 | A failed cleaning does not return the seat to available | Result recorded, seat in quarantine, same job cannot start again, a technician cannot release the seat, an internal role can, the failed record stays | Tested |
 | History is never deleted | Completed cleaning, seat history, job events and incident history refuse update and delete | Tested (older tests) |
-| The route that reads a code, the redirect, the not-found page and the response body | Not built (CO-F04-S13, S14) | **Not tested yet**: the route-level tests are to be added with those stories |
+| The route that reads a code, the redirect, the not-found page and the response body | Built in CO-F04-S13 (page, not-found, sign-in redirect tested) | Tested for the page; the full forged-token matrix at the route is **to be added with CO-F04-S14** |
 
 ## Storage
 
