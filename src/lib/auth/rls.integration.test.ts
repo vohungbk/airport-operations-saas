@@ -20,6 +20,11 @@ import { getBookingById } from "@/features/bookings/lib/get-booking-by-id";
 import { getBookingEvents } from "@/features/bookings/lib/get-booking-events";
 import { getIncidentById } from "@/features/incidents/lib/get-incident-by-id";
 import { getPartnerSeats } from "@/features/seats/lib/get-partner-seats";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { ScannedSeatCard } from "@/features/seats/components/scanned-seat-card";
+import { getSeatByPublicToken } from "@/features/seats/lib/get-seat-by-token";
+import { getSeatScanView } from "@/features/seats/lib/seat-scan-access";
 import { partnerSeatsQuerySchema } from "@/features/seats/schemas/partner-seats-query.schema";
 import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
 import {
@@ -7785,6 +7790,165 @@ describe.skipIf(!config)("F05 RLS integration", () => {
           /partner|customer|passenger|email|phone|price|rate|booking|invoice/i.test(column),
         );
         expect(personalOrBooking).toEqual([]);
+      });
+    });
+
+    // CO-F04-S14: forged and cross-tenant scans reveal nothing. This runs the real lookup of
+    // the scan page, getSeatByPublicToken(), with the session of each role, against the real
+    // database, so what is proven is what the page does, not a copy of its query.
+    describe("QR access protection (CO-F04-S14)", () => {
+      const SEAT_FREE_ID = "e0000000-0000-0000-0000-000000000008";
+      const FORGED = [
+        "00000000-0000-4000-8000-00000000dead",
+        "",
+        "x' or '1'='1",
+        "%",
+        "a".repeat(5000),
+        "../../etc/passwd",
+      ];
+
+      async function tokenOf(seatId: string) {
+        const { data } = await service.from("seats").select("public_token").eq("id", seatId).single();
+        return data!.public_token;
+      }
+
+      /** What the scan page's lookup returns for this client, or the error it throws. */
+      async function scanAs(client: SupabaseClient<Database> | null, token: string) {
+        listClient.current = client;
+        try {
+          return { seat: await getSeatByPublicToken(token), error: null };
+        } catch (error) {
+          return { seat: null, error: String(error) };
+        } finally {
+          listClient.current = null;
+        }
+      }
+
+      const everyone = () =>
+        [
+          ["admin", adminClient],
+          ["operations manager", opsClient],
+          ["technician", technicianClient],
+          ["partner A", partnerAClient],
+          ["partner B", partnerBClient],
+          ["partner without a partner", partnerNullClient],
+          ["inactive user", inactiveClient],
+          ["anonymous", anonClient],
+        ] as const;
+
+      it("should show nothing, and fail with nothing, to anyone for a forged or unknown token (AC01)", async () => {
+        for (const [name, client] of everyone()) {
+          for (const token of FORGED) {
+            expect(await scanAs(client, token), `${name} with a forged token`).toEqual({
+              seat: null,
+              error: null,
+            });
+          }
+        }
+      });
+
+      it("should give a token of another tenant exactly the answer a forged token gets (AC02)", async () => {
+        const tokenA = await tokenOf(SEAT_A_ID);
+        const tokenB = await tokenOf(SEAT_B_ID);
+        const forged = await scanAs(partnerAClient, FORGED[0]);
+
+        expect(await scanAs(partnerAClient, tokenB)).toStrictEqual(forged);
+        expect(await scanAs(partnerBClient, tokenA)).toStrictEqual(forged);
+      });
+
+      it("should show a technician nothing for a seat outside their work (AC02, AC04)", async () => {
+        const token = await tokenOf(SEAT_B_ID);
+
+        expect((await scanAs(technicianClient, token)).seat).toBeNull();
+      });
+
+      it("should show an anonymous visitor and an inactive user nothing even for a valid token (AC02)", async () => {
+        const token = await tokenOf(SEAT_A_ID);
+
+        expect(await scanAs(anonClient, token)).toEqual({ seat: null, error: null });
+        expect((await scanAs(inactiveClient, token)).seat).toBeNull();
+      });
+
+      it("should give a seat in scope only the columns of the scan, and nothing more (AC03)", async () => {
+        const seat = (await scanAs(partnerAClient, await tokenOf(SEAT_A_ID))).seat;
+
+        expect(seat).not.toBeNull();
+        const allowed = [
+          "id",
+          "serial_number",
+          "status",
+          "quarantine_reason",
+          "retired_at",
+          "category",
+          "airport",
+        ];
+        expect(Object.keys(seat!).sort()).toEqual([...allowed].sort());
+      });
+
+      it("should render no personal data, no booking data and no token on the card of a seat in scope (AC03)", async () => {
+        const token = await tokenOf(SEAT_A_ID);
+        const seat = (await scanAs(partnerAClient, token)).seat!;
+        const { data: booking } = await service
+          .from("bookings")
+          .select("booking_number, daily_rate")
+          .eq("id", BOOKING_A_ID)
+          .single();
+        const { data: partner } = await service
+          .from("partners")
+          .select("name")
+          .eq("id", PARTNER_A_ID)
+          .single();
+
+        for (const role of ["partner_user", "technician"] as const) {
+          const html = renderToStaticMarkup(
+            createElement(ScannedSeatCard, { seat, view: getSeatScanView(role) }),
+          );
+
+          expect(html).toContain(seat.serial_number);
+          for (const secret of [
+            token,
+            booking!.booking_number,
+            identities.partnerA.email,
+            identities.admin.email,
+            identities.technician.email,
+          ]) {
+            expect(html, `${role} card holds ${secret}`).not.toContain(secret);
+          }
+          if (partner!.name.length >= 8) {
+            expect(html).not.toContain(partner!.name);
+          }
+          expect(html).not.toContain(`${booking!.daily_rate}`);
+        }
+      });
+
+      it("should show the status of a quarantined seat but not its reason to a partner (AC03)", async () => {
+        const token = await tokenOf(SEAT_FREE_ID);
+        const moved = await adminClient.rpc("change_seat_status", {
+          p_seat_id: SEAT_FREE_ID,
+          p_to_status: "quarantine",
+          p_reason: "Hidden from partners (S14)",
+        });
+        expect(moved.error).toBeNull();
+
+        try {
+          const seat = (await scanAs(adminClient, token)).seat!;
+          const partnerHtml = renderToStaticMarkup(
+            createElement(ScannedSeatCard, { seat, view: getSeatScanView("partner_user") }),
+          );
+          const staffHtml = renderToStaticMarkup(
+            createElement(ScannedSeatCard, { seat, view: getSeatScanView("technician") }),
+          );
+
+          expect(partnerHtml).toContain("Quarantine");
+          expect(partnerHtml).not.toContain("Hidden from partners (S14)");
+          expect(staffHtml).toContain("Hidden from partners (S14)");
+        } finally {
+          await adminClient.rpc("change_seat_status", {
+            p_seat_id: SEAT_FREE_ID,
+            p_to_status: "available",
+            p_reason: "QR protection test",
+          });
+        }
       });
     });
 
