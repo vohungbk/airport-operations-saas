@@ -101,3 +101,7 @@ has been checked; remove a line when it is fixed.
   completion trigger. Nothing writes `actual_return_at` yet (the return chain, F14 and F15, will), so
   no early return happens outside the tests. Refunds, partial or full, are not handled
   (VI-F04-S09 to S11).
+- **The booking revenue screen shows no currency and has no adjustment button (VI-F04-S08).** The
+  currency is open (spec Q1), so amounts show two decimals only. Adding an adjustment, a refund or a
+  chargeback comes with VI-F04-S09 to S11. A booking completed before the revenue columns existed
+  has no revenue case and shows "No revenue yet".

@@ -1932,6 +1932,23 @@ Supabase stack and skip without it.
 - **Open:** how a started day is counted (every started 24 hours is used) and what an early return
   or a cancellation is charged (spec Q3, VI-F04-S07).
 
+## Booking revenue screen (VI-F04-S08)
+
+- **Who opens it.** `/bookings/[id]/revenue` needs `finance:view` (admin, operations manager) or
+  `finance:view_own_partner` (partner user); a technician has neither and is sent to `/forbidden`
+  before anything is read. The check is on the server, in the page; the link on the booking detail
+  is only shown to those roles and is not an access check.
+- **Within scope.** The booking is read with the user's own client in one query, so RLS decides:
+  an admin and an operations manager see every booking, a partner user only the bookings of its own
+  partner, with the terms those bookings used (a partner reads only its own terms). A booking that
+  is unknown, malformed or hidden by RLS is the same "Booking not found" page, so a partner learns
+  nothing about the bookings of another partner. Tested against the real RLS of each role.
+- **Read only, and honest.** The screen shows what the database stored when the rental was completed,
+  cancelled or marked as a no-show: it calculates nothing again, so it cannot disagree with the
+  booking. It has no form, no button and no action. The query names its columns: no fees, no launch
+  credit target, no contact data, no free text. Amounts show two decimals and no currency (spec Q1 is
+  open). The "Add adjustment" button belongs to VI-F04-S09.
+
 ## Commercial terms (VI-F04-S01)
 
 - **Who can do what.** An admin and an operations manager open the Commercial terms screen of a
