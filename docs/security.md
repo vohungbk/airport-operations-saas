@@ -1917,8 +1917,18 @@ Supabase stack and skip without it.
   locked in a version like the shares. Money is financial data: it is not logged and an error shows a
   fixed message. Currency and rounding (spec Q1) and how the VAT is applied (Q2) are open: only the
   numbers are kept and shown, with no currency symbol.
-- **Not covered here.** The history list (VI-F04-S03) and the revenue calculation that reads these
-  terms (S05).
+- **The history (VI-F04-S03).** The screen lists the terms that have ended, with the days they
+  applied, read only, to an admin and to an operations manager. It reads with the user's own
+  client, so RLS decides who sees which partner (a partner user sees only its own, none of another
+  partner's), and the list has no action that writes. On every day exactly one version is in force
+  (a version runs from its start to its end, both days included, and the next one starts the day
+  after), so the terms of a rental for the day it was completed are always one version, and a new
+  version applies only from its effective date (E5). `pickCommercialTerms(versions, date)` gives
+  that version for any date; this is tested with real rows. Up to 100 versions of a partner are
+  read, and a note says when older ones were cut off.
+- **Not covered here.** The revenue calculation that reads these terms for a completed rental
+  (VI-F04-S05), which will need the same "terms on a date" lookup in the database. The table does
+  not keep who saved a version, so the history shows the terms and their dates, not the author.
 
 ## Storage
 

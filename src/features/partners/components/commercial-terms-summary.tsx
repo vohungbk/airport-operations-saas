@@ -15,7 +15,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function TermsCard({ title, version }: { title: string; version: CommercialTermsVersion }) {
+export function TermsCard({ title, version }: { title: string; version: CommercialTermsVersion }) {
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-border p-4">
       <h2 className="text-sm font-medium text-foreground">{title}</h2>
@@ -53,7 +53,7 @@ function TermsCard({ title, version }: { title: string; version: CommercialTerms
  * earlier, ended terms are the history of VI-F04-S03.
  */
 export function CommercialTermsSummary({ terms }: CommercialTermsSummaryProps) {
-  if (!terms.current && terms.upcoming.length === 0) {
+  if (!terms.current && terms.upcoming.length === 0 && terms.earlier.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-4">
         <p className="text-sm font-medium text-foreground">No commercial terms yet</p>

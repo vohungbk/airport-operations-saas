@@ -19,14 +19,22 @@ const version = (id: string, from: string, partner = 30): CommercialTermsVersion
   effective_to: null,
 });
 
-const render = (current: CommercialTermsVersion | null, upcoming: CommercialTermsVersion[] = []) =>
-  renderToStaticMarkup(createElement(CommercialTermsSummary, { terms: { current, upcoming } }));
+const render = (
+  current: CommercialTermsVersion | null,
+  upcoming: CommercialTermsVersion[] = [],
+  earlier: CommercialTermsVersion[] = [],
+) =>
+  renderToStaticMarkup(createElement(CommercialTermsSummary, { terms: { current, upcoming, earlier } }));
 
 describe("CommercialTermsSummary", () => {
   it("should say there are no terms yet when the partner has none (empty state)", () => {
     const html = render(null);
 
     expect(html).toContain("No commercial terms yet");
+  });
+
+  it("should not say there are no terms when only earlier terms exist: the history has them", () => {
+    expect(render(null, [], [version("old", "2025-01-01")])).not.toContain("No commercial terms yet");
   });
 
   it("should show the shares and the start of the terms in force", () => {

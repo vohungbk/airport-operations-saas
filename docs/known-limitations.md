@@ -73,3 +73,7 @@ has been checked; remove a line when it is fixed.
   overlap. The screen and the future revenue calculation take the version that started last. An
   exclusion constraint on the period would close this; it needs the `btree_gist` extension and is
   left for the story that reads the terms to calculate revenue (VI-F04-S05).
+- **The terms history does not show who saved a version.** `partner_commercial_terms` has no
+  author column, so the list shows the terms and the days they applied (VI-F04-S03). A record of
+  the author and the reason is part of the financial history rule (spec R16) and comes with the
+  stories that change money values.
