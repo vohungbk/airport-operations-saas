@@ -1,15 +1,20 @@
+import Link from "next/link";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
 import type { BookingRevenueView } from "@/features/bookings/lib/booking-revenue";
 
 interface BookingRevenueBreakdownProps {
   view: BookingRevenueView;
+  /** Where "Add adjustment" leads; given only to a role that may add one, for a booking that can have one. */
+  adjustmentHref?: string;
 }
 
 /**
  * VI-F04 S2: how the revenue of a booking was calculated. Read only: the figures are the ones the
  * database stored when the rental was completed, cancelled or marked as a no-show.
  */
-export function BookingRevenueBreakdown({ view }: BookingRevenueBreakdownProps) {
+export function BookingRevenueBreakdown({ view, adjustmentHref }: BookingRevenueBreakdownProps) {
   if (view.state === "empty") {
     return (
       <div className="rounded-lg border border-dashed border-border p-4">
@@ -34,6 +39,13 @@ export function BookingRevenueBreakdown({ view }: BookingRevenueBreakdownProps) 
           </div>
         ))}
       </dl>
+      {adjustmentHref && (
+        <div>
+          <Link href={adjustmentHref} className={buttonVariants({ variant: "outline" })}>
+            Add adjustment
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

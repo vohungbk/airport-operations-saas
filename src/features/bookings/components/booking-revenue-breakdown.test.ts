@@ -42,6 +42,22 @@ describe("BookingRevenueBreakdown", () => {
     expect(html).toContain("so it is not charged");
   });
 
+  it("should show Add adjustment when given where it leads, and not otherwise (VI-F04-S09)", () => {
+    const view: BookingRevenueView = { state: "ready", caseLabel: "Standard rental", notices: [], lines: [{ label: "Case", value: "Standard rental" }] };
+
+    const withLink = renderToStaticMarkup(createElement(BookingRevenueBreakdown, { view, adjustmentHref: "/bookings/b-1/adjustment" }));
+
+    expect(withLink).toContain('href="/bookings/b-1/adjustment"');
+    expect(withLink).toContain(">Add adjustment<");
+    expect(render(view)).not.toContain("Add adjustment");
+  });
+
+  it("should not show Add adjustment in the empty state", () => {
+    const html = renderToStaticMarkup(createElement(BookingRevenueBreakdown, { view: { state: "empty", message: "No." }, adjustmentHref: "/x" }));
+
+    expect(html).not.toContain("Add adjustment");
+  });
+
   it("should be read only: no field, button or form", () => {
     const html = render({ state: "ready", caseLabel: "Standard rental", notices: [], lines: [{ label: "Case", value: "Standard rental" }] });
 
