@@ -63,3 +63,31 @@ describe("BookingDetail actions (VI-F03-S03)", () => {
     expect(html).toContain("STATUS_DIALOG");
   });
 });
+
+describe("BookingDetail revenue link (VI-F04-S08)", () => {
+  const renderWithRevenue = (canViewRevenue: boolean) =>
+    renderToStaticMarkup(
+      createElement(BookingDetail, {
+        booking: booking("completed"),
+        events: { items: [], truncated: false },
+        canManage: false,
+        canEditOwn: false,
+        canViewRevenue,
+      }),
+    );
+
+  it("should link to how the revenue was calculated for a viewer with the finance permission", () => {
+    const html = renderWithRevenue(true);
+
+    expect(html).toContain('href="/bookings/f0000000-0000-4000-8000-000000000001/revenue"');
+    expect(html).toContain(">Revenue<");
+  });
+
+  it("should not link to it for a viewer without the finance permission", () => {
+    expect(renderWithRevenue(false)).not.toContain("/revenue");
+  });
+
+  it("should not link to it when the prop is not given", () => {
+    expect(render("completed", false, false)).not.toContain("/revenue");
+  });
+});

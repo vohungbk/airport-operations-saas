@@ -25,6 +25,7 @@ export interface Journey {
 
 const RLS = "src/lib/auth/rls.integration.test.ts";
 const DEMO = "src/lib/demo/demo-role-coverage.integration.test.ts";
+const FINANCE_ACCESS = "src/lib/finance/booking-revenue-access.integration.test.ts";
 const MANAGERS = ["admin", "operations_manager"] as const;
 
 export const JOURNEYS: readonly Journey[] = [
@@ -96,6 +97,15 @@ export const JOURNEYS: readonly Journey[] = [
       { file: RLS, block: "QR token lookup (DL-T4)" },
       { file: RLS, block: "QR access protection (CO-F04-S14)" },
       { file: RLS, block: "scan to cleaning chain (DL-T4)" },
+    ],
+  },
+  {
+    id: "J21",
+    roles: ["admin", "operations_manager", "partner_user"],
+    title: "See how the revenue of a booking was calculated",
+    tests: [
+      { file: FINANCE_ACCESS, block: "who can read the revenue of a booking (VI-F04-S08, spec R3)" },
+      { file: "src/lib/finance/revenue-share.integration.test.ts", block: "partner and platform shares of a completed rental (VI-F04-S05, spec R11, R17)" },
     ],
   },
 ];
