@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth/current-user";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
+import { CommercialTermsHistory } from "@/features/partners/components/commercial-terms-history";
 import { CommercialTermsForm } from "@/features/partners/components/commercial-terms-form";
 import { CommercialTermsSummary } from "@/features/partners/components/commercial-terms-summary";
 import {
@@ -11,7 +12,7 @@ import {
   pickCommercialTerms,
   utcToday,
 } from "@/features/partners/lib/commercial-terms";
-import { getCommercialTerms } from "@/features/partners/lib/get-commercial-terms";
+import { COMMERCIAL_TERMS_LIMIT, getCommercialTerms } from "@/features/partners/lib/get-commercial-terms";
 import { getPartnerById } from "@/features/partners/lib/get-partner-by-id";
 
 interface CommercialTermsPageProps {
@@ -19,7 +20,7 @@ interface CommercialTermsPageProps {
 }
 
 /**
- * VI-F04-S01: set and review the commercial terms of a partner. Admin and operations manager
+ * VI-F04-S01 and S03: set and review the commercial terms of a partner, and read the earlier ones. Admin and operations manager
  * open it (`partners:manage`); only an admin gets the form (spec Q1 is open), the operations
  * manager reads. The save checks the role again on the server and in the database. An unknown
  * partner is not found.
@@ -35,7 +36,8 @@ export default async function CommercialTermsPage({ params }: CommercialTermsPag
   }
 
   const today = utcToday();
-  const versions = await getCommercialTerms(partner.id);
+  const { versions, truncated } = await getCommercialTerms(partner.id);
+  const terms = pickCommercialTerms(versions, today);
   const canEdit = user.role === "admin";
 
   return (
@@ -52,7 +54,7 @@ export default async function CommercialTermsPage({ params }: CommercialTermsPag
         </Link>
       </div>
 
-      <CommercialTermsSummary terms={pickCommercialTerms(versions, today)} />
+      <CommercialTermsSummary terms={terms} />
 
       {canEdit ? (
         <section className="flex flex-col gap-4">
@@ -73,6 +75,8 @@ export default async function CommercialTermsPage({ params }: CommercialTermsPag
           <AlertDescription>Only an admin can change commercial terms.</AlertDescription>
         </Alert>
       )}
+
+      <CommercialTermsHistory earlier={terms.earlier} truncated={truncated} limit={COMMERCIAL_TERMS_LIMIT} />
     </div>
   );
 }

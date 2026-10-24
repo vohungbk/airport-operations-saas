@@ -32,11 +32,15 @@ export interface PickedCommercialTerms {
   current: CommercialTermsVersion | null;
   /** Terms that start later, soonest first. */
   upcoming: CommercialTermsVersion[];
+  /** Terms that have ended, newest first: the history (VI-F04-S03). */
+  earlier: CommercialTermsVersion[];
 }
 
 /**
- * Pure. From the versions of a partner and the date of today: the one in force and the ones
- * that have not started. A version is in force from its start to its end, both included.
+ * Pure. From the versions of a partner and the date of today: the one in force, the ones that
+ * have not started and the ones that have ended. A version is in force from its start to its end,
+ * both included, so a version that ends today is still in force today. The same function gives
+ * the terms of a rental for the day it was completed: pass that day instead of today.
  */
 export function pickCommercialTerms(
   versions: readonly CommercialTermsVersion[],
@@ -54,7 +58,11 @@ export function pickCommercialTerms(
     .filter((version) => version.effective_from > today)
     .sort((a, b) => a.effective_from.localeCompare(b.effective_from));
 
-  return { current, upcoming };
+  const earlier = versions
+    .filter((version) => version.effective_to !== null && version.effective_to < today)
+    .sort((a, b) => b.effective_from.localeCompare(a.effective_from));
+
+  return { current, upcoming, earlier };
 }
 
 export interface CommercialTermsFormValues {
