@@ -171,6 +171,18 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
       }
     });
 
+    it("should show the launch credit of the partner that is in its launch period, and none for the other (VI-F04-S06)", async () => {
+      const [dcr, dmo] = await rows("bookings", [bookingId(25), bookingId(26)]);
+
+      // Demo Car Rental: 270.00 gross, 50 percent launch against 30 percent standard: 54.00 of credit.
+      expect(Number(dcr.launch_credit)).toBe(54);
+      expect(Number(dcr.launch_credit_balance)).toBe(54);
+      expect(Number(dcr.partner_share)).toBe(135);
+      // Demo Mobility has no target: the standard share, no credit.
+      expect(Number(dmo.launch_credit)).toBe(0);
+      expect(dmo.launch_credit_balance).toBeNull();
+    });
+
     it("should have a booking history that ends at the booking's status, with each step starting where the last ended", async () => {
       const byBooking = Map.groupBy(
         await eventsOfBookings(SEED_BOOKING_IDS),

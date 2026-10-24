@@ -51,3 +51,43 @@ export const complete = (name: string, id: string, pickup: string, ret: string, 
       coalesce(b.revenue_flag, 'null'), b.pickup_at, b.return_at;
   end $$;`;
 
+export const partnerId = (n: number) => `d5000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
+export const bookingId = (n: number) => `d5100000-0000-0000-0000-${String(n).padStart(12, "0")}`;
+export const termsId = (n: number) => `d5200000-0000-0000-0000-${String(n).padStart(12, "0")}`;
+
+export const newPartner = (n: number) =>
+  `insert into public.partners (id, name, code, contact_email)
+   values ('${partnerId(n)}', 'RS partner ${n}', 'RS${n}', 'rs${n}@test.example');`;
+
+/**
+ * A version of the terms of a partner; `to` is a SQL expression or `null`. The launch share
+ * defaults to 100 and there is no launch credit target unless one is given.
+ */
+export const newTerms = (
+  n: number,
+  partner: number,
+  percent: number,
+  from: string,
+  to = "null",
+  launch = 100,
+  target = "null",
+) =>
+  `insert into public.partner_commercial_terms
+     (id, partner_id, partner_share_percent, platform_share_percent, launch_partner_share_percent, launch_credit_target, effective_from, effective_to)
+   values ('${termsId(n)}', '${partnerId(partner)}', ${percent}, ${100 - percent}, ${launch}, ${target}, ${from}, ${to});`;
+
+export const newBooking = (n: number, partner: number, ret: string, rate: string, pickup = "2030-01-01 10:00:00+00") =>
+  `insert into public.bookings (id, booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate)
+   values ('${bookingId(n)}', 'RS-${n}', '${partnerId(partner)}', '${AIRPORT}', '${pickup}', '${ret}', '${CATEGORY}', ${rate});`;
+
+export const completeBooking = (n: number) => `${FLAG_ON}
+  update public.bookings set status = 'completed' where id = '${bookingId(n)}';`;
+
+/** Reports the revenue fields of a booking as `R|name|paid|gross|partner|platform|flag|terms`. */
+export const report = (name: string, n: number) => `
+  do $$ declare b record; begin
+    select * into b from public.bookings where id = '${bookingId(n)}';
+    raise notice 'R|${name}|%|%|%|%|%|%', b.paid_days, coalesce(b.gross_revenue::text, 'null'),
+      coalesce(b.partner_share::text, 'null'), coalesce(b.platform_share::text, 'null'),
+      coalesce(b.revenue_flag, 'null'), coalesce(b.commercial_terms_id::text, 'null');
+  end $$;`;
