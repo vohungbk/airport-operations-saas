@@ -182,6 +182,7 @@ export type Database = {
           booking_number: string
           child_age_band: string | null
           child_height: number | null
+          commercial_terms_id: string | null
           created_at: string
           daily_rate: number
           estimated_arrival_at: string | null
@@ -214,6 +215,7 @@ export type Database = {
           booking_number: string
           child_age_band?: string | null
           child_height?: number | null
+          commercial_terms_id?: string | null
           created_at?: string
           daily_rate: number
           estimated_arrival_at?: string | null
@@ -247,6 +249,7 @@ export type Database = {
           booking_number?: string
           child_age_band?: string | null
           child_height?: number | null
+          commercial_terms_id?: string | null
           created_at?: string
           daily_rate?: number
           estimated_arrival_at?: string | null
@@ -278,6 +281,13 @@ export type Database = {
             columns: ["airport_id"]
             isOneToOne: false
             referencedRelation: "airports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_commercial_terms_id_fkey"
+            columns: ["commercial_terms_id"]
+            isOneToOne: false
+            referencedRelation: "partner_commercial_terms"
             referencedColumns: ["id"]
           },
           {
@@ -1391,6 +1401,13 @@ export type Database = {
           revenue_flag: string
         }[]
       }
+      booking_shares: {
+        Args: { p_gross_revenue: number; p_partner_share_percent: number }
+        Returns: {
+          partner_share: number
+          platform_share: number
+        }[]
+      }
       change_booking_status: {
         Args: {
           p_booking_id: string
@@ -1405,6 +1422,7 @@ export type Database = {
           booking_number: string
           child_age_band: string | null
           child_height: number | null
+          commercial_terms_id: string | null
           created_at: string
           daily_rate: number
           estimated_arrival_at: string | null
@@ -1551,6 +1569,7 @@ export type Database = {
           booking_number: string
           child_age_band: string | null
           child_height: number | null
+          commercial_terms_id: string | null
           created_at: string
           daily_rate: number
           estimated_arrival_at: string | null
@@ -1604,6 +1623,7 @@ export type Database = {
           booking_number: string
           child_age_band: string | null
           child_height: number | null
+          commercial_terms_id: string | null
           created_at: string
           daily_rate: number
           estimated_arrival_at: string | null
@@ -1701,6 +1721,7 @@ export type Database = {
           booking_number: string
           child_age_band: string | null
           child_height: number | null
+          commercial_terms_id: string | null
           created_at: string
           daily_rate: number
           estimated_arrival_at: string | null
@@ -1753,6 +1774,7 @@ export type Database = {
           booking_number: string
           child_age_band: string | null
           child_height: number | null
+          commercial_terms_id: string | null
           created_at: string
           daily_rate: number
           estimated_arrival_at: string | null

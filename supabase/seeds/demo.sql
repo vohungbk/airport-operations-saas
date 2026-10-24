@@ -280,6 +280,16 @@ begin
 
   perform set_config('app.job_status_change', '', false);
 
+  -- The agreed terms of the two partners, in force before the rentals below are closed (VI-F04).
+  insert into public.partner_commercial_terms (
+    id, partner_id, partner_share_percent, platform_share_percent, launch_partner_share_percent,
+    annual_fee, onboarding_fee, vat_rate_percent, payment_terms_days, effective_from
+  )
+  values
+    ('c1000000-0000-0000-0000-000000000001', c_dcr, 30, 70, 50, 1200, 300, 20, 14, '2026-01-01'),
+    ('c1000000-0000-0000-0000-000000000002', c_dmo, 35, 65, 55, 1500, 0, 20, 30, '2026-01-01')
+  on conflict (id) do nothing;
+
   -- The rentals that are over, closed by operations.
   perform set_config('request.jwt.claim.sub', c_ops::text, false);
   -- Completing a rental calculates its paid days and gross revenue (VI-F04-S04).
