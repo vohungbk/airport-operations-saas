@@ -176,6 +176,7 @@ export type Database = {
       bookings: {
         Row: {
           actual_arrival_at: string | null
+          actual_return_at: string | null
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -201,6 +202,7 @@ export type Database = {
           platform_share: number | null
           rental_days: number | null
           return_at: string
+          revenue_case: string | null
           revenue_flag: string | null
           scheduled_arrival_at: string | null
           seat_category_id: string
@@ -211,6 +213,7 @@ export type Database = {
         }
         Insert: {
           actual_arrival_at?: string | null
+          actual_return_at?: string | null
           airport_id: string
           assigned_seat_id?: string | null
           assigned_technician_id?: string | null
@@ -237,6 +240,7 @@ export type Database = {
           platform_share?: number | null
           rental_days?: number | null
           return_at: string
+          revenue_case?: string | null
           revenue_flag?: string | null
           scheduled_arrival_at?: string | null
           seat_category_id: string
@@ -247,6 +251,7 @@ export type Database = {
         }
         Update: {
           actual_arrival_at?: string | null
+          actual_return_at?: string | null
           airport_id?: string
           assigned_seat_id?: string | null
           assigned_technician_id?: string | null
@@ -273,6 +278,7 @@ export type Database = {
           platform_share?: number | null
           rental_days?: number | null
           return_at?: string
+          revenue_case?: string | null
           revenue_flag?: string | null
           scheduled_arrival_at?: string | null
           seat_category_id?: string
@@ -1398,6 +1404,13 @@ export type Database = {
         Returns: undefined
       }
       booking_partner_id: { Args: { p_booking_id: string }; Returns: string }
+      booking_case_revenue: {
+        Args: { p_case: string }
+        Returns: {
+          gross_revenue: number
+          paid_days: number
+        }[]
+      }
       booking_revenue_terms: {
         Args: { p_daily_rate: number; p_pickup_at: string; p_return_at: string }
         Returns: {
@@ -1422,6 +1435,7 @@ export type Database = {
         }
         Returns: {
           actual_arrival_at: string | null
+          actual_return_at: string | null
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -1447,6 +1461,7 @@ export type Database = {
           platform_share: number | null
           rental_days: number | null
           return_at: string
+          revenue_case: string | null
           revenue_flag: string | null
           scheduled_arrival_at: string | null
           seat_category_id: string
@@ -1571,6 +1586,7 @@ export type Database = {
         }
         Returns: {
           actual_arrival_at: string | null
+          actual_return_at: string | null
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -1596,6 +1612,7 @@ export type Database = {
           platform_share: number | null
           rental_days: number | null
           return_at: string
+          revenue_case: string | null
           revenue_flag: string | null
           scheduled_arrival_at: string | null
           seat_category_id: string
@@ -1627,6 +1644,7 @@ export type Database = {
         }
         Returns: {
           actual_arrival_at: string | null
+          actual_return_at: string | null
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -1652,6 +1670,7 @@ export type Database = {
           platform_share: number | null
           rental_days: number | null
           return_at: string
+          revenue_case: string | null
           revenue_flag: string | null
           scheduled_arrival_at: string | null
           seat_category_id: string
@@ -1727,6 +1746,7 @@ export type Database = {
         }
         Returns: {
           actual_arrival_at: string | null
+          actual_return_at: string | null
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -1752,6 +1772,7 @@ export type Database = {
           platform_share: number | null
           rental_days: number | null
           return_at: string
+          revenue_case: string | null
           revenue_flag: string | null
           scheduled_arrival_at: string | null
           seat_category_id: string
@@ -1782,6 +1803,7 @@ export type Database = {
         }
         Returns: {
           actual_arrival_at: string | null
+          actual_return_at: string | null
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -1807,6 +1829,7 @@ export type Database = {
           platform_share: number | null
           rental_days: number | null
           return_at: string
+          revenue_case: string | null
           revenue_flag: string | null
           scheduled_arrival_at: string | null
           seat_category_id: string

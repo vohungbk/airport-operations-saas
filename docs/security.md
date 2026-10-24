@@ -1919,6 +1919,12 @@ Supabase stack and skip without it.
   transaction ends. The trigger writes only to the booking being completed and to the version of
   the terms in use (the copy for display). A partner user reads only its own bookings and terms
   (unchanged RLS), so a balance is not visible across partners.
+- **Cancelled, no-show and early return (VI-F04-S07).** A trigger prices a booking that becomes
+  `cancelled` or `no_show` as not charged, from one function (`booking_case_revenue()`), and
+  `revenue_case` keeps the case. It reads no table and writes only the booking it is run for. A
+  rental completed after an early return is charged for the time it really lasted. `revenue_case` and
+  `actual_return_at` are locked like the other finance fields (`55000`). What a cancellation or a
+  no-show is charged is an assumption while spec Q3 is open.
 - **A rental with no duration is not charged.** It is flagged (`invalid_duration`), `paid_days`
   is 0 and `gross_revenue` is null until its period is corrected. The way to correct a completed
   booking is not built (the booking edit refuses it); the adjustment stories (VI-F04-S09 to S11)

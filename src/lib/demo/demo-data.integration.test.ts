@@ -151,7 +151,14 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
       for (const booking of await rows("bookings", SEED_BOOKING_IDS)) {
         expect(new Date(booking.return_at) >= new Date(booking.pickup_at), booking.booking_number).toBe(true);
         expect(Number(booking.daily_rate), booking.booking_number).toBeGreaterThanOrEqual(0);
+        if (booking.status === "cancelled" || booking.status === "no_show") {
+          // Cancelled and no-show bookings are not charged (VI-F04-S07).
+          expect(booking.revenue_case, booking.booking_number).toBe(booking.status);
+          expect(Number(booking.gross_revenue), booking.booking_number).toBe(0);
+          expect(booking.paid_days, booking.booking_number).toBe(0);
+        }
         if (booking.status === "completed") {
+          expect(booking.revenue_case, booking.booking_number).toBe("standard");
           // The six-day cap (VI-F04-S04): the paid days, the rental days and the gross agree.
           expect(booking.paid_days, booking.booking_number).toBeGreaterThan(0);
           expect(booking.paid_days, booking.booking_number).toBeLessThanOrEqual(6);

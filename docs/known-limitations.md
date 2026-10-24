@@ -95,3 +95,9 @@ has been checked; remove a line when it is fixed.
   rentals completed after it are not calculated again, so their balances can be out of date until
   they are corrected too. There is no switch for launch: a target turns it on, reaching it turns it
   off, and a launch share equal to the standard share never makes progress toward the target.
+- **What a cancellation, a no-show and an early return are charged is an assumption (VI-F04-S07).**
+  Spec Q3 is open. A cancelled booking and a no-show are not charged (paid days 0, revenue 0.00); an
+  early return is charged for the time it lasted. The rule is in `booking_case_revenue()` and the
+  completion trigger. Nothing writes `actual_return_at` yet (the return chain, F14 and F15, will), so
+  no early return happens outside the tests. Refunds, partial or full, are not handled
+  (VI-F04-S09 to S11).
