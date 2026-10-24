@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { dbContainer, runSql } from "@/lib/db-test-support";
+import {
+  AIRPORT,
+  CATEGORY,
+  FLAG_ON,
+  PARTNER,
+  available,
+  complete,
+  insertBooking,
+  run,
+} from "@/lib/finance/finance-test-support";
 
 /**
  * VI-F04-S04 (spec R10, E1, E2): when a rental is completed, paid days = the smaller of the
@@ -12,40 +21,6 @@ import { dbContainer, runSql } from "@/lib/db-test-support";
  * Nothing in the app sets a booking to completed yet (the return chain does, F14 and F15), so
  * the tests do it the way the booking functions do: with the flag `app.booking_change`.
  */
-const available = dbContainer() !== null && runSql("select 1;")?.ok === true;
-
-const PARTNER = "b0000000-0000-0000-0000-000000000001";
-const AIRPORT = "a0000000-0000-0000-0000-000000000001";
-const CATEGORY = "c0000000-0000-0000-0000-000000000001";
-
-/** Runs a script in a transaction that is rolled back, and returns its `R|...` notices. */
-function run(script: string): string[][] {
-  const result = runSql(`begin;\n${script}\nrollback;`);
-  if (!result?.ok) throw new Error(result?.output ?? "docker is not available");
-  return result.output
-    .split("\n")
-    .map((line) => /R\|(.*)$/.exec(line)?.[1])
-    .filter((row): row is string => row !== undefined)
-    .map((row) => row.split("|"));
-}
-
-const insertBooking = (id: string, pickup: string, ret: string, rate: string) =>
-  `insert into public.bookings (id, booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate)
-   values ('${id}', 'PD-${id.slice(-4)}', '${PARTNER}', '${AIRPORT}', '${pickup}', '${ret}', '${CATEGORY}', ${rate});`;
-
-const FLAG_ON = `select set_config('app.booking_change', 'on', true);`;
-
-/** Inserts a booking, completes it, and reports what the rule wrote. */
-const complete = (name: string, id: string, pickup: string, ret: string, rate: string) => `
-  ${insertBooking(id, pickup, ret, rate)}
-  ${FLAG_ON}
-  update public.bookings set status = 'completed' where id = '${id}';
-  do $$ declare b record; begin
-    select * into b from public.bookings where id = '${id}';
-    raise notice 'R|${name}|%|%|%|%|%|%', b.rental_days, b.paid_days, coalesce(b.gross_revenue::text, 'null'),
-      coalesce(b.revenue_flag, 'null'), b.pickup_at, b.return_at;
-  end $$;`;
-
 interface Case {
   name: string;
   pickup: string;

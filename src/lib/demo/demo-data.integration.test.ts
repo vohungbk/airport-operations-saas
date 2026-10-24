@@ -11,6 +11,7 @@ import {
   CLEANING_IDS,
   DCR,
   DEMO_ACCOUNTS,
+  DEMO_TERMS_IDS,
   DMO,
   INCIDENT_IDS,
   INSPECTION_IDS,
@@ -160,6 +161,12 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
             2,
           );
           expect(booking.revenue_flag, booking.booking_number).toBeNull();
+          // The shares (VI-F04-S05): from the terms of the partner, adding up to the gross.
+          expect(Number(booking.partner_share) + Number(booking.platform_share), booking.booking_number).toBeCloseTo(
+            Number(booking.gross_revenue),
+            2,
+          );
+          expect(booking.commercial_terms_id, booking.booking_number).not.toBeNull();
         }
       }
     });
@@ -311,7 +318,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
   describe("no real data (spec R3, VI-F07-S03)", () => {
     // Every table the seed puts rows in. A table that is not here and not in
     // NOT_SEEDED fails the check below, so a new table forces a decision.
-    const NOT_SEEDED = ["flights", "settlements", "invoices", "partner_commercial_terms", "ai_queries"];
+    const NOT_SEEDED = ["flights", "settlements", "invoices", "ai_queries"];
 
     /** The rows of the seed, every column of them, by table. */
     async function seededRows() {
@@ -330,6 +337,8 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
         cleaning_records: await rows("cleaning_records", CLEANING_IDS),
         inspection_records: await rows("inspection_records", INSPECTION_IDS),
         incidents: await rows("incidents", INCIDENT_IDS),
+        // The rows of the demo terms only: the RLS suite makes its own for the same partners.
+        partner_commercial_terms: await rows("partner_commercial_terms", DEMO_TERMS_IDS),
         booking_events: await eventsOfBookings(SEED_BOOKING_IDS.slice(2)),
         seat_status_history: await rows("seat_status_history", undefined, { column: "seat_id", in: SEED_SEAT_IDS }),
         technician_job_events: await rows("technician_job_events", undefined, {
@@ -392,7 +401,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
           users: 0, partners: 0, airports: 0, seat_categories: 0, seats: 0, bookings: 0,
           technician_jobs: 0, installations: 0, cleaning_records: 0, inspection_records: 0,
           incidents: 0, booking_events: 0, seat_status_history: 0, technician_job_events: 0,
-          incident_status_history: 0,
+          incident_status_history: 0, partner_commercial_terms: 0,
         }),
         ...NOT_SEEDED,
       ]);

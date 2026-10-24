@@ -94,6 +94,37 @@ const CASES: Case[] = [
     outside: booking("DR-21", undefined, undefined, 7),
   },
   {
+    constraint: "bookings_gross_revenue_check",
+    code: "23514",
+    inside: `${bookingWith("DR-30", "gross_revenue", "0")} ${bookingWith("DR-31", "gross_revenue", "null")}`,
+    outside: bookingWith("DR-32", "gross_revenue", "-0.01"),
+  },
+  // The shares: each outside row breaks only the rule under test (Postgres checks in name order).
+  {
+    constraint: "bookings_partner_share_check",
+    code: "23514",
+    inside: bookingWith("DR-33", "gross_revenue, partner_share, platform_share", "100, 0, 100"),
+    outside: bookingWith("DR-34", "gross_revenue, partner_share, platform_share", "100, -1, 101"),
+  },
+  {
+    constraint: "bookings_platform_share_check",
+    code: "23514",
+    inside: bookingWith("DR-35", "gross_revenue, partner_share, platform_share", "100, 100, 0"),
+    outside: bookingWith("DR-36", "gross_revenue, partner_share, platform_share", "100, 101, -1"),
+  },
+  {
+    constraint: "bookings_shares_together_check",
+    code: "23514",
+    inside: `${bookingWith("DR-37", "gross_revenue, partner_share, platform_share", "10, 5, 5")} ${bookingWith("DR-38", "gross_revenue", "10")}`,
+    outside: bookingWith("DR-39", "gross_revenue, partner_share", "10, 5"),
+  },
+  {
+    constraint: "bookings_shares_sum_check",
+    code: "23514",
+    inside: bookingWith("DR-40", "gross_revenue, partner_share, platform_share", "10, 5, 5"),
+    outside: bookingWith("DR-41", "gross_revenue, partner_share, platform_share", "10, 5, 4"),
+  },
+  {
     constraint: "bookings_rental_days_check",
     code: "23514",
     inside: `${bookingWith("DR-22", "rental_days", "0")} ${bookingWith("DR-23", "rental_days", "null")}`,
@@ -102,7 +133,7 @@ const CASES: Case[] = [
   {
     constraint: "bookings_revenue_flag_check",
     code: "23514",
-    inside: `${bookingWith("DR-25", "revenue_flag", "'invalid_duration'")} ${bookingWith("DR-26", "revenue_flag", "null")}`,
+    inside: `${bookingWith("DR-25", "revenue_flag", "'invalid_duration'")} ${bookingWith("DR-26", "revenue_flag", "null")} ${bookingWith("DR-28", "revenue_flag", "'no_terms'")}`,
     outside: bookingWith("DR-27", "revenue_flag", "'other'"),
   },
   {

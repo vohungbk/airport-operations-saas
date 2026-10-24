@@ -40,6 +40,8 @@ export const INSTALLATION_IDS = [1, 3, 4].map((n) => idOf("11000000", n));
 export const CLEANING_IDS = [idOf("12000000", 5)];
 export const INSPECTION_IDS = [idOf("13000000", 6)];
 export const INCIDENT_IDS = [1, 2].map((n) => idOf("14000000", n));
+/** The agreed terms of the two demo partners (VI-F04). */
+export const DEMO_TERMS_IDS = [1, 2].map((n) => idOf("c1000000", n));
 export const CATEGORY_IDS = [1, 2, 3, 4].map((n) => idOf("c0000000", n));
 
 /** The ids of the people of the seed. */
