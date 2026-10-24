@@ -104,8 +104,11 @@ has been checked; remove a line when it is fixed.
 - **The booking revenue screen shows no currency (VI-F04-S08).** The currency is open (spec Q1), so
   amounts show two decimals only. A booking completed before the revenue columns existed
   has no revenue case and shows "No revenue yet".
-- **The adjustment form opens but cannot record anything yet (VI-F04-S09).** The screen shows the
-  current figures of the booking and a Cancel link; the fields (type, amount, reason), the checks and
-  the Save button, and the recalculation after a refund, come with VI-F04-S10 and S11. Whether the
-  operations manager may add adjustments is "conditional" in the spec with no condition; both an admin
-  and an operations manager may until the product owner decides.
+- **Adjustments (VI-F04-S10): four rules are assumptions.** (1) All four types take money away; the
+  spec does not say which way a manual adjustment goes (`booking_adjustment_sign()` is the one place to
+  change). (2) The amount of any type is at most the gross revenue the booking has now; "partial" and
+  "full" are labels (spec Q3 is open). (3) An adjustment does not change the launch credit (spec Q4 is
+  open); the shares are recalculated on the gross revenue that is left. (4) Both an admin and an
+  operations manager may add an adjustment (the spec calls the operations manager "conditional"). A
+  booking in an approved settlement is not handled (spec Q5, R19, E8) because there are no settlements
+  yet. The list of adjustments does not show who recorded them (stored in `created_by`).
