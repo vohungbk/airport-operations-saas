@@ -121,6 +121,17 @@ export const FINANCE_ACCESS_PERMISSIONS = [
   "finance:view_own_partner",
 ] as const satisfies readonly Permission[];
 
+/**
+ * Who may add an adjustment, a refund or a chargeback to a booking (VI-F04-S09): an admin and an
+ * operations manager, who both hold `finance:view`. The spec gives the operations manager
+ * "conditional" rights without saying when (assumption: both may). A partner user and a technician
+ * may not. The permission matrix is unchanged; this is an any-of set, and the database function of
+ * the story that records the adjustment checks the role again.
+ */
+export const FINANCE_ADJUSTMENT_PERMISSIONS = [
+  "finance:view",
+] as const satisfies readonly Permission[];
+
 /** Who may enter `/jobs`: managers (all jobs) and technicians (own jobs). */
 export const JOBS_ACCESS_PERMISSIONS = [
   "technicians:manage",
