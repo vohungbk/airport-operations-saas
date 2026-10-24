@@ -14,6 +14,11 @@ const version = (id: string, from: string, to: string | null = null): Commercial
   partner_share_percent: 30,
   platform_share_percent: 70,
   launch_partner_share_percent: 50,
+  launch_credit_target: null,
+  annual_fee: 0,
+  onboarding_fee: 0,
+  vat_rate_percent: 0,
+  payment_terms_days: 14,
   effective_from: from,
   effective_to: to,
 });
@@ -78,20 +83,39 @@ describe("pickCommercialTerms", () => {
 });
 
 describe("defaultCommercialTermsFormValues", () => {
-  it("should start a partner with no terms at 30 and 50, from today", () => {
+  it("should start a partner with no terms at 30 and 50, no target, no fees, no VAT and 14 days, from today", () => {
     expect(defaultCommercialTermsFormValues([], "2026-10-24")).toEqual({
       partner_share_percent: 30,
       launch_partner_share_percent: 50,
+      launch_credit_target: null,
+      annual_fee: 0,
+      onboarding_fee: 0,
+      vat_rate_percent: 0,
+      payment_terms_days: 14,
       effective_from: "2026-10-24",
     });
   });
 
   it("should start from the shares of the latest version, from today when it has started", () => {
-    const latest = { ...version("a", "2026-01-01"), partner_share_percent: 40, launch_partner_share_percent: 60 };
+    const latest = {
+      ...version("a", "2026-01-01"),
+      partner_share_percent: 40,
+      launch_partner_share_percent: 60,
+      launch_credit_target: 5000,
+      annual_fee: 1200,
+      onboarding_fee: 300,
+      vat_rate_percent: 20,
+      payment_terms_days: 30,
+    };
 
     expect(defaultCommercialTermsFormValues([version("old", "2025-01-01", "2025-12-31"), latest], "2026-10-24")).toEqual({
       partner_share_percent: 40,
       launch_partner_share_percent: 60,
+      launch_credit_target: 5000,
+      annual_fee: 1200,
+      onboarding_fee: 300,
+      vat_rate_percent: 20,
+      payment_terms_days: 30,
       effective_from: "2026-10-24",
     });
   });

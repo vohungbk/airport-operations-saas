@@ -51,6 +51,9 @@ const seat = (serial: string, token: string, maxCycles = 10, cycles = 0) =>
 const terms = (partnerShare: string, platformShare: string, launchShare = "100", effectiveTo = "null") =>
   `insert into public.partner_commercial_terms (partner_id, partner_share_percent, platform_share_percent, launch_partner_share_percent, effective_from, effective_to)
    values (${PARTNER}, ${partnerShare}, ${platformShare}, ${launchShare}, '2030-01-01', ${effectiveTo});`;
+/** A row of the terms with one column set, for the constraints of VI-F04-S02. */
+const termsWith = (column: string, value: string) =>
+  `insert into public.partner_commercial_terms (partner_id, effective_from, ${column}) values (${PARTNER}, '2030-01-01', ${value});`;
 const job = (type: string, status: string) =>
   `insert into public.technician_jobs (booking_id, technician_id, job_type, status) values (${BOOKING}, ${USER}, '${type}', '${status}');`;
 const user = (email: string) =>
@@ -97,6 +100,36 @@ const CASES: Case[] = [
     code: "23505",
     inside: `insert into public.invoices (partner_id, invoice_number, issue_date, due_date, subtotal, total) values (${PARTNER}, 'DR-INV-1', '2030-01-01', '2030-01-31', 1, 1);`,
     outside: `insert into public.invoices (partner_id, invoice_number, issue_date, due_date, subtotal, total) values (${PARTNER}, 'DR-INV-1', '2030-02-01', '2030-02-28', 1, 1);`,
+  },
+  {
+    constraint: "partner_commercial_terms_annual_fee_check",
+    code: "23514",
+    inside: termsWith("annual_fee", "0"),
+    outside: termsWith("annual_fee", "-0.01"),
+  },
+  {
+    constraint: "partner_commercial_terms_launch_credit_target_check",
+    code: "23514",
+    inside: `${termsWith("launch_credit_target", "0")} ${termsWith("launch_credit_target", "null")}`,
+    outside: termsWith("launch_credit_target", "-0.01"),
+  },
+  {
+    constraint: "partner_commercial_terms_onboarding_fee_check",
+    code: "23514",
+    inside: termsWith("onboarding_fee", "0"),
+    outside: termsWith("onboarding_fee", "-0.01"),
+  },
+  {
+    constraint: "partner_commercial_terms_payment_terms_check",
+    code: "23514",
+    inside: `${termsWith("payment_terms_days", "0")} ${termsWith("payment_terms_days", "3650")}`,
+    outside: termsWith("payment_terms_days", "3651"),
+  },
+  {
+    constraint: "partner_commercial_terms_vat_rate_check",
+    code: "23514",
+    inside: `${termsWith("vat_rate_percent", "0")} ${termsWith("vat_rate_percent", "100")}`,
+    outside: termsWith("vat_rate_percent", "100.01"),
   },
   {
     constraint: "partner_commercial_terms_launch_not_below_partner_check",

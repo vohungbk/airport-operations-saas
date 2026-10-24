@@ -10,6 +10,11 @@ const version = (id: string, from: string, partner = 30): CommercialTermsVersion
   partner_share_percent: partner,
   platform_share_percent: 100 - partner,
   launch_partner_share_percent: 50,
+  launch_credit_target: null,
+  annual_fee: 1200,
+  onboarding_fee: 300.5,
+  vat_rate_percent: 7.5,
+  payment_terms_days: 14,
   effective_from: from,
   effective_to: null,
 });
@@ -32,6 +37,24 @@ describe("CommercialTermsSummary", () => {
     expect(html).toContain("65%");
     expect(html).toContain("50%");
     expect(html).toContain("2026-01-01");
+  });
+
+  it("should show the fees, the VAT rate and the payment terms of the terms in force (VI-F04-S02)", () => {
+    const html = render(version("a", "2026-01-01"));
+
+    expect(html).toContain("Annual programme fee");
+    expect(html).toContain("1200");
+    expect(html).toContain("300.5");
+    expect(html).toContain("7.5%");
+    expect(html).toContain("14 days");
+    expect(html).toContain(">None<");
+  });
+
+  it("should show the launch credit target when there is one", () => {
+    const html = render({ ...version("a", "2026-01-01"), launch_credit_target: 5000 });
+
+    expect(html).toContain("5000");
+    expect(html).not.toContain(">None<");
   });
 
   it("should show terms that start later apart from the ones in force", () => {

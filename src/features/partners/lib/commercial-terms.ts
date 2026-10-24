@@ -3,13 +3,19 @@ export interface CommercialTermsVersion {
   partner_share_percent: number;
   platform_share_percent: number;
   launch_partner_share_percent: number;
+  launch_credit_target: number | null;
+  annual_fee: number;
+  onboarding_fee: number;
+  vat_rate_percent: number;
+  payment_terms_days: number;
   effective_from: string;
   effective_to: string | null;
 }
 
-/** The default terms of a new partner (VI-F04 F1, F2). */
+/** The default terms of a new partner (VI-F04 F1, F2, F6); no target, no fees and no VAT until set. */
 export const DEFAULT_PARTNER_SHARE_PERCENT = 30;
 export const DEFAULT_LAUNCH_PARTNER_SHARE_PERCENT = 50;
+export const DEFAULT_PAYMENT_TERMS_DAYS = 14;
 
 /** The date of the server in UTC, as `YYYY-MM-DD`: the date the database calls today. */
 export function utcToday(now: Date = new Date()): string {
@@ -54,6 +60,11 @@ export function pickCommercialTerms(
 export interface CommercialTermsFormValues {
   partner_share_percent: number;
   launch_partner_share_percent: number;
+  launch_credit_target: number | null;
+  annual_fee: number;
+  onboarding_fee: number;
+  vat_rate_percent: number;
+  payment_terms_days: number;
   effective_from: string;
 }
 
@@ -65,8 +76,8 @@ export function dayAfter(date: string): string {
 }
 
 /**
- * Pure. What the form starts with: the shares of the latest version (or the defaults of 30 and
- * 50 when the partner has none), and an effective date that the database will accept: today,
+ * Pure. What the form starts with: the terms of the latest version (or the defaults when the
+ * partner has none: 30 and 50, no target, no fees, no VAT, 14 days to pay), and an effective date that the database will accept: today,
  * or the day after the start of the latest version when that is today or later.
  */
 export function defaultCommercialTermsFormValues(
@@ -79,6 +90,11 @@ export function defaultCommercialTermsFormValues(
     return {
       partner_share_percent: DEFAULT_PARTNER_SHARE_PERCENT,
       launch_partner_share_percent: DEFAULT_LAUNCH_PARTNER_SHARE_PERCENT,
+      launch_credit_target: null,
+      annual_fee: 0,
+      onboarding_fee: 0,
+      vat_rate_percent: 0,
+      payment_terms_days: DEFAULT_PAYMENT_TERMS_DAYS,
       effective_from: today,
     };
   }
@@ -86,6 +102,11 @@ export function defaultCommercialTermsFormValues(
   return {
     partner_share_percent: latest.partner_share_percent,
     launch_partner_share_percent: latest.launch_partner_share_percent,
+    launch_credit_target: latest.launch_credit_target,
+    annual_fee: latest.annual_fee,
+    onboarding_fee: latest.onboarding_fee,
+    vat_rate_percent: latest.vat_rate_percent,
+    payment_terms_days: latest.payment_terms_days,
     effective_from: latest.effective_from >= today ? dayAfter(latest.effective_from) : today,
   };
 }

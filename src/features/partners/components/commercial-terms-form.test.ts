@@ -16,6 +16,11 @@ const render = () =>
       defaultValues: {
         partner_share_percent: 30,
         launch_partner_share_percent: 50,
+        launch_credit_target: null,
+        annual_fee: 0,
+        onboarding_fee: 0,
+        vat_rate_percent: 0,
+        payment_terms_days: 14,
         effective_from: "2026-10-24",
       },
     }),
@@ -34,6 +39,17 @@ describe("CommercialTermsForm", () => {
 
   // The inputs are uncontrolled (react-hook-form fills them in the browser), so the start values
   // show on the screen in the derived platform share: 100 - 30.
+  it("should offer the launch target, the fees, the VAT rate and the payment terms (VI-F04-S02 AC01)", () => {
+    const html = render();
+
+    expect(html).toContain("Launch credit target (leave empty for none)");
+    expect(html).toContain("Annual programme fee");
+    expect(html).toContain("Onboarding credit");
+    expect(html).toContain("VAT rate (%)");
+    expect(html).toContain("Payment terms (days until an invoice is due)");
+    expect(html).toContain('id="payment_terms_days" type="number" data-slot="input" step="1"');
+  });
+
   it("should show the platform share as the rest, read only (AC03)", () => {
     const html = render();
 

@@ -61,8 +61,8 @@ describe("getCommercialTerms", () => {
     await expect(getCommercialTerms(PARTNER_ID)).rejects.toThrow("db down");
   });
 
-  it("should not select fees, the launch credit balance or the partner's private data", () => {
-    for (const column of ["annual_fee", "onboarding_fee", "launch_credit", "contact_email"]) {
+  it("should select the terms but not the launch credit balance or the partner's private data", () => {
+    for (const column of ["launch_credit_accumulated", "launch_mode", "contact_email", "partner_id"]) {
       expect(COMMERCIAL_TERMS_SELECT).not.toContain(column);
     }
   });
