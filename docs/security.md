@@ -1889,6 +1889,24 @@ Supabase stack and skip without it.
 | History is never deleted | Completed cleaning, seat history, job events and incident history refuse update and delete | Tested (older tests) |
 | The route that reads a code, the redirect, the not-found page and the response body | CO-F04-S13 and S14 | Tested: the real lookup for every role, forged and foreign tokens, the rendered card (see "Protect QR access") |
 
+## Paid days and gross revenue (VI-F04-S04)
+
+- **The rule runs in the database.** A trigger on `bookings` applies the six-day cap when a
+  booking becomes `completed`, so no screen, action or future workflow can complete a rental and
+  forget it, and nobody can pick the paid days by hand. `paid_days`, `rental_days`,
+  `revenue_flag` and `gross_revenue` can only be changed inside the booking functions
+  (`guard_booking_update()`, error `55000`), and `paid_days` can never be above 6 (a check).
+- **The trigger and the helper hold no authority.** `booking_revenue_terms()` is a pure function
+  with an empty `search_path`, not `SECURITY DEFINER`, and takes no user input beyond the booking
+  row. Only `authenticated` can run it. The trigger runs with the privileges of the caller and
+  reads nothing else.
+- **A rental with no duration is not charged.** It is flagged (`invalid_duration`), `paid_days`
+  is 0 and `gross_revenue` is null until its period is corrected. The way to correct a completed
+  booking is not built (the booking edit refuses it); the adjustment stories (VI-F04-S09 to S11)
+  come next.
+- **Open:** how a started day is counted (every started 24 hours is used) and what an early return
+  or a cancellation is charged (spec Q3, VI-F04-S07).
+
 ## Commercial terms (VI-F04-S01)
 
 - **Who can do what.** An admin and an operations manager open the Commercial terms screen of a

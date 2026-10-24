@@ -209,14 +209,33 @@ Indexes: `flight_number`, `airport_id`.
 | assigned_seat_id | uuid, FK → seats.id ON DELETE SET NULL | nullable |
 | assigned_technician_id | uuid, FK → users.id ON DELETE SET NULL | nullable |
 | daily_rate | numeric(12,2) not null | |
-| paid_days | integer not null default 0 | `check (>= 0)` |
-| gross_revenue / partner_share / platform_share | numeric(12,2) | nullable — computed later by F22 |
+| paid_days | integer not null default 0 | `check (>= 0)` and `check (<= 6)`: never above the six-day cap (VI-F04-S04) |
+| rental_days | integer | nullable; `check (>= 0)`; the actual number of rental days, not capped; set when the booking is completed |
+| revenue_flag | text | nullable; `check (null or 'invalid_duration')`; set when a completed rental has no duration |
+| gross_revenue | numeric(12,2) | nullable; paid days x the daily rate, set when the booking is completed (VI-F04-S04) |
+| partner_share / platform_share | numeric(12,2) | nullable — computed by the revenue share story (VI-F04-S05) |
 | status | booking_status not null default 'pending' | |
 | incident_status | incident_status | nullable |
 | notes | text | nullable |
 
 Indexes: `partner_id`, `status`, `pickup_at`, `return_at`,
 `assigned_seat_id`, `assigned_technician_id`, `flight_id`.
+
+**Six-day cap (VI-F04-S04, migration `20261107090000_booking_paid_days_cap.sql`).** When a booking
+becomes `completed`, the trigger `set_booking_revenue_on_completion` calls
+`public.booking_revenue_terms(pickup_at, return_at, daily_rate)` and writes `rental_days`,
+`paid_days`, `gross_revenue` and `revenue_flag`. Rental days count every started 24 hours from the
+pickup to the return (24 hours is 1 day, 24 hours and 1 second is 2; it does not depend on a time
+zone; this is an assumption until the product owner decides). Paid days are the smaller of the rental
+days and 6, and the gross revenue is the paid days x the daily rate, exact. `pickup_at` and
+`return_at` are not touched, so the actual duration stays. A rental with no duration gets
+`rental_days` 0, `paid_days` 0, `gross_revenue` null and `revenue_flag = 'invalid_duration'`; the
+table already refuses a return before the pickup. The calculation runs again if the period or the
+daily rate of a completed booking changes, which clears the flag once the period is corrected. The
+six is a constant in that function and in `bookings_paid_days_cap_check`. `rental_days` and
+`revenue_flag` can only be changed in the booking functions, like the other finance fields. Nothing
+sets a booking to `completed` yet (the return chain, F14 and F15, will); the trigger applies the
+rule to any path that does. Rollback SQL is at the top of the migration.
 
 **F11 additions** (`20261002070734_booking_numbering_event_log_and_guards.sql`,
 `20261002070738_booking_rpcs.sql`): sequence `public.booking_number_seq`
