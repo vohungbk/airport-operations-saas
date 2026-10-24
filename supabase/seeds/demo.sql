@@ -282,7 +282,8 @@ begin
 
   -- The rentals that are over, closed by operations.
   perform set_config('request.jwt.claim.sub', c_ops::text, false);
-  update public.bookings set status = 'completed', paid_days = 3
+  -- Completing a rental calculates its paid days and gross revenue (VI-F04-S04).
+  update public.bookings set status = 'completed'
    where id in ('f0000000-0000-0000-0000-000000000025', 'f0000000-0000-0000-0000-000000000026');
 
   perform set_config('app.booking_change', '', false);
