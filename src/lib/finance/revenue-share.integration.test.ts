@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { AIRPORT, CATEGORY, FLAG_ON, available, run } from "@/lib/finance/finance-test-support";
+import {
+  FLAG_ON,
+  available,
+  bookingId,
+  completeBooking,
+  newBooking,
+  newPartner,
+  newTerms,
+  report,
+  run,
+  termsId,
+} from "@/lib/finance/finance-test-support";
+
+const PICKUP = "2030-01-01 10:00:00+00";
 
 /**
  * VI-F04-S05 (spec R11, R17, A1): when a rental is completed, the partner and platform shares are
@@ -10,39 +23,8 @@ import { AIRPORT, CATEGORY, FLAG_ON, available, run } from "@/lib/finance/financ
  *
  * Each scenario makes its own partner, so the terms of the demo data do not matter.
  */
-const PICKUP = "2030-01-01 10:00:00+00";
 const SIX_DAYS_OR_MORE = "2030-01-08 10:00:00+00"; // 7 days: 6 are paid
 const THREE_DAYS = "2030-01-04 10:00:00+00";
-
-const partnerId = (n: number) => `d5000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
-const bookingId = (n: number) => `d5100000-0000-0000-0000-${String(n).padStart(12, "0")}`;
-const termsId = (n: number) => `d5200000-0000-0000-0000-${String(n).padStart(12, "0")}`;
-
-const newPartner = (n: number) =>
-  `insert into public.partners (id, name, code, contact_email)
-   values ('${partnerId(n)}', 'RS partner ${n}', 'RS${n}', 'rs${n}@test.example');`;
-
-/** A version of the terms of a partner; `to` is a SQL expression or `null`. */
-const newTerms = (n: number, partner: number, percent: number, from: string, to = "null") =>
-  `insert into public.partner_commercial_terms
-     (id, partner_id, partner_share_percent, platform_share_percent, launch_partner_share_percent, effective_from, effective_to)
-   values ('${termsId(n)}', '${partnerId(partner)}', ${percent}, ${100 - percent}, 100, ${from}, ${to});`;
-
-const newBooking = (n: number, partner: number, ret: string, rate: string, pickup = PICKUP) =>
-  `insert into public.bookings (id, booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate)
-   values ('${bookingId(n)}', 'RS-${n}', '${partnerId(partner)}', '${AIRPORT}', '${pickup}', '${ret}', '${CATEGORY}', ${rate});`;
-
-const completeBooking = (n: number) => `${FLAG_ON}
-  update public.bookings set status = 'completed' where id = '${bookingId(n)}';`;
-
-/** Reports the revenue fields of a booking as `R|name|paid|gross|partner|platform|flag|terms`. */
-const report = (name: string, n: number) => `
-  do $$ declare b record; begin
-    select * into b from public.bookings where id = '${bookingId(n)}';
-    raise notice 'R|${name}|%|%|%|%|%|%', b.paid_days, coalesce(b.gross_revenue::text, 'null'),
-      coalesce(b.partner_share::text, 'null'), coalesce(b.platform_share::text, 'null'),
-      coalesce(b.revenue_flag, 'null'), coalesce(b.commercial_terms_id::text, 'null');
-  end $$;`;
 
 const only = (rows: string[][], name: string) => {
   const row = rows.find((r) => r[0] === name);

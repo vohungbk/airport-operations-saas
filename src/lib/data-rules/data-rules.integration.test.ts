@@ -124,6 +124,25 @@ const CASES: Case[] = [
     inside: bookingWith("DR-40", "gross_revenue, partner_share, platform_share", "10, 5, 5"),
     outside: bookingWith("DR-41", "gross_revenue, partner_share, platform_share", "10, 5, 4"),
   },
+  // The launch credit (VI-F04-S06); each outside row breaks only the rule under test.
+  {
+    constraint: "bookings_launch_credit_check",
+    code: "23514",
+    inside: `${bookingWith("DR-50", "launch_credit", "0")} ${bookingWith("DR-51", "launch_credit, launch_credit_balance", "5, 5")}`,
+    outside: bookingWith("DR-52", "launch_credit, launch_credit_balance", "-1, 5"),
+  },
+  {
+    constraint: "bookings_launch_credit_balance_check",
+    code: "23514",
+    inside: `${bookingWith("DR-53", "launch_credit_balance", "0")} ${bookingWith("DR-54", "launch_credit_balance", "null")}`,
+    outside: bookingWith("DR-55", "launch_credit_balance", "-1"),
+  },
+  {
+    constraint: "bookings_launch_credit_together_check",
+    code: "23514",
+    inside: `${bookingWith("DR-56", "launch_credit, launch_credit_balance", "5, 5")} ${bookingWith("DR-57", "launch_credit", "0")}`,
+    outside: bookingWith("DR-58", "launch_credit", "5"),
+  },
   {
     constraint: "bookings_rental_days_check",
     code: "23514",

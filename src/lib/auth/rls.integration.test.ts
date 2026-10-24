@@ -7154,7 +7154,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(await versionsOf(partnerId)).toEqual([]);
     });
 
-    it("should carry the launch mode and the launch credit balance to the new version, and take the other terms from the call", async () => {
+    it("should carry the launch credit balance to the new version, and take the other terms from the call", async () => {
       const partnerId = await newPartner();
       await save(adminClient, partnerId, 30, 50, dayFromToday(0), { launchTarget: 1000, annualFee: 99 });
       await service
@@ -7165,12 +7165,32 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       await save(adminClient, partnerId, 30, 50, dayFromToday(5), { launchTarget: 2000, annualFee: 120 });
       const [first, latest] = await versionsOf(partnerId);
 
-      expect(latest.launch_mode).toBe(true);
       expect(Number(latest.launch_credit_accumulated)).toBe(125.5);
       expect(Number(latest.launch_credit_target)).toBe(2000);
       expect(Number(latest.annual_fee)).toBe(120);
       expect(Number(first.launch_credit_target)).toBe(1000);
       expect(Number(first.annual_fee)).toBe(99);
+    });
+
+    // VI-F04-S06: launch terms are active while there is a target the balance has not reached.
+    it.each([
+      ["a target above the balance", 2000, true],
+      ["a target equal to the balance", 125.5, false],
+      ["a target below the balance", 100, false],
+      ["no target", null, false],
+    ] as const)("should set launch_mode of the new version from %s", async (_name, target, expected) => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 30, 50, dayFromToday(0), { launchTarget: 1000 });
+      await service
+        .from("partner_commercial_terms")
+        .update({ launch_credit_accumulated: 125.5 })
+        .eq("partner_id", partnerId);
+
+      await save(adminClient, partnerId, 30, 50, dayFromToday(5), { launchTarget: target });
+      const latest = (await versionsOf(partnerId))[1];
+
+      expect(latest.launch_mode).toBe(expected);
+      expect(Number(latest.launch_credit_accumulated)).toBe(125.5);
     });
 
     it.each([

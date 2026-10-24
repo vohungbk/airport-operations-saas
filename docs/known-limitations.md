@@ -88,3 +88,10 @@ has been checked; remove a line when it is fixed.
   assumption until spec Q1 is decided. A rental completed for a partner with no terms in force gets
   the flag `no_terms` and no shares, and they are not calculated again when terms are added later
   unless its period or rate changes. A booking completed before the migration is not calculated.
+- **Launch credit: two rules are assumptions (VI-F04-S06).** A rental that crosses the launch
+  target gets the launch share in full and the balance may end above the target (spec Q6 is open).
+  A refund or a chargeback does not reduce the launch credit (spec Q4 is open; VI-F04-S09 to S11).
+  When a completed rental is calculated again its launch credit is replayed at its own place; the
+  rentals completed after it are not calculated again, so their balances can be out of date until
+  they are corrected too. There is no switch for launch: a target turns it on, reaching it turns it
+  off, and a launch share equal to the standard share never makes progress toward the target.

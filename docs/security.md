@@ -1910,6 +1910,15 @@ Supabase stack and skip without it.
   calculated again. A partner with no terms in force gets no shares and the flag `no_terms`; it is
   not given the default 30 and 70. A partner user reads only the bookings of its own partner
   (unchanged RLS), so the shares do not leak across partners.
+- **The launch credit (VI-F04-S06).** The same trigger gives the launch share while launch terms
+  are active and keeps the extra on the booking (`launch_credit`, `launch_credit_balance`), both
+  locked like the other finance fields. The balance is the sum over the completed bookings of the
+  partner and is read after the trigger has locked the partner row (`for update`), so two rentals
+  completed at the same time are calculated one after the other and the credit is not counted
+  twice (E4). The lock only slows completions of the same partner and is released when the
+  transaction ends. The trigger writes only to the booking being completed and to the version of
+  the terms in use (the copy for display). A partner user reads only its own bookings and terms
+  (unchanged RLS), so a balance is not visible across partners.
 - **A rental with no duration is not charged.** It is flagged (`invalid_duration`), `paid_days`
   is 0 and `gross_revenue` is null until its period is corrected. The way to correct a completed
   booking is not built (the booking edit refuses it); the adjustment stories (VI-F04-S09 to S11)
