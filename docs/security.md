@@ -1900,6 +1900,16 @@ Supabase stack and skip without it.
   with an empty `search_path`, not `SECURITY DEFINER`, and takes no user input beyond the booking
   row. Only `authenticated` can run it. The trigger runs with the privileges of the caller and
   reads nothing else.
+- **The shares (VI-F04-S05).** The same trigger writes `partner_share` and `platform_share`, from the
+  terms in force on the day of the completion, and the id of the version it used
+  (`commercial_terms_id`, which cannot be deleted while a booking uses it). The trigger function
+  is `SECURITY DEFINER` with an empty `search_path`, because whoever completes a rental may not
+  read the terms; it takes only the booking row and cannot be run directly. The table refuses a
+  negative amount, one share without the other, and shares that do not add up to the gross
+  revenue; money is `numeric(12,2)`, never a float. A completed rental keeps its terms when it is
+  calculated again. A partner with no terms in force gets no shares and the flag `no_terms`; it is
+  not given the default 30 and 70. A partner user reads only the bookings of its own partner
+  (unchanged RLS), so the shares do not leak across partners.
 - **A rental with no duration is not charged.** It is flagged (`invalid_duration`), `paid_days`
   is 0 and `gross_revenue` is null until its period is corrected. The way to correct a completed
   booking is not built (the booking edit refuses it); the adjustment stories (VI-F04-S09 to S11)

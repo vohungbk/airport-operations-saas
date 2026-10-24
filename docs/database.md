@@ -211,9 +211,10 @@ Indexes: `flight_number`, `airport_id`.
 | daily_rate | numeric(12,2) not null | |
 | paid_days | integer not null default 0 | `check (>= 0)` and `check (<= 6)`: never above the six-day cap (VI-F04-S04) |
 | rental_days | integer | nullable; `check (>= 0)`; the actual number of rental days, not capped; set when the booking is completed |
-| revenue_flag | text | nullable; `check (null or 'invalid_duration')`; set when a completed rental has no duration |
-| gross_revenue | numeric(12,2) | nullable; paid days x the daily rate, set when the booking is completed (VI-F04-S04) |
-| partner_share / platform_share | numeric(12,2) | nullable — computed by the revenue share story (VI-F04-S05) |
+| revenue_flag | text | nullable; `check (null or 'invalid_duration' or 'no_terms')`; `invalid_duration`: a completed rental has no duration; `no_terms`: the partner had no terms in force |
+| gross_revenue | numeric(12,2) | nullable; `check (>= 0)`; paid days x the daily rate, set when the booking is completed (VI-F04-S04) |
+| partner_share / platform_share | numeric(12,2) | nullable; each `check (>= 0)`; both set or both null; together they add up to `gross_revenue` (VI-F04-S05) |
+| commercial_terms_id | uuid, FK → partner_commercial_terms.id ON DELETE RESTRICT | nullable; the version of the terms the shares were calculated with |
 | status | booking_status not null default 'pending' | |
 | incident_status | incident_status | nullable |
 | notes | text | nullable |
@@ -236,6 +237,20 @@ six is a constant in that function and in `bookings_paid_days_cap_check`. `renta
 `revenue_flag` can only be changed in the booking functions, like the other finance fields. Nothing
 sets a booking to `completed` yet (the return chain, F14 and F15, will); the trigger applies the
 rule to any path that does. Rollback SQL is at the top of the migration.
+
+**Revenue shares (VI-F04-S05, migration `20261108090000_booking_revenue_shares.sql`).** The same
+trigger also writes `partner_share`, `platform_share` and `commercial_terms_id`. The terms are the
+version of the partner in force on the day the rental completes (the database date, UTC); the
+booking keeps that version's id, and a completed booking that is calculated again (its period or
+rate changed) uses the version it kept, so completed rentals keep the terms they were calculated
+with. `public.booking_shares(gross, partner_percent)` gives the partner share as `round(gross x
+percent / 100, 2)` (half away from zero; rounding is open, spec Q1) and the platform share as the
+rest, so the two always add up to the gross revenue to the cent. Only the standard partner share is
+used; the launch share and credit (VI-F04-S06) are not applied. A partner with no terms in force
+gets the gross revenue, no shares and `revenue_flag = 'no_terms'` (the default of 30 and 70 is not
+used); a rental with no duration gets no gross and no shares. The trigger function is `SECURITY
+DEFINER` (the caller may not read the terms). A booking completed before this migration is not
+calculated again. Rollback SQL is at the top of the migration.
 
 **F11 additions** (`20261002070734_booking_numbering_event_log_and_guards.sql`,
 `20261002070738_booking_rpcs.sql`): sequence `public.booking_number_seq`
@@ -813,8 +828,9 @@ The two partners have different data on purpose, so the isolation shows: Demo Ca
 Rental has a resolved incident and Demo Mobility an open one with a seat in
 quarantine; each has bookings in every state a demo needs. The operations manager
 sees the name of whoever did each step of a timeline; a partner user sees only
-their own name there. Finance (settlements, invoices, commercial terms) has no
-records: it waits for VI-F04. To see the "Access denied" screens, make the state
+their own name there. The two partners have agreed terms (30% and 35% for the partner, from 1 January 2026), so the two
+completed rentals have their shares. Settlements and invoices have no records: they wait for the
+later stories of VI-F04. To see the "Access denied" screens, make the state
 by hand in the local database (for example, take the partner off a partner user's
 profile, or suspend a partner) and reset to put it back.
 

@@ -83,3 +83,8 @@ has been checked; remove a line when it is fixed.
   that completes a rental (the return chain, F14 and F15) is not built, so only the demo data and
   the tests do it. Counting every started 24 hours as a day is an assumption until the product owner decides,
   and a completed rental that was flagged for having no duration cannot be corrected yet.
+- **The shares use only the standard partner share (VI-F04-S05).** The launch share and the launch
+  credit (spec R12, R13) come with VI-F04-S06. Rounding to the cent is half away from zero, an
+  assumption until spec Q1 is decided. A rental completed for a partner with no terms in force gets
+  the flag `no_terms` and no shares, and they are not calculated again when terms are added later
+  unless its period or rate changes. A booking completed before the migration is not calculated.
