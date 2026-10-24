@@ -1,7 +1,18 @@
+import type { ReactNode } from "react";
+
 import type { CommercialTermsVersion, PickedCommercialTerms } from "@/features/partners/lib/commercial-terms";
 
 interface CommercialTermsSummaryProps {
   terms: PickedCommercialTerms;
+}
+
+function Detail({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="mt-1 text-sm text-foreground">{children}</dd>
+    </div>
+  );
 }
 
 function TermsCard({ title, version }: { title: string; version: CommercialTermsVersion }) {
@@ -9,6 +20,13 @@ function TermsCard({ title, version }: { title: string; version: CommercialTerms
     <section className="flex flex-col gap-3 rounded-lg border border-border p-4">
       <h2 className="text-sm font-medium text-foreground">{title}</h2>
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <Detail label="Launch credit target">
+          {version.launch_credit_target === null ? "None" : version.launch_credit_target}
+        </Detail>
+        <Detail label="Annual programme fee">{version.annual_fee}</Detail>
+        <Detail label="Onboarding credit">{version.onboarding_fee}</Detail>
+        <Detail label="VAT rate">{version.vat_rate_percent}%</Detail>
+        <Detail label="Payment terms">{version.payment_terms_days} days</Detail>
         <div>
           <dt className="text-sm text-muted-foreground">Partner share</dt>
           <dd className="mt-1 text-sm text-foreground">{version.partner_share_percent}%</dd>

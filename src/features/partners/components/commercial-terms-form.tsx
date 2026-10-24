@@ -7,6 +7,21 @@ import { Input } from "@/components/ui/input";
 import { useCommercialTermsForm } from "@/features/partners/hooks/use-commercial-terms-form";
 import type { CommercialTermsInput } from "@/features/partners/schemas/commercial-terms.schema";
 
+type NumberFieldName =
+  | "launch_credit_target"
+  | "annual_fee"
+  | "onboarding_fee"
+  | "vat_rate_percent"
+  | "payment_terms_days";
+
+const EXTRA_FIELDS: { name: NumberFieldName; label: string; step: string; optional?: boolean }[] = [
+  { name: "launch_credit_target", label: "Launch credit target (leave empty for none)", step: "0.01", optional: true },
+  { name: "annual_fee", label: "Annual programme fee", step: "0.01" },
+  { name: "onboarding_fee", label: "Onboarding credit", step: "0.01" },
+  { name: "vat_rate_percent", label: "VAT rate (%)", step: "0.01" },
+  { name: "payment_terms_days", label: "Payment terms (days until an invoice is due)", step: "1" },
+];
+
 interface CommercialTermsFormProps {
   partnerId: string;
   today: string;
@@ -79,6 +94,29 @@ export function CommercialTermsForm({ partnerId, today, defaultValues }: Commerc
           errors={errors.launch_partner_share_percent ? [errors.launch_partner_share_percent] : undefined}
         />
       </Field>
+
+      {EXTRA_FIELDS.map(({ name, label, step, optional }) => (
+        <Field key={name} data-invalid={!!errors[name]}>
+          <FieldLabel htmlFor={name}>{label}</FieldLabel>
+          <Input
+            id={name}
+            type="number"
+            step={step}
+            min={0}
+            inputMode="decimal"
+            aria-invalid={!!errors[name]}
+            disabled={isPending}
+            {...register(
+              name,
+              // An empty optional field is "none", not zero or not a number.
+              optional
+                ? { setValueAs: (value) => (value === "" || value == null ? null : Number(value)) }
+                : { valueAsNumber: true },
+            )}
+          />
+          <FieldError errors={errors[name] ? [errors[name]] : undefined} />
+        </Field>
+      ))}
 
       <Field data-invalid={!!errors.effective_from}>
         <FieldLabel htmlFor="effective_from">Effective from</FieldLabel>

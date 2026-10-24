@@ -46,6 +46,11 @@ export async function saveCommercialTermsAction(
     p_partner_share: parsed.data.partner_share_percent,
     p_launch_partner_share: parsed.data.launch_partner_share_percent,
     p_effective_from: parsed.data.effective_from,
+    p_launch_credit_target: parsed.data.launch_credit_target,
+    p_annual_fee: parsed.data.annual_fee,
+    p_onboarding_fee: parsed.data.onboarding_fee,
+    p_vat_rate: parsed.data.vat_rate_percent,
+    p_payment_terms_days: parsed.data.payment_terms_days,
   });
 
   if (error) {
