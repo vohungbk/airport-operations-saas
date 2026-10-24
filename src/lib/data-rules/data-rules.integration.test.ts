@@ -42,6 +42,10 @@ const partner = (code: string) =>
 const booking = (number: string, pickup = "2030-01-01 10:00+00", ret = "2030-01-02 10:00+00", paidDays = 0) =>
   `insert into public.bookings (booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate, paid_days)
    values ('${number}', ${PARTNER}, ${AIRPORT}, '${pickup}', '${ret}', ${CATEGORY}, 10, ${paidDays});`;
+/** A booking with one more column set, for the finance checks of VI-F04-S04. */
+const bookingWith = (number: string, column: string, value: string) =>
+  `insert into public.bookings (booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate, ${column})
+   values ('${number}', ${PARTNER}, ${AIRPORT}, '2030-01-01 10:00+00', '2030-01-02 10:00+00', ${CATEGORY}, 10, ${value});`;
 const seat = (serial: string, token: string, maxCycles = 10, cycles = 0) =>
   `insert into public.seats (serial_number, public_token, manufacturer, model, category_id, airport_id, manufacture_date, purchase_date, max_rental_cycles, rental_cycles)
    values ('${serial}', '${token}', 'Test', 'Test', ${CATEGORY}, ${AIRPORT}, '2025-01-01', '2025-02-01', ${maxCycles}, ${cycles});`;
@@ -83,6 +87,24 @@ const CASES: Case[] = [
   { constraint: "partners_code_key", code: "23505", inside: partner("DR1"), outside: partner("DR1") },
   { constraint: "users_email_key", code: "23505", inside: user("dr1@test.example"), outside: user("dr1@test.example") },
   { constraint: "bookings_booking_number_key", code: "23505", inside: booking("DR-1"), outside: booking("DR-1") },
+  {
+    constraint: "bookings_paid_days_cap_check",
+    code: "23514",
+    inside: booking("DR-20", undefined, undefined, 6),
+    outside: booking("DR-21", undefined, undefined, 7),
+  },
+  {
+    constraint: "bookings_rental_days_check",
+    code: "23514",
+    inside: `${bookingWith("DR-22", "rental_days", "0")} ${bookingWith("DR-23", "rental_days", "null")}`,
+    outside: bookingWith("DR-24", "rental_days", "-1"),
+  },
+  {
+    constraint: "bookings_revenue_flag_check",
+    code: "23514",
+    inside: `${bookingWith("DR-25", "revenue_flag", "'invalid_duration'")} ${bookingWith("DR-26", "revenue_flag", "null")}`,
+    outside: bookingWith("DR-27", "revenue_flag", "'other'"),
+  },
   {
     constraint: "bookings_paid_days_check",
     code: "23514",
