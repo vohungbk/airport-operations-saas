@@ -96,6 +96,29 @@ describe("BookingRevenuePage", () => {
     await expect(render()).rejects.toThrow("NOT_FOUND");
   });
 
+  it.each([
+    ["admin", true],
+    ["operations_manager", true],
+    ["partner_user", false],
+  ])("should offer Add adjustment to %s: %s, for a completed rental (VI-F04-S09 AC01)", async (role, offered) => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role });
+
+    const html = await render();
+
+    expect(html.includes("Add adjustment")).toBe(offered);
+    if (offered) expect(html).toContain(`href="/bookings/${BOOKING_ID}/adjustment"`);
+  });
+
+  it.each([
+    ["not completed", { revenue_case: null, gross_revenue: null }],
+    ["cancelled", { revenue_case: "cancelled", gross_revenue: 0 }],
+    ["flagged for no duration", { revenue_flag: "invalid_duration", gross_revenue: null }],
+  ])("should not offer Add adjustment on a booking that is %s: nothing to correct", async (_name, change) => {
+    getRevenueMock.mockResolvedValue({ ...completed, ...change });
+
+    expect(await render()).not.toContain("Add adjustment");
+  });
+
   it("should link back to the booking and offer no way to change anything", async () => {
     const html = await render();
 
