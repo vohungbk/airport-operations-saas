@@ -151,7 +151,15 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
         expect(new Date(booking.return_at) >= new Date(booking.pickup_at), booking.booking_number).toBe(true);
         expect(Number(booking.daily_rate), booking.booking_number).toBeGreaterThanOrEqual(0);
         if (booking.status === "completed") {
+          // The six-day cap (VI-F04-S04): the paid days, the rental days and the gross agree.
           expect(booking.paid_days, booking.booking_number).toBeGreaterThan(0);
+          expect(booking.paid_days, booking.booking_number).toBeLessThanOrEqual(6);
+          expect(booking.rental_days, booking.booking_number).toBeGreaterThanOrEqual(booking.paid_days);
+          expect(Number(booking.gross_revenue), booking.booking_number).toBeCloseTo(
+            booking.paid_days * Number(booking.daily_rate),
+            2,
+          );
+          expect(booking.revenue_flag, booking.booking_number).toBeNull();
         }
       }
     });

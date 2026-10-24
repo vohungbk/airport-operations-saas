@@ -77,3 +77,9 @@ has been checked; remove a line when it is fixed.
   author column, so the list shows the terms and the days they applied (VI-F04-S03). A record of
   the author and the reason is part of the financial history rule (spec R16) and comes with the
   stories that change money values.
+
+- **The six-day cap is applied, but nothing completes a booking yet.** The trigger calculates the
+  paid days and the gross revenue when a booking becomes `completed` (VI-F04-S04), but the workflow
+  that completes a rental (the return chain, F14 and F15) is not built, so only the demo data and
+  the tests do it. Counting every started 24 hours as a day is an assumption until the product owner decides,
+  and a completed rental that was flagged for having no duration cannot be corrected yet.
