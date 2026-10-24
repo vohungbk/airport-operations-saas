@@ -110,6 +110,17 @@ export const BOOKINGS_WRITE_PERMISSIONS = [
   "bookings:manage_own_partner",
 ] as const satisfies readonly Permission[];
 
+/**
+ * Who may see the finance figures of a booking (VI-F04-S08): managers (`finance:view`, every
+ * partner) and partner users (`finance:view_own_partner`, only the bookings of their partner;
+ * RLS decides which rows). A technician has neither. The permission matrix is unchanged; this
+ * is an any-of set.
+ */
+export const FINANCE_ACCESS_PERMISSIONS = [
+  "finance:view",
+  "finance:view_own_partner",
+] as const satisfies readonly Permission[];
+
 /** Who may enter `/jobs`: managers (all jobs) and technicians (own jobs). */
 export const JOBS_ACCESS_PERMISSIONS = [
   "technicians:manage",

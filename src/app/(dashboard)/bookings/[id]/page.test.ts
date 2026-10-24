@@ -55,6 +55,20 @@ describe("BookingDetailPage", () => {
     ).rejects.toThrow("NOT_FOUND");
   });
 
+  it.each([
+    ["admin", true],
+    ["operations_manager", true],
+    ["partner_user", true],
+    ["technician", false],
+  ])("should offer the revenue to %s: %s (VI-F04-S08)", async (role, expected) => {
+    requireAnyPermissionMock.mockResolvedValue({ role });
+    getBookingByIdMock.mockResolvedValue({ id: ID });
+
+    const element = await BookingDetailPage({ params: Promise.resolve({ id: ID }) });
+
+    expect((element as { props: { canViewRevenue: boolean } }).props.canViewRevenue).toBe(expected);
+  });
+
   it("should propagate the guard's redirect", async () => {
     requireAnyPermissionMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
 

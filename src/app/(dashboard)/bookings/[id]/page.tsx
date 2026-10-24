@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import {
   BOOKINGS_ACCESS_PERMISSIONS,
+  FINANCE_ACCESS_PERMISSIONS,
+  hasAnyPermission,
   hasPermission,
 } from "@/lib/auth/permissions";
 import { getBookingById } from "@/features/bookings/lib/get-booking-by-id";
@@ -37,6 +39,7 @@ export default async function BookingDetailPage({
       events={events}
       canManage={canManage}
       canEditOwn={!canManage && hasPermission(user.role, "bookings:manage_own_partner")}
+      canViewRevenue={hasAnyPermission(user.role, FINANCE_ACCESS_PERMISSIONS)}
     />
   );
 }

@@ -20,6 +20,8 @@ interface BookingDetailProps {
   canManage: boolean;
   /** `bookings:manage_own_partner`: a partner user may edit a pending booking. */
   canEditOwn: boolean;
+  /** `finance:view` or `finance:view_own_partner`: may open how the revenue was calculated. */
+  canViewRevenue?: boolean;
 }
 
 function Detail({
@@ -42,6 +44,7 @@ export function BookingDetail({
   events,
   canManage,
   canEditOwn,
+  canViewRevenue = false,
 }: BookingDetailProps) {
   const timeZone = booking.airport?.timezone ?? "UTC";
   const allowedTransitions = getAllowedManualTransitions(booking.status);
@@ -59,8 +62,16 @@ export function BookingDetail({
             <BookingStatusBadge status={booking.status} />
           </div>
         </div>
-        {(canManage || canEditOwn) && (
+        {(canManage || canEditOwn || canViewRevenue) && (
           <div className="flex items-center gap-2">
+            {canViewRevenue && (
+              <Link
+                href={`/bookings/${booking.id}/revenue`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Revenue
+              </Link>
+            )}
             {(canManage
               ? isBookingEditable(booking.status)
               : isPartnerBookingEditable(booking.status)) && (
