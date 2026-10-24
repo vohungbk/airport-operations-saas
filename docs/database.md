@@ -215,6 +215,8 @@ Indexes: `flight_number`, `airport_id`.
 | gross_revenue | numeric(12,2) | nullable; `check (>= 0)`; paid days x the daily rate, set when the booking is completed (VI-F04-S04) |
 | partner_share / platform_share | numeric(12,2) | nullable; each `check (>= 0)`; both set or both null; together they add up to `gross_revenue` (VI-F04-S05) |
 | commercial_terms_id | uuid, FK → partner_commercial_terms.id ON DELETE RESTRICT | nullable; the version of the terms the shares were calculated with |
+| launch_credit | numeric(12,2) not null default 0 | `check (>= 0)`; the extra the partner got on this rental above the standard share (VI-F04-S06) |
+| launch_credit_balance | numeric(12,2) | nullable; `check (>= 0)`; the launch credit of the partner after this rental; null when launch did not apply; it may be above the target (the rental that crosses it); `launch_credit` is 0 when it is null |
 | status | booking_status not null default 'pending' | |
 | incident_status | incident_status | nullable |
 | notes | text | nullable |
@@ -251,6 +253,25 @@ gets the gross revenue, no shares and `revenue_flag = 'no_terms'` (the default o
 used); a rental with no duration gets no gross and no shares. The trigger function is `SECURITY
 DEFINER` (the caller may not read the terms). A booking completed before this migration is not
 calculated again. Rollback SQL is at the top of the migration.
+
+**Launch credit (VI-F04-S06, migration `20261109090000_launch_credit.sql`).** Launch terms are active
+for a partner while its terms in use have a `launch_credit_target` and the balance has not reached
+it; setting a target turns launch on and reaching it turns it off (there is no switch). The balance
+of a partner is the sum of `launch_credit` over its completed bookings, and that sum is the truth.
+While launch is active, a completed rental gets the launch share (`launch_partner_share_percent`)
+instead of the standard share, and the extra, the launch share of the gross revenue minus the
+standard share of it, is the launch credit of that rental. Once the balance is at the target or
+above, every later rental uses the standard share. The rental that crosses the target (spec Q6 is
+open, assumption) follows the terms at its completion: it gets the launch share in full, and the
+balance after it may be above the target; it is recorded in `launch_credit_balance`. The trigger
+locks the partner row before it reads the balance, so completions of one partner are calculated one
+after the other (E4). A completed booking calculated again is replayed at its own place (balance
+before = balance after - its credit), and the bookings completed after it are not calculated again.
+On the version of the terms in use, `launch_credit_accumulated` and `launch_mode` are a copy for
+display of the balance, refreshed after every completion, and `set_partner_commercial_terms()` sets
+`launch_mode` of a new version from the target and the balance carried over. A refund or a
+chargeback does not change the launch credit (spec Q4 is open). Rollback SQL is at the top of the
+migration.
 
 **F11 additions** (`20261002070734_booking_numbering_event_log_and_guards.sql`,
 `20261002070738_booking_rpcs.sql`): sequence `public.booking_number_seq`
@@ -829,7 +850,9 @@ Rental has a resolved incident and Demo Mobility an open one with a seat in
 quarantine; each has bookings in every state a demo needs. The operations manager
 sees the name of whoever did each step of a timeline; a partner user sees only
 their own name there. The two partners have agreed terms (30% and 35% for the partner, from 1 January 2026), so the two
-completed rentals have their shares. Settlements and invoices have no records: they wait for the
+completed rentals have their shares. Demo Car Rental is in its launch period (a target of 1000 and a
+launch share of 50%), so its completed rental has 54.00 of launch credit; Demo Mobility has no
+target. Settlements and invoices have no records: they wait for the
 later stories of VI-F04. To see the "Access denied" screens, make the state
 by hand in the local database (for example, take the partner off a partner user's
 profile, or suspend a partner) and reset to put it back.
