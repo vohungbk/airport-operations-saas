@@ -9,6 +9,8 @@ export interface BookingRevenueRow {
   paid_days: number;
   rental_days: number | null;
   gross_revenue: number | null;
+  /** The sum of the adjustments: zero, or negative. */
+  adjustments_total: number;
   partner_share: number | null;
   platform_share: number | null;
   launch_credit: number;
@@ -36,6 +38,7 @@ export const BOOKING_REVENUE_SELECT = [
   "paid_days",
   "rental_days",
   "gross_revenue",
+  "adjustments_total",
   "partner_share",
   "platform_share",
   "launch_credit",

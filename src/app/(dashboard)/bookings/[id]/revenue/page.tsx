@@ -8,9 +8,11 @@ import {
   hasAnyPermission,
 } from "@/lib/auth/permissions";
 import { buttonVariants } from "@/components/ui/button";
+import { BookingAdjustmentsList } from "@/features/bookings/components/booking-adjustments-list";
 import { BookingRevenueBreakdown } from "@/features/bookings/components/booking-revenue-breakdown";
 import { canAddAdjustment } from "@/features/bookings/lib/booking-adjustment";
 import { buildBookingRevenue } from "@/features/bookings/lib/booking-revenue";
+import { getBookingAdjustments } from "@/features/bookings/lib/get-booking-adjustments";
 import { getBookingRevenue } from "@/features/bookings/lib/get-booking-revenue";
 
 interface BookingRevenuePageProps {
@@ -28,7 +30,12 @@ export default async function BookingRevenuePage({ params }: BookingRevenuePageP
   const user = await requireAnyPermission(FINANCE_ACCESS_PERMISSIONS);
 
   const { id } = await params;
-  const booking = await getBookingRevenue(id);
+  const mayAdjust = hasAnyPermission(user.role, FINANCE_ADJUSTMENT_PERMISSIONS);
+  // The list of adjustments is for the operations team; a partner user sees the total in the figures.
+  const [booking, adjustments] = await Promise.all([
+    getBookingRevenue(id),
+    mayAdjust ? getBookingAdjustments(id) : Promise.resolve(null),
+  ]);
 
   if (!booking) {
     notFound();
@@ -49,11 +56,13 @@ export default async function BookingRevenuePage({ params }: BookingRevenuePageP
       <BookingRevenueBreakdown
         view={buildBookingRevenue(booking)}
         adjustmentHref={
-          hasAnyPermission(user.role, FINANCE_ADJUSTMENT_PERMISSIONS) && canAddAdjustment(booking)
+          mayAdjust && canAddAdjustment(booking)
             ? `/bookings/${booking.id}/adjustment`
             : undefined
         }
       />
+
+      {adjustments && <BookingAdjustmentsList adjustments={adjustments} />}
     </div>
   );
 }
