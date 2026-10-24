@@ -88,6 +88,16 @@ export const JOURNEYS: readonly Journey[] = [
   },
   { id: "J18", roles: JOURNEY_ROLES, title: "Every demo account signs in and sees its own journey", tests: [{ file: DEMO, block: "demo data covers every role and two partners (VI-F07-S04)" }] },
   { id: "J19", roles: JOURNEY_ROLES, title: "Each role stays inside its own boundaries", tests: [{ file: RLS, block: "role boundaries" }] },
+  {
+    id: "J20",
+    roles: ["admin", "operations_manager", "technician"],
+    title: "Scan a seat QR code and clean the seat",
+    tests: [
+      { file: RLS, block: "QR token lookup (DL-T4)" },
+      { file: RLS, block: "QR access protection (CO-F04-S14)" },
+      { file: RLS, block: "scan to cleaning chain (DL-T4)" },
+    ],
+  },
 ];
 
 /** The file has a `describe` (or `describe.skipIf(...)`) with this name; the name in a comment does not count. */

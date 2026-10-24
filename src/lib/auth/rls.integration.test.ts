@@ -25,6 +25,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ScannedSeatCard } from "@/features/seats/components/scanned-seat-card";
 import { getSeatByPublicToken } from "@/features/seats/lib/get-seat-by-token";
 import { getSeatScanView } from "@/features/seats/lib/seat-scan-access";
+import { getCleaningJobsForSeat } from "@/features/cleaning/lib/get-cleaning-jobs-for-seat";
 import { partnerSeatsQuerySchema } from "@/features/seats/schemas/partner-seats-query.schema";
 import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
 import {
@@ -2556,6 +2557,119 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         expect(await seatRow(SEAT_C_ID)).toEqual(seatBefore);
         expect(await historyCount(SEAT_C_ID)).toBe(historyBefore);
         expect(await recordOf(jobId)).toEqual([]);
+      });
+    });
+
+    // DL-T4 (PO Decision Log, PRD v1.1 section 20.2): "cleaning cannot be performed by scanning
+    // a QR code alone when the user is not signed in or lacks permission", and a scan of a seat
+    // leads to its cleaning only through the rules of the cleaning itself. The scan and the
+    // job lookup are the real functions of the pages, run with the session of the role.
+    describe("scan to cleaning chain (DL-T4)", () => {
+      const MINUTE = 60_000;
+
+      async function tokenOf(seatId: string) {
+        const { data } = await service.from("seats").select("public_token").eq("id", seatId).single();
+        return data!.public_token;
+      }
+
+      /** The two reads a scan does, as the given client: the seat, then its open cleaning jobs. */
+      async function scanAs(client: SupabaseClient<Database>, token: string) {
+        listClient.current = client;
+        try {
+          const seat = await getSeatByPublicToken(token);
+          const jobs = seat ? await getCleaningJobsForSeat(seat.id) : [];
+          return { seat, jobs };
+        } finally {
+          listClient.current = null;
+        }
+      }
+
+      async function bookSeatC(fromMin: number, toMin: number) {
+        const seat = await seatRow(SEAT_C_ID);
+        const { data, error } = await opsClient.rpc("create_booking", {
+          p_partner_id: PARTNER_A_ID,
+          p_airport_id: seat.airport_id,
+          p_seat_category_id: seat.category_id,
+          p_pickup_at: new Date(Date.now() + fromMin * MINUTE).toISOString(),
+          p_return_at: new Date(Date.now() + toMin * MINUTE).toISOString(),
+          p_daily_rate: 75,
+          p_assigned_seat_id: SEAT_C_ID,
+        });
+        expect(error).toBeNull();
+        createdBookingIds.push(data!.id);
+      }
+
+      it.each([
+        ["an anonymous caller", () => anonClient],
+        ["an inactive user", () => inactiveClient],
+      ])("should not let %s start or complete a cleaning, even knowing the job, and change nothing", async (_name, getClient) => {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+        const historyBefore = await historyCount(SEAT_C_ID);
+
+        const start = await getClient().rpc("start_cleaning", { p_job_id: jobId });
+        const complete = await getClient().rpc("complete_cleaning", { p_job_id: jobId, p_passed: true });
+
+        expect(start.error).not.toBeNull();
+        expect(complete.error).not.toBeNull();
+        expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+        expect(await historyCount(SEAT_C_ID)).toBe(historyBefore);
+        expect(await recordOf(jobId)).toEqual([]);
+      });
+
+      it("should let a scan reach the cleaning job of the seat, and no further than the rules of the cleaning allow", async () => {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+        await bookSeatC(30, 90);
+        const historyBefore = await historyCount(SEAT_C_ID);
+
+        const scanned = await scanAs(technicianClient, await tokenOf(SEAT_C_ID));
+        const start = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+
+        expect(scanned.seat?.id).toBe(SEAT_C_ID);
+        expect(scanned.jobs.map((job) => job.id)).toContain(jobId);
+        expect(start.error?.code).toBe("JB009");
+        expect((await seatRow(SEAT_C_ID)).status).toBe("available");
+        expect(await historyCount(SEAT_C_ID)).toBe(historyBefore);
+        expect(await recordOf(jobId)).toEqual([]);
+      });
+
+      it("should show the quarantine after a failed cleaning on the next scan: the reason to a technician, not to a partner", async () => {
+        const jobId = track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+        const token = await tokenOf(SEAT_C_ID);
+
+        expect((await scanAs(technicianClient, token)).seat?.status).toBe("available");
+        const started = await technicianClient.rpc("start_cleaning", { p_job_id: jobId });
+        expect(started.error).toBeNull();
+        expect((await scanAs(technicianClient, token)).seat?.status).toBe("cleaning");
+        const completed = await technicianClient.rpc("complete_cleaning", {
+          p_job_id: jobId,
+          p_passed: false,
+          p_notes: "Buckle broken",
+        });
+        expect(completed.error).toBeNull();
+
+        const technicianScan = await scanAs(technicianClient, token);
+        const partnerScan = await scanAs(partnerAClient, token);
+        const view = (role: "technician" | "partner_user", seat: NonNullable<typeof technicianScan.seat>) =>
+          renderToStaticMarkup(createElement(ScannedSeatCard, { seat, view: getSeatScanView(role) }));
+
+        expect(technicianScan.seat?.status).toBe("quarantine");
+        expect(partnerScan.seat?.status).toBe("quarantine");
+        expect(view("technician", technicianScan.seat!)).toContain("Quarantine");
+        expect(view("partner_user", partnerScan.seat!)).toContain("Quarantine");
+        expect(view("partner_user", partnerScan.seat!)).not.toContain(
+          technicianScan.seat!.quarantine_reason!,
+        );
+        expect(view("technician", technicianScan.seat!)).toContain(
+          technicianScan.seat!.quarantine_reason!,
+        );
+      });
+
+      it("should not let a scan of the same seat by a partner of another tenant reach its cleaning job", async () => {
+        track(await createCleaningJob(identities.technician.id, BOOKING_C_ID));
+
+        const scanned = await scanAs(partnerBClient, await tokenOf(SEAT_C_ID));
+
+        expect(scanned).toEqual({ seat: null, jobs: [] });
       });
     });
 
