@@ -6948,19 +6948,38 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       return data.id;
     }
 
+    // The launch target, the fees, the VAT and the payment terms (VI-F04-S02) default to what a
+    // new partner gets: no target, no fees, no VAT, 14 days.
+    interface Extras {
+      launchTarget: number | null;
+      annualFee: number;
+      onboardingFee: number;
+      vat: number;
+      paymentDays: number;
+    }
+    const NO_EXTRAS: Extras = { launchTarget: null, annualFee: 0, onboardingFee: 0, vat: 0, paymentDays: 14 };
+
     const save = (
       client: SupabaseClient<Database>,
       partnerId: string,
       partner: number,
       launch: number,
       from = dayFromToday(0),
-    ) =>
-      client.rpc("set_partner_commercial_terms", {
+      extras: Partial<Extras> = {},
+    ) => {
+      const e = { ...NO_EXTRAS, ...extras };
+      return client.rpc("set_partner_commercial_terms", {
         p_partner_id: partnerId,
         p_partner_share: partner,
         p_launch_partner_share: launch,
         p_effective_from: from,
+        p_launch_credit_target: e.launchTarget,
+        p_annual_fee: e.annualFee,
+        p_onboarding_fee: e.onboardingFee,
+        p_vat_rate: e.vat,
+        p_payment_terms_days: e.paymentDays,
       });
+    };
 
     async function versionsOf(partnerId: string) {
       const { data } = await service
@@ -7028,21 +7047,129 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(Number(versions[1].partner_share_percent)).toBe(40);
     });
 
-    it("should carry the launch and fee fields to the new version unchanged", async () => {
+    it("should give a row made with no terms no target, no fees, no VAT and 14 days to pay (VI-F04-S02 AC01)", async () => {
       const partnerId = await newPartner();
-      await save(adminClient, partnerId, 30, 50, dayFromToday(0));
+
+      const { data, error } = await service
+        .from("partner_commercial_terms")
+        .insert({ partner_id: partnerId, effective_from: dayFromToday(0) })
+        .select("launch_credit_target, annual_fee, onboarding_fee, vat_rate_percent, payment_terms_days")
+        .single();
+
+      expect(error).toBeNull();
+      expect(data!.launch_credit_target).toBeNull();
+      expect(Number(data!.annual_fee)).toBe(0);
+      expect(Number(data!.onboarding_fee)).toBe(0);
+      expect(Number(data!.vat_rate_percent)).toBe(0);
+      expect(data!.payment_terms_days).toBe(14);
+    });
+
+    it("should store the launch target, the fees, the VAT and the payment terms with the version (VI-F04-S02)", async () => {
+      const partnerId = await newPartner();
+
+      const { data, error } = await save(adminClient, partnerId, 30, 50, dayFromToday(0), {
+        launchTarget: 12500.5,
+        annualFee: 1000,
+        onboardingFee: 250.25,
+        vat: 7.5,
+        paymentDays: 30,
+      });
+
+      expect(error).toBeNull();
+      expect(Number(data!.launch_credit_target)).toBe(12500.5);
+      expect(Number(data!.annual_fee)).toBe(1000);
+      expect(Number(data!.onboarding_fee)).toBe(250.25);
+      expect(Number(data!.vat_rate_percent)).toBe(7.5);
+      expect(data!.payment_terms_days).toBe(30);
+    });
+
+    it("should accept the limits of the launch target, the fees, the VAT and the payment terms (AC02 to AC05)", async () => {
+      const low = await newPartner();
+      const high = await newPartner();
+
+      const lowest = await save(adminClient, low, 30, 50, dayFromToday(0), {
+        launchTarget: 0, annualFee: 0, onboardingFee: 0, vat: 0, paymentDays: 0,
+      });
+      const highest = await save(adminClient, high, 30, 50, dayFromToday(0), {
+        launchTarget: 9999999999.99, annualFee: 9999999999.99, onboardingFee: 9999999999.99, vat: 100, paymentDays: 3650,
+      });
+
+      expect(lowest.error).toBeNull();
+      expect(highest.error).toBeNull();
+      expect(Number(highest.data!.annual_fee)).toBe(9999999999.99);
+    });
+
+    it("should accept an empty launch target: no target is set (AC02)", async () => {
+      const partnerId = await newPartner();
+
+      const { data, error } = await save(adminClient, partnerId, 30, 50, dayFromToday(0), { launchTarget: null });
+
+      expect(error).toBeNull();
+      expect(data!.launch_credit_target).toBeNull();
+    });
+
+    it.each([
+      ["a negative launch target", { launchTarget: -0.01 }, "TC005"],
+      ["a launch target with 3 decimals", { launchTarget: 10.001 }, "TC005"],
+      ["a launch target too big for the column", { launchTarget: 10000000000 }, "TC005"],
+      ["a negative annual fee", { annualFee: -1 }, "TC006"],
+      ["an annual fee with 3 decimals", { annualFee: 1.005 }, "TC006"],
+      ["an annual fee too big for the column", { annualFee: 10000000000 }, "TC006"],
+      ["a negative onboarding credit", { onboardingFee: -0.01 }, "TC006"],
+      ["an onboarding credit with 3 decimals", { onboardingFee: 0.001 }, "TC006"],
+      ["a VAT rate above 100", { vat: 100.01 }, "TC007"],
+      ["a negative VAT rate", { vat: -1 }, "TC007"],
+      ["a VAT rate with 3 decimals", { vat: 20.001 }, "TC007"],
+      ["payment terms below zero", { paymentDays: -1 }, "TC008"],
+      ["payment terms above 3650 days", { paymentDays: 3651 }, "TC008"],
+    ] as const)("should refuse %s (AC02 to AC05) and create nothing", async (_name, extras, code) => {
+      const partnerId = await newPartner();
+
+      const { error } = await save(adminClient, partnerId, 30, 50, dayFromToday(0), extras);
+
+      expect(error?.code).toBe(code);
+      expect(await versionsOf(partnerId)).toEqual([]);
+    });
+
+    it("should refuse a missing fee, VAT rate or payment term (22023)", async () => {
+      const partnerId = await newPartner();
+
+      for (const missing of ["p_annual_fee", "p_onboarding_fee", "p_vat_rate", "p_payment_terms_days"] as const) {
+        const { error } = await adminClient.rpc("set_partner_commercial_terms", {
+          p_partner_id: partnerId,
+          p_partner_share: 30,
+          p_launch_partner_share: 50,
+          p_effective_from: dayFromToday(0),
+          p_launch_credit_target: null,
+          p_annual_fee: 0,
+          p_onboarding_fee: 0,
+          p_vat_rate: 0,
+          p_payment_terms_days: 14,
+          [missing]: null,
+        } as never);
+
+        expect(error?.code, missing).toBe("22023");
+      }
+      expect(await versionsOf(partnerId)).toEqual([]);
+    });
+
+    it("should carry the launch mode and the launch credit balance to the new version, and take the other terms from the call", async () => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 30, 50, dayFromToday(0), { launchTarget: 1000, annualFee: 99 });
       await service
         .from("partner_commercial_terms")
-        .update({ launch_mode: true, launch_credit_target: 1000, launch_credit_accumulated: 125.5, annual_fee: 99 })
+        .update({ launch_mode: true, launch_credit_accumulated: 125.5 })
         .eq("partner_id", partnerId);
 
-      await save(adminClient, partnerId, 30, 50, dayFromToday(5));
-      const latest = (await versionsOf(partnerId))[1];
+      await save(adminClient, partnerId, 30, 50, dayFromToday(5), { launchTarget: 2000, annualFee: 120 });
+      const [first, latest] = await versionsOf(partnerId);
 
       expect(latest.launch_mode).toBe(true);
-      expect(Number(latest.launch_credit_target)).toBe(1000);
       expect(Number(latest.launch_credit_accumulated)).toBe(125.5);
-      expect(Number(latest.annual_fee)).toBe(99);
+      expect(Number(latest.launch_credit_target)).toBe(2000);
+      expect(Number(latest.annual_fee)).toBe(120);
+      expect(Number(first.launch_credit_target)).toBe(1000);
+      expect(Number(first.annual_fee)).toBe(99);
     });
 
     it.each([
@@ -7102,6 +7229,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         p_partner_share: 30,
         p_launch_partner_share: undefined as unknown as number,
         p_effective_from: dayFromToday(0),
+        ...{ p_launch_credit_target: null, p_annual_fee: 0, p_onboarding_fee: 0, p_vat_rate: 0, p_payment_terms_days: 14 },
       });
 
       expect(unknown.error?.code).toBe("P0002");
@@ -7130,6 +7258,11 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       for (const change of [
         { partner_share_percent: 31, platform_share_percent: 69 },
         { launch_partner_share_percent: 60 },
+        { launch_credit_target: 5 },
+        { annual_fee: 5 },
+        { onboarding_fee: 5 },
+        { vat_rate_percent: 5 },
+        { payment_terms_days: 5 },
         { effective_from: dayFromToday(1) },
         { partner_id: PARTNER_A_ID },
       ]) {

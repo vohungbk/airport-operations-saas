@@ -20,6 +20,10 @@ describe("mapCommercialTermsError", () => {
     ["TC001", "VALIDATION_ERROR", "partner_share_percent"],
     ["TC002", "VALIDATION_ERROR", "launch_partner_share_percent"],
     ["TC003", "VALIDATION_ERROR", "effective_from"],
+    ["TC005", "VALIDATION_ERROR", "launch_credit_target"],
+    ["TC006", "VALIDATION_ERROR", "annual_fee"],
+    ["TC007", "VALIDATION_ERROR", "vat_rate_percent"],
+    ["TC008", "VALIDATION_ERROR", "payment_terms_days"],
     ["TC004", "CONFLICT", "effective_from"],
   ])("should map %s to %s on the field %s", (code, mapped, field) => {
     expect(mapCommercialTermsError({ code })).toMatchObject({ code: mapped, field });
