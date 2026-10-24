@@ -794,6 +794,7 @@ export type Database = {
           launch_credit_accumulated: number | null
           launch_credit_target: number | null
           launch_mode: boolean
+          launch_partner_share_percent: number
           onboarding_fee: number | null
           partner_id: string
           partner_share_percent: number
@@ -809,10 +810,11 @@ export type Database = {
           launch_credit_accumulated?: number | null
           launch_credit_target?: number | null
           launch_mode?: boolean
+          launch_partner_share_percent?: number
           onboarding_fee?: number | null
           partner_id: string
-          partner_share_percent: number
-          platform_share_percent: number
+          partner_share_percent?: number
+          platform_share_percent?: number
           updated_at?: string
         }
         Update: {
@@ -824,6 +826,7 @@ export type Database = {
           launch_credit_accumulated?: number | null
           launch_credit_target?: number | null
           launch_mode?: boolean
+          launch_partner_share_percent?: number
           onboarding_fee?: number | null
           partner_id?: string
           partner_share_percent?: number
@@ -1290,6 +1293,36 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "cleaning_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_partner_commercial_terms: {
+        Args: {
+          p_effective_from: string
+          p_launch_partner_share: number
+          p_partner_id: string
+          p_partner_share: number
+        }
+        Returns: {
+          annual_fee: number | null
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          launch_credit_accumulated: number | null
+          launch_credit_target: number | null
+          launch_mode: boolean
+          launch_partner_share_percent: number
+          onboarding_fee: number | null
+          partner_id: string
+          partner_share_percent: number
+          platform_share_percent: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "partner_commercial_terms"
           isOneToOne: true
           isSetofReturn: false
         }
