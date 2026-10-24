@@ -1947,7 +1947,16 @@ Supabase stack and skip without it.
   cancelled or marked as a no-show: it calculates nothing again, so it cannot disagree with the
   booking. It has no form, no button and no action. The query names its columns: no fees, no launch
   credit target, no contact data, no free text. Amounts show two decimals and no currency (spec Q1 is
-  open). The "Add adjustment" button belongs to VI-F04-S09.
+  open).
+- **Opening the adjustment form (VI-F04-S09).** "Add adjustment" is offered only to an admin and an
+  operations manager (`FINANCE_ADJUSTMENT_PERMISSIONS`, which is `finance:view`; the spec gives the
+  operations manager "conditional" rights without the condition, so both may: an assumption) and only
+  for a completed rental with revenue to correct. `/bookings/[id]/adjustment` checks the same
+  permission on the server before it reads anything, so a partner user or a technician who types the
+  address is sent to `/forbidden`; RLS still hides the bookings of another partner behind the same
+  not-found page. The page only reads and writes nothing: the fields, the validation and the Save
+  button are VI-F04-S10, which must check the role again in its Server Action and its database
+  function.
 
 ## Commercial terms (VI-F04-S01)
 
