@@ -190,6 +190,8 @@ export type Database = {
           flight_id: string | null
           gross_revenue: number | null
           id: string
+          launch_credit: number
+          launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
           notes: string | null
           paid_days: number
@@ -223,6 +225,8 @@ export type Database = {
           flight_id?: string | null
           gross_revenue?: number | null
           id?: string
+          launch_credit?: number
+          launch_credit_balance?: number | null
           incident_status?:
             Database["public"]["Enums"]["incident_status"] | null
           notes?: string | null
@@ -257,6 +261,8 @@ export type Database = {
           flight_id?: string | null
           gross_revenue?: number | null
           id?: string
+          launch_credit?: number
+          launch_credit_balance?: number | null
           incident_status?:
             Database["public"]["Enums"]["incident_status"] | null
           notes?: string | null
@@ -1430,6 +1436,8 @@ export type Database = {
           flight_id: string | null
           gross_revenue: number | null
           id: string
+          launch_credit: number
+          launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
           notes: string | null
           paid_days: number
@@ -1577,6 +1585,8 @@ export type Database = {
           flight_id: string | null
           gross_revenue: number | null
           id: string
+          launch_credit: number
+          launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
           notes: string | null
           paid_days: number
@@ -1631,6 +1641,8 @@ export type Database = {
           flight_id: string | null
           gross_revenue: number | null
           id: string
+          launch_credit: number
+          launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
           notes: string | null
           paid_days: number
@@ -1729,6 +1741,8 @@ export type Database = {
           flight_id: string | null
           gross_revenue: number | null
           id: string
+          launch_credit: number
+          launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
           notes: string | null
           paid_days: number
@@ -1782,6 +1796,8 @@ export type Database = {
           flight_id: string | null
           gross_revenue: number | null
           id: string
+          launch_credit: number
+          launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
           notes: string | null
           paid_days: number
