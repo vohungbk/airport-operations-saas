@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import { dbContainer, runSql } from "@/lib/db-test-support";
 import {
   FLAG_ON,
-  PARTNER,
   available,
   bookingId,
   completeBooking,
@@ -223,49 +222,68 @@ describe.skipIf(!available)("launch credit (VI-F04-S06, spec R12, R13, E3, E4)",
   // other. The completion takes the lock of the partner row before it reads the balance, so the
   // next one waits and then reads the balance with the first one in it. Here one session completes
   // a rental and holds its transaction open; a second session must not get the lock of the partner
-  // until the first one ends. The first session rolls back, so nothing is left behind.
+  // until the first one ends. The first session rolls back, so no booking is left behind.
+  //
+  // The partner is made for this test, in a committed row, and removed at the end: the lock is held
+  // for a few seconds, and the other suites, which run at the same time, must not wait for it on a
+  // partner of the seed.
   it("should hold the lock of the partner from the completion to the end of the transaction (AC04)", async () => {
-    const container = dbContainer()!;
-    const first = spawn(
-      "docker",
-      ["exec", "-i", container, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1"],
-      { stdio: ["pipe", "ignore", "pipe"] },
+    const partner = "d6100000-0000-0000-0000-000000000001";
+    const booking = "d6000000-0000-0000-0000-000000000001";
+    const made = runSql(
+      `insert into public.partners (id, name, code, contact_email) values ('${partner}', 'LC lock partner', 'LCLOCK', 'lc@test.example') on conflict (id) do nothing;`,
     );
-    let output = "";
-    first.stderr.on("data", (chunk) => (output += String(chunk)));
-    const ended = new Promise<number | null>((resolve) => first.on("close", resolve));
+    expect(made?.ok).toBe(true);
 
-    first.stdin.write(`
-      begin;
-      insert into public.partner_commercial_terms
-        (partner_id, partner_share_percent, platform_share_percent, launch_partner_share_percent, launch_credit_target, effective_from)
-      values ('${PARTNER}', 30, 70, 50, 5000, current_date);
-      insert into public.bookings (id, booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate)
-      values ('d6000000-0000-0000-0000-000000000001', 'LC-1', '${PARTNER}', 'a0000000-0000-0000-0000-000000000001',
-              '${START}', '${THREE_DAYS}', 'c0000000-0000-0000-0000-000000000001', 90);
-      ${FLAG_ON}
-      update public.bookings set status = 'completed' where id = 'd6000000-0000-0000-0000-000000000001';
-      do $$ begin raise notice 'COMPLETED'; end $$;
-      select pg_sleep(8);
-      rollback;
-    `);
-    first.stdin.end();
+    try {
+      const container = dbContainer()!;
+      const first = spawn(
+        "docker",
+        ["exec", "-i", container, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1"],
+        { stdio: ["pipe", "ignore", "pipe"] },
+      );
+      let output = "";
+      first.stderr.on("data", (chunk) => (output += String(chunk)));
+      const ended = new Promise<number | null>((resolve) => first.on("close", resolve));
 
-    // Wait until the first session has completed its rental and holds the lock.
-    for (let waited = 0; !output.includes("COMPLETED") && waited < 10_000; waited += 100) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      first.stdin.write(`
+        begin;
+        insert into public.partner_commercial_terms
+          (partner_id, partner_share_percent, platform_share_percent, launch_partner_share_percent, launch_credit_target, effective_from)
+        values ('${partner}', 30, 70, 50, 5000, current_date);
+        insert into public.bookings (id, booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate)
+        values ('${booking}', 'LC-1', '${partner}', 'a0000000-0000-0000-0000-000000000001',
+                '${START}', '${THREE_DAYS}', 'c0000000-0000-0000-0000-000000000001', 90);
+        ${FLAG_ON}
+        update public.bookings set status = 'completed' where id = '${booking}';
+        do $$ begin raise notice 'COMPLETED'; end $$;
+        select pg_sleep(4);
+        rollback;
+      `);
+      first.stdin.end();
+
+      // Wait until the first session has completed its rental and holds the lock.
+      for (let waited = 0; !output.includes("COMPLETED") && waited < 10_000; waited += 100) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      expect(output).toContain("COMPLETED");
+
+      const whileOpen = runSql(
+        `set lock_timeout = '700ms'; begin; select 1 from public.partners where id = '${partner}' for update; rollback;`,
+      );
+
+      expect(whileOpen?.ok).toBe(false);
+      expect(whileOpen?.output).toMatch(/lock timeout/);
+
+      expect(await ended).toBe(0);
+
+      const afterwards = runSql(
+        `set lock_timeout = '700ms'; begin; select 1 from public.partners where id = '${partner}' for update; rollback;`,
+      );
+
+      expect(afterwards?.ok).toBe(true);
+    } finally {
+      runSql(`delete from public.partners where id = '${partner}';`);
     }
-    expect(output).toContain("COMPLETED");
-
-    const whileOpen = runSql(`set lock_timeout = '700ms'; begin; select 1 from public.partners where id = '${PARTNER}' for update; rollback;`);
-
-    expect(whileOpen?.ok).toBe(false);
-    expect(whileOpen?.output).toMatch(/lock timeout/);
-
-    expect(await ended).toBe(0);
-
-    const afterwards = runSql(`set lock_timeout = '700ms'; begin; select 1 from public.partners where id = '${PARTNER}' for update; rollback;`);
-
-    expect(afterwards?.ok).toBe(true);
   }, 30_000);
 });
