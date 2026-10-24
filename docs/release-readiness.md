@@ -53,7 +53,7 @@ Add a journey when a feature adds one, with the block of tests that checks it.
 
 ### What was and was not shown
 
-- Shown: every one of the 19 journeys names a block that is in its file, each of the
+- Shown: every one of the 20 journeys names a block that is in its file, each of the
   four roles has at least eight, and the tests gate runs the whole suite.
 - **Not shown: a break on purpose.** Changing a rule on purpose (for example removing the
   `cancelled` transition of a pending booking) and seeing `npm test` fail was not run in

@@ -1870,7 +1870,8 @@ Source: PO Decision Log, PRD v1.1 section 20 (QR code rules).
 
 Tests in `src/lib/auth/rls.integration.test.ts`, named "QR token lookup (DL-T4)", "a failed
 cleaning (DL-T4)", "a booking in the cleaning period blocks the start (FO-F03-S09)" and
-"open cleaning jobs of a seat for the QR scan (FO-F03-S11)". They run against the local
+"open cleaning jobs of a seat for the QR scan (FO-F03-S11)", "QR access protection (CO-F04-S14)" and
+"scan to cleaning chain (DL-T4)". They run against the local
 Supabase stack and skip without it.
 
 | Decision Log rule (PRD v1.1 section 20) | Covered by | State |
@@ -1882,6 +1883,8 @@ Supabase stack and skip without it.
 | A quarantined seat opens with its status | An internal role reads it by token | Tested at the database |
 | No personal or booking data in the seat | No column of `seats` is about a partner, customer, price or booking | Tested at the database |
 | A booking that holds the seat blocks Start | Nine tests of the cleaning period | Tested |
+| Cleaning cannot be done by scanning alone when not signed in or without permission | An anonymous caller and an inactive user are refused `start_cleaning` and `complete_cleaning` even knowing the job id, and nothing changes; a partner is refused (older test) | Tested at the database |
+| A scan leads to the cleaning only through the rules of the cleaning | Scan, find the job, Start is refused by a booking in the period (`JB009`) and nothing changes; scan, Start, fail, scan again shows the quarantine (the reason to a technician, not to a partner); a partner of another tenant reaches nothing | Tested at the database, with the real lookups of the pages |
 | A failed cleaning does not return the seat to available | Result recorded, seat in quarantine, same job cannot start again, a technician cannot release the seat, an internal role can, the failed record stays | Tested |
 | History is never deleted | Completed cleaning, seat history, job events and incident history refuse update and delete | Tested (older tests) |
 | The route that reads a code, the redirect, the not-found page and the response body | CO-F04-S13 and S14 | Tested: the real lookup for every role, forged and foreign tokens, the rendered card (see "Protect QR access") |
