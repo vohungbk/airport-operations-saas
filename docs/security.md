@@ -1910,8 +1910,15 @@ Supabase stack and skip without it.
 - **"Today" is the date of the server.** The database and the action use the UTC date, and the
   screen gets it from the server, so a browser in another time zone cannot choose a date the
   database refuses.
-- **Not covered here.** The history list (VI-F04-S03), fees and payment terms (S02), and the
-  revenue calculation that reads these terms (S05).
+- **The other terms (VI-F04-S02).** The launch credit target, the annual fee, the onboarding
+  credit, the VAT rate and the payment terms are saved in the same version, with the same checks in
+  the form, the Server Action, the function and the table (money from 0 to 9,999,999,999.99 with at
+  most 2 decimals, VAT from 0 to 100, payment terms a whole number of days from 0 to 3650). They are
+  locked in a version like the shares. Money is financial data: it is not logged and an error shows a
+  fixed message. Currency and rounding (spec Q1) and how the VAT is applied (Q2) are open: only the
+  numbers are kept and shown, with no currency symbol.
+- **Not covered here.** The history list (VI-F04-S03) and the revenue calculation that reads these
+  terms (S05).
 
 ## Storage
 

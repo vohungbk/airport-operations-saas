@@ -418,9 +418,12 @@ incident with history cannot be deleted. Admin and operations manager read it.
 | platform_share_percent | numeric(5,2) not null default 70 | `check (0–100)`; with the partner share it adds up to 100 (`shares_sum_check`) |
 | launch_partner_share_percent | numeric(5,2) not null default 50 | `check (0–100)`; not below the partner share (VI-F04-S01) |
 | launch_mode | boolean not null default false | |
-| launch_credit_target | numeric(12,2) | nullable |
+| launch_credit_target | numeric(12,2) | nullable (empty: no target set); `check (null or >= 0)` (VI-F04-S02) |
 | launch_credit_accumulated | numeric(12,2) default 0 | nullable |
-| annual_fee / onboarding_fee | numeric(12,2) | nullable |
+| annual_fee | numeric(12,2) not null default 0 | `check (>= 0)`; the annual programme fee |
+| onboarding_fee | numeric(12,2) not null default 0 | `check (>= 0)`; shown as "Onboarding credit" |
+| vat_rate_percent | numeric(5,2) not null default 0 | `check (0–100)`; only the rate is kept, how it is applied is open (spec Q2) |
+| payment_terms_days | integer not null default 14 | `check (0–3650)`; days until an invoice is due |
 | effective_from | date not null | |
 | effective_to | date | nullable; not before `effective_from`; the last day the terms apply |
 
@@ -432,12 +435,16 @@ effective_from)` (admin only) adds a new row and closes the latest one the day b
 starts, in one transaction, with the partner row locked so two saves cannot overlap. The date is
 today or later (the date of the database server, UTC) and after the start of the latest version.
 A `BEFORE UPDATE` trigger (`guard_partner_commercial_terms_update`) refuses a change to the
-partner, the three shares or `effective_from` of a row (SQLSTATE `55000`), for any role including
-the service role; `effective_to` and the launch and fee columns can still be updated. There is no
-delete policy, so no role deletes a version. A new version copies the launch and fee columns of the
-previous one. Error codes: `42501` not an admin, `P0002` partner not found, `22023` a value is
-missing, `TC001` partner share, `TC002` launch share, `TC003` date in the past, `TC004` date not
-after the latest version. Rollback SQL is at the top of the migration.
+partner, the three shares, the launch credit target, the two fees, the VAT rate, the payment terms
+or `effective_from` of a row (SQLSTATE `55000`), for any role including the service role;
+`effective_to`, `launch_mode` and `launch_credit_accumulated` can still be updated. There is no
+delete policy, so no role deletes a version. The function takes all the terms (nine arguments,
+VI-F04-S02) and writes them to the new version; only `launch_mode` and the launch credit balance
+are copied from the previous one. Error codes: `42501` not an admin, `P0002` partner not found,
+`22023` a value is missing, `TC001` partner share, `TC002` launch share, `TC003` date in the past,
+`TC004` date not after the latest version, `TC005` launch credit target, `TC006` annual fee or
+onboarding credit, `TC007` VAT rate, `TC008` payment terms. Rollback SQL is at the top of each
+migration.
 
 ### `settlements` (mutable)
 | column | type | notes |
