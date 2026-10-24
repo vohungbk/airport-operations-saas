@@ -26,6 +26,7 @@ import { ScannedSeatCard } from "@/features/seats/components/scanned-seat-card";
 import { getSeatByPublicToken } from "@/features/seats/lib/get-seat-by-token";
 import { getSeatScanView } from "@/features/seats/lib/seat-scan-access";
 import { getCleaningJobsForSeat } from "@/features/cleaning/lib/get-cleaning-jobs-for-seat";
+import { pickCommercialTerms, type CommercialTermsVersion } from "@/features/partners/lib/commercial-terms";
 import { partnerSeatsQuerySchema } from "@/features/seats/schemas/partner-seats-query.schema";
 import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
 import {
@@ -7275,6 +7276,81 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(await versionsOf(partnerId)).toMatchObject([
         { partner_share_percent: version.partner_share_percent, effective_from: version.effective_from },
       ]);
+    });
+
+    // VI-F04-S03 (spec E5): terms change while rentals are in progress. A rental completed on a
+    // day is calculated with the terms in force that day, so on every day exactly one version
+    // must be in force, and a new version applies only from its effective date.
+    it("should have exactly one version in force on each day and apply new terms only from their date (VI-F04-S03 AC02)", async () => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 30, 50, dayFromToday(0));
+      await save(adminClient, partnerId, 40, 60, dayFromToday(10));
+      await save(adminClient, partnerId, 45, 70, dayFromToday(20));
+
+      const rows = await versionsOf(partnerId);
+      const versions: CommercialTermsVersion[] = rows.map((row) => ({
+        id: row.id,
+        partner_share_percent: Number(row.partner_share_percent),
+        platform_share_percent: Number(row.platform_share_percent),
+        launch_partner_share_percent: Number(row.launch_partner_share_percent),
+        launch_credit_target: row.launch_credit_target === null ? null : Number(row.launch_credit_target),
+        annual_fee: Number(row.annual_fee),
+        onboarding_fee: Number(row.onboarding_fee),
+        vat_rate_percent: Number(row.vat_rate_percent),
+        payment_terms_days: row.payment_terms_days,
+        effective_from: row.effective_from,
+        effective_to: row.effective_to,
+      }));
+
+      for (let day = 0; day <= 25; day++) {
+        const date = dayFromToday(day);
+        const inForce = versions.filter(
+          (v) => v.effective_from <= date && (v.effective_to === null || v.effective_to >= date),
+        );
+        const expected = day < 10 ? 30 : day < 20 ? 40 : 45;
+
+        expect(inForce, `day ${day}`).toHaveLength(1);
+        expect(inForce[0].partner_share_percent, `day ${day}`).toBe(expected);
+        expect(pickCommercialTerms(versions, date).current?.partner_share_percent, `day ${day}`).toBe(expected);
+      }
+      expect(pickCommercialTerms(versions, dayFromToday(-1)).current).toBeNull();
+      expect(pickCommercialTerms(versions, dayFromToday(10)).earlier.map((v) => v.partner_share_percent)).toEqual([30]);
+      expect(pickCommercialTerms(versions, dayFromToday(25)).earlier.map((v) => v.partner_share_percent)).toEqual([40, 30]);
+    });
+
+    it("should leave the earlier versions as they were when newer ones are saved (VI-F04-S03 AC02)", async () => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 30, 50, dayFromToday(0), { annualFee: 100, vat: 5, paymentDays: 14 });
+      await save(adminClient, partnerId, 40, 60, dayFromToday(10), { annualFee: 200, vat: 10, paymentDays: 30 });
+      const [firstBefore, secondBefore] = await versionsOf(partnerId);
+
+      await save(adminClient, partnerId, 45, 70, dayFromToday(20), { annualFee: 300, vat: 15, paymentDays: 45 });
+      const [firstAfter, secondAfter, third] = await versionsOf(partnerId);
+
+      expect(firstAfter).toEqual({ ...firstBefore, updated_at: firstAfter.updated_at });
+      expect(Number(firstAfter.annual_fee)).toBe(100);
+      expect(Number(firstAfter.vat_rate_percent)).toBe(5);
+      expect(firstAfter.payment_terms_days).toBe(14);
+      expect({ ...secondAfter, effective_to: null, updated_at: null }).toEqual({
+        ...secondBefore,
+        effective_to: null,
+        updated_at: null,
+      });
+      expect(secondAfter.effective_to).toBe(dayFromToday(19));
+      expect(third.effective_to).toBeNull();
+    });
+
+    it("should not show the earlier versions of one partner to a partner user of another (cross-tenant denial)", async () => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 30, 50, dayFromToday(0));
+      await save(adminClient, partnerId, 40, 60, dayFromToday(10));
+
+      for (const client of [partnerAClient, partnerBClient]) {
+        const { data, error } = await client.from("partner_commercial_terms").select("id").eq("partner_id", partnerId);
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+      }
+      expect((await opsClient.from("partner_commercial_terms").select("id").eq("partner_id", partnerId)).data).toHaveLength(2);
     });
 
     it("should keep the history: no role can delete a version", async () => {

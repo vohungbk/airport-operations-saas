@@ -55,7 +55,7 @@ describe("platformShareOf", () => {
 
 describe("pickCommercialTerms", () => {
   it("should give nothing for a partner with no terms", () => {
-    expect(pickCommercialTerms([], "2026-10-24")).toEqual({ current: null, upcoming: [] });
+    expect(pickCommercialTerms([], "2026-10-24")).toEqual({ current: null, upcoming: [], earlier: [] });
   });
 
   it("should pick the version in force, the start and the end day included", () => {
@@ -72,6 +72,40 @@ describe("pickCommercialTerms", () => {
 
     expect(picked.current?.id).toBe("now");
     expect(picked.upcoming.map((v) => v.id)).toEqual(["soon", "later"]);
+  });
+
+  it("should list the versions that have ended as earlier, newest first (VI-F04-S03 AC01)", () => {
+    const versions = [
+      version("first", "2025-01-01", "2025-12-31"),
+      version("second", "2026-01-01", "2026-06-30"),
+      version("now", "2026-07-01"),
+    ];
+
+    const picked = pickCommercialTerms(versions, "2026-10-24");
+
+    expect(picked.earlier.map((v) => v.id)).toEqual(["second", "first"]);
+    expect(picked.current?.id).toBe("now");
+  });
+
+  it("should not call a version earlier on its last day, only the day after", () => {
+    const versions = [version("old", "2026-01-01", "2026-10-24"), version("next", "2026-10-25")];
+
+    expect(pickCommercialTerms(versions, "2026-10-24").earlier).toEqual([]);
+    expect(pickCommercialTerms(versions, "2026-10-24").current?.id).toBe("old");
+    expect(pickCommercialTerms(versions, "2026-10-25").earlier.map((v) => v.id)).toEqual(["old"]);
+  });
+
+  it("should not call a version that has not started earlier", () => {
+    expect(pickCommercialTerms([version("later", "2027-01-01")], "2026-10-24").earlier).toEqual([]);
+  });
+
+  it("should give the terms of a rental for the day it was completed: completed rentals keep earlier terms, new terms apply from the effective date (VI-F04-S03 AC02)", () => {
+    const old = { ...version("old", "2026-01-01", "2026-10-31"), partner_share_percent: 30 };
+    const fresh = { ...version("new", "2026-11-01"), partner_share_percent: 40 };
+
+    expect(pickCommercialTerms([old, fresh], "2026-10-31").current?.partner_share_percent).toBe(30);
+    expect(pickCommercialTerms([old, fresh], "2026-11-01").current?.partner_share_percent).toBe(40);
+    expect(pickCommercialTerms([old, fresh], "2025-12-31").current).toBeNull();
   });
 
   it("should have no current version before the first one starts", () => {

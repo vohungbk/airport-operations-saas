@@ -12,7 +12,10 @@ const notFoundMock = vi.hoisted(() =>
 
 vi.mock("@/lib/auth/current-user", () => ({ requirePermission: requirePermissionMock }));
 vi.mock("@/features/partners/lib/get-partner-by-id", () => ({ getPartnerById: getPartnerMock }));
-vi.mock("@/features/partners/lib/get-commercial-terms", () => ({ getCommercialTerms: getTermsMock }));
+vi.mock("@/features/partners/lib/get-commercial-terms", () => ({
+  getCommercialTerms: getTermsMock,
+  COMMERCIAL_TERMS_LIMIT: 100,
+}));
 const formProps = vi.hoisted(() => ({ current: null as Record<string, unknown> | null }));
 
 vi.mock("@/features/partners/components/commercial-terms-form", () => ({
@@ -31,6 +34,20 @@ const PARTNER_ID = "a0000000-0000-0000-0000-000000000001";
 const render = async () =>
   renderToStaticMarkup(await CommercialTermsPage({ params: Promise.resolve({ id: PARTNER_ID }) }));
 
+const terms = (id: string, from: string, to: string | null, partner = 30, launch = 50) => ({
+  id,
+  partner_share_percent: partner,
+  platform_share_percent: 100 - partner,
+  launch_partner_share_percent: launch,
+  launch_credit_target: null,
+  annual_fee: 0,
+  onboarding_fee: 0,
+  vat_rate_percent: 0,
+  payment_terms_days: 14,
+  effective_from: from,
+  effective_to: to,
+});
+
 const asRole = (role: string) => requirePermissionMock.mockResolvedValue({ id: "u-1", role });
 
 /**
@@ -46,7 +63,7 @@ describe("CommercialTermsPage", () => {
     formProps.current = null;
     asRole("admin");
     getPartnerMock.mockResolvedValue({ id: PARTNER_ID, name: "Demo Car Rental", code: "DCR" });
-    getTermsMock.mockResolvedValue([]);
+    getTermsMock.mockResolvedValue({ versions: [], truncated: false });
   });
 
   it("should check the permission to manage partners before reading anything (AC02)", async () => {
@@ -71,16 +88,7 @@ describe("CommercialTermsPage", () => {
   });
 
   it("should show the terms in force to an admin, with the form starting from them", async () => {
-    getTermsMock.mockResolvedValue([
-      {
-        id: "t-1",
-        partner_share_percent: 40,
-        platform_share_percent: 60,
-        launch_partner_share_percent: 55,
-        effective_from: "2020-01-01",
-        effective_to: null,
-      },
-    ]);
+    getTermsMock.mockResolvedValue({ versions: [terms("t-1", "2020-01-01", null, 40, 55)], truncated: false });
 
     const html = await render();
 
@@ -106,6 +114,42 @@ describe("CommercialTermsPage", () => {
 
     await expect(render()).rejects.toThrow("NOT_FOUND");
     expect(getTermsMock).not.toHaveBeenCalled();
+  });
+
+  it("should list the earlier terms with the days they applied, to an admin (VI-F04-S03 AC01)", async () => {
+    getTermsMock.mockResolvedValue({
+      versions: [terms("t-2", "2020-06-01", null, 40), terms("t-1", "2020-01-01", "2020-05-31", 30)],
+      truncated: false,
+    });
+
+    const html = await render();
+
+    expect(html).toContain("Earlier terms");
+    expect(html).toContain("2020-01-01 to 2020-05-31");
+    expect(html).toContain("Terms in force");
+  });
+
+  it("should list the earlier terms to an operations manager too, read only", async () => {
+    asRole("operations_manager");
+    getTermsMock.mockResolvedValue({
+      versions: [terms("t-2", "2020-06-01", null), terms("t-1", "2020-01-01", "2020-05-31")],
+      truncated: false,
+    });
+
+    const html = await render();
+
+    expect(html).toContain("2020-01-01 to 2020-05-31");
+    expect(html).toContain("Read only");
+  });
+
+  it("should say there are no earlier terms when none has ended", async () => {
+    expect(await render()).toContain("No earlier terms");
+  });
+
+  it("should note that older versions were cut off", async () => {
+    getTermsMock.mockResolvedValue({ versions: [], truncated: true });
+
+    expect(await render()).toContain("Only the latest 100 versions are shown.");
   });
 
   it("should link back to the partner", async () => {
