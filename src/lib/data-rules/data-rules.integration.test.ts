@@ -143,6 +143,19 @@ const CASES: Case[] = [
     inside: `${bookingWith("DR-56", "launch_credit, launch_credit_balance", "5, 5")} ${bookingWith("DR-57", "launch_credit", "0")}`,
     outside: bookingWith("DR-58", "launch_credit", "5"),
   },
+  // Early returns, cancellations and no-shows (VI-F04-S07).
+  {
+    constraint: "bookings_actual_return_check",
+    code: "23514",
+    inside: `${bookingWith("DR-60", "actual_return_at", "'2030-01-01 10:00+00'")} ${bookingWith("DR-61", "actual_return_at", "null")}`,
+    outside: bookingWith("DR-62", "actual_return_at", "'2030-01-01 09:59+00'"),
+  },
+  {
+    constraint: "bookings_revenue_case_check",
+    code: "23514",
+    inside: `${bookingWith("DR-63", "revenue_case", "'standard'")} ${bookingWith("DR-64", "revenue_case", "'early_return'")} ${bookingWith("DR-65", "revenue_case", "'cancelled'")} ${bookingWith("DR-66", "revenue_case", "'no_show'")} ${bookingWith("DR-67", "revenue_case", "null")}`,
+    outside: bookingWith("DR-68", "revenue_case", "'other'"),
+  },
   {
     constraint: "bookings_rental_days_check",
     code: "23514",
