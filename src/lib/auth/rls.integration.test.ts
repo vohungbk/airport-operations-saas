@@ -7399,6 +7399,101 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  // VI-F04-S10: booking_adjustments is the financial history of a booking. Rows are written only by
+  // add_booking_adjustment() (tested in src/lib/finance/booking-adjustments.integration.test.ts);
+  // here the table is checked with the real RLS of each role. The demo data has an adjustment.
+  describe("booking adjustments (VI-F04-S10)", () => {
+    const allRows = async () => {
+      const { data } = await service.from("booking_adjustments").select("id, booking_id, amount, reason");
+      return data ?? [];
+    };
+
+    async function bookingIdsOf(partnerId: string) {
+      const { data } = await service.from("bookings").select("id").eq("partner_id", partnerId);
+      return new Set((data ?? []).map((row) => row.id));
+    }
+
+    it("should have an adjustment in the demo data, so the cases below look at a real row", async () => {
+      expect((await allRows()).length).toBeGreaterThan(0);
+    });
+
+    it("should show an admin and an operations manager every adjustment", async () => {
+      const expected = (await allRows()).length;
+
+      for (const client of [adminClient, opsClient]) {
+        const { data, error } = await client.from("booking_adjustments").select("id");
+        expect(error).toBeNull();
+        expect(data).toHaveLength(expected);
+      }
+    });
+
+    it("should show a partner user only the adjustments of the bookings of its own partner (cross-tenant denial)", async () => {
+      const rows = await allRows();
+      const ownA = await bookingIdsOf(PARTNER_A_ID);
+      const ownB = await bookingIdsOf(PARTNER_B_ID);
+
+      const seenByA = (await partnerAClient.from("booking_adjustments").select("booking_id")).data ?? [];
+      const seenByB = (await partnerBClient.from("booking_adjustments").select("booking_id")).data ?? [];
+
+      expect(seenByA.every((row) => ownA.has(row.booking_id))).toBe(true);
+      expect(seenByB.every((row) => ownB.has(row.booking_id))).toBe(true);
+      expect(seenByA.length).toBe(rows.filter((row) => ownA.has(row.booking_id)).length);
+      expect(seenByB.length).toBe(rows.filter((row) => ownB.has(row.booking_id)).length);
+    });
+
+    it("should show a technician, an inactive user, a partner without a partner and an anonymous client nothing", async () => {
+      for (const client of [technicianClient, inactiveClient, partnerNullClient, anonClient]) {
+        const { data, error } = await client.from("booking_adjustments").select("id");
+        expect(error === null ? data : []).toEqual([]);
+      }
+    });
+
+    it("should let no role write a row directly: only add_booking_adjustment() writes", async () => {
+      const [booking] = (await service.from("bookings").select("id").limit(1)).data!;
+      const before = (await allRows()).length;
+
+      for (const client of [adminClient, opsClient, technicianClient, partnerAClient, anonClient]) {
+        const { error } = await client.from("booking_adjustments").insert({
+          booking_id: booking.id,
+          type: "partial_refund",
+          amount: 1,
+          reason: "Direct insert",
+        });
+        expect(error).not.toBeNull();
+      }
+      expect((await allRows()).length).toBe(before);
+    });
+
+    it("should keep the history: no role can update or delete a row, the service role included", async () => {
+      const [row] = await allRows();
+
+      for (const client of [adminClient, opsClient, partnerAClient, partnerBClient]) {
+        await client.from("booking_adjustments").update({ reason: "Changed" }).eq("id", row.id);
+        await client.from("booking_adjustments").delete().eq("id", row.id);
+      }
+      const viaService = await service.from("booking_adjustments").update({ reason: "Changed" }).eq("id", row.id);
+      const deleteViaService = await service.from("booking_adjustments").delete().eq("id", row.id);
+
+      expect(viaService.error?.code).toBe("55000");
+      expect(deleteViaService.error?.code).toBe("55000");
+      expect((await allRows()).find((r) => r.id === row.id)).toEqual(row);
+    });
+
+    it("should refuse add_booking_adjustment() to a technician, a partner user and an anonymous caller", async () => {
+      const [booking] = (await service.from("bookings").select("id").limit(1)).data!;
+
+      for (const client of [technicianClient, partnerAClient, anonClient, inactiveClient]) {
+        const { error } = await client.rpc("add_booking_adjustment", {
+          p_booking_id: booking.id,
+          p_type: "partial_refund",
+          p_amount: 1,
+          p_reason: "Not allowed",
+        });
+        expect(error).not.toBeNull();
+      }
+    });
+  });
+
   describe("partners table", () => {
     it("admin can SELECT both seeded partners", async () => {
       const { data, error } = await adminClient

@@ -11,6 +11,15 @@ const notFoundMock = vi.hoisted(() =>
 
 vi.mock("@/lib/auth/current-user", () => ({ requireAnyPermission: requireAnyPermissionMock }));
 vi.mock("@/features/bookings/lib/get-booking-revenue", () => ({ getBookingRevenue: getRevenueMock }));
+const formProps = vi.hoisted(() => ({ current: null as Record<string, unknown> | null }));
+
+vi.mock("@/features/bookings/components/adjustment-form", () => ({
+  // The form is a client component with its own tests; the page is checked by what it hands it.
+  AdjustmentForm: (props: Record<string, unknown>) => {
+    formProps.current = props;
+    return "FORM";
+  },
+}));
 vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
 
 import AdjustmentPage from "@/app/(dashboard)/bookings/[id]/adjustment/page";
@@ -26,6 +35,7 @@ const completed = {
   paid_days: 3,
   rental_days: 3,
   gross_revenue: 270,
+  adjustments_total: 0,
   partner_share: 135,
   platform_share: 135,
   launch_credit: 54,
@@ -48,10 +58,11 @@ describe("AdjustmentPage", () => {
     requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role: "operations_manager" });
     getRevenueMock.mockReset();
     getRevenueMock.mockResolvedValue(completed);
+    formProps.current = null;
     notFoundMock.mockClear();
   });
 
-  it("should open the adjustment screen for a completed rental, with its current figures (AC02)", async () => {
+  it("should open the adjustment form for a completed rental, with its current figures (AC02)", async () => {
     const html = await render();
 
     expect(getRevenueMock).toHaveBeenCalledWith(BOOKING_ID);
@@ -59,6 +70,15 @@ describe("AdjustmentPage", () => {
     expect(html).toContain("BK-00025");
     expect(html).toContain("270.00");
     expect(html).toContain("135.00");
+    expect(html).toContain("FORM");
+  });
+
+  it("should hand the form the booking and the gross revenue it has now as the most an adjustment can be (AC04)", async () => {
+    getRevenueMock.mockResolvedValue({ ...completed, gross_revenue: 220, adjustments_total: -50 });
+
+    await render();
+
+    expect(formProps.current).toEqual({ bookingId: BOOKING_ID, maxAmount: 220 });
   });
 
   it("should check the permission to add an adjustment before reading anything (AC01)", async () => {
@@ -89,28 +109,28 @@ describe("AdjustmentPage", () => {
     ["cancelled", { revenue_case: "cancelled", gross_revenue: 0 }],
     ["a no-show", { revenue_case: "no_show", gross_revenue: 0 }],
     ["flagged for no duration", { revenue_flag: "invalid_duration", gross_revenue: null }],
-  ])("should say there is nothing to adjust on a booking that is %s", async (_name, change) => {
+    ["refunded in full", { gross_revenue: 0, adjustments_total: -270 }],
+  ])("should say there is nothing to adjust on a booking that is %s, and show no form", async (_name, change) => {
     getRevenueMock.mockResolvedValue({ ...completed, ...change });
 
     const html = await render();
 
     expect(html).toContain("Nothing to adjust");
     expect(html).not.toContain("Revenue of this booking now");
+    expect(html).not.toContain("FORM");
+    expect(formProps.current).toBeNull();
   });
 
-  it("should let the user cancel back to Booking revenue (NAV-3), from either state", async () => {
-    expect(await render()).toContain(`href="/bookings/${BOOKING_ID}/revenue"`);
-
+  it("should let the user cancel back to Booking revenue (NAV-3) when there is nothing to adjust", async () => {
     getRevenueMock.mockResolvedValue({ ...completed, revenue_case: null, gross_revenue: null });
+
     expect(await render()).toContain(`href="/bookings/${BOOKING_ID}/revenue"`);
   });
 
-  it("should write nothing: no field, no Save, no write imported", async () => {
+  it("should write nothing itself: the page imports no action and calls no write", async () => {
     const { readFileSync } = await import("node:fs");
-    const html = await render();
     const source = readFileSync("src/app/(dashboard)/bookings/[id]/adjustment/page.tsx", "utf8");
 
-    expect(html).not.toMatch(/<input|<button|<form|<textarea|<select/);
     expect(source).not.toMatch(/\.action"|"use server"|\.rpc\(|\.insert\(|\.update\(|\.delete\(/);
   });
 });

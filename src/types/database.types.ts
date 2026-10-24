@@ -115,6 +115,51 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_adjustments: {
+        Row: {
+          amount: number
+          booking_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          reason: string
+          type: Database["public"]["Enums"]["booking_adjustment_type"]
+        }
+        Insert: {
+          amount: number
+          booking_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason: string
+          type: Database["public"]["Enums"]["booking_adjustment_type"]
+        }
+        Update: {
+          amount?: number
+          booking_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string
+          type?: Database["public"]["Enums"]["booking_adjustment_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_adjustments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_adjustments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_events: {
         Row: {
           booking_id: string
@@ -177,6 +222,7 @@ export type Database = {
         Row: {
           actual_arrival_at: string | null
           actual_return_at: string | null
+          adjustments_total: number
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -214,6 +260,7 @@ export type Database = {
         Insert: {
           actual_arrival_at?: string | null
           actual_return_at?: string | null
+          adjustments_total?: number
           airport_id: string
           assigned_seat_id?: string | null
           assigned_technician_id?: string | null
@@ -252,6 +299,7 @@ export type Database = {
         Update: {
           actual_arrival_at?: string | null
           actual_return_at?: string | null
+          adjustments_total?: number
           airport_id?: string
           assigned_seat_id?: string | null
           assigned_technician_id?: string | null
@@ -1404,6 +1452,33 @@ export type Database = {
         Returns: undefined
       }
       booking_partner_id: { Args: { p_booking_id: string }; Returns: string }
+      add_booking_adjustment: {
+        Args: {
+          p_amount: number
+          p_booking_id: string
+          p_reason: string
+          p_type: Database["public"]["Enums"]["booking_adjustment_type"]
+        }
+        Returns: {
+          amount: number
+          booking_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          reason: string
+          type: Database["public"]["Enums"]["booking_adjustment_type"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "booking_adjustments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      booking_adjustment_sign: {
+        Args: { p_type: Database["public"]["Enums"]["booking_adjustment_type"] }
+        Returns: number
+      }
       booking_case_revenue: {
         Args: { p_case: string }
         Returns: {
@@ -1436,6 +1511,7 @@ export type Database = {
         Returns: {
           actual_arrival_at: string | null
           actual_return_at: string | null
+          adjustments_total: number
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -1587,6 +1663,7 @@ export type Database = {
         Returns: {
           actual_arrival_at: string | null
           actual_return_at: string | null
+          adjustments_total: number
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -1645,6 +1722,7 @@ export type Database = {
         Returns: {
           actual_arrival_at: string | null
           actual_return_at: string | null
+          adjustments_total: number
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -1747,6 +1825,7 @@ export type Database = {
         Returns: {
           actual_arrival_at: string | null
           actual_return_at: string | null
+          adjustments_total: number
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -1804,6 +1883,7 @@ export type Database = {
         Returns: {
           actual_arrival_at: string | null
           actual_return_at: string | null
+          adjustments_total: number
           airport_id: string
           assigned_seat_id: string | null
           assigned_technician_id: string | null
@@ -1847,6 +1927,11 @@ export type Database = {
       }
     }
     Enums: {
+      booking_adjustment_type:
+        | "partial_refund"
+        | "full_refund"
+        | "manual_adjustment"
+        | "chargeback"
       booking_status:
         | "pending"
         | "confirmed"
@@ -2002,6 +2087,12 @@ export const Constants = {
   },
   public: {
     Enums: {
+      booking_adjustment_type: [
+        "partial_refund",
+        "full_refund",
+        "manual_adjustment",
+        "chargeback",
+      ],
       booking_status: [
         "pending",
         "confirmed",

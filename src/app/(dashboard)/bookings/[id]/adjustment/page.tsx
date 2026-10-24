@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { FINANCE_ADJUSTMENT_PERMISSIONS } from "@/lib/auth/permissions";
 import { buttonVariants } from "@/components/ui/button";
+import { AdjustmentForm } from "@/features/bookings/components/adjustment-form";
 import { canAddAdjustment } from "@/features/bookings/lib/booking-adjustment";
 import { formatMoney } from "@/features/bookings/lib/booking-revenue";
 import { getBookingRevenue } from "@/features/bookings/lib/get-booking-revenue";
@@ -16,8 +17,9 @@ interface AdjustmentPageProps {
  * VI-F04-S09 (NAV-1): the Adjustment form, opened from Booking revenue. An admin or an operations
  * manager may open it (`finance:view`), checked here before anything is read. A booking that is
  * unknown, malformed or hidden by RLS is the same not-found page. Only a completed rental with
- * revenue can have an adjustment; for another booking the page says so. This story opens the
- * screen; the fields and the Save button are VI-F04-S10, so nothing is written from here.
+ * revenue can have an adjustment; for another booking the page says so. The form (VI-F04-S10)
+ * sends the entries to a Server Action, which checks the role again and records the adjustment in
+ * the database; this page itself writes nothing.
  */
 export default async function AdjustmentPage({ params }: AdjustmentPageProps) {
   await requireAnyPermission(FINANCE_ADJUSTMENT_PERMISSIONS);
@@ -34,6 +36,7 @@ export default async function AdjustmentPage({ params }: AdjustmentPageProps) {
       Cancel
     </Link>
   );
+  const grossRevenue = booking.gross_revenue;
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
@@ -42,7 +45,7 @@ export default async function AdjustmentPage({ params }: AdjustmentPageProps) {
         <p className="text-sm text-muted-foreground">{booking.booking_number}</p>
       </div>
 
-      {canAddAdjustment(booking) ? (
+      {canAddAdjustment(booking) && grossRevenue !== null ? (
         <section aria-labelledby="adjustment-current" className="flex max-w-lg flex-col gap-4">
           <h2 id="adjustment-current" className="text-sm font-medium text-foreground">
             Revenue of this booking now
@@ -61,7 +64,7 @@ export default async function AdjustmentPage({ params }: AdjustmentPageProps) {
               <dd className="mt-1 text-sm text-foreground">{formatMoney(booking.platform_share)}</dd>
             </div>
           </dl>
-          <div>{back}</div>
+          <AdjustmentForm bookingId={booking.id} maxAmount={grossRevenue} />
         </section>
       ) : (
         <div className="flex max-w-lg flex-col gap-4">

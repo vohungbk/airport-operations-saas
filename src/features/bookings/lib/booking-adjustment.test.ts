@@ -11,6 +11,7 @@ const row = (overrides: Partial<BookingRevenueRow> = {}): BookingRevenueRow => (
   paid_days: 6,
   rental_days: 6,
   gross_revenue: 450,
+  adjustments_total: 0,
   partner_share: 135,
   platform_share: 315,
   launch_credit: 0,
@@ -36,6 +37,7 @@ describe("canAddAdjustment", () => {
     ["a no-show", { revenue_case: "no_show", gross_revenue: 0 }],
     ["a rental with no duration", { revenue_flag: "invalid_duration", gross_revenue: null }],
     ["a rental with no gross revenue", { gross_revenue: null }],
+    ["a rental already refunded in full: gross revenue zero", { gross_revenue: 0, adjustments_total: -450 }],
   ])("should not allow an adjustment on %s: there is nothing to correct", (_name, change) => {
     expect(canAddAdjustment(row(change))).toBe(false);
   });

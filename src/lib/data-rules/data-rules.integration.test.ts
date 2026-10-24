@@ -42,6 +42,10 @@ const partner = (code: string) =>
 const booking = (number: string, pickup = "2030-01-01 10:00+00", ret = "2030-01-02 10:00+00", paidDays = 0) =>
   `insert into public.bookings (booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate, paid_days)
    values ('${number}', ${PARTNER}, ${AIRPORT}, '${pickup}', '${ret}', ${CATEGORY}, 10, ${paidDays});`;
+/** An adjustment row; the foreign keys are off in these cases, so the booking need not exist. */
+const adjustment = (amount: string, reason: string) =>
+  `insert into public.booking_adjustments (booking_id, type, amount, reason)
+   values ('c3000000-0000-0000-0000-000000000099', 'partial_refund', ${amount}, ${reason});`;
 /** A booking with one more column set, for the finance checks of VI-F04-S04. */
 const bookingWith = (number: string, column: string, value: string) =>
   `insert into public.bookings (booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate, ${column})
@@ -142,6 +146,25 @@ const CASES: Case[] = [
     code: "23514",
     inside: `${bookingWith("DR-56", "launch_credit, launch_credit_balance", "5, 5")} ${bookingWith("DR-57", "launch_credit", "0")}`,
     outside: bookingWith("DR-58", "launch_credit", "5"),
+  },
+  // Adjustments (VI-F04-S10).
+  {
+    constraint: "bookings_adjustments_total_check",
+    code: "23514",
+    inside: `${bookingWith("DR-70", "adjustments_total", "0")} ${bookingWith("DR-71", "adjustments_total", "-5")}`,
+    outside: bookingWith("DR-72", "adjustments_total", "1"),
+  },
+  {
+    constraint: "booking_adjustments_amount_check",
+    code: "23514",
+    inside: adjustment("0.01", "'A reason'"),
+    outside: adjustment("0", "'A reason'"),
+  },
+  {
+    constraint: "booking_adjustments_reason_check",
+    code: "23514",
+    inside: `${adjustment("1", "'x'")} ${adjustment("1", "repeat('x', 1000)")}`,
+    outside: adjustment("1", "'   '"),
   },
   // Early returns, cancellations and no-shows (VI-F04-S07).
   {
@@ -302,7 +325,7 @@ const CASES: Case[] = [
   },
 ];
 
-const HISTORY_TABLES = ["booking_events", "technician_job_events", "incident_status_history"];
+const HISTORY_TABLES = ["booking_events", "technician_job_events", "incident_status_history", "booking_adjustments"];
 
 /** SQL with plain output: one value per line, no headers. */
 const plain = (sql: string) => `\\set QUIET on\n\\pset tuples_only on\n\\pset format unaligned\n${sql}`;

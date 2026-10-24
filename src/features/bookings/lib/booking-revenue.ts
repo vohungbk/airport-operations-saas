@@ -84,7 +84,17 @@ export function buildBookingRevenue(row: BookingRevenueRow): BookingRevenueView 
         : String(row.paid_days),
     },
     { label: "Daily rate", value: formatMoney(row.daily_rate) },
-    { label: "Gross revenue", value: formatMoney(row.gross_revenue) },
+    {
+      label: "Gross revenue",
+      value:
+        row.adjustments_total < 0 && row.gross_revenue !== null
+          ? `${formatMoney(row.gross_revenue)} (after ${formatMoney(-row.adjustments_total)} of adjustments)`
+          : formatMoney(row.gross_revenue),
+    },
+    {
+      label: "Adjustments",
+      value: row.adjustments_total < 0 ? formatMoney(row.adjustments_total) : "None",
+    },
     { label: "Partner share", value: withBasis(row.partner_share, shareBasis) },
     { label: "Platform share", value: withBasis(row.platform_share, platformBasis) },
     {

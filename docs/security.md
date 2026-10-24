@@ -1948,15 +1948,27 @@ Supabase stack and skip without it.
   booking. It has no form, no button and no action. The query names its columns: no fees, no launch
   credit target, no contact data, no free text. Amounts show two decimals and no currency (spec Q1 is
   open).
+- **Recording an adjustment (VI-F04-S10).** Three layers check the role: the page and the Server Action
+  (`FINANCE_ADJUSTMENT_PERMISSIONS`, before anything is read) and `add_booking_adjustment()` itself
+  (`SECURITY DEFINER`, empty `search_path`, an active admin or operations manager, no user id from the
+  client). The Server Action reads the gross revenue of the booking again and validates with the same Zod
+  schema as the form, so the amount is never checked against a number from the browser; the function
+  checks every rule once more and answers with a fixed code that becomes a fixed message. The history is
+  `booking_adjustments`: append only for every role including the service role, no insert policy, RLS for
+  admin, operations manager and a partner user of the booking's own partner (cross-tenant denial tested).
+  The list of adjustments, with the reasons (internal notes), is shown to the operations team only; a
+  partner user sees the total in the figures. Money is `numeric(12,2)`; the reason is not logged. A
+  refund of more than the gross revenue is refused (E6), and so is a zero, negative or 3-decimal amount
+  (E7). What is not covered: a booking in a settlement that is already approved (spec R19, E8, Q5; there
+  are no settlements yet).
 - **Opening the adjustment form (VI-F04-S09).** "Add adjustment" is offered only to an admin and an
   operations manager (`FINANCE_ADJUSTMENT_PERMISSIONS`, which is `finance:view`; the spec gives the
   operations manager "conditional" rights without the condition, so both may: an assumption) and only
   for a completed rental with revenue to correct. `/bookings/[id]/adjustment` checks the same
   permission on the server before it reads anything, so a partner user or a technician who types the
   address is sent to `/forbidden`; RLS still hides the bookings of another partner behind the same
-  not-found page. The page only reads and writes nothing: the fields, the validation and the Save
-  button are VI-F04-S10, which must check the role again in its Server Action and its database
-  function.
+  not-found page. The page itself writes nothing: the form it shows (VI-F04-S10) sends the entries
+  to the Server Action above.
 
 ## Commercial terms (VI-F04-S01)
 

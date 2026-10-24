@@ -214,6 +214,7 @@ Indexes: `flight_number`, `airport_id`.
 | revenue_flag | text | nullable; `check (null or 'invalid_duration' or 'no_terms')`; `invalid_duration`: a completed rental has no duration; `no_terms`: the partner had no terms in force |
 | gross_revenue | numeric(12,2) | nullable; `check (>= 0)`; paid days x the daily rate, set when the booking is completed (VI-F04-S04) |
 | partner_share / platform_share | numeric(12,2) | nullable; each `check (>= 0)`; both set or both null; together they add up to `gross_revenue` (VI-F04-S05) |
+| adjustments_total | numeric(12,2) not null default 0 | `check (<= 0)`; the sum of the adjustments recorded on the booking (they take money away, so it is zero or negative); written only by `add_booking_adjustment()` (VI-F04-S10) |
 | revenue_case | text | nullable; `check (standard, early_return, cancelled or no_show)`; the case that priced the booking (VI-F04-S07) |
 | actual_return_at | timestamptz | nullable; `check (not before pickup_at)`; when the rental was really returned; the workflow that completes a rental (F14, F15) will write it |
 | commercial_terms_id | uuid, FK → partner_commercial_terms.id ON DELETE RESTRICT | nullable; the version of the terms the shares were calculated with |
@@ -255,6 +256,27 @@ gets the gross revenue, no shares and `revenue_flag = 'no_terms'` (the default o
 used); a rental with no duration gets no gross and no shares. The trigger function is `SECURITY
 DEFINER` (the caller may not read the terms). A booking completed before this migration is not
 calculated again. Rollback SQL is at the top of the migration.
+
+**Adjustments (VI-F04-S10, migration `20261111090000_booking_adjustments.sql`).** `booking_adjustments`
+is the financial history of a booking: `id`, `booking_id` (FK restrict), `type` (enum
+`booking_adjustment_type`: `partial_refund`, `full_refund`, `manual_adjustment`, `chargeback`), `amount`
+(`numeric(12,2)`, above zero), `reason` (required, at most 1000 characters), `created_by` (FK to users,
+set null if the user is deleted) and `created_at`. It is append only (R16): triggers refuse UPDATE,
+DELETE and TRUNCATE for every role, the service role included, and there is no insert, update or delete
+policy, so a row is written only by `public.add_booking_adjustment(booking, type, amount, reason)`.
+RLS: admin and operations manager read all; a partner user reads the adjustments of the bookings of its
+own partner; a technician reads none. `add_booking_adjustment()` is `SECURITY DEFINER`: it checks that
+the caller is an active admin or operations manager, locks the booking, requires a completed rental with
+revenue left, an amount above zero with at most 2 decimals and not above the gross revenue the booking
+has now, and a reason; it writes the row and updates `adjustments_total`, which makes the completion
+trigger calculate the booking again in the same transaction. Error codes: `42501` not allowed, `P0002`
+booking not found, `22023` a value is missing, `BA002` amount, `BA003` amount above the gross revenue,
+`BA004` no revenue to adjust, `BA005` reason. The calculation: gross revenue = paid days x daily rate +
+`adjustments_total`, never below zero; the shares are the split of that gross revenue with the terms the
+booking kept; the launch credit is worked out on what the rental earned and does not change (spec Q4 is
+open). All four types take money away (`booking_adjustment_sign()`; an assumption, the spec does not say
+which way a manual adjustment goes). A change of the period or the rate afterwards keeps the adjustments.
+Rollback SQL is at the top of the migration.
 
 **Early return, cancellation and no-show (VI-F04-S07, migration `20261110090000_booking_revenue_cases.sql`).**
 `revenue_case` keeps the case that priced the booking. A booking that becomes `cancelled` or `no_show`

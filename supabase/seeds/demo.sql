@@ -299,6 +299,12 @@ begin
 
   perform set_config('app.booking_change', '', false);
 
+  -- A partial refund on one of them, recorded by operations (VI-F04-S10).
+  perform set_config('request.jwt.claim.sub', c_ops::text, false);
+  perform public.add_booking_adjustment(
+    'f0000000-0000-0000-0000-000000000026', 'partial_refund', 25.00,
+    'The harness was worn: partial refund agreed with the partner');
+
   ---------------------------------------------------------------------------
   -- Incidents. The guard takes the booking, seat, partner and type from the job.
   -- One is still open (the failed inspection); one went through its statuses and

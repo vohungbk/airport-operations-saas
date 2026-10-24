@@ -100,6 +100,15 @@ export const JOURNEYS: readonly Journey[] = [
     ],
   },
   {
+    id: "J22",
+    roles: ["admin", "operations_manager"],
+    title: "Record a refund, an adjustment or a chargeback on a booking",
+    tests: [
+      { file: "src/lib/finance/booking-adjustments.integration.test.ts", block: "recording an adjustment (VI-F04-S10, spec R5, R15, R16, R17)" },
+      { file: RLS, block: "booking adjustments (VI-F04-S10)" },
+    ],
+  },
+  {
     id: "J21",
     roles: ["admin", "operations_manager", "partner_user"],
     title: "See how the revenue of a booking was calculated",
