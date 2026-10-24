@@ -786,7 +786,7 @@ export type Database = {
       }
       partner_commercial_terms: {
         Row: {
-          annual_fee: number | null
+          annual_fee: number
           created_at: string
           effective_from: string
           effective_to: string | null
@@ -795,14 +795,16 @@ export type Database = {
           launch_credit_target: number | null
           launch_mode: boolean
           launch_partner_share_percent: number
-          onboarding_fee: number | null
+          onboarding_fee: number
           partner_id: string
           partner_share_percent: number
+          payment_terms_days: number
           platform_share_percent: number
+          vat_rate_percent: number
           updated_at: string
         }
         Insert: {
-          annual_fee?: number | null
+          annual_fee?: number
           created_at?: string
           effective_from: string
           effective_to?: string | null
@@ -811,14 +813,16 @@ export type Database = {
           launch_credit_target?: number | null
           launch_mode?: boolean
           launch_partner_share_percent?: number
-          onboarding_fee?: number | null
+          onboarding_fee?: number
           partner_id: string
           partner_share_percent?: number
+          payment_terms_days?: number
           platform_share_percent?: number
+          vat_rate_percent?: number
           updated_at?: string
         }
         Update: {
-          annual_fee?: number | null
+          annual_fee?: number
           created_at?: string
           effective_from?: string
           effective_to?: string | null
@@ -827,10 +831,12 @@ export type Database = {
           launch_credit_target?: number | null
           launch_mode?: boolean
           launch_partner_share_percent?: number
-          onboarding_fee?: number | null
+          onboarding_fee?: number
           partner_id?: string
           partner_share_percent?: number
+          payment_terms_days?: number
           platform_share_percent?: number
+          vat_rate_percent?: number
           updated_at?: string
         }
         Relationships: [
@@ -1299,13 +1305,18 @@ export type Database = {
       }
       set_partner_commercial_terms: {
         Args: {
+          p_annual_fee: number
           p_effective_from: string
+          p_launch_credit_target: number | null
           p_launch_partner_share: number
+          p_onboarding_fee: number
           p_partner_id: string
           p_partner_share: number
+          p_payment_terms_days: number
+          p_vat_rate: number
         }
         Returns: {
-          annual_fee: number | null
+          annual_fee: number
           created_at: string
           effective_from: string
           effective_to: string | null
@@ -1314,11 +1325,13 @@ export type Database = {
           launch_credit_target: number | null
           launch_mode: boolean
           launch_partner_share_percent: number
-          onboarding_fee: number | null
+          onboarding_fee: number
           partner_id: string
           partner_share_percent: number
+          payment_terms_days: number
           platform_share_percent: number
           updated_at: string
+          vat_rate_percent: number
         }
         SetofOptions: {
           from: "*"
