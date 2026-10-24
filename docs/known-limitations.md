@@ -68,3 +68,8 @@ has been checked; remove a line when it is fixed.
   token is a random UUID of 122 bits, so guessing one is not practical, and every scan needs a
   session, but there is no rate limit and no alert on many failed scans. That needs
   infrastructure the project does not have.
+- **Overlapping commercial terms are stopped by the save function, not by a constraint.** An admin
+  who inserts a row directly (the insert policy still allows it) can make two versions of a partner
+  overlap. The screen and the future revenue calculation take the version that started last. An
+  exclusion constraint on the period would close this; it needs the `btree_gist` extension and is
+  left for the story that reads the terms to calculate revenue (VI-F04-S05).

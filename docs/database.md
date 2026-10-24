@@ -410,20 +410,34 @@ Index `(incident_id, created_at)`. Written by a trigger on `incidents`; the log
 is append-only (no insert, update or delete, service role included), so an
 incident with history cannot be deleted. Admin and operations manager read it.
 
-### `partner_commercial_terms` (mutable)
+### `partner_commercial_terms` (mutable, kept as versions)
 | column | type | notes |
 |---|---|---|
 | partner_id | uuid not null, FK → partners.id ON DELETE RESTRICT | |
-| partner_share_percent | numeric(5,2) not null | `check (0–100)` |
-| platform_share_percent | numeric(5,2) not null | `check (0–100)`; not constrained to sum to 100 (plan.md open question 6 — not requested) |
+| partner_share_percent | numeric(5,2) not null default 30 | `check (0–100)` |
+| platform_share_percent | numeric(5,2) not null default 70 | `check (0–100)`; with the partner share it adds up to 100 (`shares_sum_check`) |
+| launch_partner_share_percent | numeric(5,2) not null default 50 | `check (0–100)`; not below the partner share (VI-F04-S01) |
 | launch_mode | boolean not null default false | |
 | launch_credit_target | numeric(12,2) | nullable |
 | launch_credit_accumulated | numeric(12,2) default 0 | nullable |
 | annual_fee / onboarding_fee | numeric(12,2) | nullable |
 | effective_from | date not null | |
-| effective_to | date | nullable |
+| effective_to | date | nullable; not before `effective_from`; the last day the terms apply |
 
 No indexes beyond the primary key (none required by the spec).
+
+**Versions (VI-F04-S01).** The terms of a partner are rows with an effective period, not one row
+that is edited. `public.set_partner_commercial_terms(partner, partner_share, launch_share,
+effective_from)` (admin only) adds a new row and closes the latest one the day before the new one
+starts, in one transaction, with the partner row locked so two saves cannot overlap. The date is
+today or later (the date of the database server, UTC) and after the start of the latest version.
+A `BEFORE UPDATE` trigger (`guard_partner_commercial_terms_update`) refuses a change to the
+partner, the three shares or `effective_from` of a row (SQLSTATE `55000`), for any role including
+the service role; `effective_to` and the launch and fee columns can still be updated. There is no
+delete policy, so no role deletes a version. A new version copies the launch and fee columns of the
+previous one. Error codes: `42501` not an admin, `P0002` partner not found, `22023` a value is
+missing, `TC001` partner share, `TC002` launch share, `TC003` date in the past, `TC004` date not
+after the latest version. Rollback SQL is at the top of the migration.
 
 ### `settlements` (mutable)
 | column | type | notes |

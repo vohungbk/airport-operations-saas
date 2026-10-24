@@ -45,9 +45,12 @@ const booking = (number: string, pickup = "2030-01-01 10:00+00", ret = "2030-01-
 const seat = (serial: string, token: string, maxCycles = 10, cycles = 0) =>
   `insert into public.seats (serial_number, public_token, manufacturer, model, category_id, airport_id, manufacture_date, purchase_date, max_rental_cycles, rental_cycles)
    values ('${serial}', '${token}', 'Test', 'Test', ${CATEGORY}, ${AIRPORT}, '2025-01-01', '2025-02-01', ${maxCycles}, ${cycles});`;
-const terms = (partnerShare: string, platformShare: string) =>
-  `insert into public.partner_commercial_terms (partner_id, partner_share_percent, platform_share_percent, effective_from)
-   values (${PARTNER}, ${partnerShare}, ${platformShare}, '2030-01-01');`;
+// Postgres checks CHECK constraints in the order of their names, so a case is built so that the
+// constraint under test is the first one that fails. The launch share defaults to 100, which is
+// never below the partner share.
+const terms = (partnerShare: string, platformShare: string, launchShare = "100", effectiveTo = "null") =>
+  `insert into public.partner_commercial_terms (partner_id, partner_share_percent, platform_share_percent, launch_partner_share_percent, effective_from, effective_to)
+   values (${PARTNER}, ${partnerShare}, ${platformShare}, ${launchShare}, '2030-01-01', ${effectiveTo});`;
 const job = (type: string, status: string) =>
   `insert into public.technician_jobs (booking_id, technician_id, job_type, status) values (${BOOKING}, ${USER}, '${type}', '${status}');`;
 const user = (email: string) =>
@@ -96,16 +99,40 @@ const CASES: Case[] = [
     outside: `insert into public.invoices (partner_id, invoice_number, issue_date, due_date, subtotal, total) values (${PARTNER}, 'DR-INV-1', '2030-02-01', '2030-02-28', 1, 1);`,
   },
   {
+    constraint: "partner_commercial_terms_launch_not_below_partner_check",
+    code: "23514",
+    inside: terms("50", "50", "50"),
+    outside: terms("50", "50", "49.99"),
+  },
+  {
+    constraint: "partner_commercial_terms_launch_share_check",
+    code: "23514",
+    inside: `${terms("0", "100", "0")} ${terms("100", "0", "100")}`,
+    outside: terms("100", "0", "100.01"),
+  },
+  {
     constraint: "partner_commercial_terms_partner_share_check",
     code: "23514",
-    inside: `${terms("0", "100")} ${terms("100", "0")}`,
-    outside: terms("100.01", "0"),
+    inside: `${terms("0", "100", "0")} ${terms("100", "0", "100")}`,
+    outside: terms("-0.01", "100.01", "0"),
+  },
+  {
+    constraint: "partner_commercial_terms_period_check",
+    code: "23514",
+    inside: terms("30", "70", "50", "'2030-01-01'"),
+    outside: terms("30", "70", "50", "'2029-12-31'"),
   },
   {
     constraint: "partner_commercial_terms_platform_share_check",
     code: "23514",
-    inside: `${terms("0", "0")} ${terms("0", "100")}`,
-    outside: terms("0", "-0.01"),
+    inside: `${terms("0", "100", "0")} ${terms("100", "0", "100")}`,
+    outside: terms("30", "-0.01", "50"),
+  },
+  {
+    constraint: "partner_commercial_terms_shares_sum_check",
+    code: "23514",
+    inside: terms("30", "70", "50"),
+    outside: terms("30", "69.99", "50"),
   },
   {
     constraint: "seat_categories_age_range_check",

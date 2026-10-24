@@ -1889,6 +1889,30 @@ Supabase stack and skip without it.
 | History is never deleted | Completed cleaning, seat history, job events and incident history refuse update and delete | Tested (older tests) |
 | The route that reads a code, the redirect, the not-found page and the response body | CO-F04-S13 and S14 | Tested: the real lookup for every role, forged and foreign tokens, the rendered card (see "Protect QR access") |
 
+## Commercial terms (VI-F04-S01)
+
+- **Who can do what.** An admin and an operations manager open the Commercial terms screen of a
+  partner (`partners:manage`). Only an admin saves (spec Q1, who may edit terms, is still open;
+  this is what the existing RLS already allowed). A partner user reads only its own terms (RLS,
+  unchanged); a technician has no access. The role is checked in three places: the route, the
+  Server Action (`requireRole([])`, admin only) and the database function.
+- **Saving adds a version.** `set_partner_commercial_terms()` (`SECURITY DEFINER`, `search_path`
+  empty, execute for `authenticated` only, revoked from `anon` and `public`) checks that the
+  caller is an active admin itself, takes no user id from the client, validates the shares and
+  the date, closes the latest version and inserts the new one in one transaction. Completed
+  rentals keep the terms they were calculated with, because a version is never rewritten: a
+  trigger refuses a change to the shares, the partner or the start date of a row, for the admin
+  and the service role alike, and no role can delete a row (E5, R1).
+- **Validation on both sides.** The same Zod schema runs in the form and in the action; the
+  database checks the shares again (0 to 100, adding up to 100, launch not below partner) and the
+  function checks the date. The error shown to the user is a fixed message per code, never a
+  database error.
+- **"Today" is the date of the server.** The database and the action use the UTC date, and the
+  screen gets it from the server, so a browser in another time zone cannot choose a date the
+  database refuses.
+- **Not covered here.** The history list (VI-F04-S03), fees and payment terms (S02), and the
+  revenue calculation that reads these terms (S05).
+
 ## Storage
 
 - Supabase Storage buckets are tenant-scoped. Access rules mirror the

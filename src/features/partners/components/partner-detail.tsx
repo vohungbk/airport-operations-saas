@@ -44,6 +44,12 @@ export function PartnerDetail({ partner }: PartnerDetailProps) {
         </div>
         <div className="flex items-center gap-2">
           <Link
+            href={`/partners/${partner.id}/terms`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Commercial terms
+          </Link>
+          <Link
             href={`/partners/${partner.id}/edit`}
             className={buttonVariants({ variant: "outline" })}
           >
