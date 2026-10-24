@@ -163,8 +163,9 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
           expect(booking.paid_days, booking.booking_number).toBeGreaterThan(0);
           expect(booking.paid_days, booking.booking_number).toBeLessThanOrEqual(6);
           expect(booking.rental_days, booking.booking_number).toBeGreaterThanOrEqual(booking.paid_days);
+          // What the rental earned, less the adjustments recorded on it (VI-F04-S10).
           expect(Number(booking.gross_revenue), booking.booking_number).toBeCloseTo(
-            booking.paid_days * Number(booking.daily_rate),
+            booking.paid_days * Number(booking.daily_rate) + Number(booking.adjustments_total),
             2,
           );
           expect(booking.revenue_flag, booking.booking_number).toBeNull();
@@ -358,6 +359,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
         incidents: await rows("incidents", INCIDENT_IDS),
         // The rows of the demo terms only: the RLS suite makes its own for the same partners.
         partner_commercial_terms: await rows("partner_commercial_terms", DEMO_TERMS_IDS),
+        booking_adjustments: await rows("booking_adjustments", undefined, { column: "booking_id", in: SEED_BOOKING_IDS }),
         booking_events: await eventsOfBookings(SEED_BOOKING_IDS.slice(2)),
         seat_status_history: await rows("seat_status_history", undefined, { column: "seat_id", in: SEED_SEAT_IDS }),
         technician_job_events: await rows("technician_job_events", undefined, {
@@ -420,7 +422,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
           users: 0, partners: 0, airports: 0, seat_categories: 0, seats: 0, bookings: 0,
           technician_jobs: 0, installations: 0, cleaning_records: 0, inspection_records: 0,
           incidents: 0, booking_events: 0, seat_status_history: 0, technician_job_events: 0,
-          incident_status_history: 0, partner_commercial_terms: 0,
+          incident_status_history: 0, partner_commercial_terms: 0, booking_adjustments: 0,
         }),
         ...NOT_SEEDED,
       ]);

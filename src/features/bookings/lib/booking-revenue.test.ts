@@ -11,6 +11,7 @@ const row = (overrides: Partial<BookingRevenueRow> = {}): BookingRevenueRow => (
   paid_days: 6,
   rental_days: 6,
   gross_revenue: 450,
+  adjustments_total: 0,
   partner_share: 135,
   platform_share: 315,
   launch_credit: 0,
@@ -74,11 +75,27 @@ describe("buildBookingRevenue", () => {
       "Paid days": "6",
       "Daily rate": "75.00",
       "Gross revenue": "450.00",
+      Adjustments: "None",
       "Partner share": "135.00 (30%)",
       "Platform share": "315.00 (70%)",
       "Launch credit": "Launch terms did not apply",
       "Terms used": "In force from 2026-01-01",
     });
+  });
+
+  it("should show what the adjustments took off and the gross revenue that is left (VI-F04-S10)", () => {
+    const shown = lines(row({ gross_revenue: 400, adjustments_total: -50, partner_share: 120, platform_share: 280 }));
+
+    expect(shown["Gross revenue"]).toBe("400.00 (after 50.00 of adjustments)");
+    expect(shown["Adjustments"]).toBe("-50.00");
+    expect(shown["Partner share"]).toBe("120.00 (30%)");
+  });
+
+  it("should show a booking refunded in full with zero revenue and zero shares", () => {
+    const shown = lines(row({ gross_revenue: 0, adjustments_total: -450, partner_share: 0, platform_share: 0 }));
+
+    expect(shown["Gross revenue"]).toBe("0.00 (after 450.00 of adjustments)");
+    expect(shown["Platform share"]).toBe("0.00 (70%)");
   });
 
   it("should show the actual days and say only the first days are charged when the cap applies", () => {
