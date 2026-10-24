@@ -214,6 +214,8 @@ Indexes: `flight_number`, `airport_id`.
 | revenue_flag | text | nullable; `check (null or 'invalid_duration' or 'no_terms')`; `invalid_duration`: a completed rental has no duration; `no_terms`: the partner had no terms in force |
 | gross_revenue | numeric(12,2) | nullable; `check (>= 0)`; paid days x the daily rate, set when the booking is completed (VI-F04-S04) |
 | partner_share / platform_share | numeric(12,2) | nullable; each `check (>= 0)`; both set or both null; together they add up to `gross_revenue` (VI-F04-S05) |
+| revenue_case | text | nullable; `check (standard, early_return, cancelled or no_show)`; the case that priced the booking (VI-F04-S07) |
+| actual_return_at | timestamptz | nullable; `check (not before pickup_at)`; when the rental was really returned; the workflow that completes a rental (F14, F15) will write it |
 | commercial_terms_id | uuid, FK → partner_commercial_terms.id ON DELETE RESTRICT | nullable; the version of the terms the shares were calculated with |
 | launch_credit | numeric(12,2) not null default 0 | `check (>= 0)`; the extra the partner got on this rental above the standard share (VI-F04-S06) |
 | launch_credit_balance | numeric(12,2) | nullable; `check (>= 0)`; the launch credit of the partner after this rental; null when launch did not apply; it may be above the target (the rental that crosses it); `launch_credit` is 0 when it is null |
@@ -253,6 +255,18 @@ gets the gross revenue, no shares and `revenue_flag = 'no_terms'` (the default o
 used); a rental with no duration gets no gross and no shares. The trigger function is `SECURITY
 DEFINER` (the caller may not read the terms). A booking completed before this migration is not
 calculated again. Rollback SQL is at the top of the migration.
+
+**Early return, cancellation and no-show (VI-F04-S07, migration `20261110090000_booking_revenue_cases.sql`).**
+`revenue_case` keeps the case that priced the booking. A booking that becomes `cancelled` or `no_show`
+(a trigger that runs after the booking guard) gets paid days 0, gross revenue 0.00, both shares 0.00,
+no launch credit and no terms used: they are not charged. That rule is `public.booking_case_revenue()`
+and is an assumption while spec Q3 is open. A rental that is completed is charged up to
+`coalesce(actual_return_at, return_at)`, with the rule of the six-day cap: if it was returned before
+`return_at` the case is `early_return`, otherwise `standard` (a later return is charged for the time it
+really lasted, still up to 6 days). A return at the pickup is a rental with no duration
+(`invalid_duration`). Changing `actual_return_at` of a completed booking calculates it again.
+`revenue_case` and `actual_return_at` can only be changed in the booking functions. Refunds and
+chargebacks are not handled (VI-F04-S09 to S11). Rollback SQL is at the top of the migration.
 
 **Launch credit (VI-F04-S06, migration `20261109090000_launch_credit.sql`).** Launch terms are active
 for a partner while its terms in use have a `launch_credit_target` and the balance has not reached
