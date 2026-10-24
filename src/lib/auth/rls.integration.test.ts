@@ -383,6 +383,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         partner_id: PARTNER_A_ID,
         partner_share_percent: 70,
         platform_share_percent: 30,
+        launch_partner_share_percent: 70,
         effective_from: "2026-01-01",
       })
       .select("id")
@@ -396,6 +397,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
         partner_id: PARTNER_B_ID,
         partner_share_percent: 70,
         platform_share_percent: 30,
+        launch_partner_share_percent: 70,
         effective_from: "2026-01-01",
       })
       .select("id")
@@ -6924,6 +6926,250 @@ describe.skipIf(!config)("F05 RLS integration", () => {
   // top of this pre-existing F05 RLS coverage; F06 added no new migration/
   // policy, see plan.md Task 1/19).
   // ===========================================================================
+  // VI-F04-S01: terms are saved as versions through set_partner_commercial_terms(). A test
+  // partner is made for each test, so the shared partners are not touched.
+  describe("commercial terms (VI-F04-S01)", () => {
+    const DAY = 86_400_000;
+    const dayFromToday = (days: number) => new Date(Date.now() + days * DAY).toISOString().slice(0, 10);
+    const created: string[] = [];
+
+    async function newPartner() {
+      const { data, error } = await service
+        .from("partners")
+        .insert({
+          name: "Terms test partner",
+          code: `TT${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+          contact_email: "terms-test@test.local",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      created.push(data.id);
+      return data.id;
+    }
+
+    const save = (
+      client: SupabaseClient<Database>,
+      partnerId: string,
+      partner: number,
+      launch: number,
+      from = dayFromToday(0),
+    ) =>
+      client.rpc("set_partner_commercial_terms", {
+        p_partner_id: partnerId,
+        p_partner_share: partner,
+        p_launch_partner_share: launch,
+        p_effective_from: from,
+      });
+
+    async function versionsOf(partnerId: string) {
+      const { data } = await service
+        .from("partner_commercial_terms")
+        .select("*")
+        .eq("partner_id", partnerId)
+        .order("effective_from", { ascending: true });
+      return data!;
+    }
+
+    afterEach(async () => {
+      for (const id of created.splice(0)) {
+        await service.from("partner_commercial_terms").delete().eq("partner_id", id);
+        await service.from("partners").delete().eq("id", id);
+      }
+    });
+
+    it("should give a row made with no shares the defaults of 30, 70 and 50 (AC01)", async () => {
+      const partnerId = await newPartner();
+
+      const { data, error } = await service
+        .from("partner_commercial_terms")
+        .insert({ partner_id: partnerId, effective_from: dayFromToday(0) })
+        .select("partner_share_percent, platform_share_percent, launch_partner_share_percent")
+        .single();
+
+      expect(error).toBeNull();
+      expect(Number(data!.partner_share_percent)).toBe(30);
+      expect(Number(data!.platform_share_percent)).toBe(70);
+      expect(Number(data!.launch_partner_share_percent)).toBe(50);
+    });
+
+    it("should let an admin save the first terms, with the platform share as the remainder (AC03, AC05)", async () => {
+      const partnerId = await newPartner();
+
+      const { data, error } = await save(adminClient, partnerId, 35.5, 60);
+
+      expect(error).toBeNull();
+      expect(data).toMatchObject({ partner_id: partnerId, effective_from: dayFromToday(0), effective_to: null });
+      expect(Number(data!.partner_share_percent)).toBe(35.5);
+      expect(Number(data!.platform_share_percent)).toBe(64.5);
+      expect(Number(data!.launch_partner_share_percent)).toBe(60);
+      expect(await versionsOf(partnerId)).toHaveLength(1);
+    });
+
+    it("should keep the earlier terms when new ones are saved: add a version, close the old, never rewrite it (AC05)", async () => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 30, 50, dayFromToday(0));
+      const before = (await versionsOf(partnerId))[0];
+
+      const { error } = await save(adminClient, partnerId, 40, 55, dayFromToday(10));
+      const versions = await versionsOf(partnerId);
+
+      expect(error).toBeNull();
+      expect(versions).toHaveLength(2);
+      expect(versions[0]).toMatchObject({
+        id: before.id,
+        partner_share_percent: before.partner_share_percent,
+        platform_share_percent: before.platform_share_percent,
+        launch_partner_share_percent: before.launch_partner_share_percent,
+        effective_from: before.effective_from,
+        effective_to: dayFromToday(9),
+      });
+      expect(versions[1]).toMatchObject({ effective_from: dayFromToday(10), effective_to: null });
+      expect(Number(versions[1].partner_share_percent)).toBe(40);
+    });
+
+    it("should carry the launch and fee fields to the new version unchanged", async () => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 30, 50, dayFromToday(0));
+      await service
+        .from("partner_commercial_terms")
+        .update({ launch_mode: true, launch_credit_target: 1000, launch_credit_accumulated: 125.5, annual_fee: 99 })
+        .eq("partner_id", partnerId);
+
+      await save(adminClient, partnerId, 30, 50, dayFromToday(5));
+      const latest = (await versionsOf(partnerId))[1];
+
+      expect(latest.launch_mode).toBe(true);
+      expect(Number(latest.launch_credit_target)).toBe(1000);
+      expect(Number(latest.launch_credit_accumulated)).toBe(125.5);
+      expect(Number(latest.annual_fee)).toBe(99);
+    });
+
+    it.each([
+      ["an operations manager", () => opsClient],
+      ["a technician", () => technicianClient],
+      ["a partner user", () => partnerAClient],
+      ["an anonymous caller", () => anonClient],
+      ["an inactive user", () => inactiveClient],
+    ])("should refuse %s and create nothing (AC02)", async (_name, getClient) => {
+      const partnerId = await newPartner();
+
+      const { error } = await save(getClient(), partnerId, 30, 50);
+
+      expect(error).not.toBeNull();
+      expect(await versionsOf(partnerId)).toEqual([]);
+    });
+
+    it.each([
+      ["a partner share above 100", [100.01, 100], "TC001"],
+      ["a negative partner share", [-1, 50], "TC001"],
+      ["a partner share with 3 decimals", [30.001, 50], "TC001"],
+      ["a launch share below the partner share", [40, 39.99], "TC002"],
+      ["a launch share above 100", [30, 100.01], "TC002"],
+      ["a launch share with 3 decimals", [30, 50.001], "TC002"],
+    ] as const)("should refuse %s (AC03, AC04) and create nothing", async (_name, [partner, launch], code) => {
+      const partnerId = await newPartner();
+
+      const { error } = await save(adminClient, partnerId, partner, launch);
+
+      expect(error?.code).toBe(code);
+      expect(await versionsOf(partnerId)).toEqual([]);
+    });
+
+    it("should accept the limits: 0 and 100, and a launch share equal to the partner share (AC03, AC04)", async () => {
+      const first = await newPartner();
+      const second = await newPartner();
+
+      expect((await save(adminClient, first, 0, 0)).error).toBeNull();
+      expect((await save(adminClient, second, 100, 100)).error).toBeNull();
+    });
+
+    it("should refuse a date in the past (TC003) and a date not after the latest version (TC004)", async () => {
+      const partnerId = await newPartner();
+      expect((await save(adminClient, partnerId, 30, 50, dayFromToday(-1))).error?.code).toBe("TC003");
+
+      await save(adminClient, partnerId, 30, 50, dayFromToday(3));
+      expect((await save(adminClient, partnerId, 40, 50, dayFromToday(3))).error?.code).toBe("TC004");
+      expect((await save(adminClient, partnerId, 40, 50, dayFromToday(1))).error?.code).toBe("TC004");
+      expect(await versionsOf(partnerId)).toHaveLength(1);
+    });
+
+    it("should refuse an unknown partner (P0002) and a missing value (22023)", async () => {
+      const unknown = await save(adminClient, "00000000-0000-4000-8000-00000000dead", 30, 50);
+      const partnerId = await newPartner();
+      const missing = await adminClient.rpc("set_partner_commercial_terms", {
+        p_partner_id: partnerId,
+        p_partner_share: 30,
+        p_launch_partner_share: undefined as unknown as number,
+        p_effective_from: dayFromToday(0),
+      });
+
+      expect(unknown.error?.code).toBe("P0002");
+      expect(missing.error).not.toBeNull();
+    });
+
+    it("should let exactly one of two simultaneous saves with the same date through", async () => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 30, 50, dayFromToday(0));
+
+      const [a, b] = await Promise.all([
+        save(adminClient, partnerId, 40, 50, dayFromToday(7)),
+        save(adminClient, partnerId, 45, 50, dayFromToday(7)),
+      ]);
+
+      expect([a.error, b.error].filter((error) => error === null)).toHaveLength(1);
+      expect([a.error?.code, b.error?.code]).toContain("TC004");
+      expect(await versionsOf(partnerId)).toHaveLength(2);
+    });
+
+    it("should forbid changing the shares, the partner or the start of a version, even for an admin or the service role", async () => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 30, 50, dayFromToday(0));
+      const [version] = await versionsOf(partnerId);
+
+      for (const change of [
+        { partner_share_percent: 31, platform_share_percent: 69 },
+        { launch_partner_share_percent: 60 },
+        { effective_from: dayFromToday(1) },
+        { partner_id: PARTNER_A_ID },
+      ]) {
+        const viaAdmin = await adminClient.from("partner_commercial_terms").update(change).eq("id", version.id);
+        const viaService = await service.from("partner_commercial_terms").update(change).eq("id", version.id);
+
+        expect(viaAdmin.error?.code, JSON.stringify(change)).toBe("55000");
+        expect(viaService.error?.code, JSON.stringify(change)).toBe("55000");
+      }
+      expect(await versionsOf(partnerId)).toMatchObject([
+        { partner_share_percent: version.partner_share_percent, effective_from: version.effective_from },
+      ]);
+    });
+
+    it("should keep the history: no role can delete a version", async () => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 30, 50, dayFromToday(0));
+      const [version] = await versionsOf(partnerId);
+
+      for (const client of [adminClient, opsClient, technicianClient, partnerAClient]) {
+        await client.from("partner_commercial_terms").delete().eq("id", version.id);
+      }
+
+      expect(await versionsOf(partnerId)).toHaveLength(1);
+    });
+
+    it("should not show the terms of one partner to a partner user of another (cross-tenant denial)", async () => {
+      const partnerId = await newPartner();
+      await save(adminClient, partnerId, 33, 50, dayFromToday(0));
+
+      const seenByA = await partnerAClient.from("partner_commercial_terms").select("id").eq("partner_id", partnerId);
+      const seenByB = await partnerBClient.from("partner_commercial_terms").select("id").eq("partner_id", partnerId);
+      const seenByOps = await opsClient.from("partner_commercial_terms").select("id").eq("partner_id", partnerId);
+
+      expect(seenByA).toEqual(expect.objectContaining({ data: [], error: null }));
+      expect(seenByB).toEqual(expect.objectContaining({ data: [], error: null }));
+      expect(seenByOps.data).toHaveLength(1);
+    });
+  });
+
   describe("partners table", () => {
     it("admin can SELECT both seeded partners", async () => {
       const { data, error } = await adminClient
