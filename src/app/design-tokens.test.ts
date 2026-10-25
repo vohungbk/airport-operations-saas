@@ -1,18 +1,13 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { findRawColorLines } from "@/lib/accessibility/raw-colors";
+import { readBlock, readDeclarations } from "@/lib/accessibility/token-css";
+
 const SRC_DIR = join(process.cwd(), "src");
 const GLOBALS_CSS = join(SRC_DIR, "app", "globals.css");
-
-const RAW_COLOR_PATTERNS: RegExp[] = [
-  /#[0-9a-fA-F]{3,8}\b/,
-  /\brgba?\(/,
-  /\bhsla?\(/,
-  /\boklch\(/,
-  /\b(?:bg|text|border|ring|fill|stroke|from|to|via|divide|outline)-(?:red|green|blue|yellow|gray|slate|zinc|neutral|stone|amber|orange|emerald|sky|white|black)(?:-\d+)?\b/,
-];
 
 function listSourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -21,21 +16,6 @@ function listSourceFiles(dir: string): string[] {
     const isSource = /\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name);
     return isSource ? [full] : [];
   });
-}
-
-function readBlock(css: string, selector: string): string {
-  const start = css.indexOf(`\n${selector} {`);
-  const end = css.indexOf("\n}", start);
-  return css.slice(start, end);
-}
-
-function readDeclarations(block: string): Map<string, string> {
-  return new Map(
-    [...block.matchAll(/^\s*--([a-z0-9-]+):\s*([^;]+);/gm)].map((m) => [
-      m[1],
-      m[2].trim(),
-    ]),
-  );
 }
 
 // Names and hex values from the design file, frame "Foundations / Exact source tokens".
@@ -87,13 +67,9 @@ describe("design tokens", () => {
 
   it("should not contain raw color values outside globals.css", () => {
     const offenders = listSourceFiles(SRC_DIR).flatMap((file) =>
-      readFileSync(file, "utf8")
-        .split("\n")
-        .flatMap((line, index) =>
-          RAW_COLOR_PATTERNS.some((p) => p.test(line))
-            ? [`${relative(SRC_DIR, file)}:${index + 1}`]
-            : [],
-        ),
+      findRawColorLines(readFileSync(file, "utf8")).map(
+        (line) => `${relative(SRC_DIR, file)}:${line}`,
+      ),
     );
 
     expect(offenders).toEqual([]);
@@ -199,5 +175,35 @@ describe("design tokens", () => {
     expect(theme.get("radius-lg")).toBe("12px");
     expect(theme.get("radius-xl")).toBe("16px");
     expect(theme.get("radius-full")).toBe("9999px");
+  });
+
+  it("should apply the dark theme only outside print", () => {
+    const outsidePrint = readBlock(css.slice(css.indexOf("\n@media not print {")), "@media not print");
+
+    expect(readDeclarations(outsidePrint).has("background")).toBe(true);
+    expect(outsidePrint).toContain(".dark {");
+    // Only one .dark rule in the whole file, and it is the one inside @media not print.
+    expect(css.match(/^[ \t]*\.dark \{/gm)).toHaveLength(1);
+  });
+
+  it("should not apply dark: utilities in print", () => {
+    const variant = readBlock(css, "@custom-variant dark");
+
+    expect(variant).toContain("@media not print");
+    expect(variant).toContain("&:is(.dark *)");
+  });
+
+  it("should run the token checks before every build", () => {
+    const { scripts } = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
+    const files = [
+      "src/app/design-tokens.test.ts",
+      "src/lib/accessibility/token-contrast.test.ts",
+    ];
+
+    expect(scripts.prebuild).toContain("vitest run");
+    for (const file of files) {
+      expect(scripts.prebuild).toContain(file);
+      expect(existsSync(join(process.cwd(), file))).toBe(true);
+    }
   });
 });
