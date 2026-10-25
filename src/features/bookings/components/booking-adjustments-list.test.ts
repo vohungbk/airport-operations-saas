@@ -11,6 +11,7 @@ const row = (id: string, type: BookingAdjustmentRow["type"], amount: number, rea
   amount,
   reason,
   created_at: "2026-10-24T10:30:00Z",
+  after_settlement: false,
 });
 
 const render = (adjustments: BookingAdjustmentRow[]) =>
@@ -32,5 +33,12 @@ describe("BookingAdjustmentsList", () => {
 
   it("should be read only: no field, button or form", () => {
     expect(render([row("a", "chargeback", 20, "x")])).not.toMatch(/<input|<button|<form|<textarea/);
+  });
+
+  it("should say an adjustment made after the settlement was approved goes to the next settlement", () => {
+    const carried = { ...row("c", "partial_refund", 10, "Late"), after_settlement: true };
+
+    expect(render([carried])).toContain("carried to the next settlement");
+    expect(render([row("d", "partial_refund", 10, "Early")])).not.toContain("carried to the next settlement");
   });
 });

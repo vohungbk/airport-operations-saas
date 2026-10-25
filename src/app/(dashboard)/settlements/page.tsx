@@ -10,7 +10,7 @@ import { getSettlements } from "@/features/settlements/lib/get-settlements";
  * VI-F04-S12 (S4, R6, R7): the settlements in scope and, for an admin, the form that generates a
  * draft for a partner and a month. An admin, an operations manager (`finance:view`) and a partner
  * user (`finance:view_own_partner`) open it, checked here before anything is read; RLS decides
- * which settlements each one gets. Only an admin gets the form: the Server Action and the database
+ * which settlements each one gets. Only an admin gets the form and the buttons that move a status: the Server Action and the database
  * function check the role again. This page itself writes nothing.
  */
 export default async function SettlementsPage() {
@@ -45,7 +45,7 @@ export default async function SettlementsPage() {
         {settlements.length === 0 ? (
           <PageEmpty message="No settlements yet." />
         ) : (
-          <SettlementsTable settlements={settlements} />
+          <SettlementsTable settlements={settlements} canMove={canGenerate} />
         )}
       </section>
     </div>

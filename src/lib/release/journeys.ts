@@ -100,6 +100,17 @@ export const JOURNEYS: readonly Journey[] = [
     ],
   },
   {
+    id: "J24",
+    roles: ["admin"],
+    title: "Move a settlement to approved and paid, with its bookings locked",
+    tests: [
+      { file: "src/lib/finance/settlement-status.integration.test.ts", block: "moving a settlement (VI-F04-S13, spec R8, R19, E8)" },
+      { file: "src/lib/finance/settlement-status.integration.test.ts", block: "bookings of an approved settlement (VI-F04-S13, spec R19)" },
+      { file: "src/lib/finance/settlement-status.integration.test.ts", block: "adjustments after approval (VI-F04-S13, spec R19, E8)" },
+      { file: RLS, block: "settlement carried adjustments (VI-F04-S13)" },
+    ],
+  },
+  {
     id: "J23",
     roles: ["admin", "operations_manager", "partner_user"],
     title: "Generate and read a monthly settlement",

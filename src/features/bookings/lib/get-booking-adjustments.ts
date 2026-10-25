@@ -8,10 +8,12 @@ export interface BookingAdjustmentRow {
   amount: number;
   reason: string;
   created_at: string;
+  /** Made after the settlement of its month was approved: carried to the next settlement. */
+  after_settlement: boolean;
 }
 
 /** Explicit columns (VI-F04-S10): the history of one booking. Not who recorded it. */
-export const BOOKING_ADJUSTMENTS_SELECT = "id, type, amount, reason, created_at";
+export const BOOKING_ADJUSTMENTS_SELECT = "id, type, amount, reason, created_at, after_settlement";
 
 /** More than this many adjustments of one booking is not expected. */
 export const BOOKING_ADJUSTMENTS_LIMIT = 100;

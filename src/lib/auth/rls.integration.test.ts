@@ -7494,6 +7494,87 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  describe("settlement carried adjustments (VI-F04-S13)", () => {
+    async function withCarriedRow(fn: () => Promise<void>) {
+      const { data: adjustment } = await service.from("booking_adjustments").select("id").limit(1).single();
+      const link = await service
+        .from("settlement_carried_adjustments")
+        .insert({ adjustment_id: adjustment!.id, settlement_id: fixtureIds.settlementA });
+      if (link.error) throw link.error;
+      try {
+        await fn();
+      } finally {
+        await service.from("settlement_carried_adjustments").delete().eq("adjustment_id", adjustment!.id);
+      }
+    }
+
+    it("should show an admin, an operations manager and the partner user of the settlement the row", async () => {
+      await withCarriedRow(async () => {
+        for (const client of [adminClient, opsClient, partnerAClient]) {
+          const { data, error } = await client
+            .from("settlement_carried_adjustments")
+            .select("adjustment_id")
+            .eq("settlement_id", fixtureIds.settlementA);
+          expect(error).toBeNull();
+          expect(data).toHaveLength(1);
+        }
+      });
+    });
+
+    it("should show the partner user of another partner nothing (cross-tenant denial)", async () => {
+      await withCarriedRow(async () => {
+        const { data, error } = await partnerBClient
+          .from("settlement_carried_adjustments")
+          .select("adjustment_id")
+          .eq("settlement_id", fixtureIds.settlementA);
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+      });
+    });
+
+    it("should show a technician, an inactive user, a user without a partner and an anonymous client nothing", async () => {
+      await withCarriedRow(async () => {
+        for (const client of [technicianClient, inactiveClient, partnerNullClient, anonClient]) {
+          const { data, error } = await client.from("settlement_carried_adjustments").select("adjustment_id");
+          expect(error === null ? data : []).toEqual([]);
+        }
+      });
+    });
+
+    it("should let no role write a row directly: only generate_monthly_settlement() writes", async () => {
+      const { data: adjustment } = await service.from("booking_adjustments").select("id").limit(1).single();
+
+      for (const client of [adminClient, opsClient, technicianClient, partnerAClient, anonClient]) {
+        const { error } = await client
+          .from("settlement_carried_adjustments")
+          .insert({ adjustment_id: adjustment!.id, settlement_id: fixtureIds.settlementA });
+        expect(error).not.toBeNull();
+      }
+      const { data } = await service.from("settlement_carried_adjustments").select("adjustment_id");
+      expect(data).toEqual([]);
+    });
+
+    it("should refuse move_settlement_status() to every role but an admin, and keep the status", async () => {
+      for (const client of [opsClient, technicianClient, partnerAClient, anonClient, inactiveClient]) {
+        const { error } = await client.rpc("move_settlement_status", {
+          p_settlement_id: fixtureIds.settlementA,
+          p_to: "pending_approval",
+        });
+        expect(error).not.toBeNull();
+      }
+      const { data } = await service.from("settlements").select("status").eq("id", fixtureIds.settlementA).single();
+      expect(data?.status).toBe("draft");
+    });
+
+    it("should refuse a direct change of the status of a settlement, even to an admin", async () => {
+      const { error } = await adminClient.from("settlements").update({ status: "paid" }).eq("id", fixtureIds.settlementA);
+      const { data } = await service.from("settlements").select("status").eq("id", fixtureIds.settlementA).single();
+
+      expect(error).not.toBeNull();
+      expect(data?.status).toBe("draft");
+    });
+  });
+
   describe("partners table", () => {
     it("admin can SELECT both seeded partners", async () => {
       const { data, error } = await adminClient

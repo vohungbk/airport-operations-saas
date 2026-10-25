@@ -295,6 +295,26 @@ not found, `ST002` month in the future, `ST003` the month is already settled, `S
 rental in the month (no empty draft is saved). RLS is the F05 policy set, unchanged. Rollback SQL is at
 the top of the migration.
 
+**Settlement status and locked bookings (VI-F04-S13, migration `20261113090000_settlement_status.sql`).**
+`settlements` gets `status_changed_by` (FK to users, set null) and `status_changed_at`.
+`public.move_settlement_status(settlement, to_status)` is `SECURITY DEFINER` and checks that the caller
+is an active admin. Allowed moves: `draft -> pending_approval -> approved -> paid` and
+`pending_approval -> draft`; approved and paid do not go back (`ST006`). A trigger on `settlements`
+refuses a change of the status, who or when outside the function, and a change of the figures of a
+settlement that is not a draft (`55000`). A trigger on `bookings` refuses any update (`ST007`) of a
+completed rental with revenue while the settlement of its partner and of the month of its real return
+day (UTC) is approved or paid (`booking_in_closed_settlement()`). `booking_adjustments` gets
+`after_settlement`: `add_booking_adjustment()` on a locked booking records the adjustment with it set,
+does not touch the booking, and caps the amount at the gross revenue left after the earlier carried
+adjustments of that booking (`BA003`). `settlement_carried_adjustments` (adjustment id as primary key,
+settlement id) says which settlement took an adjustment; it is written only by
+`generate_monthly_settlement()`, which now locks the partner row, takes every carried adjustment no
+settlement has taken, lowers the gross revenue by the amount and the partner share by the share the
+booking kept (rounded to the cent), and shows the amount as refunds, adjustments or chargebacks. A
+month with only carried adjustments still gets a settlement (the gross revenue may be negative). RLS:
+admin and operations manager read all, a partner user the rows of its own settlements, no write
+policy. Rollback SQL is at the top of the migration.
+
 **Early return, cancellation and no-show (VI-F04-S07, migration `20261110090000_booking_revenue_cases.sql`).**
 `revenue_case` keeps the case that priced the booking. A booking that becomes `cancelled` or `no_show`
 (a trigger that runs after the booking guard) gets paid days 0, gross revenue 0.00, both shares 0.00,

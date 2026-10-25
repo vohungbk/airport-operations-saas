@@ -71,3 +71,22 @@ export function mapSettlementError(error: Pick<PostgrestError, "code">): Settlem
       return INTERNAL_ERROR;
   }
 }
+
+/** The error codes of `move_settlement_status()`. Anything else is a generic error. */
+export function mapMoveSettlementError(error: Pick<PostgrestError, "code">): SettlementActionError {
+  switch (error.code) {
+    case "42501":
+      return FORBIDDEN_ERROR;
+    case "P0002":
+      return { code: "NOT_FOUND", message: "Settlement not found." };
+    case "ST006":
+      return {
+        code: "CONFLICT",
+        message: "This settlement cannot move to that status. Reload the page and try again.",
+      };
+    case "22023":
+      return VALIDATION_ERROR;
+    default:
+      return INTERNAL_ERROR;
+  }
+}

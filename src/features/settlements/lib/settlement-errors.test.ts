@@ -4,6 +4,7 @@ import {
   FORBIDDEN_ERROR,
   INTERNAL_ERROR,
   VALIDATION_ERROR,
+  mapMoveSettlementError,
   mapSettlementError,
 } from "@/features/settlements/lib/settlement-errors";
 
@@ -37,5 +38,27 @@ describe("mapSettlementError", () => {
 
   it("should never pass an unknown database error to the client", () => {
     expect(mapSettlementError({ code: "XX000" })).toBe(INTERNAL_ERROR);
+  });
+});
+
+describe("mapMoveSettlementError", () => {
+  it("should map a role that may not move to FORBIDDEN", () => {
+    expect(mapMoveSettlementError({ code: "42501" })).toBe(FORBIDDEN_ERROR);
+  });
+
+  it("should map a move that is not allowed to CONFLICT with a message to reload", () => {
+    const error = mapMoveSettlementError({ code: "ST006" });
+
+    expect(error.code).toBe("CONFLICT");
+    expect(error.message).toContain("cannot move");
+  });
+
+  it("should map an unknown settlement to NOT_FOUND and a missing value to a validation error", () => {
+    expect(mapMoveSettlementError({ code: "P0002" }).code).toBe("NOT_FOUND");
+    expect(mapMoveSettlementError({ code: "22023" })).toBe(VALIDATION_ERROR);
+  });
+
+  it("should never pass an unknown database error to the client", () => {
+    expect(mapMoveSettlementError({ code: "XX000" })).toBe(INTERNAL_ERROR);
   });
 });

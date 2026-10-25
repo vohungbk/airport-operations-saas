@@ -27,3 +27,13 @@ export function createGenerateSettlementSchema(now: Date = new Date()) {
 }
 
 export type GenerateSettlementInput = z.infer<ReturnType<typeof createGenerateSettlementSchema>>;
+
+export const SETTLEMENT_STATUSES = ["draft", "pending_approval", "approved", "paid"] as const;
+
+/** VI-F04-S13 (spec R8): which settlement and which status. They match the enum `settlement_status`. */
+export const moveSettlementSchema = z.object({
+  settlement_id: z.guid("Choose a settlement."),
+  to_status: z.enum(SETTLEMENT_STATUSES, { error: "Choose a status." }),
+});
+
+export type MoveSettlementInput = z.infer<typeof moveSettlementSchema>;

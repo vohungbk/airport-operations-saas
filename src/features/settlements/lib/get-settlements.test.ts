@@ -31,6 +31,7 @@ describe("getSettlements", () => {
     expect(q.from).toHaveBeenCalledWith("settlements");
     expect(q.select).toHaveBeenCalledWith(SETTLEMENTS_SELECT);
     expect(SETTLEMENTS_SELECT).toContain("partner:partners(name, code)");
+    expect(SETTLEMENTS_SELECT).toContain("status_changed_at");
     expect(q.order).toHaveBeenCalledWith("period_start", { ascending: false });
     expect(q.limit).toHaveBeenCalledWith(SETTLEMENTS_LIMIT);
   });

@@ -117,6 +117,7 @@ export type Database = {
       }
       booking_adjustments: {
         Row: {
+          after_settlement: boolean
           amount: number
           booking_id: string
           created_at: string
@@ -126,6 +127,7 @@ export type Database = {
           type: Database["public"]["Enums"]["booking_adjustment_type"]
         }
         Insert: {
+          after_settlement?: boolean
           amount: number
           booking_id: string
           created_at?: string
@@ -135,6 +137,7 @@ export type Database = {
           type: Database["public"]["Enums"]["booking_adjustment_type"]
         }
         Update: {
+          after_settlement?: boolean
           amount?: number
           booking_id?: string
           created_at?: string
@@ -1114,6 +1117,39 @@ export type Database = {
           },
         ]
       }
+      settlement_carried_adjustments: {
+        Row: {
+          adjustment_id: string
+          created_at: string
+          settlement_id: string
+        }
+        Insert: {
+          adjustment_id: string
+          created_at?: string
+          settlement_id: string
+        }
+        Update: {
+          adjustment_id?: string
+          created_at?: string
+          settlement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_carried_adjustments_adjustment_id_fkey"
+            columns: ["adjustment_id"]
+            isOneToOne: true
+            referencedRelation: "booking_adjustments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_carried_adjustments_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "settlements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settlements: {
         Row: {
           adjustments: number
@@ -1131,6 +1167,8 @@ export type Database = {
           platform_share: number
           refunds: number
           status: Database["public"]["Enums"]["settlement_status"]
+          status_changed_at: string
+          status_changed_by: string | null
           updated_at: string
         }
         Insert: {
@@ -1149,6 +1187,8 @@ export type Database = {
           platform_share?: number
           refunds?: number
           status?: Database["public"]["Enums"]["settlement_status"]
+          status_changed_at?: string
+          status_changed_by?: string | null
           updated_at?: string
         }
         Update: {
@@ -1167,6 +1207,8 @@ export type Database = {
           platform_share?: number
           refunds?: number
           status?: Database["public"]["Enums"]["settlement_status"]
+          status_changed_at?: string
+          status_changed_by?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1175,6 +1217,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlements_status_changed_by_fkey"
+            columns: ["status_changed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1458,6 +1507,38 @@ export type Database = {
         Returns: undefined
       }
       booking_partner_id: { Args: { p_booking_id: string }; Returns: string }
+      move_settlement_status: {
+        Args: {
+          p_settlement_id: string
+          p_to: Database["public"]["Enums"]["settlement_status"]
+        }
+        Returns: {
+          adjustments: number
+          chargebacks: number
+          created_at: string
+          fees: number
+          final_amount: number
+          gross_revenue: number
+          id: string
+          launch_credit: number
+          partner_id: string
+          partner_share: number
+          period_end: string
+          period_start: string
+          platform_share: number
+          refunds: number
+          status: Database["public"]["Enums"]["settlement_status"]
+          status_changed_at: string
+          status_changed_by: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "settlements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       generate_monthly_settlement: {
         Args: { p_month: string; p_partner_id: string }
         Returns: {
@@ -1476,6 +1557,8 @@ export type Database = {
           platform_share: number
           refunds: number
           status: Database["public"]["Enums"]["settlement_status"]
+          status_changed_at: string
+          status_changed_by: string | null
           updated_at: string
         }
         SetofOptions: {

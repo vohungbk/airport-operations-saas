@@ -131,3 +131,13 @@ has been checked; remove a line when it is fixed.
   draft. (6) Only an admin generates; the operations manager reads. A booking is not locked when its
   month is settled, and a settlement does not change when a booking changes later (spec R19, E8, Q5);
   the status moves in a later story (R8).
+- **Settlement status and adjustments after approval (VI-F04-S13): the rules are assumptions, spec Q5 is
+  open.** (1) The moves are draft -> pending approval -> approved -> paid, and pending approval -> draft;
+  approved and paid do not go back. (2) Only an admin moves a status. (3) Who and when are two columns
+  of `settlements`; there is no history table of the moves. (4) While the settlement of its month is
+  approved or paid, a completed rental with revenue cannot be updated at all. (5) An adjustment on such a
+  booking is recorded, changes neither the booking nor the settlement, and is taken by the next
+  settlement generated for the partner, whatever its month: gross revenue and partner share go down (by
+  the share the booking kept), the amount shows as refunds, adjustments or chargebacks. A month with only
+  such adjustments is still generated, and its gross revenue may be negative. (6) A draft is a copy of the
+  figures when it was generated: if its bookings change before approval, it is not calculated again.

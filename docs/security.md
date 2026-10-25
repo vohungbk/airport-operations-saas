@@ -1982,6 +1982,18 @@ Supabase stack and skip without it.
   tested on `settlements`); only an admin gets the form. The page writes nothing. Not covered: moving
   the status and locking the bookings of an approved settlement (spec R8, R19, Q5).
 
+- **Moving a settlement (VI-F04-S13).** Only an admin moves a status: the Server Action
+  (`requireRole(["admin"])`, before anything else) and `move_settlement_status()` (`SECURITY DEFINER`,
+  empty `search_path`, an active admin, no user id from the client, row locked while it is moved) both
+  check it, and the function checks that the move is allowed. The admin has an update policy on
+  `settlements`, so a trigger refuses a change of the status, who or when outside the function, and a
+  change of the figures once the settlement is not a draft. The id and the status are validated with
+  Zod; a raw database error never reaches the client. The bookings of an approved or paid settlement
+  are locked by a trigger, not by the screen. `settlement_carried_adjustments` has RLS from its
+  migration (admin and operations manager read all, a partner user the rows of its own settlements,
+  no write policy), with cross-tenant denial tested. Not covered: a draft is not calculated again if
+  its bookings change before it is approved.
+
 ## Commercial terms (VI-F04-S01)
 
 - **Who can do what.** An admin and an operations manager open the Commercial terms screen of a
