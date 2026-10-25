@@ -463,12 +463,31 @@ starts, to a Postgres schema/table group protected by RLS.
   dependencies are passed in, so it is tested in Node. `use-theme.ts` is a thin
   `useSyncExternalStore` wrapper.
 - **No wrong first paint.** `theme-script.ts` is an inline script in the
-  `<head>` of the root layout; it sets the class before the first paint. The
-  `<html>` element has `suppressHydrationWarning` for that reason. There is no
-  CSP or nonce in the app today; add a nonce to the script if one is added.
+  `<head>` of the root layout, with no `async` or `defer`; it sets the class
+  before the first paint. The `<html>` element has `suppressHydrationWarning`
+  for that reason. There is no CSP or nonce in the app today; add a nonce to
+  the script if one is added.
 - **Saved on the device only.** The key is `theme` in `localStorage`; nothing
-  goes to the server (spec OOS-1). A missing or invalid value means System and
-  is replaced. `color-scheme` follows the theme so scrollbars and native
-  controls match.
+  goes to the server (spec OOS-1). A missing value means System and nothing is
+  written. An invalid value means System and is replaced (see UI-F01-S04).
+  `color-scheme` follows the theme so scrollbars and native controls match.
 - **No new dependency.** `next-themes` was not added.
+
+
+#### UI-F01-S04 — remembering the theme
+
+- **Next visit.** The choice is written when the button is pressed and read by
+  the script before the first paint of every later page, in the same tab, after
+  a reload, and in a new tab. `theme-persistence.test.ts` runs the real script
+  and the real store on one fake device storage to show this.
+- **Invalid saved value.** The script itself replaces a value that is there but
+  is not `light`, `dark` or `system` with `system`, on every page. Before, only
+  the store did it, and the store exists only on a page that has the button, so
+  a page such as `/forbidden` kept the bad value. A missing value is not
+  written.
+- **JavaScript off or slow.** With no script the page keeps the `:root` tokens,
+  which are Light; the CSS does not read the device setting, because that would
+  need the 36 dark tokens twice. While the page loads the button is shown
+  disabled with the icon that matches the page, and it works once the page has
+  loaded.
 

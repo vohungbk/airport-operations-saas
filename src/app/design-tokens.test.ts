@@ -206,4 +206,11 @@ describe("design tokens", () => {
       expect(existsSync(join(process.cwd(), file))).toBe(true);
     }
   });
+
+  it("should use the Light tokens when no script has added the dark class", () => {
+    // The device setting is read by the theme script, not by the CSS. With no script (JavaScript
+    // off) the page keeps the :root tokens, which are Light (UI-F01-S04, E1).
+    expect(css).not.toMatch(/prefers-color-scheme/);
+    expect(light.get("background")).toBe("#F5F7FA");
+  });
 });
