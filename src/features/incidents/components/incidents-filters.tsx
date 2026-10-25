@@ -138,7 +138,7 @@ export function IncidentsFilters({ query }: IncidentsFiltersProps) {
         <p
           id="incident-search-error"
           role="alert"
-          className="text-sm text-destructive"
+          className="text-sm text-danger-fg"
         >
           {searchError}
         </p>

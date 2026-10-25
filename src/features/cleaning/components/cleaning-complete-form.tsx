@@ -71,7 +71,7 @@ export function CleaningCompleteForm({
       </dl>
 
       <FieldSet
-        className="data-[invalid=true]:text-destructive"
+        className="data-[invalid=true]:text-danger-fg"
         data-invalid={!!errors.result}
         aria-describedby={errors.result ? "result-error" : undefined}
       >

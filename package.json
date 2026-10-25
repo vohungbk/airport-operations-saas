@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "vitest run --project unit src/app/design-tokens.test.ts src/lib/accessibility/token-contrast.test.ts",
+    "prebuild": "vitest run --project unit src/app/design-tokens.test.ts src/lib/accessibility/token-contrast.test.ts src/lib/accessibility/class-contrast.test.ts",
     "build": "next build",
     "start": "next start",
     "demo:reset": "bash scripts/demo-reset.sh",

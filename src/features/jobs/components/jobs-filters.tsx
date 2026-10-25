@@ -133,7 +133,7 @@ export function JobsFilters({ query, technicians }: JobsFiltersProps) {
       </div>
 
       {searchError && (
-        <p id="job-search-error" role="alert" className="text-sm text-destructive">
+        <p id="job-search-error" role="alert" className="text-sm text-danger-fg">
           {searchError}
         </p>
       )}

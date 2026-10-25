@@ -10,9 +10,10 @@ const RAW_COLOR_PATTERNS: RegExp[] = [
   /\bhsla?\(/,
   /\boklch\(/,
   /\b(?:bg|text|border|ring|fill|stroke|from|to|via|divide|outline)-(?:red|green|blue|yellow|gray|slate|zinc|neutral|stone|amber|orange|emerald|sky|white|black)(?:-\d+)?\b/,
-  // An inline style that sets a color to a literal; `var(...)`, `currentColor`, `inherit`,
-  // `transparent` and `none` are not raw colors.
-  /\b(?:color|backgroundColor|background|borderColor|fill|stroke)\s*:\s*["'`](?!var\(|currentColor|inherit|transparent|none)/,
+  // An inline style that sets a color to a plain word such as "red". `var(...)`, `currentColor`,
+  // `inherit`, `transparent` and `none` are not raw colors, and a value built with `${...}` is a
+  // class name or other text, not a color.
+  /\b(?:color|backgroundColor|background|borderColor|fill|stroke)\s*:\s*["'`](?!currentColor|inherit|transparent|none)[a-zA-Z]+["'`]/,
 ];
 
 /** The 1-based numbers of the lines that hold a raw color value. */

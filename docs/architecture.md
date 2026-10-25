@@ -416,7 +416,8 @@ starts, to a Postgres schema/table group protected by RLS.
 
 - **Checks run before every build.** `npm run build` first runs the
   `prebuild` script, which runs `src/app/design-tokens.test.ts` and
-  `src/lib/accessibility/token-contrast.test.ts`. A raw color outside
+  `src/lib/accessibility/token-contrast.test.ts` (and, since UI-F01-S05,
+  `class-contrast.test.ts`). A raw color outside
   `globals.css`, a missing token or a pair below its ratio stops the build.
   The same tests also run in `npm test` and in the pre-push hook.
 - **Contrast.** `src/lib/accessibility/contrast.ts` lists the color pairs the
@@ -490,4 +491,31 @@ starts, to a Postgres schema/table group protected by RLS.
   need the 36 dark tokens twice. While the page loads the button is shown
   disabled with the icon that matches the page, and it works once the page has
   loaded.
+
+
+#### UI-F01-S05 — the theme on every page
+
+- **Every page uses the tokens, and reads in both themes.** Besides the raw
+  color check, `src/lib/accessibility/class-contrast.ts` reads the Tailwind
+  classes written in source (`bg-success-bg text-success-fg`) and checks each
+  text color against its background at 4.5:1, in Light and in Dark. Text with
+  no background class is checked on the page, a card and a popover. A tint such
+  as `bg-danger/10` is mixed over the page first. It runs in `prebuild`, so a
+  weak pair stops the build.
+- **What it cannot see.** A class built at run time from pieces, classes that
+  are not colors (`text-sm`), and states such as `hover:`. Check those by eye.
+- **What it found.** `text-destructive` (error text, 10 places) was about 4.5:1
+  or less in Light and the destructive button was 3.9:1. Both now use the
+  `danger-bg` and `danger-fg` pair, which is at least 6.8:1 in both themes.
+  `destructive` stays for borders and rings.
+- **Where the control is.** `theme-placement.test.ts` lists every page and
+  checks a layout above it holds `AppShell` or `ThemeControl`: sign-in pages
+  through `(auth)/layout.tsx`, admin, dashboard, partner and technician through
+  the shell. The home stub and `/forbidden` have no control on purpose (the
+  spec puts it in the top bar, the user menu and the sign-in pages); they follow
+  the theme through the tokens. A new route group without the control makes the
+  test fail.
+- **Signed-out choice.** It is kept in `localStorage`, which sign-in and
+  sign-out do not touch. A test fails if any file outside `src/lib/theme` uses
+  `localStorage` or `sessionStorage`.
 
