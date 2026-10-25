@@ -10,7 +10,10 @@ describe("app shell responsive layout", () => {
   const shell = read("app-shell.tsx");
 
   it("should hide the fixed sidebar below the md breakpoint", () => {
-    expect(shell).toMatch(/<aside className="hidden [^"]*md:flex/);
+    const sidebar = read("desktop-sidebar.tsx");
+
+    expect(shell).toContain("<DesktopSidebar");
+    expect(sidebar).toMatch(/<aside[\s\S]*"hidden [^"]*md:flex/);
   });
 
   it("should render the mobile top bar only below the md breakpoint", () => {

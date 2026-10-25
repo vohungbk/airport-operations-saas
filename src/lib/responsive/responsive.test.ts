@@ -119,8 +119,10 @@ describe("the shell (spec R5)", () => {
   const shell = readFileSync(join(src, "components", "layout", "app-shell.tsx"), "utf8");
 
   it("should show a menu header below the md breakpoint and the side bar from it", () => {
+    const sidebar = readFileSync(join(src, "components", "layout", "desktop-sidebar.tsx"), "utf8");
+
     expect(shell).toMatch(/<header[^>]*md:hidden/);
-    expect(shell).toMatch(/<aside[^>]*hidden[^>]*md:flex/);
+    expect(sidebar).toMatch(/<aside[\s\S]*"hidden [^"]*md:flex/);
   });
 
   it("should let the page content shrink, so a wide child cannot widen the page", () => {
