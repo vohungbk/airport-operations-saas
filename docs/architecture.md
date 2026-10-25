@@ -389,3 +389,25 @@ code (see `security.md`).
 
 Each boundary maps to a `src/features/*` folder and, once schema work
 starts, to a Postgres schema/table group protected by RLS.
+
+#### UI-F01-S01 — design tokens from the design file
+
+- **One source.** `src/app/globals.css` defines the tokens under the names
+  of the design file (frame "Foundations / Exact source tokens"): 36 color
+  tokens in `:root` (Light) and `.dark` (Dark), the type scale
+  (`text-display` to `text-caption`), the 4px spacing grid and the radius
+  steps (4, 8, 12, 16, full). Colors are written as hex, as in the design.
+- **Names.** The design name `color/surface-muted` becomes `--surface-muted`
+  and the utility `bg-surface-muted`. Status colors come as a trio:
+  `success`, `success-bg`, `success-fg` (same for `warning`, `danger`,
+  `info`). Charts use `chart-1` to `chart-6` and `chart-grid`.
+- **Legacy names stay.** `--card`, `--muted`, `--destructive`, `--ring`,
+  `--sidebar-*` and the other shadcn names resolve to a design token, so
+  existing components keep working. New code uses the design names.
+- **Known gaps.** The ticket asks for 40 color tokens but the design has 36;
+  the question is open with the PO. The dark theme is defined but nothing
+  switches it on yet. The font is still Geist; the design uses Inter.
+- **Tests.** `src/app/design-tokens.test.ts` checks names and hex values in
+  both themes, the status trios, the chart colors, the legacy aliases, and
+  that no raw color appears outside `globals.css`.
+
