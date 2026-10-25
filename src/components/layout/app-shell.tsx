@@ -1,11 +1,15 @@
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 
 import { getVisibleNavItems } from "@/config/nav";
+import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { ThemeControl } from "@/components/theme/theme-control";
-import { LogoutButton } from "@/features/auth/components/logout-button";
 import type { AppUser } from "@/lib/auth/current-user";
+import {
+  SIDEBAR_COOKIE,
+  parseSidebarCollapsed,
+} from "@/lib/layout/sidebar-preference";
 
 interface AppShellProps {
   user: AppUser;
@@ -15,15 +19,19 @@ interface AppShellProps {
 /**
  * Server Component shell shared by every protected route group. Computes
  * the visible nav items for `user.role` server-side and hands the
- * already-filtered list to the client-only `SidebarNav` (desktop) and
- * `MobileNav` (below `md`) — the permission check itself never runs in
- * the browser.
+ * already-filtered list to the client-only `DesktopSidebar` (from `md` up)
+ * and `MobileNav` (below `md`) — the permission check itself never runs in
+ * the browser. It also reads the saved sidebar width from a cookie so the
+ * first paint is already at the right size.
  */
-export function AppShell({ user, children }: AppShellProps) {
+export async function AppShell({ user, children }: AppShellProps) {
   const navItems = getVisibleNavItems(user.role).map(({ href, label }) => ({
     href,
     label,
   }));
+  const initialCollapsed = parseSidebarCollapsed(
+    (await cookies()).get(SIDEBAR_COOKIE)?.value,
+  );
 
   return (
     <div className="flex min-h-screen flex-1 flex-col md:flex-row">
@@ -39,23 +47,11 @@ export function AppShell({ user, children }: AppShellProps) {
           <ThemeControl />
         </div>
       </header>
-      <aside className="hidden w-64 shrink-0 flex-col justify-between md:flex border-r border-border bg-background p-4 print:hidden">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">
-                {user.full_name}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {user.email}
-              </p>
-            </div>
-            <ThemeControl />
-          </div>
-          <SidebarNav items={navItems} />
-        </div>
-        <LogoutButton />
-      </aside>
+      <DesktopSidebar
+        user={{ full_name: user.full_name, email: user.email }}
+        items={navItems}
+        initialCollapsed={initialCollapsed}
+      />
       <main className="flex min-w-0 flex-1 flex-col">{children}</main>
     </div>
   );
