@@ -106,6 +106,7 @@ export const JOURNEYS: readonly Journey[] = [
     tests: [
       { file: "src/lib/finance/booking-adjustments.integration.test.ts", block: "recording an adjustment (VI-F04-S10, spec R5, R15, R16, R17)" },
       { file: RLS, block: "booking adjustments (VI-F04-S10)" },
+      { file: "src/lib/finance/refund-recalculation.integration.test.ts", block: "shares after a refund or a chargeback (VI-F04-S11, spec R15, E6, E7)" },
     ],
   },
   {
