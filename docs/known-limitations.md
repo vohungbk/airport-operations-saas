@@ -122,3 +122,12 @@ has been checked; remove a line when it is fixed.
   that a refund reduces the credit, the change is in the trigger of the revenue calculation
   (`apply_booking_revenue_on_completion()`), which would work the credit out on the gross revenue that
   is left.
+- **Monthly settlement (VI-F04-S12): the rules are assumptions, the spec gives no formula.** (1) A
+  rental belongs to the month of its real return day (the due day with no return time), in UTC. (2)
+  The adjustments are shown as refunds, adjustments and chargebacks, not taken off again: the gross
+  revenue is already net of them. (3) `final_amount` = partner share - fees; the launch credit is part
+  of the partner share, so it is shown and not added again. (4) `fees` is 0 until the annual programme
+  fee has a rule (spec F4). (5) A month with no completed rental is refused, not saved as an empty
+  draft. (6) Only an admin generates; the operations manager reads. A booking is not locked when its
+  month is settled, and a settlement does not change when a booking changes later (spec R19, E8, Q5);
+  the status moves in a later story (R8).

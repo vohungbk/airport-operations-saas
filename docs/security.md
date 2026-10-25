@@ -1970,6 +1970,18 @@ Supabase stack and skip without it.
   not-found page. The page itself writes nothing: the form it shows (VI-F04-S10) sends the entries
   to the Server Action above.
 
+- **Generating a settlement (VI-F04-S12).** Only an admin generates: the Server Action
+  (`requireRole(["admin"])`, before anything else) and `generate_monthly_settlement()` (`SECURITY
+  DEFINER`, empty `search_path`, an active admin, no user id from the client) both check it. The
+  input is validated with one Zod schema on the client and the server (the month is required, is a
+  real month and is not in the future), and the function checks it again with fixed error codes that
+  become fixed messages; a raw database error never reaches the client. A month is settled once per
+  partner (unique key, `ST003`). The page `/settlements` is open to the roles with `finance:view` or
+  `finance:view_own_partner`, checked before anything is read; RLS decides the rows (an admin and an
+  operations manager read all, a partner user only its own partner's, cross-tenant denial already
+  tested on `settlements`); only an admin gets the form. The page writes nothing. Not covered: moving
+  the status and locking the bookings of an approved settlement (spec R8, R19, Q5).
+
 ## Commercial terms (VI-F04-S01)
 
 - **Who can do what.** An admin and an operations manager open the Commercial terms screen of a

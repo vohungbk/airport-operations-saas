@@ -278,6 +278,23 @@ open). All four types take money away (`booking_adjustment_sign()`; an assumptio
 which way a manual adjustment goes). A change of the period or the rate afterwards keeps the adjustments.
 Rollback SQL is at the top of the migration.
 
+**Monthly settlement (VI-F04-S12, migration `20261112090000_monthly_settlement.sql`).** `settlements`
+(F02) gets `chargebacks` and `fees` (`numeric(12,2)`, default 0) and a unique key on
+`(partner_id, period_start)`: a partner has one settlement for each month. `period_start` is the first
+and `period_end` the last day of the month. `public.generate_monthly_settlement(partner, month)` is
+`SECURITY DEFINER` (empty `search_path`) and checks that the caller is an active admin. It makes a
+`draft` settlement from the completed rentals of the partner with revenue (case standard or early
+return) whose real return day (the due day when there is no return time) is in the month, in UTC. It
+sums `gross_revenue`, `partner_share`, `platform_share` and `launch_credit`, and the adjustments by
+type: refunds (partial and full), adjustments (manual) and chargebacks, as positive amounts. The gross
+revenue is already net of the adjustments, so they are shown, not taken off again.
+`final_amount = partner_share - fees`; `fees` is 0 (no rule for the annual fee yet, spec F4); the launch
+credit is the extra already inside `partner_share`, so it is shown and not added again (assumptions: the
+spec gives no formula). Error codes: `42501` not an admin, `22023` a value is missing, `P0002` partner
+not found, `ST002` month in the future, `ST003` the month is already settled, `ST004` no completed
+rental in the month (no empty draft is saved). RLS is the F05 policy set, unchanged. Rollback SQL is at
+the top of the migration.
+
 **Early return, cancellation and no-show (VI-F04-S07, migration `20261110090000_booking_revenue_cases.sql`).**
 `revenue_case` keeps the case that priced the booking. A booking that becomes `cancelled` or `no_show`
 (a trigger that runs after the booking guard) gets paid days 0, gross revenue 0.00, both shares 0.00,
