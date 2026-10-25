@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   FLAG_ON,
+  adjust,
+  adjustmentSetup as setup,
+  adjustmentState as state,
+  asUser,
   available,
   bookingId,
   completeBooking,
+  completedRental as completed,
   newBooking,
-  newPartner,
-  newTerms,
   run,
+  USER,
 } from "@/lib/finance/finance-test-support";
 
 /**
@@ -21,41 +25,6 @@ import {
  */
 const START = "2030-01-01 10:00:00+00";
 const SIX_DAYS = "2030-01-07 10:00:00+00";
-
-const USER = (role: string) =>
-  `(select id::text from public.users u where u.role = '${role}' and u.is_active order by u.email limit 1)`;
-
-/** The next calls are made by this user (an empty string is nobody signed in). */
-const asUser = (role: string | null) =>
-  `select set_config('request.jwt.claim.sub', ${role ? `coalesce(${USER(role)}, '')` : "''"}, true);`;
-
-const setup = (partner: number, extra: { target?: string; launch?: number } = {}) => `
-  ${newPartner(partner)}
-  ${newTerms(partner, partner, 30, "date '2020-01-01'", "null", extra.launch ?? 50, extra.target ?? "null")}`;
-
-/** A completed rental of six days at 75. */
-const completed = (n: number, partner: number, ret = SIX_DAYS, rate = "75") => `
-  ${newBooking(n, partner, ret, rate)}
-  ${completeBooking(n)}`;
-
-/** Makes an adjustment and reports `R|name|ok` or `R|name|<sqlstate>`. */
-const adjust = (name: string, n: number, type: string, amount: string, reason: string) => `
-  do $$ begin
-    perform public.add_booking_adjustment('${bookingId(n)}', ${type}, ${amount}, ${reason});
-    raise notice 'R|${name}|ok';
-  exception when others then
-    raise notice 'R|${name}|%', sqlstate;
-  end $$;`;
-
-/** Reports `R|name|gross|partner|platform|adjustments_total|launch_credit|balance|rows`. */
-const state = (name: string, n: number) => `
-  do $$ declare b record; c integer; begin
-    select * into b from public.bookings where id = '${bookingId(n)}';
-    select count(*) into c from public.booking_adjustments where booking_id = b.id;
-    raise notice 'R|${name}|%|%|%|%|%|%|%', coalesce(b.gross_revenue::text, 'null'),
-      coalesce(b.partner_share::text, 'null'), coalesce(b.platform_share::text, 'null'), b.adjustments_total,
-      b.launch_credit, coalesce(b.launch_credit_balance::text, 'null'), c;
-  end $$;`;
 
 const get = (rows: string[][], name: string) => {
   const row = rows.find((r) => r[0] === name);

@@ -217,18 +217,20 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
     });
 
     it("should have a seat history that ends at the seat's status", async () => {
-      const bySeat = Map.groupBy(
-        await rows("seat_status_history", undefined, { column: "seat_id", in: SEED_SEAT_IDS }),
-        (h) => h.seat_id,
-      );
-
+      // The RLS suite adds rows to the history of two seeded seats on every run,
+      // so one seat can hold more rows than the API returns at once. Read only
+      // the newest row of each seat, in order, instead of the whole history.
       for (const seat of await rows("seats", SEED_SEAT_IDS)) {
-        const chain = (bySeat.get(seat.id) ?? []).sort((x, y) =>
-          x.created_at.localeCompare(y.created_at),
-        );
+        const { data, error } = await service
+          .from("seat_status_history")
+          .select("to_status")
+          .eq("seat_id", seat.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
 
-        expect(chain.length, seat.serial_number).toBeGreaterThan(0);
-        expect(chain.at(-1)!.to_status, seat.serial_number).toBe(seat.status);
+        expect(error, seat.serial_number).toBeNull();
+        expect(data?.length, seat.serial_number).toBe(1);
+        expect(data![0].to_status, seat.serial_number).toBe(seat.status);
       }
     });
 
