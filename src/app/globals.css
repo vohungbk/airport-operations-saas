@@ -5,152 +5,227 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
+
+  /* Design color tokens: one utility per token, e.g. bg-surface, text-text-muted. */
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-input: var(--border-input);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-primary-subtle-foreground: var(--primary-subtle-foreground);
+  --color-secondary: var(--secondary);
+  --color-focus-ring: var(--focus-ring);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-fg: var(--success-fg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-fg: var(--warning-fg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-fg: var(--danger-fg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-fg: var(--info-fg);
+  --color-neutral-bg: var(--neutral-bg);
+  --color-neutral-fg: var(--neutral-fg);
   --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-grid: var(--chart-grid);
+
+  /* Legacy shadcn names. Each one resolves to a design token in :root and .dark. */
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info-foreground: var(--info-foreground);
+  --color-input: var(--input);
   --color-ring: var(--ring);
   --color-overlay: var(--overlay);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-success-foreground: var(--success-foreground);
-  --color-success: var(--success);
-  --color-warning-foreground: var(--warning-foreground);
-  --color-warning: var(--warning);
-  --color-info-foreground: var(--info-foreground);
-  --color-info: var(--info);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Radius: 4, 8, 12, 16, Full. The larger steps keep their old ratio to --radius. */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Spacing: the 4px grid. 1, 2, 3, 4, 5, 6, 8, 10, 12 give 4, 8, 12, 16, 20, 24, 32, 40, 48. */
+  --spacing: 0.25rem;
+
+  /* Type scale: size and line height from the design. */
+  --text-display: 30px;
+  --text-display--line-height: 36px;
+  --text-h1: 24px;
+  --text-h1--line-height: 32px;
+  --text-h2: 20px;
+  --text-h2--line-height: 28px;
+  --text-h3: 16px;
+  --text-h3--line-height: 24px;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-small: 12px;
+  --text-small--line-height: 16px;
+  --text-caption: 11px;
+  --text-caption--line-height: 16px;
+}
+
+/*
+ * Legacy shadcn names, kept so existing components keep working. Declared for
+ * :root and .dark together so each one re-resolves against the theme in force
+ * on that element.
+ */
+:root, .dark {
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--text);
+  --secondary-foreground: var(--primary-foreground);
+  --muted: var(--surface-muted);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--surface-muted);
+  --accent-foreground: var(--text);
+  --destructive: var(--danger);
+  --input: var(--border-input);
+  --ring: var(--focus-ring);
+  --radius: 0.625rem;
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--surface-muted);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--focus-ring);
 }
 
 :root {
   /*
-   * Airport Operations color palette (converted from the approved hex
-   * values to oklch to match the existing token format). `--muted` has no
-   * source hex — it's derived as a neutral tint halfway between
-   * `--background` (#F5F7FA) and `--border` (#E2E8F0), per the approved
-   * plan. See docs/architecture.md (F04 addendum) for the source list.
+   * Light theme. Names and hex values come from the design file, frame
+   * "Foundations / Exact source tokens". Define a color here and in .dark,
+   * then register it in @theme inline. Nothing else may hold a raw color.
    */
-  --background: oklch(0.975 0.005 258.325); /* #F5F7FA */
-  --foreground: oklch(0.245 0.039 264.354); /* #172033 */
-  --card: oklch(1 0 0); /* #FFFFFF */
-  --card-foreground: oklch(0.245 0.039 264.354); /* #172033 */
-  --popover: oklch(1 0 0); /* #FFFFFF */
-  --popover-foreground: oklch(0.245 0.039 264.354); /* #172033 */
-  --primary: oklch(0.409 0.106 250.207); /* #0F4C81 */
-  --primary-foreground: oklch(1 0 0); /* #FFFFFF */
-  --secondary: oklch(0.502 0.079 233.978); /* #2F6B8A */
-  --secondary-foreground: oklch(1 0 0); /* #FFFFFF */
-  --muted: oklch(0.952 0.009 256.917); /* derived, see comment above */
-  --muted-foreground: oklch(0.554 0.041 257.417); /* #64748B */
-  --accent: oklch(0.952 0.009 256.917); /* same as --muted, mirrors prior boilerplate */
-  --accent-foreground: oklch(0.245 0.039 264.354); /* #172033 */
-  --destructive: oklch(0.577 0.215 27.325); /* #DC2626 */
-  --success: oklch(0.505 0.17 149.214); /* darkened from spec #16A34A (~#007D24) so text-success on bg-success/10 reaches 4.5:1 AA */
-  --success-foreground: oklch(0.245 0.039 264.354); /* #172033, passes AA on --success */
-  --warning: oklch(0.54 0.157 58.318); /* darkened from spec #D97706 (~#AE5000) so text-warning on bg-warning/10 reaches 4.5:1 AA */
-  --warning-foreground: oklch(0.245 0.039 264.354); /* #172033, passes AA on --warning */
-  --info: oklch(0.522 0.139 241.966); /* darkened from spec #0284C7 (~#0070B2) so text-info on bg-info/10 reaches 4.5:1 AA */
-  --info-foreground: oklch(1 0 0); /* #FFFFFF, best of the two AA-borderline options on --info */
-  --border: oklch(0.929 0.013 255.508); /* #E2E8F0 */
-  --input: oklch(0.929 0.013 255.508); /* #E2E8F0 */
-  --ring: oklch(0.409 0.106 250.207); /* brand primary */
-  --overlay: oklch(0.245 0.039 264.354 / 40%); /* foreground tint for modal backdrops */
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(1 0 0); /* #FFFFFF */
-  --sidebar-foreground: oklch(0.245 0.039 264.354); /* #172033 */
-  --sidebar-primary: oklch(0.409 0.106 250.207); /* #0F4C81 */
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.952 0.009 256.917);
-  --sidebar-accent-foreground: oklch(0.245 0.039 264.354);
-  --sidebar-border: oklch(0.929 0.013 255.508); /* #E2E8F0 */
-  --sidebar-ring: oklch(0.409 0.106 250.207);
+  --background: #F5F7FA;
+  --surface: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --surface-muted: #EEF2F7;
+  --border: #E2E8F0;
+  --border-input: #74839A;
+  --text: #172033;
+  --text-muted: #586A80;
+  --primary: #0F4C81;
+  --primary-hover: #0B3558;
+  --primary-foreground: #FFFFFF;
+  --primary-subtle: #E6EFF7;
+  --primary-subtle-foreground: #0B3558;
+  --secondary: #2F6B8A;
+  --focus-ring: #0284C7;
+  --success: #16A34A;
+  --success-bg: #DCFCE7;
+  --success-fg: #166534;
+  --warning: #D97706;
+  --warning-bg: #FEF3C7;
+  --warning-fg: #92400E;
+  --danger: #DC2626;
+  --danger-bg: #FEE2E2;
+  --danger-fg: #991B1B;
+  --info: #0284C7;
+  --info-bg: #E0F2FE;
+  --info-fg: #075985;
+  --neutral-bg: #EEF2F7;
+  --neutral-fg: #334155;
+  --chart-1: #0F4C81;
+  --chart-2: #2F6B8A;
+  --chart-3: #D97706;
+  --chart-4: #16A34A;
+  --chart-5: #DC2626;
+  --chart-6: #64748B;
+  --chart-grid: #E2E8F0;
+  --success-foreground: var(--text);
+  --warning-foreground: var(--text);
+  --info-foreground: var(--primary-foreground);
+  --overlay: oklch(0.245 0.039 264.354 / 40%);
 }
 
 .dark {
-  /*
-   * Inert future-proofing: no toggle/provider activates `.dark` anywhere
-   * in the app yet. Brand/semantic colors are brightened/desaturated
-   * variants of the light-mode palette above, following the same
-   * transform already used by the original boilerplate's `--destructive`
-   * (higher lightness, slightly lower chroma, same hue) rather than an
-   * independently-chosen dark brand palette.
-   */
-  --background: oklch(0.145 0.015 258);
-  --foreground: oklch(0.975 0.005 258);
-  --card: oklch(0.205 0.015 258);
-  --card-foreground: oklch(0.975 0.005 258);
-  --popover: oklch(0.205 0.015 258);
-  --popover-foreground: oklch(0.975 0.005 258);
-  --primary: oklch(0.616 0.09 250.207);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.676 0.067 233.978);
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.269 0.015 258);
-  --muted-foreground: oklch(0.708 0.02 258);
-  --accent: oklch(0.269 0.015 258);
-  --accent-foreground: oklch(0.975 0.005 258);
-  --destructive: oklch(0.704 0.191 22.216);
-  --success: oklch(0.758 0.145 149.214);
-  --success-foreground: oklch(0.975 0.005 258);
-  --warning: oklch(0.783 0.133 58.318);
-  --warning-foreground: oklch(0.975 0.005 258);
-  --info: oklch(0.732 0.118 241.966);
-  --info-foreground: oklch(0.975 0.005 258);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.616 0.09 250.207);
+  /* Dark theme. Same names as :root, values from the design's Dark column. */
+  --background: #0B1220;
+  --surface: #111A2B;
+  --surface-elevated: #17233A;
+  --surface-muted: #152036;
+  --border: #2A3A55;
+  --border-input: #6F819C;
+  --text: #E8EDF7;
+  --text-muted: #9AA8BF;
+  --primary: #5AA2E8;
+  --primary-hover: #7DB6EE;
+  --primary-foreground: #06192E;
+  --primary-subtle: #12304F;
+  --primary-subtle-foreground: #BBD9F7;
+  --secondary: #5B9DBF;
+  --focus-ring: #38BDF8;
+  --success: #4ADE80;
+  --success-bg: #0F2A1A;
+  --success-fg: #86EFAC;
+  --warning: #FBBF24;
+  --warning-bg: #33240A;
+  --warning-fg: #FCD34D;
+  --danger: #F87171;
+  --danger-bg: #3A1313;
+  --danger-fg: #FCA5A5;
+  --info: #38BDF8;
+  --info-bg: #0A2A3D;
+  --info-fg: #7DD3FC;
+  --neutral-bg: #1B2842;
+  --neutral-fg: #CBD5E1;
+  --chart-1: #5AA2E8;
+  --chart-2: #6AB0D4;
+  --chart-3: #FBBF24;
+  --chart-4: #4ADE80;
+  --chart-5: #F87171;
+  --chart-6: #9AA8BF;
+  --chart-grid: #2A3A55;
+
+  /* Legacy names whose value differs from :root. */
+  --success-foreground: var(--primary-foreground);
+  --warning-foreground: var(--primary-foreground);
+  --info-foreground: var(--primary-foreground);
   --overlay: oklch(0 0 0 / 60%);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0.015 258);
-  --sidebar-foreground: oklch(0.975 0.005 258);
-  --sidebar-primary: oklch(0.616 0.09 250.207);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.269 0.015 258);
-  --sidebar-accent-foreground: oklch(0.975 0.005 258);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.616 0.09 250.207);
 }
 
 @layer base {
