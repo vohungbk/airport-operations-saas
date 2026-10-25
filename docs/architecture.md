@@ -519,3 +519,31 @@ starts, to a Postgres schema/table group protected by RLS.
   sign-out do not touch. A test fails if any file outside `src/lib/theme` uses
   `localStorage` or `sessionStorage`.
 
+
+#### UI-F02-S01 — the desktop sidebar
+
+- **Where.** `DesktopSidebar` (`src/components/layout/desktop-sidebar.tsx`) is
+  the sidebar from the `md` breakpoint (768 px) up. `AppShell` stays a Server
+  Component: it filters the menu by role (`getVisibleNavItems`) and hands the
+  list down, as before. Below 768 px the mobile bar and the drawer are
+  unchanged; the bottom navigation is a later story (UI-F02-S03).
+- **Menu.** `SidebarNav` marks the current item with a marker on its left
+  edge, the active color and `aria-current="page"`. It is a navigation
+  landmark labelled "Main navigation". A long label is cut and keeps its text
+  as the title. Hiding an item is only a look: the server still checks access
+  on every page (spec R9).
+- **Collapse.** The button at the top of the sidebar switches between 256 px
+  and 72 px (`SIDEBAR_WIDTH_CLASS`). Collapsed, only the icons show, each with
+  a tooltip (`src/components/ui/tooltip.tsx`, on `@base-ui/react/tooltip`) on
+  hover and on keyboard focus, and the name stays for screen readers. The name
+  and email of the user are hidden; the theme and sign out buttons stay as
+  icons.
+- **Remembered.** The choice is the cookie `sidebar_collapsed` (`1` or `0`,
+  path `/`, one year, `SameSite=Lax`), written by `useSidebarCollapsed` and read by
+  `AppShell` with `cookies()`. The server draws the page at the right width,
+  so nothing jumps on load. A missing or invalid value means expanded. The
+  cookie is a look, not a permission, so it holds nothing else.
+- **Not in this story.** The top bar (UI-F02-S02), the count badge on a menu
+  item (no source for the count yet, spec Q2), and the Permission Denied state
+  inside the shell (today a forbidden page replaces the shell).
+
