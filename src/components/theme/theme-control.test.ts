@@ -44,13 +44,15 @@ describe("theme control", () => {
 });
 
 describe("where the theme control is placed", () => {
-  it("should be in the mobile app bar and the desktop top bar of the shell", () => {
+  it("should be in the More sheet of the phone and the desktop top bar of the shell", () => {
     const shell = read("src", "components", "layout", "app-shell.tsx");
     const topBar = read("src", "components", "layout", "top-bar.tsx");
+    const moreSheet = read("src", "components", "layout", "more-sheet.tsx");
 
-    expect(shell).toMatch(/<header[\s\S]*<ThemeControl \/>[\s\S]*<\/header>/);
     expect(shell).toContain("<TopBar");
     expect(topBar).toContain("<ThemeControl />");
+    expect(shell).toContain("<BottomNav");
+    expect(moreSheet).toContain("<ThemeControl />");
   });
 
   it("should be on the sign-in pages and stay off the printed page", () => {

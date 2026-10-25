@@ -55,8 +55,9 @@ describe("app shell and the saved sidebar width", () => {
     expect(shell).toContain("initialCollapsed={initialCollapsed}");
   });
 
-  it("should keep the mobile drawer expanded: it never gets the collapsed state", () => {
-    expect(read("mobile-nav.tsx")).not.toContain("collapsed");
+  it("should keep the phone navigation apart from the sidebar: it never gets the collapsed state", () => {
+    expect(read("bottom-nav.tsx")).not.toContain("collapsed");
+    expect(read("more-sheet.tsx")).not.toContain("collapsed");
   });
 });
 

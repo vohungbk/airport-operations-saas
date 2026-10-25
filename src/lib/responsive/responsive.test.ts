@@ -121,8 +121,17 @@ describe("the shell (spec R5)", () => {
   it("should show a menu header below the md breakpoint and the side bar from it", () => {
     const sidebar = readFileSync(join(src, "components", "layout", "desktop-sidebar.tsx"), "utf8");
 
-    expect(shell).toMatch(/<header[^>]*md:hidden/);
+    const appBar = readFileSync(join(src, "components", "layout", "mobile-app-bar.tsx"), "utf8");
+    const bottomNav = readFileSync(join(src, "components", "layout", "bottom-nav.tsx"), "utf8");
+
+    expect(appBar).toMatch(/<header[^>]*md:hidden/);
+    expect(bottomNav).toMatch(/<nav[\s\S]*md:hidden/);
+    expect(shell).toContain("<MobileAppBar");
     expect(sidebar).toMatch(/<aside[\s\S]*"hidden [^"]*md:flex/);
+  });
+
+  it("should keep the end of the content clear of the bottom navigation on a phone (R11)", () => {
+    expect(shell).toMatch(/<main[^>]*pb-\[calc\(84px\+env\(safe-area-inset-bottom\)\)\] md:pb-0/);
   });
 
   it("should let the page content shrink, so a wide child cannot widen the page", () => {
