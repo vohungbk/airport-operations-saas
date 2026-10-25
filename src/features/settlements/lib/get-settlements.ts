@@ -14,12 +14,13 @@ export interface SettlementRow {
   fees: number;
   final_amount: number;
   status: SettlementStatus;
+  status_changed_at: string;
   partner: { name: string; code: string } | null;
 }
 
 /** Explicit columns (VI-F04-S12), with the partner in the same round trip. */
 export const SETTLEMENTS_SELECT =
-  "id, period_start, gross_revenue, partner_share, platform_share, refunds, adjustments, chargebacks, launch_credit, fees, final_amount, status, partner:partners(name, code)";
+  "id, period_start, gross_revenue, partner_share, platform_share, refunds, adjustments, chargebacks, launch_credit, fees, final_amount, status, status_changed_at, partner:partners(name, code)";
 
 /** More than this many settlements on one page is not expected yet. */
 export const SETTLEMENTS_LIMIT = 200;

@@ -29,6 +29,7 @@ export function BookingAdjustmentsList({ adjustments }: BookingAdjustmentsListPr
               <p className="mt-1 text-sm text-foreground">{adjustment.reason}</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {adjustment.created_at.slice(0, 10)}
+                {adjustment.after_settlement && " - carried to the next settlement"}
               </p>
             </li>
           ))}

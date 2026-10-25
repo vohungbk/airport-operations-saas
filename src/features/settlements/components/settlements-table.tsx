@@ -7,11 +7,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatMoney } from "@/features/bookings/lib/booking-revenue";
+import { MoveSettlementButtons } from "@/features/settlements/components/move-settlement-buttons";
 import type { SettlementRow } from "@/features/settlements/lib/get-settlements";
 import { SETTLEMENT_STATUS_LABEL, settlementMonth } from "@/features/settlements/lib/settlement";
 
 interface SettlementsTableProps {
   settlements: SettlementRow[];
+  /** An admin gets the buttons that move a settlement to another status. */
+  canMove?: boolean;
 }
 
 const COLUMNS = [
@@ -33,7 +36,7 @@ const COLUMNS = [
  * VI-F04 S4 (R6): the settlements in scope, newest month first, read only; the page says what it shows when there is none. Refunds, adjustments and
  * chargebacks are shown, not taken off again: the gross revenue is already net of them.
  */
-export function SettlementsTable({ settlements }: SettlementsTableProps) {
+export function SettlementsTable({ settlements, canMove = false }: SettlementsTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -41,6 +44,7 @@ export function SettlementsTable({ settlements }: SettlementsTableProps) {
           {COLUMNS.map((column) => (
             <TableHead key={column}>{column}</TableHead>
           ))}
+          {canMove && <TableHead>Move</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -59,7 +63,17 @@ export function SettlementsTable({ settlements }: SettlementsTableProps) {
             <TableCell>{formatMoney(settlement.launch_credit)}</TableCell>
             <TableCell>{formatMoney(settlement.fees)}</TableCell>
             <TableCell>{formatMoney(settlement.final_amount)}</TableCell>
-            <TableCell>{SETTLEMENT_STATUS_LABEL[settlement.status]}</TableCell>
+            <TableCell>
+              {SETTLEMENT_STATUS_LABEL[settlement.status]}
+              <span className="block text-xs text-muted-foreground">
+                {settlement.status_changed_at.slice(0, 10)}
+              </span>
+            </TableCell>
+            {canMove && (
+              <TableCell>
+                <MoveSettlementButtons settlementId={settlement.id} status={settlement.status} />
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>
