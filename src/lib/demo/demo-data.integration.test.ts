@@ -340,7 +340,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
   describe("no real data (spec R3, VI-F07-S03)", () => {
     // Every table the seed puts rows in. A table that is not here and not in
     // NOT_SEEDED fails the check below, so a new table forces a decision.
-    const NOT_SEEDED = ["flights", "settlements", "invoices", "ai_queries"];
+    const NOT_SEEDED = ["flights", "settlements", "settlement_carried_adjustments", "invoices", "ai_queries"];
 
     /** The rows of the seed, every column of them, by table. */
     async function seededRows() {

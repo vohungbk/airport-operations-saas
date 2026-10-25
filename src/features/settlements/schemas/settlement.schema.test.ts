@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createGenerateSettlementSchema, currentMonth } from "@/features/settlements/schemas/settlement.schema";
+import { createGenerateSettlementSchema, currentMonth, moveSettlementSchema } from "@/features/settlements/schemas/settlement.schema";
 
 const NOW = new Date("2026-10-25T10:00:00Z");
 const PARTNER = "b0000000-0000-0000-0000-000000000001";
@@ -49,5 +49,19 @@ describe("currentMonth", () => {
   it("should be the month of the clock, in UTC", () => {
     expect(currentMonth(new Date("2026-10-31T23:30:00Z"))).toBe("2026-10");
     expect(currentMonth(new Date("2026-11-01T00:00:00Z"))).toBe("2026-11");
+  });
+});
+
+describe("moveSettlementSchema", () => {
+  const ID = "e0000000-0000-0000-0000-000000000001";
+
+  it.each(["draft", "pending_approval", "approved", "paid"])("should accept the status %s (AC01)", (status) => {
+    expect(moveSettlementSchema.safeParse({ settlement_id: ID, to_status: status }).success).toBe(true);
+  });
+
+  it("should refuse a status that is not in the list, a missing status and a bad id", () => {
+    expect(moveSettlementSchema.safeParse({ settlement_id: ID, to_status: "closed" }).success).toBe(false);
+    expect(moveSettlementSchema.safeParse({ settlement_id: ID }).success).toBe(false);
+    expect(moveSettlementSchema.safeParse({ settlement_id: "abc", to_status: "paid" }).success).toBe(false);
   });
 });

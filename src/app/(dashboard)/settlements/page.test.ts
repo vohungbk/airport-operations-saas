@@ -11,6 +11,9 @@ vi.mock("@/features/settlements/lib/get-settlements", () => ({ getSettlements: g
 vi.mock("@/features/settlements/lib/get-settlement-partners", () => ({
   getSettlementPartners: getPartnersMock,
 }));
+vi.mock("@/features/settlements/actions/move-settlement-status.action", () => ({
+  moveSettlementStatusAction: vi.fn(),
+}));
 vi.mock("@/features/settlements/components/generate-settlement-form", () => ({
   GenerateSettlementForm: () => createElement("form", { "data-testid": "generate-form" }),
 }));
@@ -56,7 +59,7 @@ describe("SettlementsPage", () => {
       {
         id: "s-1", period_start: "2026-09-01", gross_revenue: 740, partner_share: 222, platform_share: 518,
         refunds: 100, adjustments: 10, chargebacks: 50, launch_credit: 0, fees: 0, final_amount: 222,
-        status: "draft", partner: { name: "Demo Car Rental", code: "DEMO" },
+        status: "draft", status_changed_at: "2026-10-25T09:00:00Z", partner: { name: "Demo Car Rental", code: "DEMO" },
       },
     ]);
 
@@ -64,6 +67,22 @@ describe("SettlementsPage", () => {
 
     expect(html).not.toContain("No settlements yet.");
     expect(html).toContain("Demo Car Rental (DEMO)");
+    expect(html).toContain("Send for approval");
+  });
+
+  it("should not give the buttons that move a status to an operations manager or a partner user", async () => {
+    getSettlementsMock.mockResolvedValue([
+      {
+        id: "s-1", period_start: "2026-09-01", gross_revenue: 740, partner_share: 222, platform_share: 518,
+        refunds: 0, adjustments: 0, chargebacks: 0, launch_credit: 0, fees: 0, final_amount: 222,
+        status: "draft", status_changed_at: "2026-10-25T09:00:00Z", partner: { name: "Demo", code: "DEMO" },
+      },
+    ]);
+
+    for (const role of ["operations_manager", "partner_user"]) {
+      requireAnyPermissionMock.mockResolvedValue({ id: "u-2", role });
+      expect(await render()).not.toContain("Send for approval");
+    }
   });
 
   it.each(["operations_manager", "partner_user"])(

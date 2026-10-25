@@ -1,6 +1,10 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/features/settlements/actions/move-settlement-status.action", () => ({
+  moveSettlementStatusAction: vi.fn(),
+}));
 
 import { SettlementsTable } from "@/features/settlements/components/settlements-table";
 import type { SettlementRow } from "@/features/settlements/lib/get-settlements";
@@ -18,12 +22,13 @@ const row = (change: Partial<SettlementRow> = {}): SettlementRow => ({
   fees: 0,
   final_amount: 222,
   status: "draft",
+  status_changed_at: "2026-10-25T09:00:00Z",
   partner: { name: "Demo Car Rental", code: "DEMO" },
   ...change,
 });
 
-const render = (settlements: SettlementRow[]) =>
-  renderToStaticMarkup(createElement(SettlementsTable, { settlements }));
+const render = (settlements: SettlementRow[], canMove = false) =>
+  renderToStaticMarkup(createElement(SettlementsTable, { settlements, canMove }));
 
 describe("SettlementsTable", () => {
   it("should have a column for every figure of the spec (R6)", () => {
@@ -49,5 +54,18 @@ describe("SettlementsTable", () => {
 
   it("should not break when the partner is not readable", () => {
     expect(render([row({ partner: null })])).toContain(">-<");
+  });
+
+  it("should show the date of the last status change under the status (AC01)", () => {
+    expect(render([row()])).toContain("2026-10-25");
+  });
+
+  it("should show the Move column and the buttons of the status only when the user may move (AC01)", () => {
+    expect(render([row()])).not.toContain("Send for approval");
+    expect(render([row()])).not.toContain(">Move<");
+
+    const html = render([row()], true);
+    expect(html).toContain(">Move<");
+    expect(html).toContain("Send for approval");
   });
 });
