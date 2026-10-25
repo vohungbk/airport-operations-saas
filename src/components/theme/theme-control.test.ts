@@ -44,12 +44,13 @@ describe("theme control", () => {
 });
 
 describe("where the theme control is placed", () => {
-  it("should be in the mobile top bar and the desktop sidebar of the shell", () => {
+  it("should be in the mobile app bar and the desktop top bar of the shell", () => {
     const shell = read("src", "components", "layout", "app-shell.tsx");
-    const sidebar = read("src", "components", "layout", "desktop-sidebar.tsx");
+    const topBar = read("src", "components", "layout", "top-bar.tsx");
 
     expect(shell).toMatch(/<header[\s\S]*<ThemeControl \/>[\s\S]*<\/header>/);
-    expect(sidebar).toMatch(/<aside[\s\S]*<ThemeControl \/>[\s\S]*<\/aside>/);
+    expect(shell).toContain("<TopBar");
+    expect(topBar).toContain("<ThemeControl />");
   });
 
   it("should be on the sign-in pages and stay off the printed page", () => {

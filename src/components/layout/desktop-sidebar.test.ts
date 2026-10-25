@@ -25,9 +25,12 @@ describe("desktop sidebar", () => {
     expect(sidebar).toContain("onClick={toggle}");
   });
 
-  it("should pass the collapsed state to the menu and to the sign out button", () => {
+  it("should pass the collapsed state to the menu", () => {
     expect(sidebar).toContain("<SidebarNav items={items} collapsed={collapsed}");
-    expect(sidebar).toContain("<LogoutButton iconOnly={collapsed}");
+  });
+
+  it("should not hold the account menu, the theme control or sign out: they are in the top bar", () => {
+    expect(sidebar).not.toMatch(/ThemeControl|LogoutButton|UserMenu|user\./);
   });
 
   it("should start from the width the server read, so the first paint is right", () => {
@@ -38,8 +41,8 @@ describe("desktop sidebar", () => {
     expect(sidebar).toContain("<TooltipProvider>");
   });
 
-  it("should keep the user name and email only while expanded", () => {
-    expect(sidebar).toMatch(/!collapsed && \(\s*<div className="min-w-0">/);
+  it("should show the name of the product only while expanded", () => {
+    expect(sidebar).toMatch(/!collapsed && \(\s*<span[^>]*>\s*Airport Operations/);
   });
 });
 

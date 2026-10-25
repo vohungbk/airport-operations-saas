@@ -42,22 +42,22 @@ describe("sidebar nav markup", () => {
   });
 
   it("should mark the current item for assistive technology and with a marker", () => {
-    expect(nav).toContain('isActive ? ("page" as const) : undefined');
-    expect(nav).toContain("aria-current={ariaCurrent}");
+    expect(nav).toContain('aria-current={isActive ? "page" : undefined}');
     expect(nav).toContain("before:bg-primary");
   });
 
-  it("should cut a long label and keep the full text as the title", () => {
-    expect(nav).toContain("title={item.label}");
-    expect(nav).toContain('<span className="truncate">{item.label}</span>');
-  });
-
-  it("should name every icon when collapsed and show the label as a tooltip", () => {
-    expect(nav).toContain('<span className="sr-only">{item.label}</span>');
+  it("should cut a long label and show it in full in a tooltip only when it is cut", () => {
+    expect(nav).toContain('className={cn("truncate", collapsed && "sr-only")}');
+    expect(nav).toContain("useIsTruncated<HTMLSpanElement>()");
+    expect(nav).toContain("<Tooltip disabled={!collapsed && !truncated}>");
     expect(nav).toContain("<TooltipContent>{item.label}</TooltipContent>");
   });
 
-  it("should keep the link on the same url when collapsed", () => {
-    expect(nav.match(/href=\{item\.href\}/g)).toHaveLength(2);
+  it("should keep the label for screen readers when collapsed", () => {
+    expect(nav).toContain('collapsed && "sr-only"');
+  });
+
+  it("should show a count only when an item has one, and only while expanded", () => {
+    expect(nav).toContain("!collapsed && item.count !== undefined && <CountBadge count={item.count} />");
   });
 });
