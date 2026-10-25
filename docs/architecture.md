@@ -411,3 +411,29 @@ starts, to a Postgres schema/table group protected by RLS.
   both themes, the status trios, the chart colors, the legacy aliases, and
   that no raw color appears outside `globals.css`.
 
+
+#### UI-F01-S02 — guarding token quality
+
+- **Checks run before every build.** `npm run build` first runs the
+  `prebuild` script, which runs `src/app/design-tokens.test.ts` and
+  `src/lib/accessibility/token-contrast.test.ts`. A raw color outside
+  `globals.css`, a missing token or a pair below its ratio stops the build.
+  The same tests also run in `npm test` and in the pre-push hook.
+- **Contrast.** `src/lib/accessibility/contrast.ts` lists the color pairs the
+  application draws and checks them in Light and Dark: 4.5:1 for text, 3:1
+  for control borders, the focus ring, status marks and chart colors. The
+  test names carry the pair, and `should list every ratio` prints the table.
+  A pair that is not in the list is not checked: add a new pair there when a
+  component starts to use it. Left out on purpose: `border` and `chart-grid`
+  (plain rules), and the `*-foreground` aliases of `success`, `warning` and
+  `info` (nothing draws them; `info-foreground` on `info` is 4.1:1 in Light).
+- **Raw colors.** `src/lib/accessibility/raw-colors.ts` finds hex, `rgb()`,
+  `hsl()`, `oklch()`, Tailwind palette classes and inline style colors in
+  source. Token classes, `var(--...)`, `currentColor` and `transparent` pass.
+- **Print is always Light.** The `.dark` rule sits in `@media not print`, and
+  the `dark:` variant is wrapped the same way, so on paper the Light tokens
+  apply whatever theme the user chose. The only printed page today is the
+  seat QR card. Invoices and statements have no screen or PDF yet; they get
+  the same rule for free when they are built, but it has not been checked on
+  them.
+

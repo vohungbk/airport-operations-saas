@@ -2,7 +2,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Dark never applies on paper: see the print rule on the .dark block below. */
+@custom-variant dark {
+  @media not print {
+    &:is(.dark *) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --font-sans: var(--font-sans);
@@ -182,50 +189,57 @@
   --overlay: oklch(0.245 0.039 264.354 / 40%);
 }
 
-.dark {
-  /* Dark theme. Same names as :root, values from the design's Dark column. */
-  --background: #0B1220;
-  --surface: #111A2B;
-  --surface-elevated: #17233A;
-  --surface-muted: #152036;
-  --border: #2A3A55;
-  --border-input: #6F819C;
-  --text: #E8EDF7;
-  --text-muted: #9AA8BF;
-  --primary: #5AA2E8;
-  --primary-hover: #7DB6EE;
-  --primary-foreground: #06192E;
-  --primary-subtle: #12304F;
-  --primary-subtle-foreground: #BBD9F7;
-  --secondary: #5B9DBF;
-  --focus-ring: #38BDF8;
-  --success: #4ADE80;
-  --success-bg: #0F2A1A;
-  --success-fg: #86EFAC;
-  --warning: #FBBF24;
-  --warning-bg: #33240A;
-  --warning-fg: #FCD34D;
-  --danger: #F87171;
-  --danger-bg: #3A1313;
-  --danger-fg: #FCA5A5;
-  --info: #38BDF8;
-  --info-bg: #0A2A3D;
-  --info-fg: #7DD3FC;
-  --neutral-bg: #1B2842;
-  --neutral-fg: #CBD5E1;
-  --chart-1: #5AA2E8;
-  --chart-2: #6AB0D4;
-  --chart-3: #FBBF24;
-  --chart-4: #4ADE80;
-  --chart-5: #F87171;
-  --chart-6: #9AA8BF;
-  --chart-grid: #2A3A55;
+/*
+ * Invoices, statements and QR labels are printed in Light whatever theme the user chose
+ * (UI-F01-S02, R11): on paper the Dark values are not applied at all, so the tokens above
+ * are the ones in force.
+ */
+@media not print {
+  .dark {
+    /* Dark theme. Same names as :root, values from the design's Dark column. */
+    --background: #0B1220;
+    --surface: #111A2B;
+    --surface-elevated: #17233A;
+    --surface-muted: #152036;
+    --border: #2A3A55;
+    --border-input: #6F819C;
+    --text: #E8EDF7;
+    --text-muted: #9AA8BF;
+    --primary: #5AA2E8;
+    --primary-hover: #7DB6EE;
+    --primary-foreground: #06192E;
+    --primary-subtle: #12304F;
+    --primary-subtle-foreground: #BBD9F7;
+    --secondary: #5B9DBF;
+    --focus-ring: #38BDF8;
+    --success: #4ADE80;
+    --success-bg: #0F2A1A;
+    --success-fg: #86EFAC;
+    --warning: #FBBF24;
+    --warning-bg: #33240A;
+    --warning-fg: #FCD34D;
+    --danger: #F87171;
+    --danger-bg: #3A1313;
+    --danger-fg: #FCA5A5;
+    --info: #38BDF8;
+    --info-bg: #0A2A3D;
+    --info-fg: #7DD3FC;
+    --neutral-bg: #1B2842;
+    --neutral-fg: #CBD5E1;
+    --chart-1: #5AA2E8;
+    --chart-2: #6AB0D4;
+    --chart-3: #FBBF24;
+    --chart-4: #4ADE80;
+    --chart-5: #F87171;
+    --chart-6: #9AA8BF;
+    --chart-grid: #2A3A55;
 
-  /* Legacy names whose value differs from :root. */
-  --success-foreground: var(--primary-foreground);
-  --warning-foreground: var(--primary-foreground);
-  --info-foreground: var(--primary-foreground);
-  --overlay: oklch(0 0 0 / 60%);
+    /* Legacy names whose value differs from :root. */
+    --success-foreground: var(--primary-foreground);
+    --warning-foreground: var(--primary-foreground);
+    --info-foreground: var(--primary-foreground);
+    --overlay: oklch(0 0 0 / 60%);
+  }
 }
 
 @layer base {
