@@ -1117,7 +1117,9 @@ export type Database = {
       settlements: {
         Row: {
           adjustments: number
+          chargebacks: number
           created_at: string
+          fees: number
           final_amount: number
           gross_revenue: number
           id: string
@@ -1133,7 +1135,9 @@ export type Database = {
         }
         Insert: {
           adjustments?: number
+          chargebacks?: number
           created_at?: string
+          fees?: number
           final_amount?: number
           gross_revenue?: number
           id?: string
@@ -1149,7 +1153,9 @@ export type Database = {
         }
         Update: {
           adjustments?: number
+          chargebacks?: number
           created_at?: string
+          fees?: number
           final_amount?: number
           gross_revenue?: number
           id?: string
@@ -1452,6 +1458,33 @@ export type Database = {
         Returns: undefined
       }
       booking_partner_id: { Args: { p_booking_id: string }; Returns: string }
+      generate_monthly_settlement: {
+        Args: { p_month: string; p_partner_id: string }
+        Returns: {
+          adjustments: number
+          chargebacks: number
+          created_at: string
+          fees: number
+          final_amount: number
+          gross_revenue: number
+          id: string
+          launch_credit: number
+          partner_id: string
+          partner_share: number
+          period_end: string
+          period_start: string
+          platform_share: number
+          refunds: number
+          status: Database["public"]["Enums"]["settlement_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "settlements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       add_booking_adjustment: {
         Args: {
           p_amount: number

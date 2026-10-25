@@ -5,6 +5,7 @@ import {
   Gauge,
   Building2,
   ClipboardList,
+  Landmark,
   ListChecks,
   LayoutDashboard,
   Plane,
@@ -17,6 +18,7 @@ import {
 import {
   BOOKINGS_ACCESS_PERMISSIONS,
   DASHBOARD_ACCESS_PERMISSIONS,
+  FINANCE_ACCESS_PERMISSIONS,
   INCIDENTS_ACCESS_PERMISSIONS,
   JOBS_ACCESS_PERMISSIONS,
   hasAnyPermission,
@@ -98,6 +100,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/incidents",
     permission: INCIDENTS_ACCESS_PERMISSIONS,
     icon: TriangleAlert,
+  },
+  {
+    label: "Settlements",
+    href: "/settlements",
+    permission: FINANCE_ACCESS_PERMISSIONS,
+    icon: Landmark,
   },
   {
     label: "Technician Jobs",
