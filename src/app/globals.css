@@ -147,6 +147,7 @@
    * "Foundations / Exact source tokens". Define a color here and in .dark,
    * then register it in @theme inline. Nothing else may hold a raw color.
    */
+  color-scheme: light;
   --background: #F5F7FA;
   --surface: #FFFFFF;
   --surface-elevated: #FFFFFF;
@@ -197,6 +198,7 @@
 @media not print {
   .dark {
     /* Dark theme. Same names as :root, values from the design's Dark column. */
+    color-scheme: dark;
     --background: #0B1220;
     --surface: #111A2B;
     --surface-elevated: #17233A;

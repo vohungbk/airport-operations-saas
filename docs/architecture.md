@@ -437,3 +437,38 @@ starts, to a Postgres schema/table group protected by RLS.
   the same rule for free when they are built, but it has not been checked on
   them.
 
+
+#### UI-F01-S03 — switching the theme
+
+- **Control.** `ThemeControl` (`src/components/theme/theme-control.tsx`) is one
+  button that switches between Light and Dark. It shows the icon of the theme
+  it will switch to: the moon on a light page, the sun on a dark page. Both
+  icons are in the markup and the `dark` class shows one of them, so the right
+  icon is there from the first paint. Until the first press the theme is
+  System (it follows the device); the first press saves an explicit Light or
+  Dark on the device. There is no System option in the UI any more, so the
+  only way back to System is to clear the `theme` value of the site.
+  The button sits in the mobile top bar and next to the user block of the
+  desktop sidebar (both in `AppShell`), and in the top-right corner of the
+  sign-in pages. Desktop has no top bar yet. It has no role check: every role
+  and a signed-out visitor may use it.
+- **States.** Loading: disabled until the saved choice is read. Success: the
+  theme changes at once and a status line is announced after a press. Error: if
+  the choice cannot be written to the device it still applies and the status
+  line says it could not be saved. Permission Denied does not apply.
+- **Logic is outside the component.** `src/lib/theme/theme.ts` holds the
+  choices, the Zod schema and the rules; `theme-store.ts` is the store (reads
+  the saved value, sets the `dark` class on `<html>`, follows the device while
+  System is chosen, follows other tabs through the `storage` event). Its
+  dependencies are passed in, so it is tested in Node. `use-theme.ts` is a thin
+  `useSyncExternalStore` wrapper.
+- **No wrong first paint.** `theme-script.ts` is an inline script in the
+  `<head>` of the root layout; it sets the class before the first paint. The
+  `<html>` element has `suppressHydrationWarning` for that reason. There is no
+  CSP or nonce in the app today; add a nonce to the script if one is added.
+- **Saved on the device only.** The key is `theme` in `localStorage`; nothing
+  goes to the server (spec OOS-1). A missing or invalid value means System and
+  is replaced. `color-scheme` follows the theme so scrollbars and native
+  controls match.
+- **No new dependency.** `next-themes` was not added.
+

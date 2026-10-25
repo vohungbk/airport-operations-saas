@@ -141,3 +141,7 @@ has been checked; remove a line when it is fixed.
   the share the booking kept), the amount shows as refunds, adjustments or chargebacks. A month with only
   such adjustments is still generated, and its gross revenue may be negative. (6) A draft is a copy of the
   figures when it was generated: if its bookings change before approval, it is not calculated again.
+- **The theme journey is checked by hand in the browser.** There is no end-to-end runner and
+  no DOM test environment. The theme store and the pre-paint script are tested in Node with
+  fakes (`src/lib/theme`); the control is checked by reading its source and by eye on the dev
+  server (UI-F01-S03).
