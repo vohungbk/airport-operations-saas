@@ -49,6 +49,16 @@ vi.mock("@/features/dashboard/lib/get-dashboard-charts", () => ({
   getDashboardCharts: async () => [],
 }));
 
+vi.mock("@/features/settlements/lib/get-settlements", () => ({
+  getSettlements: async () => [],
+}));
+vi.mock("@/features/settlements/lib/get-settlement-partners", () => ({
+  getSettlementPartners: async () => [],
+}));
+vi.mock("@/features/settlements/components/generate-settlement-form", () => ({
+  GenerateSettlementForm: () => null,
+}));
+
 import { NAV_ITEMS, getVisibleNavItems } from "@/config/nav";
 
 /** The entry (layout, or page where there is no layout) that guards each nav link. */
@@ -63,6 +73,7 @@ const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
   "/bookings": () => import("@/app/(dashboard)/bookings/layout"),
   "/jobs": () => import("@/app/(dashboard)/jobs/layout"),
   "/incidents": () => import("@/app/(dashboard)/incidents/layout"),
+  "/settlements": () => import("@/app/(dashboard)/settlements/page"),
   "/technician": () => import("@/app/(technician)/technician/layout"),
   "/partner": () => import("@/app/(partner)/partner/layout"),
 };

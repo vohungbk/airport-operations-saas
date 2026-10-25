@@ -292,6 +292,12 @@ const CASES: Case[] = [
     outside: `insert into public.settlements (partner_id, period_start, period_end) values (${PARTNER}, '2030-01-01', '2029-12-31');`,
   },
   {
+    constraint: "settlements_partner_period_unique",
+    code: "23505",
+    inside: `insert into public.settlements (partner_id, period_start, period_end) values (${PARTNER}, '2031-05-01', '2031-05-31');`,
+    outside: `insert into public.settlements (partner_id, period_start, period_end) values (${PARTNER}, '2031-05-01', '2031-05-31');`,
+  },
+  {
     constraint: "inspection_records_follow_up_check",
     code: "23514",
     inside: `${inspection(null, null)} ${inspection(null, "seat_quarantined")} ${inspection(null, "seat_quarantined_active_booking")}`,

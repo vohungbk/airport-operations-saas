@@ -100,6 +100,15 @@ export const JOURNEYS: readonly Journey[] = [
     ],
   },
   {
+    id: "J23",
+    roles: ["admin", "operations_manager", "partner_user"],
+    title: "Generate and read a monthly settlement",
+    tests: [
+      { file: "src/lib/finance/monthly-settlement.integration.test.ts", block: "monthly settlement (VI-F04-S12, spec R7, F10, V10)" },
+      { file: RLS, block: "partner isolation" },
+    ],
+  },
+  {
     id: "J22",
     roles: ["admin", "operations_manager"],
     title: "Record a refund, an adjustment or a chargeback on a booking",
