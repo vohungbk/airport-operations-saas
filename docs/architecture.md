@@ -529,21 +529,49 @@ starts, to a Postgres schema/table group protected by RLS.
   unchanged; the bottom navigation is a later story (UI-F02-S03).
 - **Menu.** `SidebarNav` marks the current item with a marker on its left
   edge, the active color and `aria-current="page"`. It is a navigation
-  landmark labelled "Main navigation". A long label is cut and keeps its text
-  as the title. Hiding an item is only a look: the server still checks access
+  landmark labelled "Main navigation". A long label is cut and shows in full in
+  a tooltip (UI-F02-S02). Hiding an item is only a look: the server still checks access
   on every page (spec R9).
 - **Collapse.** The button at the top of the sidebar switches between 256 px
   and 72 px (`SIDEBAR_WIDTH_CLASS`). Collapsed, only the icons show, each with
   a tooltip (`src/components/ui/tooltip.tsx`, on `@base-ui/react/tooltip`) on
-  hover and on keyboard focus, and the name stays for screen readers. The name
-  and email of the user are hidden; the theme and sign out buttons stay as
-  icons.
+  hover and on keyboard focus, and the name stays for screen readers. The
+  account menu and the theme control are in the top bar (UI-F02-S02).
 - **Remembered.** The choice is the cookie `sidebar_collapsed` (`1` or `0`,
   path `/`, one year, `SameSite=Lax`), written by `useSidebarCollapsed` and read by
   `AppShell` with `cookies()`. The server draws the page at the right width,
   so nothing jumps on load. A missing or invalid value means expanded. The
   cookie is a look, not a permission, so it holds nothing else.
-- **Not in this story.** The top bar (UI-F02-S02), the count badge on a menu
-  item (no source for the count yet, spec Q2), and the Permission Denied state
-  inside the shell (today a forbidden page replaces the shell).
+- **Not in this story.** The Permission Denied state inside the shell (today a
+  forbidden page replaces the shell).
+
+#### UI-F02-S02 — the top bar
+
+- **Where.** `TopBar` (`src/components/layout/top-bar.tsx`) is a 44 px bar above
+  the content, from the `md` breakpoint (768 px) up, off the printed page.
+  `AppShell` puts the top bar and `<main>` in one column next to the sidebar.
+  Below 768 px the app bar of the mobile shell stays as it was (UI-F02-S03).
+- **Breadcrumb.** `Breadcrumb` reads the path (`usePathname`) and
+  `buildBreadcrumb` (`src/lib/layout/breadcrumb.ts`, pure) turns it into
+  crumbs: the area named as in the menu, then `New`, `Edit`, other words as
+  words and a record id as `Details`. Nothing is fetched, so no booking number
+  or seat name. The last crumb is the current page (`aria-current="page"`); a
+  long crumb is cut and keeps its text as the title. The home icon links to
+  `/dashboard`, which sends a partner user on to the partner portal.
+- **Account menu.** `UserMenu` shows the name, the role (`ROLE_LABELS`, one
+  label per value of the `user_role` enum, checked at compile time) and the
+  email of the signed-in user, and Sign out through the existing
+  `logoutAction`. It decides nothing about access.
+- **Theme control.** The theme button moved from the sidebar to the top bar.
+- **Counts.** `formatCount` writes `99+` from 100 up and nothing for 0, and
+  `CountBadge` shows it. `SidebarNav` takes an optional `count` per item and
+  shows the badge while the sidebar is expanded. Nothing sets a count yet,
+  because what to count is still an open question (spec Q2).
+- **Long labels.** An item whose label is cut in the expanded sidebar shows the
+  full label as a tooltip (`useIsTruncated` measures the element); collapsed, the
+  tooltip always shows.
+- **Not here yet.** The search box (spec Q1: what it finds and for which roles)
+  and the notification bell with the flight-alert count (spec Q2). A control
+  that does nothing is worse than none, so they are left out until the product
+  owner answers.
 

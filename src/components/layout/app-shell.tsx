@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 import { getVisibleNavItems } from "@/config/nav";
 import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { TopBar } from "@/components/layout/top-bar";
 import { ThemeControl } from "@/components/theme/theme-control";
 import type { AppUser } from "@/lib/auth/current-user";
+import { ROLE_LABELS } from "@/lib/auth/role-labels";
 import {
   SIDEBAR_COOKIE,
   parseSidebarCollapsed,
@@ -22,7 +24,8 @@ interface AppShellProps {
  * already-filtered list to the client-only `DesktopSidebar` (from `md` up)
  * and `MobileNav` (below `md`) — the permission check itself never runs in
  * the browser. It also reads the saved sidebar width from a cookie so the
- * first paint is already at the right size.
+ * first paint is already at the right size. From `md` up the content sits under
+ * the top bar (UI-F02-S02); below it, under the app bar.
  */
 export async function AppShell({ user, children }: AppShellProps) {
   const navItems = getVisibleNavItems(user.role).map(({ href, label }) => ({
@@ -47,12 +50,18 @@ export async function AppShell({ user, children }: AppShellProps) {
           <ThemeControl />
         </div>
       </header>
-      <DesktopSidebar
-        user={{ full_name: user.full_name, email: user.email }}
-        items={navItems}
-        initialCollapsed={initialCollapsed}
-      />
-      <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+      <DesktopSidebar items={navItems} initialCollapsed={initialCollapsed} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar
+          items={navItems}
+          user={{
+            full_name: user.full_name,
+            email: user.email,
+            role_label: ROLE_LABELS[user.role],
+          }}
+        />
+        <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+      </div>
     </div>
   );
 }
