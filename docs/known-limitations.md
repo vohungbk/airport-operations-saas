@@ -7,11 +7,11 @@ has been checked; remove a line when it is fixed.
   The `pre-push` hook runs lint, tests and build, but not the typecheck.
 - **The integration tests need the local Supabase stack.** Without it they skip
   themselves, so the tests gate is Not run in that case.
-- **One test is not stable when the suites run together.** `demo-data.integration.test.ts`,
-  "should have a seat history that ends at the seat's status", fails now and then
-  (SEAT-0003 or SEAT-0004 left in `cleaning` by the RLS suite). It fails the same
-  way on `main`. Run the gates again, and look at the failing test before you read
-  it as a real regression.
+- **The database suites run one after another.** `vitest.config.mts` has two projects: `unit`
+  (parallel) and `database` (serial). Suites that count rows disagreed with the RLS suite when
+  they ran at the same time. The RLS suite adds rows to the history of two seeded seats on every
+  run, so that history grows; the demo seat history test reads only the newest row of each seat
+  (the API returns at most 1000 rows). `npm run demo:reset` starts again from a clean history.
 - **The gates cover build quality only (VI-F08 R1).** Security and isolation tests
   (R2), data rules (R3), accessibility (R4), responsive layouts (R5) and
   performance (R6) are not run by this command.
@@ -112,3 +112,13 @@ has been checked; remove a line when it is fixed.
   operations manager may add an adjustment (the spec calls the operations manager "conditional"). A
   booking in an approved settlement is not handled (spec Q5, R19, E8) because there are no settlements
   yet. The list of adjustments does not show who recorded them (stored in `created_by`).
+- **What a refund does to the launch credit, in numbers (spec Q4 is open; VI-F04-S11).** The launch
+  credit is not reduced by a refund or a chargeback. Three days at 90 is 270.00 gross; with a standard
+  share of 30 percent (81.00) and a launch share of 50 percent (135.00), the rental brings 54.00 of
+  credit. After a refund of 70.00 the gross revenue is 200.00 and the partner gets the launch share of
+  it, 100.00, while the credit stays at 54.00 (the standard share of 200.00 is 60.00, so the extra the
+  partner really got is 40.00). A rental refunded in full still counts its whole credit toward the
+  target, and the next rental of the partner starts from that balance. If the product owner decides
+  that a refund reduces the credit, the change is in the trigger of the revenue calculation
+  (`apply_booking_revenue_on_completion()`), which would work the credit out on the gross revenue that
+  is left.
