@@ -1,22 +1,14 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { findRawColorLines } from "@/lib/accessibility/raw-colors";
+import { listSourceFiles } from "@/lib/accessibility/source-files";
 import { readBlock, readDeclarations } from "@/lib/accessibility/token-css";
 
 const SRC_DIR = join(process.cwd(), "src");
 const GLOBALS_CSS = join(SRC_DIR, "app", "globals.css");
-
-function listSourceFiles(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) return listSourceFiles(full);
-    const isSource = /\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name);
-    return isSource ? [full] : [];
-  });
-}
 
 // Names and hex values from the design file, frame "Foundations / Exact source tokens".
 const DESIGN_COLORS: Record<string, { light: string; dark: string }> = {
@@ -198,6 +190,7 @@ describe("design tokens", () => {
     const files = [
       "src/app/design-tokens.test.ts",
       "src/lib/accessibility/token-contrast.test.ts",
+      "src/lib/accessibility/class-contrast.test.ts",
     ];
 
     expect(scripts.prebuild).toContain("vitest run");

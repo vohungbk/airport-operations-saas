@@ -24,6 +24,8 @@ describe("findRawColorLines", () => {
     ['style={{ color: "currentColor" }}', "currentColor"],
     ['className="bg-transparent"', "transparent"],
     ['<a href="#main-content">', "a page anchor"],
+    ["const f = { background: `bg-${name}` };", "a key named background with a built class name"],
+    ['const f = { background: "bg-card text-foreground" };', "a key named background with classes"],
   ])("should not flag %s (%s)", (line) => {
     expect(findRawColorLines(line)).toEqual([]);
   });
