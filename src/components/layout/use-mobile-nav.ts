@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 export const DESKTOP_MEDIA_QUERY = "(min-width: 768px)";
 
 /**
- * The drawer is open only for the route it was opened on, so navigating
+ * The More sheet is open only for the route it was opened on, so navigating
  * (or any pathname change) closes it without a state-setting effect.
  */
 export function isMobileNavOpen(
