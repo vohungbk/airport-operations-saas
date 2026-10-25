@@ -145,3 +145,6 @@ has been checked; remove a line when it is fixed.
   no DOM test environment. The theme store and the pre-paint script are tested in Node with
   fakes (`src/lib/theme`); the control is checked by reading its source and by eye on the dev
   server (UI-F01-S03).
+- **With JavaScript off the page is always Light.** The saved theme and the device setting are
+  read by a script (UI-F01-S04). Not checked: a page restored from the back/forward cache, which
+  may keep the theme it had when it was left until it is reloaded.
