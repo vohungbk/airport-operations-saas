@@ -3,11 +3,12 @@ import type { ReactNode } from "react";
 
 import { getVisibleNavItems } from "@/config/nav";
 import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
-import { MobileNav } from "@/components/layout/mobile-nav";
+import { BottomNav } from "@/components/layout/bottom-nav";
+import { MobileAppBar } from "@/components/layout/mobile-app-bar";
 import { TopBar } from "@/components/layout/top-bar";
-import { ThemeControl } from "@/components/theme/theme-control";
 import type { AppUser } from "@/lib/auth/current-user";
 import { ROLE_LABELS } from "@/lib/auth/role-labels";
+import { splitMobileNav } from "@/lib/layout/mobile-nav";
 import {
   SIDEBAR_COOKIE,
   parseSidebarCollapsed,
@@ -25,7 +26,8 @@ interface AppShellProps {
  * and `MobileNav` (below `md`) — the permission check itself never runs in
  * the browser. It also reads the saved sidebar width from a cookie so the
  * first paint is already at the right size. From `md` up the content sits under
- * the top bar (UI-F02-S02); below it, under the app bar.
+ * the top bar (UI-F02-S02); below it, under the app bar, with the bottom
+ * navigation and the More sheet (UI-F02-S03).
  */
 export async function AppShell({ user, children }: AppShellProps) {
   const navItems = getVisibleNavItems(user.role).map(({ href, label }) => ({
@@ -36,32 +38,25 @@ export async function AppShell({ user, children }: AppShellProps) {
     (await cookies()).get(SIDEBAR_COOKIE)?.value,
   );
 
+  const { bottom, more } = splitMobileNav(navItems, user.role);
+  const userInfo = {
+    full_name: user.full_name,
+    email: user.email,
+    role_label: ROLE_LABELS[user.role],
+  };
+
   return (
     <div className="flex min-h-screen flex-1 flex-col md:flex-row">
-      <header className="flex items-center gap-3 border-b border-border bg-background p-3 md:hidden print:hidden">
-        <MobileNav
-          user={{ full_name: user.full_name, email: user.email }}
-          items={navItems}
-        />
-        <span className="text-sm font-medium text-foreground">
-          Airport Operations
-        </span>
-        <div className="ml-auto">
-          <ThemeControl />
-        </div>
-      </header>
+      <MobileAppBar items={navItems} />
       <DesktopSidebar items={navItems} initialCollapsed={initialCollapsed} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar
-          items={navItems}
-          user={{
-            full_name: user.full_name,
-            email: user.email,
-            role_label: ROLE_LABELS[user.role],
-          }}
-        />
-        <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+        <TopBar items={navItems} user={userInfo} />
+        {/* 84 px, plus the safe area of a phone, keep the end of the content clear of the bottom bar (R11). */}
+        <main className="flex min-w-0 flex-1 flex-col pb-[calc(84px+env(safe-area-inset-bottom))] md:pb-0">
+          {children}
+        </main>
       </div>
+      <BottomNav items={bottom} moreItems={more} user={userInfo} />
     </div>
   );
 }

@@ -526,7 +526,7 @@ starts, to a Postgres schema/table group protected by RLS.
   the sidebar from the `md` breakpoint (768 px) up. `AppShell` stays a Server
   Component: it filters the menu by role (`getVisibleNavItems`) and hands the
   list down, as before. Below 768 px the mobile bar and the drawer are
-  unchanged; the bottom navigation is a later story (UI-F02-S03).
+  replaced by the bottom navigation (UI-F02-S03).
 - **Menu.** `SidebarNav` marks the current item with a marker on its left
   edge, the active color and `aria-current="page"`. It is a navigation
   landmark labelled "Main navigation". A long label is cut and shows in full in
@@ -550,7 +550,7 @@ starts, to a Postgres schema/table group protected by RLS.
 - **Where.** `TopBar` (`src/components/layout/top-bar.tsx`) is a 44 px bar above
   the content, from the `md` breakpoint (768 px) up, off the printed page.
   `AppShell` puts the top bar and `<main>` in one column next to the sidebar.
-  Below 768 px the app bar of the mobile shell stays as it was (UI-F02-S03).
+  Below 768 px the app bar and the bottom navigation are used (UI-F02-S03).
 - **Breadcrumb.** `Breadcrumb` reads the path (`usePathname`) and
   `buildBreadcrumb` (`src/lib/layout/breadcrumb.ts`, pure) turns it into
   crumbs: the area named as in the menu, then `New`, `Edit`, other words as
@@ -574,4 +574,40 @@ starts, to a Postgres schema/table group protected by RLS.
   and the notification bell with the flight-alert count (spec Q2). A control
   that does nothing is worse than none, so they are left out until the product
   owner answers.
+
+
+#### UI-F02-S03 — the mobile navigation
+
+- **Where.** Below 768 px the shell has an app bar on top, the content, and a
+  bottom navigation fixed to the bottom (`MobileAppBar`, `BottomNav`,
+  `MoreSheet` in `src/components/layout`). The old hamburger drawer
+  (`MobileNav`) is gone. All three are hidden from 768 px up and off the
+  printed page.
+- **Bottom bar.** Five slots, at least 68 px high: up to four items of the role, then
+  More. `splitMobileNav` (`src/lib/layout/mobile-nav.ts`, pure) picks the four
+  from a priority list per role (`MOBILE_NAV_PRIORITY`) and leaves the rest
+  for More. The lists are a proposal for spec question Q3: operations manager
+  and admin get Dashboard, Bookings, Jobs, Incidents; technician gets
+  Technician Jobs, Jobs, Incidents, Dashboard; partner user gets Partner
+  Portal, Bookings, Incidents, Settlements. The menu given to the function is
+  already filtered by role on the server, so the lists grant nothing. Each slot
+  has an icon and a label and is at least 44 px high; the current item has a
+  bar on top, a heavier label and `aria-current="page"`.
+- **More sheet.** A bottom sheet on the shared `Dialog` (focus stays inside,
+  Esc closes, focus returns to the More button). It lists the other items, a
+  Theme row with the theme control, and the name, role and email of the user
+  with Sign out. It closes when an item is chosen or the page changes
+  (`useMobileNav`). A technician has only four items, so the list is empty and
+  the sheet still holds Theme and Sign out.
+- **App bar.** `buildMobileAppBar` (`src/lib/layout/mobile-title.ts`, pure)
+  takes the title from the last crumb of the breadcrumb and adds a Back arrow
+  to the crumb above on a page below an area (detail, new, edit), or to the
+  dashboard when that crumb has no page. The title is not a heading, because
+  the page has its own.
+- **Space for the bar.** `main` has 84 px of padding at the bottom below 768 px,
+  plus the safe area of the phone, so the end of the content is not under the bar
+  (spec R11). UI-F02-S05 adds the
+  rest of the layout checks.
+- **Not here.** The pages of the design that do not exist yet (History, Scan,
+  KPI), and a Permission Denied state inside the shell.
 

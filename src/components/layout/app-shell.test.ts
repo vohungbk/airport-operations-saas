@@ -16,9 +16,11 @@ describe("app shell responsive layout", () => {
     expect(sidebar).toMatch(/<aside[\s\S]*"hidden [^"]*md:flex/);
   });
 
-  it("should render the mobile top bar only below the md breakpoint", () => {
-    expect(shell).toMatch(/<header className="[^"]*md:hidden/);
-    expect(shell).toContain("<MobileNav");
+  it("should render the app bar and the bottom navigation only below the md breakpoint", () => {
+    expect(read("mobile-app-bar.tsx")).toMatch(/<header className="[^"]*md:hidden/);
+    expect(read("bottom-nav.tsx")).toMatch(/<nav[\s\S]*md:hidden/);
+    expect(shell).toContain("<MobileAppBar");
+    expect(shell).toContain("<BottomNav");
   });
 
   it("should let main shrink so wide content cannot push the page sideways", () => {
@@ -26,18 +28,20 @@ describe("app shell responsive layout", () => {
   });
 });
 
-describe("mobile nav accessibility", () => {
-  const mobileNav = read("mobile-nav.tsx");
+describe("more sheet accessibility", () => {
+  const sheet = read("more-sheet.tsx");
 
-  it("should label the menu button for assistive technology", () => {
-    expect(mobileNav).toContain('aria-label="Open navigation menu"');
+  it("should be a dialog that says it is one, from a button of the bar", () => {
+    expect(sheet).toContain('aria-haspopup="dialog"');
+    expect(sheet).toContain("<DialogTrigger");
   });
 
-  it("should provide a dialog title for the drawer", () => {
-    expect(mobileNav).toContain("<DialogTitle");
+  it("should provide a dialog title for the sheet", () => {
+    expect(sheet).toContain("<DialogTitle");
   });
 
-  it("should keep sign out reachable inside the drawer", () => {
-    expect(mobileNav).toContain("<LogoutButton");
+  it("should keep sign out and the theme control reachable inside the sheet", () => {
+    expect(sheet).toContain("<LogoutButton");
+    expect(sheet).toContain("<ThemeControl");
   });
 });
