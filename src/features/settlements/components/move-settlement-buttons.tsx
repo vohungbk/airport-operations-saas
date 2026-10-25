@@ -38,7 +38,7 @@ export function MoveSettlementButtons({ settlementId, status }: MoveSettlementBu
         ))}
       </div>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-danger-fg">
           {error.message}
         </p>
       )}

@@ -55,7 +55,7 @@ describe("DashboardChart (VI-F01-S07, spec R7, R8)", () => {
     expect(html.indexOf("Medium")).toBeLessThan(html.indexOf("Low"));
     expect(html).toMatch(/<svg[^>]*aria-hidden="true"[^>]*>/);
     expect(html).toContain("font-semibold");
-    expect(html).toContain("text-destructive");
+    expect(html).toContain("text-danger-fg");
     expect(html.match(/<svg/g)).toHaveLength(1);
   });
 
@@ -64,7 +64,7 @@ describe("DashboardChart (VI-F01-S07, spec R7, R8)", () => {
 
     expect(html).toMatch(/<svg[^>]*aria-hidden="true"/);
     expect(html).toMatch(/font-semibold[^"]*text-foreground">[\s\S]*?Critical/);
-    expect(html).not.toContain("text-destructive");
+    expect(html).not.toContain("text-danger-fg");
   });
 
   it("should give every row a word, a count and a share, so no status is told by colour alone (AC05)", () => {

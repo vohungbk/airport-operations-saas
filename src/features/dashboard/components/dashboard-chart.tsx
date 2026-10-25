@@ -63,7 +63,7 @@ export function DashboardChart({ result }: DashboardChartProps) {
                     className={cn(
                       "flex min-w-0 items-center gap-1.5 text-sm",
                       row.emphasis && "font-semibold",
-                      row.emphasis && row.value > 0 ? "text-destructive" : "text-foreground",
+                      row.emphasis && row.value > 0 ? "text-danger-fg" : "text-foreground",
                     )}
                   >
                     {row.emphasis && (

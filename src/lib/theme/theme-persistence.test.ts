@@ -1,7 +1,10 @@
+import { readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { runInNewContext } from "node:vm";
 
 import { describe, expect, it } from "vitest";
 
+import { listSourceFiles } from "@/lib/accessibility/source-files";
 import { THEME_STORAGE_KEY } from "@/lib/theme/theme";
 import { THEME_INIT_SCRIPT } from "@/lib/theme/theme-script";
 import { createThemeStore } from "@/lib/theme/theme-store";
@@ -33,12 +36,26 @@ function device(options: { dark?: boolean } = {}) {
     /** The page once it is running: the store of that visit. */
     open() {
       const classes = new Set<string>();
+      const listeners = new Set<() => void>();
+      const media = {
+        matches: deviceDark,
+        addEventListener: (_: "change", l: () => void) => void listeners.add(l),
+        removeEventListener: (_: "change", l: () => void) => void listeners.delete(l),
+      };
       const store = createThemeStore({
         storage,
-        media: { matches: deviceDark, addEventListener: () => {}, removeEventListener: () => {} },
+        media,
         root: { classList: { toggle: (t: string, f: boolean) => void (f ? classes.add(t) : classes.delete(t)) } },
       });
-      return { store, isDark: () => classes.has("dark") };
+      return {
+        store,
+        isDark: () => classes.has("dark"),
+        /** The device setting changes while the page is open. */
+        changeDevice(dark: boolean) {
+          media.matches = dark;
+          listeners.forEach((l) => l());
+        },
+      };
     },
   };
 }
@@ -101,5 +118,54 @@ describe("a saved value that is invalid", () => {
     d.open();
 
     expect(d.data.has(THEME_STORAGE_KEY)).toBe(false);
+  });
+});
+
+describe("a visitor who is signed out", () => {
+  it("should keep the choice made on the sign-in page after signing in", () => {
+    const d = device();
+    // On the sign-in page: the visitor presses the toggle.
+    d.open().store.setTheme("dark");
+
+    // After signing in the next page is a new page on the same device.
+    expect(d.firstPaint()).toBe(true);
+    expect(d.open().store.getState().theme).toBe("dark");
+  });
+
+  it("should not touch the saved theme anywhere else in the application", () => {
+    const srcDir = join(process.cwd(), "src");
+    const touching = listSourceFiles(srcDir)
+      .filter((file) => !relative(srcDir, file).startsWith(join("lib", "theme")))
+      .filter((file) => /\b(?:localStorage|sessionStorage)\b/.test(readFileSync(file, "utf8")))
+      .map((file) => relative(srcDir, file));
+
+    // Sign-in and sign-out must not clear what the theme saved.
+    expect(touching).toEqual([]);
+  });
+});
+
+describe("the device setting changes while System is in use", () => {
+  it("should change the theme at once, without a reload", () => {
+    const d = device({ dark: false });
+    const page = d.open();
+    page.store.subscribe(() => {});
+    expect(page.isDark()).toBe(false);
+
+    page.changeDevice(true);
+    expect(page.isDark()).toBe(true);
+
+    page.changeDevice(false);
+    expect(page.isDark()).toBe(false);
+  });
+
+  it("should stop following the device once the visitor has pressed the toggle", () => {
+    const d = device({ dark: false });
+    const page = d.open();
+    page.store.subscribe(() => {});
+
+    page.store.setTheme("light");
+    page.changeDevice(true);
+
+    expect(page.isDark()).toBe(false);
   });
 });

@@ -62,7 +62,7 @@ export function TechniciansFilters({ query }: TechniciansFiltersProps) {
         <p
           id="technician-search-error"
           role="alert"
-          className="text-sm text-destructive"
+          className="text-sm text-danger-fg"
         >
           {searchError}
         </p>
