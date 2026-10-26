@@ -680,3 +680,22 @@ starts, to a Postgres schema/table group protected by RLS.
 - **Not here.** A "not found" page for a signed-in user is still outside the
   shell (the spec only asks for errors and loading).
 
+
+#### UI-F03-S01 — buttons, inputs
+
+- **No gallery page.** A page that lists every component was built first and
+  dropped on purpose: the components are checked by tests, and the screens use
+  them directly.
+- **Button.** `loading` puts a spinner before the label, disables the button and
+  sets `aria-busy`, so it cannot be pressed twice. A label that is too long wraps
+  (`min-h-*`, `max-w-full`, no `nowrap`) and the button stays in its box.
+- **Inputs.** `Input` (32 px), `Textarea`, `InputGroup` with `MoneyInput`
+  (currency sign in front), `PercentInput` (`%` after) and `SearchInput`
+  (magnifier), and `FieldCounter` (`12 / 200`, in the error color past the
+  limit, read out politely). A value that is too long for an input is cut with an
+  ellipsis and kept whole in the title (never for a password). The sign inside an
+  input is decoration (`aria-hidden`); the label says what the number is.
+- **Not here.** Choice controls, pickers, overlays, navigation parts, feedback
+  and data parts (UI-F03-S02 to S04), and the 44 px hit area on touch screens
+  and the audit of the whole library (UI-F03-S05).
+
