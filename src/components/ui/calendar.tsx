@@ -38,7 +38,7 @@ function Calendar({ value, onValueChange, min, max, className }: CalendarProps) 
   })
 
   return (
-    <div data-slot="calendar" className={cn("w-full max-w-72 min-w-0 p-2", className)}>
+    <div data-slot="calendar" className={cn("w-full max-w-72 min-w-0 p-2 pointer-coarse:max-w-[22rem]", className)}>
       <div className="mb-2 flex items-center justify-between gap-1">
         <Button
           type="button"
@@ -81,7 +81,7 @@ function Calendar({ value, onValueChange, min, max, className }: CalendarProps) 
               data-outside={!cell.inMonth || undefined}
               onClick={() => onValueChange?.(cell.iso)}
               className={cn(
-                "aspect-square rounded-md text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40 data-outside:text-muted-foreground",
+                "aspect-square pointer-coarse:aspect-auto pointer-coarse:min-h-11 rounded-md text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40 data-outside:text-muted-foreground",
                 selected && "bg-primary text-primary-foreground hover:bg-primary"
               )}
             >
