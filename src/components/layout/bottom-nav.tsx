@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { isNavItemActive } from "@/components/layout/sidebar-nav";
 import { MoreSheet } from "@/components/layout/more-sheet";
-import { NAV_ITEMS } from "@/config/nav";
+import { getNavIcon } from "@/config/nav";
+import { findActiveHref } from "@/lib/layout/active-item";
 import { cn } from "@/lib/utils";
 
 interface BottomNavProps {
@@ -32,7 +32,7 @@ const SLOT_CLASS =
  * this only shows it.
  */
 export function BottomNav({ items, moreItems, user }: BottomNavProps) {
-  const pathname = usePathname();
+  const activeHref = findActiveHref(usePathname(), items);
 
   return (
     <nav
@@ -40,8 +40,8 @@ export function BottomNav({ items, moreItems, user }: BottomNavProps) {
       className="fixed inset-x-0 bottom-0 z-40 flex min-h-17 items-stretch pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
     >
       {items.map((item) => {
-        const isActive = isNavItemActive(pathname, item.href);
-        const Icon = NAV_ITEMS.find((navItem) => navItem.href === item.href)!.icon;
+        const isActive = item.href === activeHref;
+        const Icon = getNavIcon(item.href);
 
         return (
           <Link

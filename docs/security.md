@@ -143,18 +143,23 @@ to redirect back into the app.
     invalid/inactive/missing profile -> redirect `/forbidden`; otherwise
     returns the resolved `AppUser`.
   - `requireRole(allowed: Role[])` / `requirePermission(permission)` —
-    built on `requireAuth()`, redirect to `/forbidden` unless
-    `user.role === "admin"` or the role/permission check passes. The
+    built on `requireAuth()`, answer with `forbidden()` (an HTTP 403 that
+    renders the `forbidden.tsx` of the group inside its shell, UI-F02-S04)
+    unless `user.role === "admin"` or the role/permission check passes. The
     `admin` bypass is implemented **only** inside `hasPermission()` and
     `requireRole()`/`requirePermission()` — never re-implemented inline
     in a layout or page.
 - **3-way unauthorized handling**:
   1. Not logged in -> `/login`.
-  2. Logged in but not permitted (role/permission check fails) ->
-     `/forbidden`.
+  2. Logged in but not permitted (role/permission check fails) -> a 403
+     with the page "Access denied" inside the shell of the group, so the
+     menu stays usable. This uses the experimental Next.js option
+     `authInterrupts` (`next.config.ts`).
   3. Logged in but the `public.users` profile is missing/inactive/invalid
-     -> `/forbidden` too, with the same generic, non-leaking copy as
-     case 2 — the page never confirms which of the two happened.
+     -> `/forbidden` (no shell, only Sign out), with the same generic,
+     non-leaking copy as case 2 — the page never confirms which of the
+     two happened. A partner user with no partner or an inactive partner
+     goes there too, with a reason.
      `src/app/forbidden/page.tsx` deliberately does not call
      `requireAuth()` itself (that would risk a redirect loop for exactly
      the users it exists to serve); it only calls `getAuthUser()` to

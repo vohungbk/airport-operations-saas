@@ -9,6 +9,7 @@ import {
   ListChecks,
   LayoutDashboard,
   Plane,
+  Circle,
   TriangleAlert,
   UserCircle,
   Users,
@@ -122,6 +123,62 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 /**
+ * UI-F02-S04 (spec R8): the technician and the partner user have a shorter menu of their own,
+ * with names that fit their work. Admin and operations manager have the full menu above. A menu
+ * is only a look: the page behind an item is guarded on the server (spec R9), and a role can still
+ * open a page it holds the permission for even when the page is not in its menu.
+ *
+ * Pages of the spec that do not exist yet (My History, KPI, ROI, Assistant) are not listed.
+ */
+export const ROLE_MENUS: Partial<Record<Role, NavItem[]>> = {
+  technician: [
+    {
+      label: "Today's Jobs",
+      href: "/technician",
+      permission: "jobs:view_assigned",
+      icon: ClipboardList,
+    },
+    {
+      label: "Incidents",
+      href: "/incidents",
+      permission: INCIDENTS_ACCESS_PERMISSIONS,
+      icon: TriangleAlert,
+    },
+  ],
+  partner_user: [
+    {
+      label: "Overview",
+      href: "/partner",
+      permission: "bookings:view_own_partner",
+      icon: UserCircle,
+    },
+    {
+      label: "Rentals",
+      href: "/bookings",
+      permission: BOOKINGS_ACCESS_PERMISSIONS,
+      icon: CalendarCheck,
+    },
+    {
+      label: "Seats",
+      href: "/partner/seats",
+      permission: "bookings:view_own_partner",
+      icon: Boxes,
+    },
+    {
+      label: "Finance",
+      href: "/settlements",
+      permission: FINANCE_ACCESS_PERMISSIONS,
+      icon: Landmark,
+    },
+  ],
+};
+
+/** The menu a role starts from: its own, or the full one. */
+function menuOf(role: Role): NavItem[] {
+  return ROLE_MENUS[role] ?? NAV_ITEMS;
+}
+
+/**
  * Pure — the single source of truth for which nav links a role sees.
  * Server Components compute this and pass the filtered list down; client
  * components never re-derive it.
@@ -133,7 +190,20 @@ export function getNavItemPermissions(item: NavItem): readonly Permission[] {
 }
 
 export function getVisibleNavItems(role: Role): NavItem[] {
-  return NAV_ITEMS.filter((item) =>
+  return menuOf(role).filter((item) =>
     hasAnyPermission(role, getNavItemPermissions(item)),
   );
+}
+
+const ICONS_BY_HREF = new Map(
+  [...NAV_ITEMS, ...Object.values(ROLE_MENUS).flat()].map((item) => [item.href, item.icon]),
+);
+
+/**
+ * The icon of a menu item, found by its address in the full menu or in a role menu. A Lucide
+ * icon cannot cross from a Server Component to a Client Component as data, so the menu is passed
+ * as text and the client looks the icon up here.
+ */
+export function getNavIcon(href: string): LucideIcon {
+  return ICONS_BY_HREF.get(href) ?? Circle;
 }

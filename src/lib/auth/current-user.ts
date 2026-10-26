@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { redirect } from "next/navigation";
+import { forbidden, redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth/session";
@@ -122,6 +122,12 @@ export async function requireAuth(): Promise<AppUser> {
 }
 
 /**
+ * A signed-in user whose role does not allow the page gets a 403: `forbidden()`
+ * renders the `forbidden.tsx` of the nearest group, inside its layout, so the
+ * shell with the menu stays on the screen (UI-F02-S04, spec E4). A user with no
+ * valid profile, no partner or an inactive partner has no shell to show and is
+ * sent to `/forbidden` by `requireAuth`, with only Sign out.
+ *
  * `admin` bypasses every role check — the only place this bypass is
  * implemented. Never re-implement `role === "admin"` inline in a
  * layout/page.
@@ -130,7 +136,7 @@ export async function requireRole(allowed: Role[]): Promise<AppUser> {
   const user = await requireAuth();
 
   if (user.role !== "admin" && !allowed.includes(user.role)) {
-    redirect(FORBIDDEN_ROUTE);
+    forbidden();
   }
 
   return user;
@@ -146,7 +152,7 @@ export async function requirePermission(
   const user = await requireAuth();
 
   if (!hasPermission(user.role, permission)) {
-    redirect(FORBIDDEN_ROUTE);
+    forbidden();
   }
 
   return user;
@@ -163,7 +169,7 @@ export async function requireAnyPermission(
   const user = await requireAuth();
 
   if (!hasAnyPermission(user.role, permissions)) {
-    redirect(FORBIDDEN_ROUTE);
+    forbidden();
   }
 
   return user;

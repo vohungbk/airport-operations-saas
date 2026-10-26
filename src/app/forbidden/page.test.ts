@@ -65,4 +65,16 @@ describe("ForbiddenPage", () => {
     expect(html).toContain("Sign in");
     expect(html).not.toContain("LOGOUT");
   });
+
+  it.each([undefined, "no_partner", "partner_inactive"])(
+    "should offer only Sign out and no menu for a signed-in user with no profile or no partner (reason %s)",
+    async (reason) => {
+      const html = await render(reason);
+
+      expect(html).toContain("LOGOUT");
+      expect(html).not.toContain("<nav");
+      expect(html).not.toContain("<aside");
+      expect(html.match(/<a /g) ?? []).toHaveLength(0);
+    },
+  );
 });

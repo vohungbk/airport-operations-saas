@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { LogoutButton } from "@/features/auth/components/logout-button";
-import { NAV_ITEMS } from "@/config/nav";
+import { getNavIcon } from "@/config/nav";
 
 interface MoreSheetProps {
   /** The items of the menu that are not in the bottom bar. */
@@ -58,7 +58,7 @@ export function MoreSheet({ items, user, slotClassName }: MoreSheetProps) {
           <nav aria-label="More">
             <ul className="divide-y divide-border rounded-lg border border-border">
               {items.map((item) => {
-                const Icon = NAV_ITEMS.find((navItem) => navItem.href === item.href)!.icon;
+                const Icon = getNavIcon(item.href);
                 return (
                   <li key={item.href}>
                     <Link

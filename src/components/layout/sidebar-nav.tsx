@@ -5,9 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS } from "@/config/nav";
+import { getNavIcon } from "@/config/nav";
 import { CountBadge } from "@/components/layout/count-badge";
 import { useIsTruncated } from "@/components/layout/use-is-truncated";
+import { findActiveHref } from "@/lib/layout/active-item";
 import {
   Tooltip,
   TooltipContent,
@@ -25,10 +26,6 @@ interface SidebarNavProps {
   items: SidebarNavItem[];
   /** Icons only, with a tooltip for each (the 72 px desktop sidebar). */
   collapsed?: boolean;
-}
-
-export function isNavItemActive(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(href + "/");
 }
 
 interface SidebarNavLinkProps {
@@ -76,7 +73,7 @@ function SidebarNavLink({ item, Icon, isActive, collapsed }: SidebarNavLinkProps
  * Presentation only — active-link styling via `usePathname()`. The
  * permission filtering already happened server-side in `AppShell`; this
  * component never decides which items to show. Icons are resolved from
- * the statically-imported `NAV_ITEMS` rather than passed in via props,
+ * the menu config (`getNavIcon`) rather than passed in via props,
  * since a Lucide icon component can't cross the Server->Client boundary
  * as serialized prop data.
  *
@@ -86,7 +83,7 @@ function SidebarNavLink({ item, Icon, isActive, collapsed }: SidebarNavLinkProps
  * hover and on keyboard focus. A count, when an item has one, shows as `99+` from 100 up.
  */
 export function SidebarNav({ items, collapsed = false }: SidebarNavProps) {
-  const pathname = usePathname();
+  const activeHref = findActiveHref(usePathname(), items);
 
   return (
     <nav aria-label="Main navigation" className="flex flex-col gap-1">
@@ -94,8 +91,8 @@ export function SidebarNav({ items, collapsed = false }: SidebarNavProps) {
         <SidebarNavLink
           key={item.href}
           item={item}
-          Icon={NAV_ITEMS.find((navItem) => navItem.href === item.href)!.icon}
-          isActive={isNavItemActive(pathname, item.href)}
+          Icon={getNavIcon(item.href)}
+          isActive={item.href === activeHref}
           collapsed={collapsed}
         />
       ))}

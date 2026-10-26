@@ -71,6 +71,21 @@ import {
 // else it is the real one.
 const listClient = vi.hoisted(() => ({ current: null as unknown }));
 
+// `forbidden()` only works inside the Next.js runtime with `authInterrupts` on; here it throws
+// the same error with the same digest, so a guard that refuses can be told from one that lets in.
+vi.mock("next/navigation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/navigation")>();
+
+  return {
+    ...actual,
+    forbidden: () => {
+      throw Object.assign(new Error("NEXT_HTTP_ERROR_FALLBACK;403"), {
+        digest: "NEXT_HTTP_ERROR_FALLBACK;403",
+      });
+    },
+  };
+});
+
 vi.mock("@/lib/supabase/server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase/server")>();
 
@@ -6478,13 +6493,15 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       expect(next.writeCode).not.toBe("42501");
     });
 
+    // A role without the permission gets a 403 (`forbidden()`, inside the shell); an inactive
+    // account or a missing partner is sent to the /forbidden page, which has only Sign out.
     it.each([
-      ["their role is changed to another one", { role: "technician" }],
-      ["their account is deactivated", { is_active: false }],
-      ["their partner is taken off the profile", { partner_id: null }],
+      ["their role is changed to another one", { role: "technician" }, "NEXT_HTTP_ERROR_FALLBACK;403"],
+      ["their account is deactivated", { is_active: false }, "/forbidden"],
+      ["their partner is taken off the profile", { partner_id: null }, "/forbidden"],
     ] as const)(
-      "when %s, the next request of the open session is refused: no scope, no rows, no write, and the guard sends them to forbidden",
-      async (_label, change) => {
+      "when %s, the next request of the open session is refused: no scope, no rows, no write, and the guard answers forbidden",
+      async (_label, change, answer) => {
         await changeProfile(change);
         try {
           const next = await nextRequest();
@@ -6492,7 +6509,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
           expect(next.scope).toBeNull();
           expect(next.bookings).toBe(0);
           expect(next.writeCode).toBe("42501");
-          expect(String(next.guard)).toContain("/forbidden");
+          expect(String(next.guard)).toContain(answer);
         } finally {
           await restoreProfile();
         }
