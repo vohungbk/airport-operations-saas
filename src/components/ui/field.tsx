@@ -6,6 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { describeCounter } from "@/lib/forms/counter"
 
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   return (
@@ -224,8 +225,38 @@ function FieldError({
   )
 }
 
+/**
+ * The character counter under a field (spec R2): `12 / 200`, in the color of an error when the
+ * value is over the limit. It is read out politely when it changes.
+ */
+function FieldCounter({
+  value,
+  max,
+  className,
+  ...props
+}: Omit<React.ComponentProps<"p">, "children"> & { value: string; max: number }) {
+  const { text, over } = describeCounter(value, max)
+
+  return (
+    <p
+      data-slot="field-counter"
+      data-over={over ? "true" : undefined}
+      // Said aloud only once the limit is passed, not at every key.
+      aria-live={over ? "polite" : "off"}
+      className={cn(
+        "ml-auto text-xs text-muted-foreground data-[over=true]:text-danger-fg",
+        className
+      )}
+      {...props}
+    >
+      {text}
+    </p>
+  )
+}
+
 export {
   Field,
+  FieldCounter,
   FieldLabel,
   FieldDescription,
   FieldError,
