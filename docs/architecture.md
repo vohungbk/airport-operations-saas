@@ -641,3 +641,42 @@ starts, to a Postgres schema/table group protected by RLS.
   partner or an inactive partner still goes to `/forbidden`: no shell, only
   Sign out, and a reason for the partner cases.
 
+
+#### UI-F02-S05 — keeping the layout safe
+
+- **One breakpoint.** The sidebar and the top bar show from `md` (768 px) up;
+  the app bar, the bottom bar and the More sheet show below it. A test checks
+  that these use `md` and no other breakpoint.
+- **Space for the bottom bar.** `main` keeps 84 px (plus the safe area of the
+  phone) of padding at the bottom below 768 px (spec R11).
+- **Skip link and landmarks (spec R12).** `SkipLink` ("Skip to content") is the
+  first thing a keyboard user reaches and leads to `#main-content`. The shell
+  has one `<main id="main-content" tabIndex={-1}>`; the sidebar is a labelled
+  `aside`; every `<nav>` has an `aria-label` (a test fails for one without).
+  Pages that have no shell (sign-in, `/forbidden`, not found, the error at the
+  root, the home stub) get the same skip link and one `<main>` through
+  `StandalonePage` (the sign-in layout does it itself). `<main>` is used in
+  three places only, and a test lists them.
+- **Order and focus (spec R13).** Tab order is: skip link, app bar, sidebar,
+  top bar, content, bottom bar (a test checks the order in `AppShell`). The
+  items of the shell have a solid outline of 2 px, 2 px away, in the `ring`
+  color: 4.1:1 on Light, 8.1:1 on Dark. On the blue bottom bar it is the
+  white of the text. The buttons use `SHELL_BUTTON_FOCUS`, because `Button` has
+  a half see-through ring and sets `outline-none`.
+- **The shell stays on an error or while loading (spec E5).** Each of
+  `(admin)`, `(dashboard)`, `(partner)` and `(technician)` has an `error.tsx`
+  inside the layout of the group, so a page without a boundary of its own shows
+  the error in the content area and not on a bare page. A page with its own
+  `error.tsx` and `loading.tsx` keeps them, and the shell is in the layout above
+  them, so it stays while they show. A test checks that every page has an error
+  boundary at or above it, inside its group. The groups have **no** `loading.tsx`
+  on purpose: it would put every guard layout below it in a Suspense boundary, the
+  page would start to stream first and `forbidden()` could no longer answer 403.
+- **Hiding an item is cosmetic (spec R9).** A test lists every page of the
+  admin, partner and technician areas and checks it is behind a guard of the
+  server, in the page or in a layout above it. In the dashboard group the QR scan page is
+  the one open to any signed-in role, on purpose: it shows only what row-level
+  security lets through.
+- **Not here.** A "not found" page for a signed-in user is still outside the
+  shell (the spec only asks for errors and loading).
+

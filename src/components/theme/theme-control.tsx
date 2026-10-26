@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { useTheme } from "@/components/theme/use-theme";
 import { Button } from "@/components/ui/button";
+import { SHELL_BUTTON_FOCUS } from "@/lib/layout/focus";
 import { oppositeTheme, themeStatusMessage } from "@/lib/theme/theme";
 
 /**
@@ -33,6 +34,7 @@ export function ThemeControl() {
         aria-busy={!ready}
         aria-label={label}
         title={label}
+        className={SHELL_BUTTON_FOCUS}
         onClick={() => {
           setTheme(next);
           setPressed(true);

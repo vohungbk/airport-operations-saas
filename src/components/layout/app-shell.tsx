@@ -6,6 +6,7 @@ import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { MobileAppBar } from "@/components/layout/mobile-app-bar";
 import { TopBar } from "@/components/layout/top-bar";
+import { MAIN_CONTENT_ID, SkipLink } from "@/components/shared/skip-link";
 import type { AppUser } from "@/lib/auth/current-user";
 import { ROLE_LABELS } from "@/lib/auth/role-labels";
 import { splitMobileNav } from "@/lib/layout/mobile-nav";
@@ -47,12 +48,17 @@ export async function AppShell({ user, children }: AppShellProps) {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col md:flex-row">
+      <SkipLink />
       <MobileAppBar items={navItems} />
       <DesktopSidebar items={navItems} initialCollapsed={initialCollapsed} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar items={navItems} user={userInfo} />
         {/* 84 px, plus the safe area of a phone, keep the end of the content clear of the bottom bar (R11). */}
-        <main className="flex min-w-0 flex-1 flex-col pb-[calc(84px+env(safe-area-inset-bottom))] md:pb-0">
+        <main
+          id={MAIN_CONTENT_ID}
+          tabIndex={-1}
+          className="flex min-w-0 flex-1 flex-col pb-[calc(84px+env(safe-area-inset-bottom))] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring md:pb-0"
+        >
           {children}
         </main>
       </div>

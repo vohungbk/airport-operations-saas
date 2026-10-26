@@ -1,5 +1,10 @@
 import { PageNotFound } from "@/components/shared/page-state";
+import { StandalonePage } from "@/components/shared/standalone-page";
 
 export default function NotFound() {
-  return <PageNotFound />;
+  return (
+    <StandalonePage>
+      <PageNotFound />
+    </StandalonePage>
+  );
 }

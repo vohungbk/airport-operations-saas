@@ -28,7 +28,7 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
           <Link
             href={DASHBOARD_ROUTE}
             aria-label="Home"
-            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <House className="size-4" aria-hidden="true" />
           </Link>
@@ -40,7 +40,7 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
               <Link
                 href={crumb.href}
                 title={crumb.label}
-                className="truncate rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="truncate rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 {crumb.label}
               </Link>

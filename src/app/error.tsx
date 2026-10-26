@@ -1,6 +1,7 @@
 "use client";
 
 import { PageError } from "@/components/shared/page-error";
+import { StandalonePage } from "@/components/shared/standalone-page";
 
 interface AppErrorProps {
   error: Error & { digest?: string };
@@ -14,5 +15,9 @@ interface AppErrorProps {
  * the database) and offers a retry. It is not a "forbidden" page.
  */
 export default function AppError({ reset }: AppErrorProps) {
-  return <PageError title="Could not load this page" reset={reset} />;
+  return (
+    <StandalonePage>
+      <PageError title="Could not load this page" reset={reset} />
+    </StandalonePage>
+  );
 }
