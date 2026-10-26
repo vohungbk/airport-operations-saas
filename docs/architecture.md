@@ -699,3 +699,23 @@ starts, to a Postgres schema/table group protected by RLS.
   and data parts (UI-F03-S02 to S04), and the 44 px hit area on touch screens
   and the audit of the whole library (UI-F03-S05).
 
+
+#### UI-F03-S05 — keeping the library accessible and safe
+
+- **Touch targets.** On a touch screen (`pointer-coarse:`) every part a finger
+  presses is at least 44 px: buttons, inputs, select, combobox, date picker,
+  tabs, menu items and calendar days grow, and the checkbox, radio and switch
+  get a wider invisible hit area (`after:`), so they look the same. A mouse
+  keeps the compact size of the design. `touch-targets.test.ts` checks it.
+- **Tokens only, both themes.** A raw color anywhere in `src` fails
+  `design-tokens.test.ts`. `status-contrast.test.ts` checks that every status
+  variant reaches the text ratio in Light and in Dark.
+- **One place.** A screen uses the library, not a native `button`, `input`,
+  `select` or `textarea`; a hidden input is allowed. When a screen needs a part
+  the library lacks, add the part to `src/components/ui` first, then use it.
+  `library-guard.test.ts` enforces this. Screens that already had native
+  controls are listed with their count as a baseline: the count may only go
+  down, so a new control fails the test. Moving those 24 controls onto the
+  library is open work.
+- **No gallery.** There is no gallery route or menu item, so `/gallery`
+  answers not-found in every build. A test fails if one is added.
