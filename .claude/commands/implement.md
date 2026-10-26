@@ -44,11 +44,11 @@ Stop after the plan. Ask: "Approve this plan?"
 
 ## Phase 4: Implement (only after the user types approve)
 1. Work task by task, following the approved plan. If the plan must change, stop and ask.
-2. Write tests with Vitest. Test names are meaningful, for example "should return error when email is invalid". Every new or changed RLS policy needs a cross-tenant denial test.
+2. Write tests with Vitest. Test names are meaningful, for example "should return error when email is invalid". Every new or changed RLS policy needs a cross-tenant denial test. Only write the tests here. Do not run them: tests run once, in step 6.
 3. Keep business logic out of React components. Use Zod for input validation and the existing Supabase server client. Do not add dependencies.
 4. Run `/code-review` on the changes. Fix the findings that are real, or say why you skip one.
 5. Run `/simplify` and apply the fixes.
-6. Run `/verify --build` at the end and show the exit codes. Run it after steps 4 and 5, because they change the code.
+6. Run `/verify --build` at the end and show the exit codes. This is the only place tests run, and it runs only the changed test files. Run it after steps 4 and 5, because they change the code.
 7. Right after step 6 is green, start the dev server for the user to review. Do not ask first.
    - Run it in the background from the repo root: `npm run dev` (runs `next dev` on port 3000).
    - Check that port 3000 is free first (`lsof -i :3000`). Check that the server answers HTTP 200 on `http://localhost:3000`.
