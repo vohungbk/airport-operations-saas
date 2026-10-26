@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logoutAction } from "@/features/auth/actions/logout.action";
+import { SHELL_BUTTON_FOCUS } from "@/lib/layout/focus";
 
 interface UserMenuProps {
   full_name: string;
@@ -38,6 +39,7 @@ export function UserMenu({ full_name, email, role_label }: UserMenuProps) {
             variant="ghost"
             size="icon"
             aria-label={`Account menu, ${full_name}`}
+            className={SHELL_BUTTON_FOCUS}
           />
         }
       >

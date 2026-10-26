@@ -22,7 +22,7 @@ interface BottomNavProps {
  * is a size and would drop it next to a `text-*` color.
  */
 const SLOT_CLASS =
-  "relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 bg-primary px-0.5 text-primary-foreground transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-primary-foreground";
+  "relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 bg-primary px-0.5 text-primary-foreground transition-colors focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-primary-foreground";
 
 /**
  * UI-F02-S03 (spec R5): the bottom navigation of a phone, below 768 px. Five slots: up to four

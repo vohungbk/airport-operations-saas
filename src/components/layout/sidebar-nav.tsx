@@ -50,7 +50,7 @@ function SidebarNavLink({ item, Icon, isActive, collapsed }: SidebarNavLinkProps
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "relative flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+              "relative flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
               collapsed && "justify-center px-0",
               isActive &&
                 "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary before:absolute before:top-1/2 before:left-0 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-primary",

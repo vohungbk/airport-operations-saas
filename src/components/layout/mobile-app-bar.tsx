@@ -26,7 +26,7 @@ export function MobileAppBar({ items }: MobileAppBarProps) {
         <Link
           href={backHref}
           aria-label="Back"
-          className="flex size-11 shrink-0 items-center justify-center rounded-md text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="flex size-11 shrink-0 items-center justify-center rounded-md text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <ArrowLeft className="size-5" aria-hidden="true" />
         </Link>

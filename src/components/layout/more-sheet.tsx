@@ -63,7 +63,7 @@ export function MoreSheet({ items, user, slotClassName }: MoreSheetProps) {
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="flex min-h-11 items-center gap-3 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                      className="flex min-h-11 items-center gap-3 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                     >
                       <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                       <span className="min-w-0 flex-1 truncate">{item.label}</span>

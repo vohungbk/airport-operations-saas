@@ -7,6 +7,7 @@ import { useSidebarCollapsed } from "@/components/layout/use-sidebar-collapsed";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SIDEBAR_WIDTH_CLASS } from "@/lib/layout/sidebar-preference";
+import { SHELL_BUTTON_FOCUS } from "@/lib/layout/focus";
 import { cn } from "@/lib/utils";
 
 interface DesktopSidebarProps {
@@ -29,6 +30,7 @@ export function DesktopSidebar({ items, initialCollapsed }: DesktopSidebarProps)
   return (
     <TooltipProvider>
       <aside
+        aria-label="Sidebar"
         data-collapsed={collapsed}
         className={cn(
           "hidden shrink-0 flex-col gap-6 border-r border-border bg-background p-4 transition-[width] duration-200 motion-reduce:transition-none md:flex print:hidden",
@@ -54,6 +56,7 @@ export function DesktopSidebar({ items, initialCollapsed }: DesktopSidebarProps)
             aria-label={label}
             aria-expanded={!collapsed}
             title={label}
+            className={SHELL_BUTTON_FOCUS}
             onClick={toggle}
           >
             <Toggle aria-hidden="true" />

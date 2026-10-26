@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageForbidden } from "@/components/shared/page-state";
+import { StandalonePage } from "@/components/shared/standalone-page";
 import { getAuthUser } from "@/lib/auth/session";
 import { LOGIN_ROUTE } from "@/lib/constants/routes";
 import { LogoutButton } from "@/features/auth/components/logout-button";
@@ -40,30 +41,32 @@ export default async function ForbiddenPage({
   const isPartnerInactive = reason === "partner_inactive";
 
   return (
-    <PageForbidden
-      title={
-        isConfirmProfileFailure ? "Account setup incomplete" : undefined
-      }
-      description={
-        isConfirmProfileFailure
-          ? "Your email was confirmed, but we couldn't finish setting up your account. Please sign out and sign up again, or contact your administrator if this keeps happening."
-          : isNoPartner
-            ? "Your account is not linked to a partner yet, so there is nothing to show. Ask an administrator to link your account to your partner."
-            : isPartnerInactive
-              ? "Your organization's account is not active, so you cannot use the partner portal right now. Contact your administrator."
-              : undefined
-      }
-    >
-      {user ? (
-        <LogoutButton />
-      ) : (
-        <Link
-          href={LOGIN_ROUTE}
-          className="text-sm underline underline-offset-4 hover:text-foreground"
-        >
-          Sign in
-        </Link>
-      )}
-    </PageForbidden>
+    <StandalonePage>
+      <PageForbidden
+        title={
+          isConfirmProfileFailure ? "Account setup incomplete" : undefined
+        }
+        description={
+          isConfirmProfileFailure
+            ? "Your email was confirmed, but we couldn't finish setting up your account. Please sign out and sign up again, or contact your administrator if this keeps happening."
+            : isNoPartner
+              ? "Your account is not linked to a partner yet, so there is nothing to show. Ask an administrator to link your account to your partner."
+              : isPartnerInactive
+                ? "Your organization's account is not active, so you cannot use the partner portal right now. Contact your administrator."
+                : undefined
+        }
+      >
+        {user ? (
+          <LogoutButton />
+        ) : (
+          <Link
+            href={LOGIN_ROUTE}
+            className="text-sm underline underline-offset-4 hover:text-foreground"
+          >
+            Sign in
+          </Link>
+        )}
+      </PageForbidden>
+    </StandalonePage>
   );
 }

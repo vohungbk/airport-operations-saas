@@ -74,7 +74,9 @@ describe("ForbiddenPage", () => {
       expect(html).toContain("LOGOUT");
       expect(html).not.toContain("<nav");
       expect(html).not.toContain("<aside");
-      expect(html.match(/<a /g) ?? []).toHaveLength(0);
+      // The skip link is the only link: it leads to the main content, not to another page.
+      const links = html.match(/<a [^>]*>/g) ?? [];
+      expect(links.every((link) => link.includes('href="#main-content"'))).toBe(true);
     },
   );
 });
