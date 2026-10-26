@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getVisibleNavItems, NAV_ITEMS } from "@/config/nav";
+import { getVisibleNavItems, NAV_ITEMS, ROLE_MENUS } from "@/config/nav";
 import { ROLES } from "@/lib/auth/roles";
 import {
   MAX_BOTTOM_ITEMS,
@@ -45,17 +45,18 @@ describe("splitMobileNav", () => {
     }
   });
 
-  it("should leave More with no items for a technician, who has only four", () => {
+  it("should leave More with no items for a technician, whose menu has two", () => {
     const { bottom, more } = splitMobileNav(menuOf("technician"), "technician");
 
-    expect(bottom.map((i) => i.href)).toEqual(["/technician", "/jobs", "/incidents", "/dashboard"]);
+    expect(bottom.map((i) => i.href)).toEqual(["/technician", "/incidents"]);
     expect(more).toEqual([]);
   });
 
-  it("should not put the dashboard in the bar of a partner user", () => {
-    const { bottom } = splitMobileNav(menuOf("partner_user"), "partner_user");
+  it("should put the four items of the partner menu in the bar of a partner user", () => {
+    const { bottom, more } = splitMobileNav(menuOf("partner_user"), "partner_user");
 
-    expect(bottom.map((i) => i.href)).toEqual(["/partner", "/bookings", "/incidents", "/settlements"]);
+    expect(bottom.map((i) => i.href)).toEqual(["/partner", "/bookings", "/partner/seats", "/settlements"]);
+    expect(more).toEqual([]);
   });
 
   it("should skip a priority item that the menu does not have", () => {
@@ -93,11 +94,11 @@ describe("MOBILE_NAV_PRIORITY", () => {
     expect(Object.keys(MOBILE_NAV_PRIORITY).sort()).toEqual([...ROLES].sort());
   });
 
-  it("should only name pages that the menu has", () => {
-    const hrefs = new Set(NAV_ITEMS.map((item) => item.href));
+  it("should only name pages that the menu of the role has", () => {
+    for (const role of ROLES) {
+      const hrefs = new Set((ROLE_MENUS[role] ?? NAV_ITEMS).map((item) => item.href));
 
-    for (const list of Object.values(MOBILE_NAV_PRIORITY)) {
-      for (const href of list) expect(hrefs.has(href), href).toBe(true);
+      for (const href of MOBILE_NAV_PRIORITY[role]) expect(hrefs.has(href), `${role}: ${href}`).toBe(true);
     }
   });
 

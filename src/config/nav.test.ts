@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
 
+import { Circle } from "lucide-react";
+
 import {
+  getNavIcon,
   getNavItemPermissions,
   getVisibleNavItems,
   NAV_ITEMS,
+  ROLE_MENUS,
 } from "@/config/nav";
 import { hasAnyPermission } from "@/lib/auth/permissions";
 import { ROLES } from "@/lib/auth/roles";
 
 describe("getVisibleNavItems", () => {
-  it("should match hasAnyPermission() for every nav item, for every role", () => {
-    for (const role of ROLES) {
+  it("should match hasAnyPermission() for every nav item, for every role that has the full menu", () => {
+    for (const role of ROLES.filter((r) => !ROLE_MENUS[r])) {
       const visible = getVisibleNavItems(role);
       const visibleHrefs = visible.map((item) => item.href);
 
@@ -63,35 +67,72 @@ describe("getVisibleNavItems", () => {
     );
   });
 
-  it("should show the incidents, jobs and technician links to technician", () => {
+  it("should give the technician Today's Jobs and Incidents, and nothing else (spec R8)", () => {
     const visible = getVisibleNavItems("technician");
 
-    expect(visible.map((item) => item.href).sort()).toEqual(
-      ["/dashboard", "/incidents", "/jobs", "/technician"].sort(),
-    );
+    expect(visible.map((item) => [item.label, item.href])).toEqual([
+      ["Today's Jobs", "/technician"],
+      ["Incidents", "/incidents"],
+    ]);
   });
 
-  it("should show the partner portal, bookings, incidents and settlements links to partner_user", () => {
+  it("should give the partner user Overview, Rentals, Seats and Finance, in that order (spec R8)", () => {
     const visible = getVisibleNavItems("partner_user");
 
-    expect(visible.map((item) => item.href).sort()).toEqual(
-      ["/bookings", "/dashboard", "/incidents", "/partner", "/settlements"].sort(),
-    );
+    expect(visible.map((item) => [item.label, item.href])).toEqual([
+      ["Overview", "/partner"],
+      ["Rentals", "/bookings"],
+      ["Seats", "/partner/seats"],
+      ["Finance", "/settlements"],
+    ]);
   });
 
-  it.each([["technician"], ["partner_user"], ["operations_manager"], ["admin"]] as const)(
-    "should show the incidents link to %s, who sees the incidents in their scope",
-    (role) => {
-      expect(getVisibleNavItems(role).map((item) => item.href)).toContain(
-        "/incidents",
-      );
-    },
-  );
+  it("should leave out the pages that do not exist yet: My History, KPI, ROI and Assistant", () => {
+    const labels = [...ROLES.flatMap((role) => getVisibleNavItems(role))].map((item) => item.label);
+
+    for (const missing of ["My History", "KPI", "ROI", "Assistant"]) {
+      expect(labels).not.toContain(missing);
+    }
+  });
 
   it("should not show the bookings link to technician", () => {
-    const visible = getVisibleNavItems("technician");
+    expect(getVisibleNavItems("technician").map((item) => item.href)).not.toContain("/bookings");
+  });
 
-    expect(visible.map((item) => item.href)).not.toContain("/bookings");
+  it("should list only items that the role holds a permission for, for every role", () => {
+    for (const role of ROLES) {
+      for (const item of getVisibleNavItems(role)) {
+        expect(hasAnyPermission(role, getNavItemPermissions(item)), `${role}: ${item.href}`).toBe(true);
+      }
+    }
+  });
+});
+
+describe("ROLE_MENUS", () => {
+  it("should only have menus for roles of the database", () => {
+    for (const role of Object.keys(ROLE_MENUS)) {
+      expect(ROLES).toContain(role);
+    }
+  });
+
+  it("should not touch the full menu of admin and operations manager", () => {
+    expect(ROLE_MENUS.admin).toBeUndefined();
+    expect(ROLE_MENUS.operations_manager).toBeUndefined();
+  });
+});
+
+describe("getNavIcon", () => {
+  it("should give a real icon to every item of every menu a role can see", () => {
+    for (const role of ROLES) {
+      for (const item of getVisibleNavItems(role)) {
+        expect(getNavIcon(item.href), `${role}: ${item.href}`).toBe(item.icon);
+        expect(item.icon).not.toBe(Circle);
+      }
+    }
+  });
+
+  it("should give a plain circle for an address that is in no menu", () => {
+    expect(getNavIcon("/not-a-page")).toBe(Circle);
   });
 });
 

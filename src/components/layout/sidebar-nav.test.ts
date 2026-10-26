@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { isNavItemActive } from "@/components/layout/sidebar-nav";
+import { isUnderHref as isNavItemActive } from "@/lib/layout/active-item";
 
 describe("isNavItemActive", () => {
   it("should return true when pathname exactly matches href", () => {

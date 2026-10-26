@@ -5,7 +5,7 @@ import { ROLES, type Role } from "@/lib/auth/roles";
 
 const current = vi.hoisted(() => ({ role: "admin" as string }));
 
-// The guards, with the real permission rules: they throw like `redirect()`
+// The guards, with the real permission rules: they throw like `forbidden()`
 // does when the role does not hold the permission.
 vi.mock("@/lib/auth/current-user", async () => {
   const permissions = await import("@/lib/auth/permissions");
@@ -22,13 +22,13 @@ vi.mock("@/lib/auth/current-user", async () => {
     requireAuth: async () => user(),
     requirePermission: async (permission: Permission) => {
       if (!permissions.hasPermission(current.role as Role, permission)) {
-        throw new Error("REDIRECT:/forbidden");
+        throw new Error("FORBIDDEN");
       }
       return user();
     },
     requireAnyPermission: async (list: readonly Permission[]) => {
       if (!permissions.hasAnyPermission(current.role as Role, list)) {
-        throw new Error("REDIRECT:/forbidden");
+        throw new Error("FORBIDDEN");
       }
       return user();
     },
@@ -59,7 +59,8 @@ vi.mock("@/features/settlements/components/generate-settlement-form", () => ({
   GenerateSettlementForm: () => null,
 }));
 
-import { NAV_ITEMS, getVisibleNavItems } from "@/config/nav";
+import { NAV_ITEMS, getNavItemPermissions, getVisibleNavItems } from "@/config/nav";
+import { hasAnyPermission } from "@/lib/auth/permissions";
 
 /** The entry (layout, or page where there is no layout) that guards each nav link. */
 const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
@@ -78,9 +79,17 @@ const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
   "/partner": () => import("@/app/(partner)/partner/layout"),
 };
 
+/**
+ * Pages of a role menu that are not a link of the full menu. The layout of the partner portal
+ * guards the pages below it, so `/partner/seats` is guarded by it.
+ */
+const EXTRA_GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
+  "/partner/seats": () => import("@/app/(partner)/partner/layout"),
+};
+
 async function opens(href: string, role: Role): Promise<boolean> {
   current.role = role;
-  const entry = (await GUARDS[href]()).default as (props: {
+  const entry = (await (GUARDS[href] ?? EXTRA_GUARDS[href])()).default as (props: {
     children: null;
   }) => Promise<unknown>;
 
@@ -88,7 +97,7 @@ async function opens(href: string, role: Role): Promise<boolean> {
     await entry({ children: null });
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message === "REDIRECT:/forbidden") {
+    if (error instanceof Error && error.message === "FORBIDDEN") {
       return false;
     }
     // The dashboard sends a partner user to their home: the link still opens
@@ -112,14 +121,21 @@ describe("navigation and the module it opens (VI-F01-S04, Nav-2)", () => {
   });
 
   it.each(ROLES)(
-    "should open the module of every link %s sees, and refuse the ones it does not see",
+    "should open the module of every link of the full menu that %s holds the permission for, and refuse the others",
     async (role) => {
-      const visible = new Set(getVisibleNavItems(role).map((item) => item.href));
-
       for (const item of NAV_ITEMS) {
-        expect(await opens(item.href, role), `${role}: ${item.href}`).toBe(
-          visible.has(item.href),
-        );
+        const allowed = hasAnyPermission(role, getNavItemPermissions(item));
+
+        expect(await opens(item.href, role), `${role}: ${item.href}`).toBe(allowed);
+      }
+    },
+  );
+
+  it.each(ROLES)(
+    "should never show %s a link that its guard refuses",
+    async (role) => {
+      for (const item of getVisibleNavItems(role)) {
+        expect(await opens(item.href, role), `${role}: ${item.href}`).toBe(true);
       }
     },
   );

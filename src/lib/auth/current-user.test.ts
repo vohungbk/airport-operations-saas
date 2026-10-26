@@ -23,6 +23,10 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
+  // `forbidden()` throws, as the real one does, so the page below it never renders.
+  forbidden: vi.fn(() => {
+    throw new Error("FORBIDDEN");
+  }),
 }));
 
 import {
@@ -371,12 +375,12 @@ describe("requirePartnerScope (VI-F03-S05)", () => {
     );
   });
 
-  it("should send a user without the permission to /forbidden", async () => {
+  it("should answer forbidden to a user without the permission", async () => {
     getAuthUserMock.mockResolvedValue(AUTH_USER);
     singleMock.mockResolvedValue({ data: ACTIVE_ROW, error: null });
 
     await expect(requirePartnerScope("seats:view_own_partner")).rejects.toThrow(
-      "REDIRECT:/forbidden",
+      "FORBIDDEN",
     );
   });
 });
@@ -401,15 +405,15 @@ describe("requireRole", () => {
     expect(user).toEqual(ACTIVE_USER);
   });
 
-  it("should redirect to /forbidden when the user's role is not in the allowed list", async () => {
+  it("should answer forbidden when the user's role is not in the allowed list", async () => {
     getAuthUserMock.mockResolvedValue(AUTH_USER);
     singleMock.mockResolvedValue({
-      data: { ...ACTIVE_ROW, role: "partner_user" },
+      data: { ...ACTIVE_ROW, role: "technician" },
       error: null,
     });
 
     await expect(requireRole(["operations_manager"])).rejects.toThrow(
-      "REDIRECT:/forbidden",
+      "FORBIDDEN",
     );
   });
 
@@ -446,15 +450,20 @@ describe("requirePermission", () => {
     expect(user).toEqual(ACTIVE_USER);
   });
 
-  it("should redirect to /forbidden when the user's role lacks the required permission", async () => {
+  it("should answer forbidden when the user's role lacks the required permission", async () => {
     getAuthUserMock.mockResolvedValue(AUTH_USER);
     singleMock.mockResolvedValue({
-      data: { ...ACTIVE_ROW, role: "partner_user" },
+      data: {
+        ...ACTIVE_ROW,
+        role: "partner_user",
+        partner_id: "partner-1",
+        partner: { status: "active" },
+      },
       error: null,
     });
 
     await expect(requirePermission("jobs:view_assigned")).rejects.toThrow(
-      "REDIRECT:/forbidden",
+      "FORBIDDEN",
     );
   });
 
@@ -504,25 +513,23 @@ describe("requireAnyPermission", () => {
     expect(user.role).toBe("partner_user");
   });
 
-  it("should redirect to /forbidden when the role holds none of the listed permissions", async () => {
+  it("should answer forbidden when the role holds none of the listed permissions", async () => {
     getAuthUserMock.mockResolvedValue(AUTH_USER);
     singleMock.mockResolvedValue({ data: ACTIVE_ROW, error: null });
 
     await expect(requireAnyPermission(BOOKING_PERMISSIONS)).rejects.toThrow(
-      "REDIRECT:/forbidden",
+      "FORBIDDEN",
     );
   });
 
-  it("should redirect to /forbidden when the permission list is empty", async () => {
+  it("should answer forbidden when the permission list is empty", async () => {
     getAuthUserMock.mockResolvedValue(AUTH_USER);
     singleMock.mockResolvedValue({
       data: { ...ACTIVE_ROW, role: "admin" },
       error: null,
     });
 
-    await expect(requireAnyPermission([])).rejects.toThrow(
-      "REDIRECT:/forbidden",
-    );
+    await expect(requireAnyPermission([])).rejects.toThrow("FORBIDDEN");
   });
 
   it("should let admin through without an explicit grant", async () => {
