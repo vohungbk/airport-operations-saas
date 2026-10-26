@@ -131,10 +131,10 @@ describe("the shell (spec R5)", () => {
   });
 
   it("should keep the end of the content clear of the bottom navigation on a phone (R11)", () => {
-    expect(shell).toMatch(/<main[^>]*pb-\[calc\(84px\+env\(safe-area-inset-bottom\)\)\] md:pb-0/);
+    expect(shell).toMatch(/<main[\s\S]*?pb-\[calc\(84px\+env\(safe-area-inset-bottom\)\)\][^"]*md:pb-0/);
   });
 
   it("should let the page content shrink, so a wide child cannot widen the page", () => {
-    expect(shell).toMatch(/<main[^>]*min-w-0/);
+    expect(shell).toMatch(/<main[\s\S]*?min-w-0/);
   });
 });

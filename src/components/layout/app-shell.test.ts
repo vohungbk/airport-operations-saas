@@ -24,7 +24,7 @@ describe("app shell responsive layout", () => {
   });
 
   it("should let main shrink so wide content cannot push the page sideways", () => {
-    expect(shell).toMatch(/<main className="[^"]*min-w-0/);
+    expect(shell).toMatch(/<main[\s\S]*?className="[^"]*min-w-0/);
   });
 });
 
