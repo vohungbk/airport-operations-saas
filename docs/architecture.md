@@ -611,3 +611,33 @@ starts, to a Postgres schema/table group protected by RLS.
 - **Not here.** The pages of the design that do not exist yet (History, Scan,
   KPI), and a Permission Denied state inside the shell.
 
+
+#### UI-F02-S04 — the menu per role
+
+- **Menus.** Admin and operations manager have the full menu (`NAV_ITEMS`).
+  The technician and the partner user have a shorter one of their own
+  (`ROLE_MENUS` in `src/config/nav.ts`): technician, Today's Jobs and
+  Incidents; partner user, Overview, Rentals, Seats and Finance. Each item is
+  still filtered by the permission of the role on the server
+  (`getVisibleNavItems`). My History, KPI, ROI and Assistant of the spec are
+  not listed because their pages do not exist yet. A menu is only a look: the
+  pages are guarded on the server (spec R9), and a role can still open a page
+  it holds the permission for even when the page is not in its menu.
+- **Icons and the current item.** The client looks an icon up by address
+  (`getNavIcon`), since a menu item of a role is not always in the full menu.
+  `findActiveHref` marks only the item with the longest matching address, so
+  `/partner/seats` does not light up Overview as well. The bottom bar of a
+  phone follows the role menus (`MOBILE_NAV_PRIORITY`).
+- **403 inside the shell (spec E4).** `requirePermission`,
+  `requireAnyPermission` and `requireRole` call `forbidden()` instead of
+  redirecting. Next.js answers 403 and renders `forbidden.tsx` of the nearest
+  group inside its layout. For that, each group (`(admin)`, `(dashboard)`,
+  `(partner)`, `(technician)`) has one layout that checks the sign-in and
+  provides the shell, and a `forbidden.tsx` with "Access denied". The layout of
+  each area below it only checks the permission. Before, every area had its own
+  shell and its own redirect. This needs `experimental.authInterrupts` in
+  `next.config.ts`, an experimental option of Next.js.
+- **No profile, no partner (spec E1).** A user with no valid profile, no
+  partner or an inactive partner still goes to `/forbidden`: no shell, only
+  Sign out, and a reason for the partner cases.
+

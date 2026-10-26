@@ -12,9 +12,8 @@ export const MAX_BOTTOM_ITEMS = 4;
 export const MOBILE_NAV_PRIORITY: Record<Role, readonly string[]> = {
   admin: ["/dashboard", "/bookings", "/jobs", "/incidents"],
   operations_manager: ["/dashboard", "/bookings", "/jobs", "/incidents"],
-  technician: ["/technician", "/jobs", "/incidents", "/dashboard"],
-  // /dashboard is left out: it sends a partner user on to /partner.
-  partner_user: ["/partner", "/bookings", "/incidents", "/settlements"],
+  technician: ["/technician", "/incidents"],
+  partner_user: ["/partner", "/bookings", "/partner/seats", "/settlements"],
 };
 
 export interface MobileNavSplit<T> {

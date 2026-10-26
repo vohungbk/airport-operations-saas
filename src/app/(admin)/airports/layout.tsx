@@ -1,14 +1,17 @@
 import type { ReactNode } from "react";
 
 import { requirePermission } from "@/lib/auth/current-user";
-import { AppShell } from "@/components/layout/app-shell";
 
 interface AirportsLayoutProps {
   children: ReactNode;
 }
 
+/**
+ * Guard only: the layout of `(admin)` already provides `AppShell`. A user without the
+ * permission gets a 403 inside that shell (`forbidden()`).
+ */
 export default async function AirportsLayout({ children }: AirportsLayoutProps) {
-  const user = await requirePermission("airports:manage");
+  await requirePermission("airports:manage");
 
-  return <AppShell user={user}>{children}</AppShell>;
+  return <>{children}</>;
 }

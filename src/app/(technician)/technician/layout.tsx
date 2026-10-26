@@ -1,16 +1,17 @@
 import type { ReactNode } from "react";
 
 import { requirePermission } from "@/lib/auth/current-user";
-import { AppShell } from "@/components/layout/app-shell";
 
 interface TechnicianLayoutProps {
   children: ReactNode;
 }
 
-export default async function TechnicianLayout({
-  children,
-}: TechnicianLayoutProps) {
-  const user = await requirePermission("jobs:view_assigned");
+/**
+ * Guard only: the layout of `(technician)` already provides `AppShell`. A user without the
+ * permission gets a 403 inside that shell (`forbidden()`).
+ */
+export default async function TechnicianLayout({ children }: TechnicianLayoutProps) {
+  await requirePermission("jobs:view_assigned");
 
-  return <AppShell user={user}>{children}</AppShell>;
+  return <>{children}</>;
 }
