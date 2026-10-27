@@ -31,10 +31,7 @@ const BASELINE = new Map<string, number>([
   ["features/installations/components/installation-form.tsx", 1],
   ["features/jobs/components/change-job-status-dialog.tsx", 2],
   ["features/jobs/components/create-job-form.tsx", 1],
-  ["features/seat-categories/components/seat-category-form.tsx", 2],
-  ["features/seats/components/change-seat-status-dialog.tsx", 2],
   ["features/seats/components/partner-seats-filters.tsx", 1],
-  ["features/seats/components/seat-form.tsx", 1],
 ].map(([file, count]) => [join(...(file as string).split("/")), count as number]));
 
 const countsOf = () =>

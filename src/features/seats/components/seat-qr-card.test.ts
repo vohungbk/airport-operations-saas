@@ -38,10 +38,10 @@ describe("SeatQrCard", () => {
     expect(html).toContain(">Print<");
   });
 
-  it("should print only the code and the serial number, hiding the heading and the buttons", () => {
+  it("should print only the code and the serial number, hiding the heading, the note and the buttons", () => {
     const html = render();
 
-    expect(html.match(/print:hidden/g)?.length).toBe(2);
+    expect(html.match(/print:hidden/g)?.length).toBe(3);
   });
 
   it("should show the same image whatever the serial number says (AC04)", () => {
