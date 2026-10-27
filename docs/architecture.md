@@ -719,3 +719,31 @@ starts, to a Postgres schema/table group protected by RLS.
   library is open work.
 - **No gallery.** There is no gallery route or menu item, so `/gallery`
   answers not-found in every build. A test fails if one is added.
+
+
+#### UI-F04-S05 — keeping the components safe
+
+- **Where.** The domain components in `src/components/domain`. The checks are in
+  `src/lib/components/component-guard.ts` and run in
+  `component-guard.test.ts`. They read the source text, so they are a floor:
+  the server checks of role and row level security stay the real boundary.
+- **Real data only (R9).** A part takes its data as props. It must not import a
+  feature, the database client, the demo data or the request headers, must not
+  call `fetch`, the clock or `Math.random`, and must not write a figure into the
+  markup (`{42}`, `12.50`). A time is passed in (`now`, `formatTime`), as the
+  flight card does.
+- **Icon and text (R12).** A `Badge` or `Alert` with a state variant, and any
+  element with a state color (`text-danger-fg`, `bg-success-bg`, ...), must hold
+  an icon and text. A variant the check cannot read counts as a state. Neutral
+  variants (`outline`, `secondary`, ...) need none. `StatusBadge` is covered by
+  `domain-status.test.ts`.
+- **Scope (R13).** A shared part holds no form, no server action and no
+  `"use server"`. No domain part and no file of the partner area may import a
+  module whose path names an internal-only part: `adjustment`,
+  `commercial-terms`, `simulator`. The names of labels (`ADJUSTMENT_LABEL`) are
+  not looked at, only module paths. Add a word to `INTERNAL_ONLY_MODULE` when
+  another staff-only part appears.
+- **Not here.** Components under `src/features` are not scanned; some of them
+  still format dates themselves. Hiding a part from a partner is not an access
+  check: the partner screens guard on the server (`requirePartnerScope`) and
+  RLS filters the rows.
