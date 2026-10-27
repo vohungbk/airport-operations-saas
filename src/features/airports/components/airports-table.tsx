@@ -1,6 +1,6 @@
-import Link from "next/link";
-
+import { TextLink } from "@/components/ui/text-link";
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -45,23 +45,16 @@ function buildSortHref(query: AirportsQuery, column: AirportsSortColumn): string
  */
 export function AirportsTable({ airports, query }: AirportsTableProps) {
   return (
-    <Table>
+    <Table stacked>
       <TableHeader>
         <TableRow>
           {SORTABLE_COLUMNS.map((column) => (
-            <TableHead key={column.key}>
-              <Link
-                href={buildSortHref(query, column.key)}
-                className="flex items-center gap-1 hover:text-foreground"
-              >
-                {column.label}
-                {query.sort === column.key && (
-                  <span aria-hidden="true">
-                    {query.order === "asc" ? "↑" : "↓"}
-                  </span>
-                )}
-              </Link>
-            </TableHead>
+            <SortableTableHead
+              key={column.key}
+              href={buildSortHref(query, column.key)}
+              label={column.label}
+              direction={query.sort === column.key ? query.order : null}
+            />
           ))}
           <TableHead>Timezone</TableHead>
           <TableHead className="text-right">Actions</TableHead>
@@ -70,18 +63,17 @@ export function AirportsTable({ airports, query }: AirportsTableProps) {
       <TableBody>
         {airports.map((airport) => (
           <TableRow key={airport.id}>
-            <TableCell className="font-medium">{airport.code}</TableCell>
-            <TableCell>{airport.name}</TableCell>
-            <TableCell>{airport.city}</TableCell>
-            <TableCell>{airport.country}</TableCell>
-            <TableCell>{airport.timezone}</TableCell>
-            <TableCell className="text-right">
-              <Link
-                href={`/airports/${airport.id}`}
-                className="text-primary underline-offset-4 hover:underline"
-              >
+            <TableCell data-label="Code" className="font-medium">
+              {airport.code}
+            </TableCell>
+            <TableCell data-label="Name">{airport.name}</TableCell>
+            <TableCell data-label="City">{airport.city}</TableCell>
+            <TableCell data-label="Country">{airport.country}</TableCell>
+            <TableCell data-label="Timezone">{airport.timezone}</TableCell>
+            <TableCell data-label="Actions" className="text-right">
+              <TextLink href={`/airports/${airport.id}`} aria-label={`View airport ${airport.code}`}>
                 View
-              </Link>
+              </TextLink>
             </TableCell>
           </TableRow>
         ))}

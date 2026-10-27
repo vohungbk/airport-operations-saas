@@ -31,6 +31,7 @@ export function CreateSeatForm({ options }: CreateSeatFormProps) {
       <SeatForm
         mode="create"
         register={register}
+        control={form.control}
         errors={errors}
         isPending={isPending}
         options={options}

@@ -45,6 +45,7 @@ export function EditSeatForm({ seat, options }: EditSeatFormProps) {
       <SeatForm
         mode="edit"
         register={register}
+        control={form.control}
         errors={errors}
         isPending={isPending}
         options={options}

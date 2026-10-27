@@ -1,6 +1,6 @@
-import Link from "next/link";
-
+import { TextLink } from "@/components/ui/text-link";
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -49,23 +49,16 @@ function buildSortHref(query: PartnersQuery, column: PartnersSortColumn): string
  */
 export function PartnersTable({ partners, query }: PartnersTableProps) {
   return (
-    <Table>
+    <Table stacked>
       <TableHeader>
         <TableRow>
           {SORTABLE_COLUMNS.map((column) => (
-            <TableHead key={column.key}>
-              <Link
-                href={buildSortHref(query, column.key)}
-                className="flex items-center gap-1 hover:text-foreground"
-              >
-                {column.label}
-                {query.sort === column.key && (
-                  <span aria-hidden="true">
-                    {query.order === "asc" ? "↑" : "↓"}
-                  </span>
-                )}
-              </Link>
-            </TableHead>
+            <SortableTableHead
+              key={column.key}
+              href={buildSortHref(query, column.key)}
+              label={column.label}
+              direction={query.sort === column.key ? query.order : null}
+            />
           ))}
           <TableHead>Contact email</TableHead>
           <TableHead>Active bookings</TableHead>
@@ -75,28 +68,28 @@ export function PartnersTable({ partners, query }: PartnersTableProps) {
       <TableBody>
         {partners.map((partner) => (
           <TableRow key={partner.id}>
-            <TableCell className="font-medium">{partner.name}</TableCell>
-            <TableCell>{partner.code}</TableCell>
-            <TableCell>
+            <TableCell data-label="Name" className="font-medium">
+              {partner.name}
+            </TableCell>
+            <TableCell data-label="Code">{partner.code}</TableCell>
+            <TableCell data-label="Status">
               <PartnerStatusBadge status={partner.status} />
             </TableCell>
-            <TableCell>
+            <TableCell data-label="Created">
               {new Date(partner.created_at).toLocaleDateString()}
             </TableCell>
-            <TableCell>{partner.contact_email}</TableCell>
+            <TableCell data-label="Contact email">{partner.contact_email}</TableCell>
             <TableCell
+              data-label="Active bookings"
               className="text-sm text-muted-foreground"
               title="Available once Booking Management (F11) ships"
             >
               Not available yet
             </TableCell>
-            <TableCell className="text-right">
-              <Link
-                href={`/partners/${partner.id}`}
-                className="text-primary underline-offset-4 hover:underline"
-              >
+            <TableCell data-label="Actions" className="text-right">
+              <TextLink href={`/partners/${partner.id}`} aria-label={`View partner ${partner.name}`}>
                 View
-              </Link>
+              </TextLink>
             </TableCell>
           </TableRow>
         ))}

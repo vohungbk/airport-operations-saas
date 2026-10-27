@@ -26,6 +26,7 @@ export function CreateSeatCategoryForm() {
       <SeatCategoryForm
         mode="create"
         register={register}
+        control={form.control}
         errors={errors}
         isPending={isPending}
       />

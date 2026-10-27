@@ -1,11 +1,13 @@
 "use client";
 
-import type {
-  FieldError,
-  FieldErrors,
-  FieldValues,
-  Path,
-  UseFormRegister,
+import {
+  Controller,
+  type Control,
+  type FieldError,
+  type FieldErrors,
+  type FieldValues,
+  type Path,
+  type UseFormRegister,
 } from "react-hook-form";
 
 import {
@@ -15,8 +17,9 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   CreateSeatCategoryInput,
   UpdateSeatCategoryInput,
@@ -25,6 +28,8 @@ import type {
 type CreateModeProps = {
   mode: "create";
   register: UseFormRegister<CreateSeatCategoryInput>;
+  /** For the `is_active` checkbox, which is a part of the library and not a native input. */
+  control: Control<CreateSeatCategoryInput>;
   errors: FieldErrors<CreateSeatCategoryInput>;
   isPending: boolean;
 };
@@ -105,15 +110,12 @@ function TextareaField<
   return (
     <Field data-invalid={!!error}>
       <FieldLabel htmlFor={name}>{label}</FieldLabel>
-      <textarea
+      <Textarea
         id={name}
         rows={3}
         aria-invalid={!!error}
         aria-describedby={describedBy(name, error, hint)}
         disabled={isPending}
-        className={cn(
-          "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30",
-        )}
         {...register(name)}
       />
       {hint && <FieldDescription id={`${name}-hint`}>{hint}</FieldDescription>}
@@ -135,7 +137,7 @@ export function SeatCategoryForm(props: SeatCategoryFormProps) {
   const { isPending } = props;
 
   if (props.mode === "create") {
-    const { register, errors } = props;
+    const { register, control, errors } = props;
 
     return (
       <FieldGroup>
@@ -178,14 +180,23 @@ export function SeatCategoryForm(props: SeatCategoryFormProps) {
           hint="e.g. ECE R129 (i-Size)"
         />
         <Field orientation="horizontal">
-          <input
-            id="is_active"
-            type="checkbox"
-            disabled={isPending}
-            className="size-4 rounded border-input focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-            {...register("is_active")}
+          <Controller
+            control={control}
+            name="is_active"
+            render={({ field }) => (
+              <Checkbox
+                id="is_active"
+                aria-labelledby="is_active-label"
+                checked={!!field.value}
+                onCheckedChange={(checked) => field.onChange(checked)}
+                onBlur={field.onBlur}
+                disabled={isPending}
+              />
+            )}
           />
-          <FieldLabel htmlFor="is_active">Active</FieldLabel>
+          <FieldLabel id="is_active-label" htmlFor="is_active">
+            Active
+          </FieldLabel>
         </Field>
       </FieldGroup>
     );

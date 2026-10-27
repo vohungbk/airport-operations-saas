@@ -1,12 +1,4 @@
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { SeatStatusBadge } from "@/features/seats/components/seat-status-badge";
+import { SeatHistoryTimeline } from "@/components/domain/seat-history-timeline";
 import {
   SEAT_HISTORY_LIMIT,
   type SeatHistoryItem,
@@ -17,7 +9,14 @@ interface SeatStatusHistoryProps {
   truncated?: boolean;
 }
 
-/** Read-only: the log is append-only in the database, with no edit UI. */
+/** The time of a change as it was shown before the restyle (UI-F06-S02, spec R8): no new time zone. */
+const formatChangeTime = (iso: string) => new Date(iso).toLocaleString();
+
+/**
+ * Read-only: the log is append-only in the DB, with no edit UI. The changes are shown as the shared
+ * `SeatHistoryTimeline` (UI-F06-S02): newest first, each from the old status to the new one, with who
+ * made it and why.
+ */
 export function SeatStatusHistory({
   history,
   truncated = false,
@@ -35,38 +34,17 @@ export function SeatStatusHistory({
           No status changes recorded.
         </p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>When</TableHead>
-              <TableHead>From</TableHead>
-              <TableHead>To</TableHead>
-              <TableHead>Changed by</TableHead>
-              <TableHead>Reason</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {history.map((entry) => (
-              <TableRow key={entry.id}>
-                <TableCell>
-                  {new Date(entry.created_at).toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  {entry.from_status ? (
-                    <SeatStatusBadge status={entry.from_status} />
-                  ) : (
-                    <span className="text-muted-foreground">Created</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <SeatStatusBadge status={entry.to_status} />
-                </TableCell>
-                <TableCell>{entry.changed_by_user?.full_name ?? "-"}</TableCell>
-                <TableCell>{entry.reason ?? "-"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <SeatHistoryTimeline
+          formatTime={formatChangeTime}
+          history={history.map((entry) => ({
+            id: entry.id,
+            from_status: entry.from_status,
+            to_status: entry.to_status,
+            changed_by: entry.changed_by_user?.full_name ?? null,
+            created_at: entry.created_at,
+            reason: entry.reason,
+          }))}
+        />
       )}
       {truncated ? (
         <p className="text-sm text-muted-foreground">
