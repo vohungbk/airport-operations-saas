@@ -747,3 +747,30 @@ starts, to a Postgres schema/table group protected by RLS.
   still format dates themselves. Hiding a part from a partner is not an access
   check: the partner screens guard on the server (`requirePartnerScope`) and
   RLS filters the rows.
+
+
+#### UI-F05-S01 — the chart library
+
+- **Library (open question Q1 of the spec).** Recharts, pinned at `3.10.1`. It was chosen
+  with the shadcn/ui family in mind and for what it brings: tooltips, a legend and keyboard
+  support. `react-is` is overridden to the React version (`19.2.8`) in `package.json`, as
+  Recharts asks for with React 19. If the PO chooses another library, only
+  `src/components/charts` changes (R6).
+- **One door.** Only `src/components/charts` imports the library. `chart-guard.test.ts` fails
+  when any other file imports Recharts or another chart library. A screen uses the chart
+  parts, never the library.
+- **The frame.** `ChartFrame` is the shell of every chart: title, text legend, the switch to a
+  table of the same numbers (`ChartDataTable`, full numbers), and the states Loading, Error
+  with retry, Permission Denied and Empty. A chart whose values are all 0 or all missing is
+  Empty, and data with gaps carries a note (R10). A chart that is loading, failed or not
+  allowed never shows the data it was given.
+- **Size.** `ChartContainer` takes the width of its parent and sets no width of its own, so a
+  chart reflows with the screen (R11). Its height is one of three sizes. The real check at
+  390 px needs a screen that draws a chart; the tests check the classes.
+- **Colors.** A chart is painted with `var(--chart-1)` to `var(--chart-6)` and
+  `var(--chart-grid)` only (R8; `src/lib/charts/chart-tokens.ts`). After the sixth series the
+  colors start again and the pattern moves on, so neighbouring series differ by more than color
+  (R7). `chart-guard.test.ts` checks the paint of every chart part.
+- **Not here.** The chart types (bar, stacked, donut, line, KPI, sparkline) are UI-F05-S02 to
+  S04, the accessibility checks UI-F05-S05, and replacing the dashboard bars is part of those.
+  There is no gallery, so the journey of AC05 cannot be walked on a screen yet.
