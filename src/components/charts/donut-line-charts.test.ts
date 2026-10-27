@@ -133,7 +133,7 @@ describe("LineTrendChart", () => {
   it("should say there is no data, not draw a line of zeros", () => {
     const out = line({ series: months(0, 0, 0) });
     expect(out).toContain("No data to chart yet.");
-    expect(out).not.toContain('role="img"');
+    expect(out).not.toContain('role="group"');
   });
 
   it("should keep the full number for the screen reader when a point shows 1.3M (E3)", () => {

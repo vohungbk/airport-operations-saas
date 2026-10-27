@@ -105,7 +105,7 @@ describe("KpiComparisonTile", () => {
   it("should draw no trend line for one value, or for none", () => {
     expect(tile({ trend: trend(100) })).not.toContain("trend:");
     expect(tile({ trend: [] })).not.toContain("trend:");
-    expect(tile()).not.toContain('role="img"');
+    expect(tile()).not.toContain('role="group"');
   });
 });
 

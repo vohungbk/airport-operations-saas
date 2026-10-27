@@ -135,7 +135,7 @@ describe("ChartContainer", () => {
 
   it("should name the chart for a screen reader", () => {
     const out = container();
-    expect(out).toContain('role="img"');
+    expect(out).toContain('role="group"');
     expect(out).toContain('aria-label="Seats by status"');
   });
 
