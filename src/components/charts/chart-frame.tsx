@@ -1,8 +1,11 @@
 "use client"
 
+import { useId } from "react"
+
 import { BanIcon, ChartNoAxesColumnIcon, CircleAlertIcon, InfoIcon, RotateCcwIcon, TableIcon } from "lucide-react"
 
 import { ChartDataTable } from "@/components/charts/chart-data-table"
+import { SeriesSwatch, patternId } from "@/components/charts/chart-patterns"
 import { useChartView } from "@/components/charts/use-chart-view"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -22,6 +25,8 @@ interface ChartFrameProps {
   on_retry?: () => void
   /** Said under a chart that has gaps. */
   gap_note?: string
+  /** The legend shows the pattern of each series as well as its color, for charts that stack series (spec R7). */
+  legend_patterns?: boolean
   /** The heading of the first column of the table view. */
   label_heading?: string
   /** The chart, drawn by a chart component inside a `ChartContainer`. */
@@ -34,9 +39,10 @@ interface ChartFrameProps {
  * switch to a table of the same numbers, and the states Loading, Error with retry, Permission
  * Denied and Empty. A chart of zeros is Empty, and data with gaps carries a note.
  */
-function ChartFrame({ title, description, status, series, on_retry, gap_note = "Some data is missing, so this chart may be incomplete.", label_heading, children, className }: ChartFrameProps) {
+function ChartFrame({ title, description, status, series, on_retry, gap_note = "Some data is missing, so this chart may be incomplete.", legend_patterns = false, label_heading, children, className }: ChartFrameProps) {
   const state = chartFrameState(status, series)
   const { view, toggle } = useChartView()
+  const swatchId = patternId(useId())
   const hasChart = state === "ready" || state === "partial"
 
   return (
@@ -98,7 +104,11 @@ function ChartFrame({ title, description, status, series, on_retry, gap_note = "
                 <ul data-slot="chart-legend" className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
                   {series.map((s, index) => (
                     <li key={s.name} className="flex min-w-0 items-center gap-1.5">
-                      <span aria-hidden="true" className="size-2.5 shrink-0 rounded-sm bg-(--swatch)" style={{ "--swatch": seriesColor(index) } as React.CSSProperties} />
+                      {legend_patterns ? (
+                        <SeriesSwatch id={swatchId} index={index} />
+                      ) : (
+                        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-sm bg-(--swatch)" style={{ "--swatch": seriesColor(index) } as React.CSSProperties} />
+                      )}
                       <span className="min-w-0 break-words">{s.name}</span>
                     </li>
                   ))}
