@@ -774,3 +774,30 @@ starts, to a Postgres schema/table group protected by RLS.
 - **Not here.** The chart types (bar, stacked, donut, line, KPI, sparkline) are UI-F05-S02 to
   S04, the accessibility checks UI-F05-S05, and replacing the dashboard bars is part of those.
   There is no gallery, so the journey of AC05 cannot be walked on a screen yet.
+
+
+#### UI-F05-S05 — keeping the charts honest and accessible
+
+- **Where.** `src/components/charts`. The checks are in `src/lib/charts/chart-guard.ts`, run by
+  `chart-guard.test.ts`, and the rules are exercised on every kind of chart in
+  `chart-honesty.test.ts`. They read the source, so they are a floor.
+- **One frame (R10).** A chart element of the library must sit in a `ChartFrame`, so a chart of
+  zeros or of nothing says "No data", a gap carries a note, and a chart that is loading, failed or
+  not allowed never shows its values: not in the legend, the label, the table or the print table.
+  The sparkline is the one exception (a small line inside a KPI tile that holds the numbers as text,
+  drawn only when `sparklineReady`); a test keeps that exemption honest.
+- **Told apart by more than color (R7).** A chart of several series sets `legend_style` to
+  `pattern` (stacked bars, donut) or `marker` (lines); the guard fails on `color`.
+- **Table view (R5, NAV-1).** Every chart has a "View as table" button (a real button, so a keyboard
+  reaches and presses it) and a table of the same numbers, whole, with a gap as a dash.
+- **Keyboard and screen reader (E5).** Every chart turns on `accessibilityLayer`: Tab reaches the
+  drawing and the arrow keys move between its values, which are read out. The drawing is given a
+  name (`withChartName`) and sits in `role="group"` whose label lists every value. It used to sit in
+  `role="img"`, which made the focusable drawing inside it nameless; this was found by tabbing to it.
+- **Error (E4).** The retry button works even when a screen gives no handler: it reads the page again.
+  A screen should still pass `on_retry` to refresh only its data.
+- **Print (E6).** The Dark values apply outside print only (`@media not print`), so a chart prints in
+  the Light theme. On paper the switch and the retry are hidden and the numbers of the chart are
+  printed as a table under it, since paper has no tooltip. A test reads `globals.css` for the print
+  rule; the print preview itself was not looked at.
+- **Not here.** Components outside `src/components/charts`, and a check of a real print preview.

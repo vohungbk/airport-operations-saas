@@ -53,7 +53,7 @@ function HorizontalBarChart({ title, description, status, items, series_name, on
       className={className}
     >
       <div data-slot="bar-chart-scroll" className={cn("min-w-0", needsScroll(height) && "max-h-96 overflow-y-auto")}>
-        <ChartContainer label={describeBars(title, items)} height={height}>
+        <ChartContainer label={describeBars(title, items)} name={title} height={height}>
           <BarChart layout="vertical" data={[...items]} margin={{ top: 4, right: 48, bottom: 4, left: 0 }} accessibilityLayer>
             <CartesianGrid horizontal={false} stroke={CHART_GRID_COLOR} />
             <XAxis type="number" hide />
