@@ -32,7 +32,7 @@ function Sparkline({ label, points, className }: SparklineProps) {
   const last = lastKnownIndex(points)
 
   return (
-    <ChartContainer label={describeSparkline(label, points)} size="xs" className={className}>
+    <ChartContainer label={describeSparkline(label, points)} name={`${label} trend`} size="xs" className={className}>
       <LineChart data={points.map((p) => ({ label: p.label, value: p.value }))} margin={{ top: 4, right: 6, bottom: 4, left: 6 }}>
         <XAxis dataKey="label" hide />
         <YAxis hide domain={["dataMin", "dataMax"]} />

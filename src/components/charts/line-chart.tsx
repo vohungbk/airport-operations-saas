@@ -53,7 +53,7 @@ function LineTrendChart({ title, description, status, series, on_retry, gap_note
 
   return (
     <ChartFrame title={title} description={description} status={status} series={series} on_retry={on_retry} gap_note={gap_note} legend_style="marker" label_heading={label_heading} className={className}>
-      <ChartContainer label={describeLines(title, series)} size="md">
+      <ChartContainer label={describeLines(title, series)} name={title} size="md">
         <LineChart data={rows} margin={{ top: 20, right: 16, bottom: 4, left: 0 }} accessibilityLayer>
           <CartesianGrid vertical={false} stroke={CHART_GRID_COLOR} />
           <XAxis dataKey="label" tickLine={false} axisLine={false} interval="preserveStartEnd" padding={{ left: 20, right: 20 }} tick={AXIS_TICK} />

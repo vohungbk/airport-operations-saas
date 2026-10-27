@@ -43,7 +43,7 @@ const manyItems = (count: number) => Array.from({ length: count }, (_, i) => ({ 
 describe("HorizontalBarChart", () => {
   it("should name every bar with its value for a screen reader", () => {
     const out = bars();
-    expect(out).toContain('role="img"');
+    expect(out).toContain('role="group"');
     expect(out).toContain('aria-label="Seats by status: Available 12, Reserved 3"');
   });
 
@@ -83,7 +83,7 @@ describe("HorizontalBarChart", () => {
   it("should say there is no data, not draw bars of zeros", () => {
     const out = bars({ items: [{ label: "Available", value: 0 }, { label: "Reserved", value: 0 }] });
     expect(out).toContain("No data to chart yet.");
-    expect(out).not.toContain('role="img"');
+    expect(out).not.toContain('role="group"');
   });
 
   it("should draw with a note when a value is missing", () => {

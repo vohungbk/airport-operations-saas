@@ -26,6 +26,9 @@ interface KpiComparisonTileProps {
   className?: string
 }
 
+/** The retry of a tile whose screen gave no handler: read the page again, which runs the data call again. */
+const reloadPage = () => window.location.reload()
+
 const CHANGE_ICON: Record<ChangeDirection, typeof ArrowUpIcon> = {
   up: ArrowUpIcon,
   down: ArrowDownIcon,
@@ -63,7 +66,7 @@ function KpiComparisonTile({ label, status, current, previous, period_labels = D
               <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
               This figure could not be loaded.
             </p>
-            <Button type="button" variant="outline" size="sm" onClick={on_retry}>
+            <Button type="button" variant="outline" size="sm" onClick={on_retry ?? reloadPage}>
               <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
               Retry
             </Button>

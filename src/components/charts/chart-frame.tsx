@@ -7,7 +7,7 @@ import { BanIcon, ChartNoAxesColumnIcon, CircleAlertIcon, InfoIcon, RotateCcwIco
 import { ChartDataTable } from "@/components/charts/chart-data-table"
 import { MarkerSwatch } from "@/components/charts/chart-markers"
 import { SeriesSwatch, patternId } from "@/components/charts/chart-patterns"
-import { useChartView } from "@/components/charts/use-chart-view"
+import { useChartView, type ChartView } from "@/components/charts/use-chart-view"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,6 +42,8 @@ interface ChartFrameProps {
   legend_style?: LegendStyle
   /** The table of the table view, when it has more than the series give (a donut adds a share). */
   table?: ChartTable
+  /** Which view the frame opens on. Always `chart` for a person; a test opens on `table` to look at it. */
+  initial_view?: ChartView
   /** The heading of the first column of the table view. */
   label_heading?: string
   /** The chart, drawn by a chart component inside a `ChartContainer`. */
@@ -49,17 +51,21 @@ interface ChartFrameProps {
   className?: string
 }
 
+/** The retry of a chart whose screen gave no handler: read the page again, which runs the data call again. */
+const reloadPage = () => window.location.reload()
+
 /**
  * The frame every chart sits in (UI-F05-S01, spec §5.1, R5, R7, R10, E4): title, a text legend, the
  * switch to a table of the same numbers, and the states Loading, Error with retry, Permission
  * Denied and Empty. A chart of zeros is Empty, and data with gaps carries a note.
  */
-function ChartFrame({ title, description, status, series, on_retry, gap_note = "Some data is missing, so this chart may be incomplete.", legend_items, legend_style = "color", table, label_heading, children, className }: ChartFrameProps) {
+function ChartFrame({ title, description, status, series, on_retry, gap_note = "Some data is missing, so this chart may be incomplete.", legend_items, legend_style = "color", table, initial_view, label_heading, children, className }: ChartFrameProps) {
   const state = chartFrameState(status, series)
-  const { view, toggle } = useChartView()
+  const { view, toggle } = useChartView(initial_view)
   const swatchId = patternId(useId())
   const hasChart = state === "ready" || state === "partial"
   const legend: readonly LegendItem[] = legend_items ?? series.map((s) => ({ name: s.name }))
+  const dataTable = <ChartDataTable table={table ?? toChartTable(series, label_heading)} caption={`${title}: the numbers of the chart`} />
 
   return (
     <Card data-slot="chart-frame" data-state={state} aria-busy={state === "loading" || undefined} className={cn("min-w-0", className)}>
@@ -70,7 +76,7 @@ function ChartFrame({ title, description, status, series, on_retry, gap_note = "
             {description && <p className="text-sm text-muted-foreground">{description}</p>}
           </div>
           {hasChart && (
-            <Button type="button" variant="outline" size="sm" onClick={toggle}>
+            <Button type="button" variant="outline" size="sm" onClick={toggle} className="print:hidden">
               <TableIcon data-icon="inline-start" aria-hidden="true" />
               {view === "chart" ? "View as table" : "View as chart"}
             </Button>
@@ -90,7 +96,7 @@ function ChartFrame({ title, description, status, series, on_retry, gap_note = "
             <CircleAlertIcon aria-hidden="true" />
             <AlertTitle>This chart could not be loaded.</AlertTitle>
             <AlertDescription>
-              <Button type="button" variant="outline" size="sm" onClick={on_retry} className="mt-1">
+              <Button type="button" variant="outline" size="sm" onClick={on_retry ?? reloadPage} className="mt-1 print:hidden">
                 <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
                 Retry
               </Button>
@@ -132,9 +138,13 @@ function ChartFrame({ title, description, status, series, on_retry, gap_note = "
                     </li>
                   ))}
                 </ul>
+                {/* On paper there is no tooltip, so the numbers of the chart are printed under it (spec E6). */}
+                <div data-slot="chart-print-table" className="hidden print:block">
+                  {dataTable}
+                </div>
               </>
             ) : (
-              <ChartDataTable table={table ?? toChartTable(series, label_heading)} caption={`${title}: the numbers of the chart`} />
+              dataTable
             )}
             {state === "partial" && (
               <p data-slot="chart-gap-note" className="flex items-start gap-1.5 text-xs text-muted-foreground">

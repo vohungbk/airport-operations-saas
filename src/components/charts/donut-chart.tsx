@@ -47,7 +47,7 @@ function DonutChart({ title, description, status, items, series_name = "Count", 
       className={className}
     >
       <div data-slot="donut" className="relative min-w-0">
-        <ChartContainer label={describeSlices(title, data)} size="md">
+        <ChartContainer label={describeSlices(title, data)} name={title} size="md">
           <PieChart accessibilityLayer>
             <ChartPatternDefs id={id} count={data.slices.length} />
             <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={formatTooltipValue} />
