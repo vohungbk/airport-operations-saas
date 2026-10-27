@@ -8,12 +8,14 @@ import { cn } from "@/lib/utils"
 /*
  * The one place a screen's chart meets the chart library (UI-F05-S01, spec R6, R11). It takes the
  * width of its parent (`w-full min-w-0`) and never sets a width of its own, so a chart reflows
- * with the screen and does not push the page sideways at 390 px. The height is one of three sizes, or
+ * with the screen and does not push the page sideways at 390 px. The height is one of four sizes, or
  * a number of pixels when the chart grows with its data.
  */
 const chartContainerVariants = cva("w-full min-w-0 overflow-hidden", {
   variants: {
     size: {
+      /** A line in a tile (a sparkline). */
+      xs: "h-10",
       sm: "h-40",
       md: "h-60",
       lg: "h-80",
@@ -25,7 +27,7 @@ const chartContainerVariants = cva("w-full min-w-0 overflow-hidden", {
 })
 
 interface ChartContainerProps extends Omit<VariantProps<typeof chartContainerVariants>, "size"> {
-  size?: "sm" | "md" | "lg"
+  size?: "xs" | "sm" | "md" | "lg"
   /** A height in pixels, for a chart whose size follows its data (a bar for each category). It replaces `size`. */
   height?: number
   /** What the chart shows, read by a screen reader; the table view has the numbers. */
