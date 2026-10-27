@@ -801,3 +801,26 @@ starts, to a Postgres schema/table group protected by RLS.
   printed as a table under it, since paper has no tooltip. A test reads `globals.css` for the print
   rule; the print preview itself was not looked at.
 - **Not here.** Components outside `src/components/charts`, and a check of a real print preview.
+
+
+#### UI-F06-S01 — sign-in and system pages
+
+- **The groups.** `src/lib/restyle/screen-groups.ts` lists the screen groups to restyle in the order of the
+  plan (R12): sign-in and system pages, reference data, seat detail with QR, bookings, field operations,
+  incidents, dashboards. It is data, not a page: a test keeps it true (every file exists, the order is the
+  planned one) and a group is done only when all its screens are restyled and every check is done or
+  noted (E4). Update it in the story that restyles a group.
+- **What was changed.** The sign-in and system pages already used the shell, tokens and base components.
+  What was left was the touch size: a link written as plain text was 17 to 20 px high, under the 44 px of
+  R10. A link is now a `TextLink` (`src/components/ui/text-link.tsx`): the `link` look of the button, 44 px
+  on a touch screen, underlined. The error at the root is centered like the forbidden and not-found pages
+  (`PageError` with `centered`); inside a shell it stays an alert at the top of the content.
+  `restyle-guard.test.ts` fails when one of these pages writes a link as plain text.
+- **Same behavior (R8).** Addresses, words, actions and permissions did not change; a test checks the
+  addresses of the links.
+- **Design check (R13, E3).** No design frame for these pages was found in the readable part of the design
+  file (the Desktop and Mobile pages could not be read), so they are built from the base components and
+  noted for design review. The home page (`/`) is still the placeholder of the project start and is not
+  in R1.
+- **Checked by hand,** in Light and Dark and at 390 px: every link is 44 px high and the page does not scroll
+  sideways; the sign-in journey returns to the page that was asked for. No visual snapshot is stored (spec Q2).

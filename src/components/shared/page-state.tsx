@@ -67,11 +67,17 @@ interface PageMessageProps {
   title: string;
   description: string;
   children?: ReactNode;
+  role?: "alert";
 }
 
-function PageMessage({ title, description, children }: PageMessageProps) {
+/**
+ * The centered message of a page with no shell around it (forbidden, not found, a failed root page):
+ * a title, a sentence and what to do next. `role="alert"` is for a message that appears because
+ * something failed.
+ */
+export function PageMessage({ title, description, children, role }: PageMessageProps) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+    <div role={role} className="flex flex-1 flex-col items-center justify-center gap-4 bg-background px-6 text-center">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">
         {title}
       </h1>

@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { PageForbidden } from "@/components/shared/page-state";
 import { StandalonePage } from "@/components/shared/standalone-page";
+import { TextLink } from "@/components/ui/text-link";
 import { getAuthUser } from "@/lib/auth/session";
 import { LOGIN_ROUTE } from "@/lib/constants/routes";
 import { LogoutButton } from "@/features/auth/components/logout-button";
@@ -59,12 +58,9 @@ export default async function ForbiddenPage({
         {user ? (
           <LogoutButton />
         ) : (
-          <Link
-            href={LOGIN_ROUTE}
-            className="text-sm underline underline-offset-4 hover:text-foreground"
-          >
+          <TextLink href={LOGIN_ROUTE} className="text-sm">
             Sign in
-          </Link>
+          </TextLink>
         )}
       </PageForbidden>
     </StandalonePage>
