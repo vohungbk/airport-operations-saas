@@ -1,11 +1,13 @@
 "use client";
 
-import type {
-  FieldError,
-  FieldErrors,
-  FieldValues,
-  Path,
-  UseFormRegister,
+import {
+  Controller,
+  type Control,
+  type FieldError,
+  type FieldErrors,
+  type FieldValues,
+  type Path,
+  type UseFormRegister,
 } from "react-hook-form";
 
 import {
@@ -16,6 +18,13 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { SeatFormOptions } from "@/features/seats/lib/get-seat-form-options";
 import type {
   CreateSeatInput,
@@ -25,6 +34,7 @@ import type {
 type CreateModeProps = {
   mode: "create";
   register: UseFormRegister<CreateSeatInput>;
+  control: Control<CreateSeatInput>;
   errors: FieldErrors<CreateSeatInput>;
   isPending: boolean;
   options: SeatFormOptions;
@@ -33,6 +43,7 @@ type CreateModeProps = {
 type EditModeProps = {
   mode: "edit";
   register: UseFormRegister<UpdateSeatInput>;
+  control: Control<UpdateSeatInput>;
   errors: FieldErrors<UpdateSeatInput>;
   isPending: boolean;
   options: SeatFormOptions;
@@ -42,6 +53,7 @@ type SeatFormProps = CreateModeProps | EditModeProps;
 
 interface SharedFieldsProps<TFieldValues extends FieldValues> {
   register: UseFormRegister<TFieldValues>;
+  control: Control<TFieldValues>;
   errors: FieldErrors<TFieldValues>;
   isPending: boolean;
   options: SeatFormOptions;
@@ -109,11 +121,12 @@ function TextField<TFieldValues extends FieldValues>({
 function SelectField<TFieldValues extends FieldValues>({
   name,
   label,
-  register,
+  control,
   errors,
   isPending,
   choices,
-}: FieldShellProps<TFieldValues> & {
+}: Pick<FieldShellProps<TFieldValues>, "name" | "label" | "errors" | "isPending"> & {
+  control: Control<TFieldValues>;
   choices: { value: string; label: string }[];
 }) {
   const error = fieldError(errors, name);
@@ -121,21 +134,34 @@ function SelectField<TFieldValues extends FieldValues>({
   return (
     <Field data-invalid={!!error}>
       <FieldLabel htmlFor={name}>{label}</FieldLabel>
-      <select
-        id={name}
-        aria-invalid={!!error}
-        aria-describedby={describedBy(name, error)}
-        disabled={isPending}
-        className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30"
-        {...register(name as Path<TFieldValues>)}
-      >
-        <option value="">Select...</option>
-        {choices.map((choice) => (
-          <option key={choice.value} value={choice.value}>
-            {choice.label}
-          </option>
-        ))}
-      </select>
+      <Controller
+        control={control}
+        name={name as Path<TFieldValues>}
+        render={({ field }) => (
+          <Select
+            value={field.value ?? ""}
+            items={choices}
+            onValueChange={(value) => field.onChange(value)}
+            disabled={isPending}
+          >
+            <SelectTrigger
+              id={name}
+              aria-invalid={!!error}
+              aria-describedby={describedBy(name, error)}
+              className="w-full"
+            >
+              <SelectValue placeholder="Select..." />
+            </SelectTrigger>
+            <SelectContent>
+              {choices.map((choice) => (
+                <SelectItem key={choice.value} value={choice.value}>
+                  {choice.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      />
       <FieldErrorMessage
         id={`${name}-error`}
         errors={error ? [error] : undefined}
@@ -147,6 +173,7 @@ function SelectField<TFieldValues extends FieldValues>({
 /** Fields editable in both modes (everything except the create-only serial). */
 function SharedFields<TFieldValues extends FieldValues>({
   register,
+  control,
   errors,
   isPending,
   options,
@@ -176,13 +203,17 @@ function SharedFields<TFieldValues extends FieldValues>({
         type="number"
       />
       <SelectField
-        {...shell}
+        control={control}
+        errors={errors}
+        isPending={isPending}
         name="category_id"
         label="Category"
         choices={options.categories}
       />
       <SelectField
-        {...shell}
+        control={control}
+        errors={errors}
+        isPending={isPending}
         name="airport_id"
         label="Airport"
         choices={options.airports}
@@ -198,7 +229,7 @@ function SharedFields<TFieldValues extends FieldValues>({
  */
 export function SeatForm(props: SeatFormProps) {
   if (props.mode === "create") {
-    const { register, errors, isPending, options } = props;
+    const { register, control, errors, isPending, options } = props;
 
     return (
       <FieldGroup>
@@ -212,6 +243,7 @@ export function SeatForm(props: SeatFormProps) {
         />
         <SharedFields
           register={register}
+          control={control}
           errors={errors}
           isPending={isPending}
           options={options}
@@ -220,12 +252,13 @@ export function SeatForm(props: SeatFormProps) {
     );
   }
 
-  const { register, errors, isPending, options } = props;
+  const { register, control, errors, isPending, options } = props;
 
   return (
     <FieldGroup>
       <SharedFields
         register={register}
+        control={control}
         errors={errors}
         isPending={isPending}
         options={options}

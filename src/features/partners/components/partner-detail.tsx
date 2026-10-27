@@ -35,14 +35,14 @@ export function PartnerDetail({ partner }: PartnerDetailProps) {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             {partner.name}
           </h1>
           <p className="text-sm text-muted-foreground">Code: {partner.code}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/partners/${partner.id}/terms`}
             className={buttonVariants({ variant: "outline" })}

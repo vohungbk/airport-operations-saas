@@ -1,6 +1,6 @@
-import Link from "next/link";
-
+import { TextLink } from "@/components/ui/text-link";
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -52,32 +52,16 @@ export function SeatCategoriesTable({
   query,
 }: SeatCategoriesTableProps) {
   return (
-    <Table>
+    <Table stacked>
       <TableHeader>
         <TableRow>
           {SORTABLE_COLUMNS.map((column) => (
-            <TableHead
+            <SortableTableHead
               key={column.key}
-              aria-sort={
-                query.sort === column.key
-                  ? query.order === "asc"
-                    ? "ascending"
-                    : "descending"
-                  : undefined
-              }
-            >
-              <Link
-                href={buildSortHref(query, column.key)}
-                className="flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                {column.label}
-                {query.sort === column.key && (
-                  <span aria-hidden="true">
-                    {query.order === "asc" ? "↑" : "↓"}
-                  </span>
-                )}
-              </Link>
-            </TableHead>
+              href={buildSortHref(query, column.key)}
+              label={column.label}
+              direction={query.sort === column.key ? query.order : null}
+            />
           ))}
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Actions</TableHead>
@@ -86,21 +70,22 @@ export function SeatCategoriesTable({
       <TableBody>
         {seatCategories.map((seatCategory) => (
           <TableRow key={seatCategory.id}>
-            <TableCell className="font-medium">{seatCategory.name}</TableCell>
-            <TableCell>{seatCategory.min_child_age} months</TableCell>
-            <TableCell>{seatCategory.max_child_age} months</TableCell>
-            <TableCell>{seatCategory.safety_standard}</TableCell>
-            <TableCell>
+            <TableCell data-label="Name" className="font-medium">
+              {seatCategory.name}
+            </TableCell>
+            <TableCell data-label="Min age">{seatCategory.min_child_age} months</TableCell>
+            <TableCell data-label="Max age">{seatCategory.max_child_age} months</TableCell>
+            <TableCell data-label="Safety standard">{seatCategory.safety_standard}</TableCell>
+            <TableCell data-label="Status">
               <SeatCategoryStatusBadge isActive={seatCategory.is_active} />
             </TableCell>
-            <TableCell className="text-right">
-              <Link
+            <TableCell data-label="Actions" className="text-right">
+              <TextLink
                 href={`/seat-categories/${seatCategory.id}`}
                 aria-label={`View ${seatCategory.name} (${formatAgeRange(seatCategory.min_child_age, seatCategory.max_child_age)})`}
-                className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 View
-              </Link>
+              </TextLink>
             </TableCell>
           </TableRow>
         ))}

@@ -94,8 +94,26 @@ describe("where the restyle stands", () => {
     expect(first.notes?.join(" ")).toContain("design frame");
   });
 
+  it("should have the reference data done, with the missing design frame noted", () => {
+    const group = RESTYLE_GROUPS.find((g) => g.id === "reference_data")!;
+
+    expect(isGroupDone(group)).toBe(true);
+    expect(group.screens.every((s) => s.restyled)).toBe(true);
+    expect(group.checks.design_check).toBe("noted");
+  });
+
+  it("should not mark the seat detail with QR done while the scanned seat page is not restyled (E4)", () => {
+    const group = RESTYLE_GROUPS.find((g) => g.id === "seat_detail_with_qr")!;
+
+    expect(group.screens.find((s) => s.name === "Seat detail")?.restyled).toBe(true);
+    expect(group.screens.find((s) => s.name === "Scanned seat")?.restyled).toBe(false);
+    expect(isGroupDone(group)).toBe(false);
+  });
+
   it("should not mark a group done before its screens are restyled", () => {
-    for (const group of RESTYLE_GROUPS.slice(1)) expect(isGroupDone(group), group.id).toBe(false);
+    const later = RESTYLE_GROUPS.filter((g) => !["sign_in_and_system", "reference_data"].includes(g.id));
+
+    for (const group of later) expect(isGroupDone(group), group.id).toBe(false);
   });
 
   it("should list every screen of the sign-in and system pages that R1 names", () => {

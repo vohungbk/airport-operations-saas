@@ -53,12 +53,12 @@ Also seen:
 
 ## Noted, not fixed
 
-- Tables are wider than a phone (550 to 1070 px), so they scroll sideways inside
-  their box, and the last column (View) is out of sight until the person scrolls. A
-  card layout for small screens would be a design change.
-- Links in tables are small to touch: the column headers that sort are 20 px high,
-  and the View and booking number links are 17 px high. The size to aim for depends
-  on the target level and devices (spec Q1 and Q3).
+- Tables are wider than a phone (550 to 1070 px), so they scroll sideways inside their box, and the last
+  column (View) is out of sight until the person scrolls. **Partners, airports, seat categories and seats are
+  now cards below 640 px (UI-F06-S02);** the other tables still scroll sideways until their groups are
+  restyled (UI-F06).
+- Links in tables were small to touch: the column headers that sort were 20 px high, and the View links
+  17 px high. **Fixed for the same four lists (UI-F06-S02):** both are 44 px high on a touch screen.
 
 ## Not checked
 

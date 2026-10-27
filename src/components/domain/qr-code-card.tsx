@@ -14,7 +14,10 @@ interface QrCodeCardProps {
   className?: string
 }
 
-/** The code, the seat ID, Download and Print, and a note that the code alone grants no access (spec R4). */
+/**
+ * The code, the seat ID, Download and Print, and a note that the code alone grants no access (spec R4).
+ * On paper only the code and the seat ID are printed: the note and the buttons are not part of a label.
+ */
 function QrCodeCard({ svg, seat_id, download_href, className }: QrCodeCardProps) {
   return (
     <Card data-slot="qr-code-card" className={cn("min-w-0 max-w-xs", className)}>
@@ -26,7 +29,7 @@ function QrCodeCard({ svg, seat_id, download_href, className }: QrCodeCardProps)
           dangerouslySetInnerHTML={{ __html: svg }}
         />
         <p className="min-w-0 break-words text-center font-mono text-sm text-foreground">{seat_id}</p>
-        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+        <p className="flex items-start gap-1.5 text-xs text-muted-foreground print:hidden">
           <LockIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           Sign-in is needed to see this seat. The code alone gives no access.
         </p>

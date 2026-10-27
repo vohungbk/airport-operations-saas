@@ -1,16 +1,31 @@
 import * as React from "react"
+import Link from "next/link"
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react"
 
+import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/*
+ * `stacked` (UI-F06-S02, spec R10): on a phone (below `sm`) a wide table becomes a list of cards. Each
+ * body row is a card, each cell shows its column name (`data-label` on the cell) in front of its value, and
+ * the header shows only the columns that sort, as a row of links. From `sm` up it is the table it was.
+ * The roles are written out because a table made of blocks loses its native roles in some browsers.
+ */
+interface TableProps extends React.ComponentProps<"table"> {
+  stacked?: boolean
+}
+
+function Table({ className, stacked = false, ...props }: TableProps) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      data-stacked={stacked ? "" : undefined}
+      className="group/table relative w-full overflow-x-auto"
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        role="table"
+        className={cn("w-full caption-bottom text-sm group-data-stacked/table:max-sm:block", className)}
         {...props}
       />
     </div>
@@ -19,9 +34,14 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
+    // eslint-disable-next-line jsx-a11y/no-redundant-roles -- written out on purpose: a stacked table is made of blocks, and a browser can drop the native role
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      role="rowgroup"
+      className={cn(
+        "[&_tr]:border-b group-data-stacked/table:max-sm:block group-data-stacked/table:max-sm:[&>tr]:flex group-data-stacked/table:max-sm:[&>tr]:flex-wrap group-data-stacked/table:max-sm:[&>tr]:items-center group-data-stacked/table:max-sm:[&>tr]:gap-1 group-data-stacked/table:max-sm:[&>tr]:border-b-0 group-data-stacked/table:max-sm:[&>tr]:pb-2 group-data-stacked/table:max-sm:[&>tr]:before:mr-1 group-data-stacked/table:max-sm:[&>tr]:before:text-xs group-data-stacked/table:max-sm:[&>tr]:before:text-muted-foreground group-data-stacked/table:max-sm:[&>tr]:before:content-['Sort_by']",
+        className
+      )}
       {...props}
     />
   )
@@ -29,9 +49,14 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
+    // eslint-disable-next-line jsx-a11y/no-redundant-roles -- written out on purpose: a stacked table is made of blocks, and a browser can drop the native role
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      role="rowgroup"
+      className={cn(
+        "[&_tr:last-child]:border-0 group-data-stacked/table:max-sm:block group-data-stacked/table:max-sm:[&>tr]:mb-3 group-data-stacked/table:max-sm:[&>tr]:block group-data-stacked/table:max-sm:[&>tr]:rounded-lg group-data-stacked/table:max-sm:[&>tr]:border group-data-stacked/table:max-sm:[&>tr]:p-3 group-data-stacked/table:max-sm:[&_td]:flex group-data-stacked/table:max-sm:[&_td]:items-center group-data-stacked/table:max-sm:[&_td]:justify-between group-data-stacked/table:max-sm:[&_td]:gap-4 group-data-stacked/table:max-sm:[&_td]:px-0 group-data-stacked/table:max-sm:[&_td]:py-1.5 group-data-stacked/table:max-sm:[&_td]:text-right group-data-stacked/table:max-sm:[&_td]:break-words group-data-stacked/table:max-sm:[&_td]:whitespace-normal group-data-stacked/table:max-sm:[&_td]:before:shrink-0 group-data-stacked/table:max-sm:[&_td]:before:text-left group-data-stacked/table:max-sm:[&_td]:before:text-xs group-data-stacked/table:max-sm:[&_td]:before:text-muted-foreground group-data-stacked/table:max-sm:[&_td]:before:content-[attr(data-label)]",
+        className
+      )}
       {...props}
     />
   )
@@ -39,8 +64,10 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
 
 function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   return (
+    // eslint-disable-next-line jsx-a11y/no-redundant-roles -- written out on purpose: a stacked table is made of blocks, and a browser can drop the native role
     <tfoot
       data-slot="table-footer"
+      role="rowgroup"
       className={cn(
         "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
         className
@@ -54,6 +81,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
       data-slot="table-row"
+      role="row"
       className={cn(
         "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
         className
@@ -67,8 +95,9 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
+      role="columnheader"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground group-data-stacked/table:max-sm:hidden [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -76,10 +105,40 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
+interface SortableTableHeadProps {
+  href: string
+  label: string
+  /** The direction the table is sorted in by this column; `null` when it is sorted by another column. */
+  direction: "asc" | "desc" | null
+  className?: string
+}
+
+/**
+ * The head of a column that sorts: a link to the same list sorted by it, 44 px high on a touch screen
+ * (UI-F06-S02, spec R10), with `aria-sort` and an arrow that is not the only sign (the label says which
+ * column). On a phone, where a table is cards, it stays visible so the list can still be sorted.
+ */
+function SortableTableHead({ href, label, direction, className }: SortableTableHeadProps) {
+  const Arrow = direction === "asc" ? ArrowUpIcon : ArrowDownIcon
+
+  return (
+    <TableHead
+      aria-sort={direction === null ? undefined : direction === "asc" ? "ascending" : "descending"}
+      className={cn("group-data-stacked/table:max-sm:block", className)}
+    >
+      <Link href={href} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "-ml-2 font-medium")}>
+        {label}
+        {direction !== null && <Arrow aria-hidden="true" />}
+      </Link>
+    </TableHead>
+  )
+}
+
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
+      role="cell"
       className={cn(
         "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className
@@ -108,7 +167,9 @@ export {
   TableBody,
   TableFooter,
   TableHead,
+  SortableTableHead,
   TableRow,
   TableCell,
   TableCaption,
 }
+export type { SortableTableHeadProps, TableProps }

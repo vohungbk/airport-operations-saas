@@ -715,7 +715,7 @@ starts, to a Postgres schema/table group protected by RLS.
   the library lacks, add the part to `src/components/ui` first, then use it.
   `library-guard.test.ts` enforces this. Screens that already had native
   controls are listed with their count as a baseline: the count may only go
-  down, so a new control fails the test. Moving those 24 controls onto the
+  down, so a new control fails the test. Moving those 19 controls onto the
   library is open work.
 - **No gallery.** There is no gallery route or menu item, so `/gallery`
   answers not-found in every build. A test fails if one is added.
@@ -824,3 +824,30 @@ starts, to a Postgres schema/table group protected by RLS.
   in R1.
 - **Checked by hand,** in Light and Dark and at 390 px: every link is 44 px high and the page does not scroll
   sideways; the sign-in journey returns to the page that was asked for. No visual snapshot is stored (spec Q2).
+
+
+#### UI-F06-S02 — reference data
+
+- **Cards on a phone (R10).** `Table` takes `stacked`: below `sm` (640 px) each body row is a card, each
+  cell writes the name of its column in front of its value (`data-label` on the cell), and the header shows
+  only the columns that sort, as a row of links after "Sort by". From `sm` up it is the table it was. It is
+  CSS only; the roles (`table`, `rowgroup`, `row`, `columnheader`, `cell`) are written out because a table
+  made of blocks loses its native roles in some browsers. Only the four lists of this story use it
+  (partners, airports, seat categories, seats); the other tables scroll sideways in their box until their
+  group is restyled.
+- **Sorting and links.** `SortableTableHead` is the head of a column that sorts: a link that is 44 px high on
+  a touch screen, with `aria-sort`. The View link of a row is a `TextLink`.
+- **Seat detail (R3).** `SeatQrCard` makes the code from the seat and draws it with the shared `QrCodeCard`;
+  on paper only the code and the serial number are printed (the heading, the note that sign-in is needed and
+  the buttons are hidden). `SeatStatusHistory` shows the changes as the shared `SeatHistoryTimeline`, newest
+  first. There are **no photos**: the database has only a `photo_path` text column on installation, cleaning
+  and inspection records, with no storage or upload, so there is nothing to show yet.
+- **Forms.** The textarea, the checkbox and the selects of the seat form, the seat category form and the change
+  status dialog are parts of the library (`Textarea`, `Checkbox`, `Select`, through `Controller`), not
+  native controls dressed to look like them. A `Select` is given `items` so it shows the label of the
+  chosen value, not its id. The baseline of native controls in `library-guard.test.ts` went down by five.
+- **The header of a detail page** wraps its buttons below `sm`; the partner page, with three buttons, ran
+  past the edge of a 390 px screen.
+- **Not here.** The scanned seat page (`/q/[token]`) was not looked at as a technician, so the group
+  "Seat detail with QR" is not marked done. Photos need a feature that stores them. No design frame was
+  found for these screens, so the check against the design is noted for design review.

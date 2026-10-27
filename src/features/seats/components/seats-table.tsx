@@ -1,6 +1,6 @@
-import Link from "next/link";
-
+import { TextLink } from "@/components/ui/text-link";
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -36,33 +36,13 @@ function SortHeader({
     order: isActive && query.order === "asc" ? "desc" : "asc",
   });
 
-  return (
-    <TableHead
-      aria-sort={
-        isActive
-          ? query.order === "asc"
-            ? "ascending"
-            : "descending"
-          : undefined
-      }
-    >
-      <Link
-        href={href}
-        className="flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        {label}
-        {isActive && (
-          <span aria-hidden="true">{query.order === "asc" ? "↑" : "↓"}</span>
-        )}
-      </Link>
-    </TableHead>
-  );
+  return <SortableTableHead href={href} label={label} direction={isActive ? query.order : null} />;
 }
 
 /** Server Component — sorting is plain `<Link>` navigation. */
 export function SeatsTable({ seats, query }: SeatsTableProps) {
   return (
-    <Table>
+    <Table stacked>
       <TableHeader>
         <TableRow>
           <SortHeader query={query} column="serial_number" label="Serial" />
@@ -77,26 +57,28 @@ export function SeatsTable({ seats, query }: SeatsTableProps) {
       <TableBody>
         {seats.map((seat) => (
           <TableRow key={seat.id}>
-            <TableCell className="font-medium">{seat.serial_number}</TableCell>
-            <TableCell>{seat.category?.name ?? "-"}</TableCell>
-            <TableCell>{seat.airport?.code ?? "-"}</TableCell>
-            <TableCell>
+            <TableCell data-label="Serial" className="font-medium">
+              {seat.serial_number}
+            </TableCell>
+            <TableCell data-label="Category">{seat.category?.name ?? "-"}</TableCell>
+            <TableCell data-label="Airport">{seat.airport?.code ?? "-"}</TableCell>
+            <TableCell data-label="Status">
               <SeatStatusBadge status={seat.status} />
             </TableCell>
-            <TableCell className="max-w-40 truncate font-mono text-xs">
+            <TableCell
+              data-label="Public token"
+              title={seat.public_token}
+              className="max-w-40 truncate font-mono text-xs max-sm:max-w-none max-sm:break-all"
+            >
               {seat.public_token}
             </TableCell>
-            <TableCell>
+            <TableCell data-label="Created">
               {new Date(seat.created_at).toLocaleDateString()}
             </TableCell>
-            <TableCell className="text-right">
-              <Link
-                href={`/seats/${seat.id}`}
-                aria-label={`View seat ${seat.serial_number}`}
-                className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
+            <TableCell data-label="Actions" className="text-right">
+              <TextLink href={`/seats/${seat.id}`} aria-label={`View seat ${seat.serial_number}`}>
                 View
-              </Link>
+              </TextLink>
             </TableCell>
           </TableRow>
         ))}
