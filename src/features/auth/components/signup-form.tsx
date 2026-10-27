@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { TextLink } from "@/components/ui/text-link";
 import { useSignupForm } from "@/features/auth/hooks/use-signup-form";
 
 export function SignupForm() {
@@ -92,12 +91,10 @@ export function SignupForm() {
         {isPending ? "Creating account..." : "Create account"}
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
-        Already have an account?{" "}
-        <Link href="/login" className="underline underline-offset-4 hover:text-foreground">
-          Sign in
-        </Link>
-      </p>
+      <div className="flex flex-col items-center gap-1 text-sm text-muted-foreground">
+        <p>Already have an account?</p>
+        <TextLink href="/login">Sign in</TextLink>
+      </div>
     </form>
   );
 }

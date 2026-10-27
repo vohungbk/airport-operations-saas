@@ -17,7 +17,7 @@ interface AppErrorProps {
 export default function AppError({ reset }: AppErrorProps) {
   return (
     <StandalonePage>
-      <PageError title="Could not load this page" reset={reset} />
+      <PageError title="Could not load this page" reset={reset} centered />
     </StandalonePage>
   );
 }

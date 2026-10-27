@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import {
   Card,
   CardContent,
@@ -7,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { TextLink } from "@/components/ui/text-link";
 import { getAuthUser } from "@/lib/auth/session";
 import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
 
@@ -24,12 +23,9 @@ export default async function ResetPasswordPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Link
-            href="/forgot-password"
-            className="text-sm underline underline-offset-4 hover:text-foreground"
-          >
+          <TextLink href="/forgot-password" className="text-sm">
             Request a new reset link
-          </Link>
+          </TextLink>
         </CardContent>
       </Card>
     );

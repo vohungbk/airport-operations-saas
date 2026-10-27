@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { TextLink } from "@/components/ui/text-link";
 import { useForgotPasswordForm } from "@/features/auth/hooks/use-forgot-password-form";
 
 export function ForgotPasswordForm() {
@@ -52,11 +51,9 @@ export function ForgotPasswordForm() {
         {isPending ? "Sending..." : "Send reset link"}
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
-        <Link href="/login" className="underline underline-offset-4 hover:text-foreground">
-          Back to sign in
-        </Link>
-      </p>
+      <div className="flex flex-col items-center text-sm">
+        <TextLink href="/login">Back to sign in</TextLink>
+      </div>
     </form>
   );
 }
