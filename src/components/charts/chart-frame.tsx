@@ -5,15 +5,23 @@ import { useId } from "react"
 import { BanIcon, ChartNoAxesColumnIcon, CircleAlertIcon, InfoIcon, RotateCcwIcon, TableIcon } from "lucide-react"
 
 import { ChartDataTable } from "@/components/charts/chart-data-table"
+import { MarkerSwatch } from "@/components/charts/chart-markers"
 import { SeriesSwatch, patternId } from "@/components/charts/chart-patterns"
 import { useChartView } from "@/components/charts/use-chart-view"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { chartFrameState, toChartTable, type ChartSeries, type ChartStatus } from "@/lib/charts/chart-data"
+import { chartFrameState, toChartTable, type ChartSeries, type ChartStatus, type ChartTable } from "@/lib/charts/chart-data"
 import { seriesColor } from "@/lib/charts/chart-tokens"
 import { cn } from "@/lib/utils"
+
+type LegendStyle = "color" | "pattern" | "marker"
+
+interface LegendItem {
+  name: string
+  detail?: string
+}
 
 interface ChartFrameProps {
   title: string
@@ -25,8 +33,15 @@ interface ChartFrameProps {
   on_retry?: () => void
   /** Said under a chart that has gaps. */
   gap_note?: string
-  /** The legend shows the pattern of each series as well as its color, for charts that stack series (spec R7). */
-  legend_patterns?: boolean
+  /**
+   * What the legend lists, when it is not the series: a donut lists its slices. A `detail` is written
+   * after the name (a value and a share).
+   */
+  legend_items?: readonly LegendItem[]
+  /** What the key of each legend item shows besides its color: a pattern for filled marks, a marker for lines (spec R7). */
+  legend_style?: LegendStyle
+  /** The table of the table view, when it has more than the series give (a donut adds a share). */
+  table?: ChartTable
   /** The heading of the first column of the table view. */
   label_heading?: string
   /** The chart, drawn by a chart component inside a `ChartContainer`. */
@@ -39,11 +54,12 @@ interface ChartFrameProps {
  * switch to a table of the same numbers, and the states Loading, Error with retry, Permission
  * Denied and Empty. A chart of zeros is Empty, and data with gaps carries a note.
  */
-function ChartFrame({ title, description, status, series, on_retry, gap_note = "Some data is missing, so this chart may be incomplete.", legend_patterns = false, label_heading, children, className }: ChartFrameProps) {
+function ChartFrame({ title, description, status, series, on_retry, gap_note = "Some data is missing, so this chart may be incomplete.", legend_items, legend_style = "color", table, label_heading, children, className }: ChartFrameProps) {
   const state = chartFrameState(status, series)
   const { view, toggle } = useChartView()
   const swatchId = patternId(useId())
   const hasChart = state === "ready" || state === "partial"
+  const legend: readonly LegendItem[] = legend_items ?? series.map((s) => ({ name: s.name }))
 
   return (
     <Card data-slot="chart-frame" data-state={state} aria-busy={state === "loading" || undefined} className={cn("min-w-0", className)}>
@@ -102,20 +118,23 @@ function ChartFrame({ title, description, status, series, on_retry, gap_note = "
               <>
                 {children}
                 <ul data-slot="chart-legend" className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                  {series.map((s, index) => (
-                    <li key={s.name} className="flex min-w-0 items-center gap-1.5">
-                      {legend_patterns ? (
+                  {legend.map((item, index) => (
+                    <li key={`${index}-${item.name}`} className="flex min-w-0 items-center gap-1.5">
+                      {legend_style === "pattern" ? (
                         <SeriesSwatch id={swatchId} index={index} />
+                      ) : legend_style === "marker" ? (
+                        <MarkerSwatch index={index} />
                       ) : (
                         <span aria-hidden="true" className="size-2.5 shrink-0 rounded-sm bg-(--swatch)" style={{ "--swatch": seriesColor(index) } as React.CSSProperties} />
                       )}
-                      <span className="min-w-0 break-words">{s.name}</span>
+                      <span className="min-w-0 break-words">{item.name}</span>
+                      {item.detail && <span className="shrink-0 tabular-nums text-muted-foreground">{item.detail}</span>}
                     </li>
                   ))}
                 </ul>
               </>
             ) : (
-              <ChartDataTable table={toChartTable(series, label_heading)} caption={`${title}: the numbers of the chart`} />
+              <ChartDataTable table={table ?? toChartTable(series, label_heading)} caption={`${title}: the numbers of the chart`} />
             )}
             {state === "partial" && (
               <p data-slot="chart-gap-note" className="flex items-start gap-1.5 text-xs text-muted-foreground">
@@ -131,4 +150,4 @@ function ChartFrame({ title, description, status, series, on_retry, gap_note = "
 }
 
 export { ChartFrame }
-export type { ChartFrameProps }
+export type { ChartFrameProps, LegendItem, LegendStyle }

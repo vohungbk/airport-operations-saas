@@ -73,7 +73,7 @@ function StackedBarChart({ title, description, status, series, on_retry, gap_not
   const height = barChartHeight(rows.length, maxLabelLines(labels))
 
   return (
-    <ChartFrame title={title} description={description} status={status} series={series} on_retry={on_retry} gap_note={gap_note} legend_patterns label_heading="Name" className={className}>
+    <ChartFrame title={title} description={description} status={status} series={series} on_retry={on_retry} gap_note={gap_note} legend_style="pattern" label_heading="Name" className={className}>
       <div data-slot="bar-chart-scroll" className={cn("min-w-0", needsScroll(height) && "max-h-96 overflow-y-auto")}>
         <ChartContainer label={describeStacks(title, series)} height={height}>
           <BarChart layout="vertical" data={rows} margin={{ top: 4, right: 0, bottom: 4, left: 0 }} accessibilityLayer>
