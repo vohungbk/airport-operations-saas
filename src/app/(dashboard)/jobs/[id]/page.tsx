@@ -11,6 +11,7 @@ import {
 import { getJobById } from "@/features/jobs/lib/get-job-by-id";
 import { getJobEvents } from "@/features/jobs/lib/get-job-events";
 import { getAllowedJobTransitions } from "@/features/jobs/lib/job-status";
+import { getSeatScanHref } from "@/features/installations/lib/seat-scan-href";
 import { getWorkRecordHref } from "@/features/jobs/lib/work-record";
 import { JobDetail } from "@/features/jobs/components/job-detail";
 
@@ -54,6 +55,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
       eventsTruncated={truncated}
       allowedStatuses={allowedStatuses}
       workRecordHref={getWorkRecordHref(job, user)}
+      scanHref={getSeatScanHref(job, user)}
       reportIncidentHref={
         hasAnyPermission(user.role, INCIDENT_REPORT_PERMISSIONS)
           ? `/incidents/new?job_id=${job.id}`

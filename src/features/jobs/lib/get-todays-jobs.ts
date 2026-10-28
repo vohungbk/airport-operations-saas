@@ -14,6 +14,7 @@ import {
 export const TODAYS_JOBS_SELECT = [
   "id",
   "status",
+  "job_type",
   "vehicle_bay",
   "technician:users!technician_id(full_name)",
   "booking:bookings!inner(booking_number, pickup_at, vehicle, vehicle_bay, airport:airports(code, name, city, timezone), required_category:seat_categories!seat_category_id(name), seat:seats!assigned_seat_id(serial_number), flight:flights(flight_number, terminal, last_synced_at, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes))",

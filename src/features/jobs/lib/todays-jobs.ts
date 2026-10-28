@@ -5,6 +5,7 @@ import {
   type FlightTiming,
 } from "@/lib/flights/flight-timing";
 import type { JobStatus } from "@/features/jobs/lib/job-status";
+import type { JobType } from "@/features/jobs/lib/job-type";
 
 /**
  * Pure logic for Today's Jobs (UI-F07-S01, spec R1, E3). A job has no deadline column, so the list is
@@ -22,6 +23,7 @@ export const OPEN_JOB_STATUSES = [
 export interface TodayJobRow {
   id: string;
   status: JobStatus;
+  job_type: JobType;
   vehicle_bay: string | null;
   technician: { full_name: string } | null;
   booking: {
@@ -51,6 +53,7 @@ export interface TodayJobRow {
 export interface TodayJob {
   id: string;
   status: JobStatus;
+  job_type: JobType;
   /** The pickup time of the booking: it orders the list and is the time of the next job in the empty state. */
   pickup_at: string;
   booking_number: string;
@@ -114,6 +117,7 @@ export function selectTodaysJobs(rows: readonly TodayJobRow[], now: Date): Today
       return {
         id,
         status: row.status,
+        job_type: row.job_type,
         pickup_at,
         booking_number: booking.booking_number,
         technician: row.technician?.full_name ?? null,
@@ -143,4 +147,9 @@ export function selectTodaysJobs(rows: readonly TodayJobRow[], now: Date): Today
     .sort(byPickup);
 
   return { jobs, next_pickup_at: later[0]?.pickup_at ?? null };
+}
+
+/** The job the Scan item of the menu opens: the first of the day whose work starts with a seat scan, an installation. */
+export function pickJobToScan(jobs: readonly TodayJob[]): TodayJob | undefined {
+  return jobs.find((job) => job.job_type === "installation");
 }

@@ -610,8 +610,8 @@ starts, to a Postgres schema/table group protected by RLS.
   plus the safe area of the phone, so the end of the content is not under the bar
   (spec R11). UI-F02-S05 adds the
   rest of the layout checks.
-- **Not here.** The pages of the design that do not exist yet (History, Scan,
-  KPI), and a Permission Denied state inside the shell.
+- **Not here.** The pages of the design that do not exist yet (History,
+  KPI; Scan was added by UI-F07-S02), and a Permission Denied state inside the shell.
 
 
 #### UI-F02-S04 — the menu per role
@@ -956,3 +956,39 @@ starts, to a Postgres schema/table group protected by RLS.
 - **Not here.** The scanner, the step screens, the success and next-job screen, the poor-network banner and the
   other stories of UI-F07; the end-to-end journey of AC05 needs them. The bottom navigation of the frame (Jobs,
   History, Scan, Incidents, More) is not changed: the app keeps its menu of the role, and Scan has no page yet.
+
+
+#### UI-F07-S02 — scan the seat QR on a phone
+
+- **Where.** `/jobs/[id]/scan` (the dashboard group, with the other pages of a job). The job screen has a
+  `Scan assigned seat` button for the assigned technician of an active installation job (`getSeatScanHref`, the
+  same rule as "Record work"). The page checks the installation permissions on the server and reads the job
+  through RLS: a job that is not the technician's is the forbidden state, a job that is not an installation is
+  not found. It is built from the frames `Scan seat QR`, `Seat verified · Match` and `Seat verification ·
+  Mismatch` of the design.
+- **Camera.** `useSeatScanner` opens the back camera and reads QR codes with the browser's `BarcodeDetector`,
+  which adds no dependency. Chrome on Android has it; Safari on an iPhone does not, so there the technician types
+  the code (spec R9). A denied or missing camera, or a browser that cannot read a QR code, opens the typing form
+  by itself. The torch button shows only when the phone says it has a torch. The camera stops when a result is
+  shown and when the screen is left. The typing form (a field and `Check seat`) and the line "The camera is not
+  available" are not drawn in the design; the spec asks for the fallback.
+- **The check.** `verifySeatScanAction` (Zod: the job id and a code of at most 200 characters) reads the job, reads
+  the seat the code names and compares it with the seat of the booking. It **only reads**: no row is written, and
+  recording the installation still checks the job, the seat and the technician (spec R8). The code is the address
+  a seat QR code holds (`/q/<public token>`), the bare token, or a typed serial number (the exact text first, then the same text in another case when that names one seat).
+- **RLS limits what a mismatch can say.** A technician reads only the seats of their own jobs
+  (`seats_select_technician`). A code of any other seat reads nothing, so the mismatch screen has no serial
+  (for a scan) or only the typed serial, no category, and no "Reserved for another booking". That badge shows
+  only for a seat the technician can read whose status is reserved. Showing more needs a function that
+  returns a scanned seat's serial, category and status to a technician: a change of access that is not made
+  here.
+- **Last cleaning and inspection** of a matching seat come from `cleaning_records` and `inspection_records`
+  (`getSeatLastChecks`); a check that was never made, or could not be read, is a dash, never a pass.
+- **Dashes.** The job number in the line under the heading is a dash (no job number column), as on Today's Jobs.
+- **The Scan item of the menu.** The technician menu has the Scan item of the design, between My History and
+  Incidents, in the bottom bar. A scan is made for a job, so `/technician/scan` sends the technician to the scan
+  of the first installation job of the day (`pickJobToScan`), and says "No job to scan." when there is none; that
+  line is not in the design.
+- **Not here.** The checklist (`Continue to checklist` goes to the existing installation form until the story of
+  the step screens), the History item (its page is not built), the "Readiness gate" banner and the rest of the `Job information` frame, the poor-network
+  banner, and a check on a real phone.
