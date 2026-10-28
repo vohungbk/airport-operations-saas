@@ -94,7 +94,7 @@ describe("IncidentsPage", () => {
     expect(html).toContain("Open");
     expect(html).toContain("SN-2");
     expect(html).toContain("Ahmed");
-    expect(html).toContain("Page 1 of 1 (1 incident)");
+    expect(html).toContain("Showing 1–1 of 1");
   });
 
   it("should show the empty state when there are no incidents", async () => {

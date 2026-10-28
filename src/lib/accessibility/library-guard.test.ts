@@ -21,12 +21,9 @@ const ALLOWED = new Set([join("components", "layout", "more-sheet.tsx")]);
  * higher number, fails the test, so a new control goes into the library first (E1).
  */
 const BASELINE = new Map<string, number>([
-  ["features/cleaning/components/cleaning-complete-form.tsx", 3],
-  ["features/incidents/components/change-incident-status-dialog.tsx", 2],
-  ["features/incidents/components/incident-report-form.tsx", 2],
-  ["features/inspections/components/inspection-form.tsx", 2],
-  ["features/installations/components/installation-form.tsx", 1],
-  ["features/jobs/components/change-job-status-dialog.tsx", 2],
+  ["features/cleaning/components/cleaning-complete-form.tsx", 2],
+  ["features/incidents/components/incident-report-form.tsx", 1],
+  ["features/inspections/components/inspection-form.tsx", 1],
   ["features/jobs/components/create-job-form.tsx", 1],
   ["features/seats/components/partner-seats-filters.tsx", 1],
 ].map(([file, count]) => [join(...(file as string).split("/")), count as number]));
