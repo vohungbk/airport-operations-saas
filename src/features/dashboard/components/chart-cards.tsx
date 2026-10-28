@@ -19,6 +19,18 @@ const FILL = [
   "bg-chart-5",
   "bg-chart-6",
 ] as const;
+/**
+ * The same colors with the text that is written on them (the count in a segment), each pair with a contrast of
+ * 4.5:1 or more in Light and in Dark: white on the dark Light colors, dark on the orange and the green.
+ */
+const SEGMENT = [
+  "bg-chart-1 text-primary-foreground",
+  "bg-chart-2 text-primary-foreground",
+  "bg-chart-3 text-foreground dark:text-primary-foreground",
+  "bg-chart-4 text-foreground dark:text-primary-foreground",
+  "bg-chart-5 text-primary-foreground",
+  "bg-chart-6 text-primary-foreground",
+] as const;
 const STROKE = [
   "stroke-chart-1",
   "stroke-chart-2",
@@ -33,6 +45,8 @@ const at = <T,>(list: readonly T[], index: number): T =>
   list[index % list.length];
 const fillOf = (row: ChartCardRow, index: number) =>
   at(FILL, row.color ?? index);
+const segmentOf = (row: ChartCardRow, index: number) =>
+  at(SEGMENT, row.color ?? index);
 const strokeOf = (row: ChartCardRow, index: number) =>
   at(STROKE, row.color ?? index);
 const labelOf = (row: ChartCardRow, index: number) =>
@@ -207,8 +221,8 @@ export function SegmentsCard({ title, rows, noun }: SegmentsCardProps) {
                 key={row.label}
                 style={{ flexGrow: row.value }}
                 className={cn(
-                  "flex min-w-0 basis-0 items-center justify-center text-sm font-semibold text-primary-foreground",
-                  fillOf(row, index),
+                  "flex min-w-0 basis-0 items-center justify-center text-sm font-semibold",
+                  segmentOf(row, index),
                 )}
               >
                 {row.value}
