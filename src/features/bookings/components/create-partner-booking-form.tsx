@@ -20,6 +20,7 @@ export function CreatePartnerBookingForm({
     useCreatePartnerBookingForm(options.airport_timezones);
   const {
     register,
+    control,
     formState: { errors },
   } = form;
 
@@ -35,6 +36,7 @@ export function CreatePartnerBookingForm({
       <BookingForm
         mode="partner-create"
         register={register}
+        control={control}
         errors={errors}
         isPending={isPending}
         options={options}

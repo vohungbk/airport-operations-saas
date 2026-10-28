@@ -96,8 +96,8 @@ describe("BookingsPage", () => {
       expect(markup).toContain("Back to Partner home");
     });
 
-    it("should give a partner user an Add Booking button, since they may create bookings for their own partner", async () => {
-      expect(await html(PARTNER)).toContain("Add Booking");
+    it("should give a partner user a Create booking button, since they may create bookings for their own partner", async () => {
+      expect(await html(PARTNER)).toContain("Create booking");
     });
 
     it.each([
@@ -107,7 +107,7 @@ describe("BookingsPage", () => {
       const markup = await html({ id: "u3", role });
 
       expect(markup).not.toContain("Back to Partner home");
-      expect(markup).toContain("Add Booking");
+      expect(markup).toContain("Create booking");
     });
 
     it("should show the empty state, not an error, to a partner with no bookings, and still offer the way back", async () => {

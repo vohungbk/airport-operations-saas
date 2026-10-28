@@ -736,7 +736,7 @@ starts, to a Postgres schema/table group protected by RLS.
   the library lacks, add the part to `src/components/ui` first, then use it.
   `library-guard.test.ts` enforces this. Screens that already had native
   controls are listed with their count as a baseline: the count may only go
-  down, so a new control fails the test. Moving those 19 controls onto the
+  down, so a new control fails the test. Moving those 14 controls onto the
   library is open work.
 - **No gallery.** There is no gallery route or menu item, so `/gallery`
   answers not-found in every build. A test fails if one is added.
@@ -872,3 +872,29 @@ starts, to a Postgres schema/table group protected by RLS.
 - **Not here.** The scanned seat page (`/q/[token]`) was not looked at as a technician, so the group
   "Seat detail with QR" is not marked done. Photos need a feature that stores them. No design frame was
   found for these screens, so the check against the design is noted for design review.
+
+
+#### UI-F06-S03 — bookings
+
+- **List.** Laid out as the design draws it: a 30 px title with the airport filter and the number of bookings
+  below it, a "Create booking" button with a plus, 44 px filters (search with a magnifier, the library
+  selects, two date fields, "Clear all" once a filter is set), the table in a bordered box with a muted header
+  row of small capitals, the booking number in the mono face, and "Showing a–b of N" with Previous and Next.
+  `BookingsTable` is a stacked `Table` (cards below 640 px). It has a Flight column: the number of the linked
+  flight and how early or late it is (`formatBookingFlight`, from `flights` through one nested select, so
+  there is no extra query per row). Airport and Return stay (Return sorts); Category and Seat moved to the
+  detail.
+- **Detail.** The heading says "Booking detail" with the booking, its partner and its status below it; Edit
+  booking is the primary button. Overview, Flight and Timeline are `Tabs`. The Flight tab is the shared
+  `FlightStatusCard` (an early or late flight is said at the top, old data says so); a booking with no
+  flight says that. The Timeline tab is the shared `Timeline`, in the time zone of the airport. The revenue is
+  a page of its own, so it stays a button in the header.
+- **Forms.** The seat, partner, airport and category selects, the notes, and the reason of the status
+  dialog and of the adjustment form are library parts (`Select` through `Controller`, `Textarea`). The
+  baseline of native controls went down by five. The seat select keeps its "No seat" choice, so a seat can
+  still be taken off a booking. The two filter selects are given `items`, so they show "All airports" and
+  "All statuses" rather than the value `all`.
+- **Not built.** The Workflow step column and the Photos tab (nothing stores them), and the flight update
+  history (there is only the flight as it is now, no table of its changes). There is no frame for the
+  booking form. The revenue and adjustment pages are not part of R4. The differences from the design that are
+  left are noted for design review in `screen-groups.ts`.

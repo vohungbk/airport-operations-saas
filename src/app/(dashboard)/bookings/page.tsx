@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlusIcon } from "lucide-react";
 
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import {
@@ -28,7 +29,9 @@ interface BookingsPageProps {
  * is also the partner bookings view (VI-F03-S02): whoever cannot manage
  * bookings arrives from the partner home and gets a way back to it.
  */
-export default async function BookingsPage({ searchParams }: BookingsPageProps) {
+export default async function BookingsPage({
+  searchParams,
+}: BookingsPageProps) {
   const user = await requireAnyPermission(BOOKINGS_ACCESS_PERMISSIONS);
 
   const rawParams = await searchParams;
@@ -43,6 +46,9 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
   // Managers and partner users (for their own partner) may add a booking.
   const canCreate = hasAnyPermission(user.role, BOOKINGS_WRITE_PERMISSIONS);
 
+  const airport = options.airports.find((a) => a.value === query.airport_id);
+  const subtitle = `${airport?.label ?? "All airports"} · ${total} booking${total === 1 ? "" : "s"}`;
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
       {!canManage && (
@@ -50,18 +56,27 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
           <BackToPartnerHome />
         </div>
       )}
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Bookings
-        </h1>
-        {canCreate && (
-          <Link href="/bookings/new" className={buttonVariants()}>
-            Add Booking
-          </Link>
-        )}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            Bookings
+          </h1>
+          {canCreate && (
+            <Link
+              href="/bookings/new"
+              className={buttonVariants({ className: "min-h-11 px-4" })}
+            >
+              <PlusIcon aria-hidden="true" />
+              Create booking
+            </Link>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
       <BookingsFilters
+        // The search box keeps what was typed; a new search (or Clear all) starts it again from the address.
+        key={query.q ?? ""}
         q={query.q}
         airportId={query.airport_id}
         status={query.status}

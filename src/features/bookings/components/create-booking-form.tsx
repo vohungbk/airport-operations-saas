@@ -17,6 +17,7 @@ export function CreateBookingForm({ options }: CreateBookingFormProps) {
     useCreateBookingForm(options.airport_timezones);
   const {
     register,
+    control,
     formState: { errors },
   } = form;
 
@@ -32,6 +33,7 @@ export function CreateBookingForm({ options }: CreateBookingFormProps) {
       <BookingForm
         mode="create"
         register={register}
+        control={control}
         errors={errors}
         isPending={isPending}
         options={options}

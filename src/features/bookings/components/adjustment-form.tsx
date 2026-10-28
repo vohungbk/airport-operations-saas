@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useAdjustmentForm } from "@/features/bookings/hooks/use-adjustment-form";
 import {
   ADJUSTMENT_TYPES,
@@ -32,7 +33,10 @@ interface AdjustmentFormProps {
  * the user back to Booking revenue; Cancel goes back without recording anything (NAV-3).
  */
 export function AdjustmentForm({ bookingId, maxAmount }: AdjustmentFormProps) {
-  const { form, onSubmit, isPending, result } = useAdjustmentForm({ bookingId, maxAmount });
+  const { form, onSubmit, isPending, result } = useAdjustmentForm({
+    bookingId,
+    maxAmount,
+  });
   const {
     register,
     control,
@@ -40,7 +44,11 @@ export function AdjustmentForm({ bookingId, maxAmount }: AdjustmentFormProps) {
   } = form;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex max-w-lg flex-col gap-5">
+    <form
+      onSubmit={onSubmit}
+      noValidate
+      className="flex max-w-lg flex-col gap-5"
+    >
       {result && !result.success && !result.error?.field && (
         <Alert variant="destructive">
           <AlertTitle>Could not record the adjustment</AlertTitle>
@@ -54,7 +62,11 @@ export function AdjustmentForm({ bookingId, maxAmount }: AdjustmentFormProps) {
           control={control}
           name="type"
           render={({ field }) => (
-            <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={isPending}>
+            <Select
+              value={field.value ?? ""}
+              onValueChange={field.onChange}
+              disabled={isPending}
+            >
               <SelectTrigger id="type" aria-invalid={!!errors.type}>
                 <SelectValue placeholder="Choose a type" />
               </SelectTrigger>
@@ -89,13 +101,12 @@ export function AdjustmentForm({ bookingId, maxAmount }: AdjustmentFormProps) {
 
       <Field data-invalid={!!errors.reason}>
         <FieldLabel htmlFor="reason">Reason</FieldLabel>
-        <textarea
+        <Textarea
           id="reason"
           rows={4}
           maxLength={MAX_REASON_LENGTH}
           aria-invalid={!!errors.reason}
           disabled={isPending}
-          className="min-h-20 w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
           {...register("reason")}
         />
         <FieldError errors={errors.reason ? [errors.reason] : undefined} />
@@ -105,7 +116,10 @@ export function AdjustmentForm({ bookingId, maxAmount }: AdjustmentFormProps) {
         <Button type="submit" disabled={isPending}>
           {isPending ? "Saving..." : "Save adjustment"}
         </Button>
-        <Link href={`/bookings/${bookingId}/revenue`} className={buttonVariants({ variant: "outline" })}>
+        <Link
+          href={`/bookings/${bookingId}/revenue`}
+          className={buttonVariants({ variant: "outline" })}
+        >
           Cancel
         </Link>
       </div>

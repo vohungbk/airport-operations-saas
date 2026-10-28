@@ -13,18 +13,22 @@ interface BookingsPaginationProps {
 /** Server Component — plain prev/next links, no client JS. */
 export function BookingsPagination({ query, total }: BookingsPaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / query.page_size));
+  const first = total === 0 ? 0 : (query.page - 1) * query.page_size + 1;
+  const last = Math.min(query.page * query.page_size, total);
   const hasPrev = query.page > 1;
   const hasNext = query.page < totalPages;
-  const linkClass = buttonVariants({ variant: "outline", size: "sm" });
+  const linkClass = cn(
+    buttonVariants({ variant: "outline" }),
+    "min-h-11 px-4 text-sm",
+  );
 
   return (
     <nav
       aria-label="Pagination"
-      className="flex items-center justify-between gap-2"
+      className="flex flex-wrap items-center justify-between gap-2"
     >
       <p className="text-sm text-muted-foreground">
-        Page {query.page} of {totalPages} ({total} booking
-        {total === 1 ? "" : "s"})
+        Showing {first}–{last} of {total}
       </p>
       <div className="flex items-center gap-2">
         {hasPrev ? (

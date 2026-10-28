@@ -54,11 +54,11 @@ Also seen:
 ## Noted, not fixed
 
 - Tables are wider than a phone (550 to 1070 px), so they scroll sideways inside their box, and the last
-  column (View) is out of sight until the person scrolls. **Partners, airports, seat categories and seats are
-  now cards below 640 px (UI-F06-S02);** the other tables still scroll sideways until their groups are
+  column (View) is out of sight until the person scrolls. **Partners, airports, seat categories, seats and
+  bookings are now cards below 640 px (UI-F06-S02, UI-F06-S03);** the other tables still scroll sideways until their groups are
   restyled (UI-F06).
 - Links in tables were small to touch: the column headers that sort were 20 px high, and the View links
-  17 px high. **Fixed for the same four lists (UI-F06-S02):** both are 44 px high on a touch screen.
+  17 px high. **Fixed for the same lists (UI-F06-S02, UI-F06-S03):** both are 44 px high on a touch screen.
 
 ## Not checked
 

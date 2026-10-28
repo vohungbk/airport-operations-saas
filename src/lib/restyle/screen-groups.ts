@@ -101,7 +101,7 @@ export const RESTYLE_GROUPS: readonly RestyleGroup[] = [
     checks: { same_behavior: "done", both_themes: "done", phone_layout: "done", page_states: "done", design_check: "noted" },
     notes: [
       "No design frame was found for these screens in the readable part of the design file, so they are built from the base components (spec E3). Compare them with the Desktop and Mobile pages of the design file.",
-      "The four lists are stacked cards below 640 px (UI-F06-S02). The other tables of the app are still tables that scroll sideways until their groups are restyled.",
+      "The four lists are stacked cards below 640 px (UI-F06-S02). The bookings list is too (UI-F06-S03). The other tables of the app are still tables that scroll sideways until their groups are restyled.",
       "The page padding (p-8) is the same on a phone as on a desktop; a smaller one on a phone is a layout decision for design review.",
     ],
   },
@@ -121,11 +121,18 @@ export const RESTYLE_GROUPS: readonly RestyleGroup[] = [
     name: "Bookings",
     rule: "R4",
     screens: [
-      screen("Bookings", "/bookings", "(dashboard)/bookings/page.tsx"),
-      screen("Booking detail", "/bookings/[id]", "(dashboard)/bookings/[id]/page.tsx"),
-      screen("Booking form", "/bookings/new", "(dashboard)/bookings/new/page.tsx"),
+      screen("Bookings", "/bookings", "(dashboard)/bookings/page.tsx", true),
+      screen("Booking detail", "/bookings/[id]", "(dashboard)/bookings/[id]/page.tsx", true),
+      screen("Booking form", "/bookings/new", "(dashboard)/bookings/new/page.tsx", true),
     ],
-    checks: pending,
+    checks: { same_behavior: "done", both_themes: "done", phone_layout: "done", page_states: "done", design_check: "noted" },
+    notes: [
+      "The design file has a frame for the list and for the Flight tab of the booking detail, but none for the booking form (and its edit page), so those are built from the base components (spec E3). Compare them with the design.",
+      "The list has the Flight column (the flight number and how early or late it is, from the linked flight). The design has no Airport or Return column and no Category or Seat column; the list keeps Airport and Return (Return sorts) and moves Category and Seat to the detail.",
+      "Not built, because nothing stores them: the Workflow step column, the Photos tab, and the flight update history (there is no table of flight changes, only the flight as it is now). The Revenue tab is a button in the header, since the revenue is a page of its own.",
+      "The filters are the library controls at 44 px. The design draws the status and airport as buttons with the chevron in front, and one range button for the dates; the app has selects and two date fields. The line under the title shows the airport filter and the number of bookings, not the airport, the date and the time zone of the design. The Edit button has a pencil, not the plus of the design.",
+      "The revenue and adjustment pages are not in R4 and are not restyled here.",
+    ],
   },
   {
     id: "field_operations",
