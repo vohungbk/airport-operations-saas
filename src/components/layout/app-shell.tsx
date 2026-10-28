@@ -31,9 +31,10 @@ interface AppShellProps {
  * navigation and the More sheet (UI-F02-S03).
  */
 export async function AppShell({ user, children }: AppShellProps) {
-  const navItems = getVisibleNavItems(user.role).map(({ href, label }) => ({
+  const navItems = getVisibleNavItems(user.role).map(({ href, label, planned }) => ({
     href,
     label,
+    planned,
   }));
   const initialCollapsed = parseSidebarCollapsed(
     (await cookies()).get(SIDEBAR_COOKIE)?.value,

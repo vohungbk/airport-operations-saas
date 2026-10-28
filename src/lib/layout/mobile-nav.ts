@@ -25,9 +25,10 @@ export interface MobileNavSplit<T> {
 
 /**
  * Splits the menu of a role into the bar and the More sheet. If the priority list gives fewer
- * than four items the bar is filled from the rest of the menu, in menu order.
+ * than four items the bar is filled from the rest of the menu, in menu order, skipping an item
+ * whose page is not built yet (`planned`): it stays in More and does not take a slot of the bar.
  */
-export function splitMobileNav<T extends { href: string }>(
+export function splitMobileNav<T extends { href: string; planned?: true }>(
   menu: T[],
   role: Role,
 ): MobileNavSplit<T> {
@@ -37,7 +38,7 @@ export function splitMobileNav<T extends { href: string }>(
   const chosen = new Set(bottom.slice(0, MAX_BOTTOM_ITEMS).map((item) => item.href));
   for (const item of menu) {
     if (chosen.size >= MAX_BOTTOM_ITEMS) break;
-    chosen.add(item.href);
+    if (!item.planned) chosen.add(item.href);
   }
 
   return {

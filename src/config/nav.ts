@@ -1,16 +1,22 @@
 import {
-  Armchair,
-  Boxes,
-  CalendarCheck,
-  Gauge,
-  Building2,
+  BarChart3,
+  Briefcase,
   ClipboardList,
-  Landmark,
-  ListChecks,
-  LayoutDashboard,
-  Plane,
   Circle,
+  CreditCard,
+  History,
+  LayoutDashboard,
+  LayoutGrid,
+  MapPin,
+  MessageSquare,
+  RefreshCw,
+  Plane,
+  Settings,
+  Tag,
+  TrendingUp,
   TriangleAlert,
+  Upload,
+  User,
   UserCircle,
   Users,
   type LucideIcon,
@@ -33,68 +39,59 @@ export interface NavItem {
   /** A single permission, or a list where holding any one is enough. */
   permission: Permission | readonly Permission[];
   icon: LucideIcon;
+  /**
+   * The page behind this item is built in its own feature and does not exist yet, so the link
+   * answers 404 until then. The item is in the menu because the design has it (UI-F02-T01).
+   */
+  planned?: true;
 }
 
 /**
- * The 3 protected area links. Gated by the same business permissions the
- * area's `layout.tsx`/`page.tsx` guard with (`requirePermission`) — no
- * separate `*:access` permission is introduced just for nav/route
- * visibility.
+ * UI-F02-T01: the menu of admin and operations manager, with the text, the icons and the order of
+ * the Figma sidebar. It is one flat list, as in the design. It is gated by the same business
+ * permissions the area's `layout.tsx`/`page.tsx` guard with (`requirePermission`); no separate
+ * `*:access` permission is introduced just for nav/route visibility. The technician and the
+ * partner user have a menu of their own (`ROLE_MENUS`), so their pages are not listed here.
+ *
+ * Items marked `planned` have no page yet: they use `dashboards:view` (managers only) until the
+ * feature that builds the page gives them their own permission.
  */
 export const NAV_ITEMS: NavItem[] = [
   {
-    label: "Dashboard",
+    label: "Command Centre",
     href: "/dashboard",
     permission: DASHBOARD_ACCESS_PERMISSIONS,
-    icon: Gauge,
-  },
-  {
-    label: "Admin Operations",
-    href: "/admin",
-    permission: "dashboards:view",
     icon: LayoutDashboard,
-  },
-  {
-    label: "Partners",
-    href: "/partners",
-    permission: "partners:manage",
-    icon: Building2,
-  },
-  {
-    label: "Airports",
-    href: "/airports",
-    permission: "airports:manage",
-    icon: Plane,
-  },
-  {
-    label: "Seat Categories",
-    href: "/seat-categories",
-    permission: "seat_categories:manage",
-    icon: Armchair,
-  },
-  {
-    label: "Seats",
-    href: "/seats",
-    permission: "seats:manage",
-    icon: Boxes,
-  },
-  {
-    label: "Technicians",
-    href: "/technicians",
-    permission: "technicians:manage",
-    icon: Users,
   },
   {
     label: "Bookings",
     href: "/bookings",
     permission: BOOKINGS_ACCESS_PERMISSIONS,
-    icon: CalendarCheck,
+    icon: Plane,
   },
   {
-    label: "Jobs",
-    href: "/jobs",
-    permission: JOBS_ACCESS_PERMISSIONS,
-    icon: ListChecks,
+    label: "Workflow Board",
+    href: "/admin",
+    permission: "dashboards:view",
+    icon: LayoutGrid,
+  },
+  { label: "Seats", href: "/seats", permission: "seats:manage", icon: Users },
+  {
+    label: "Seat Categories",
+    href: "/seat-categories",
+    permission: "seat_categories:manage",
+    icon: Tag,
+  },
+  { label: "Airports", href: "/airports", permission: "airports:manage", icon: MapPin },
+  { label: "Partners", href: "/partners", permission: "partners:manage", icon: Briefcase },
+  { label: "Technicians", href: "/technicians", permission: "technicians:manage", icon: User },
+  { label: "Jobs", href: "/jobs", permission: JOBS_ACCESS_PERMISSIONS, icon: ClipboardList },
+  {
+    label: "Return Queue",
+    href: "/return-queue",
+    permission: "dashboards:view",
+    icon: RefreshCw,
+    planned: true,
   },
   {
     label: "Incidents",
@@ -103,32 +100,49 @@ export const NAV_ITEMS: NavItem[] = [
     icon: TriangleAlert,
   },
   {
-    label: "Settlements",
+    label: "Flights",
+    href: "/flights",
+    permission: "dashboards:view",
+    icon: Plane,
+    planned: true,
+  },
+  {
+    label: "Finance",
     href: "/settlements",
     permission: FINANCE_ACCESS_PERMISSIONS,
-    icon: Landmark,
+    icon: CreditCard,
   },
   {
-    label: "Technician Jobs",
-    href: "/technician",
-    permission: "jobs:view_assigned",
-    icon: ClipboardList,
+    label: "Reports",
+    href: "/reports",
+    permission: "dashboards:view",
+    icon: BarChart3,
+    planned: true,
   },
   {
-    label: "Partner Portal",
-    href: "/partner",
-    permission: "bookings:view_own_partner",
-    icon: UserCircle,
+    label: "Import",
+    href: "/import",
+    permission: "dashboards:view",
+    icon: Upload,
+    planned: true,
+  },
+  {
+    label: "Settings",
+    href: "/settings",
+    permission: "dashboards:view",
+    icon: Settings,
+    planned: true,
   },
 ];
 
 /**
- * UI-F02-S04 (spec R8): the technician and the partner user have a shorter menu of their own,
- * with names that fit their work. Admin and operations manager have the full menu above. A menu
- * is only a look: the page behind an item is guarded on the server (spec R9), and a role can still
- * open a page it holds the permission for even when the page is not in its menu.
+ * UI-F02-S04 (spec R8) and UI-F02-T01: the technician and the partner user have a shorter menu of
+ * their own, with names that fit their work. Admin and operations manager have the full menu
+ * above. A menu is only a look: the page behind an item is guarded on the server (spec R9), and a
+ * role can still open a page it holds the permission for even when the page is not in its menu.
  *
- * Pages of the spec that do not exist yet (My History, KPI, ROI, Assistant) are not listed.
+ * My History, KPI, ROI and Assistant have no page yet. The layout of their area already guards
+ * them, so another role gets a 403 and the right role gets a 404 until the page exists.
  */
 export const ROLE_MENUS: Partial<Record<Role, NavItem[]>> = {
   technician: [
@@ -137,6 +151,13 @@ export const ROLE_MENUS: Partial<Record<Role, NavItem[]>> = {
       href: "/technician",
       permission: "jobs:view_assigned",
       icon: ClipboardList,
+    },
+    {
+      label: "My History",
+      href: "/technician/history",
+      permission: "jobs:view_assigned",
+      icon: History,
+      planned: true,
     },
     {
       label: "Incidents",
@@ -156,19 +177,40 @@ export const ROLE_MENUS: Partial<Record<Role, NavItem[]>> = {
       label: "Rentals",
       href: "/bookings",
       permission: BOOKINGS_ACCESS_PERMISSIONS,
-      icon: CalendarCheck,
+      icon: Plane,
     },
     {
       label: "Seats",
       href: "/partner/seats",
       permission: "bookings:view_own_partner",
-      icon: Boxes,
+      icon: Users,
     },
     {
       label: "Finance",
       href: "/settlements",
       permission: FINANCE_ACCESS_PERMISSIONS,
-      icon: Landmark,
+      icon: CreditCard,
+    },
+    {
+      label: "KPI",
+      href: "/partner/kpi",
+      permission: "bookings:view_own_partner",
+      icon: BarChart3,
+      planned: true,
+    },
+    {
+      label: "ROI",
+      href: "/partner/roi",
+      permission: "bookings:view_own_partner",
+      icon: TrendingUp,
+      planned: true,
+    },
+    {
+      label: "Assistant",
+      href: "/partner/assistant",
+      permission: "bookings:view_own_partner",
+      icon: MessageSquare,
+      planned: true,
     },
   ],
 };
