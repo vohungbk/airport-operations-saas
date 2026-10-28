@@ -1,3 +1,4 @@
+import { Timeline } from "@/components/domain/timeline";
 import { BookingStatusBadge } from "@/features/bookings/components/booking-status-badge";
 import {
   BOOKING_EVENTS_LIMIT,
@@ -69,7 +70,7 @@ function EventSummary({
         <span className="flex flex-col gap-1">
           Booking updated
           {event.changes && (
-            <ul className="list-disc pl-5 text-muted-foreground">
+            <ul className="list-disc pl-5 font-normal text-muted-foreground">
               {Object.entries(event.changes).map(([field, change]) => (
                 <li key={field}>
                   {FIELD_LABEL[field] ?? field}:{" "}
@@ -86,7 +87,10 @@ function EventSummary({
   }
 }
 
-/** Read-only: the log is append-only in the database, with no edit UI. */
+/**
+ * Read-only: the log is append-only in the database, with no edit UI. Drawn with the shared `Timeline`
+ * (UI-F06-S03), in the time zone of the airport.
+ */
 export function BookingEventsTimeline({
   events,
   truncated = false,
@@ -103,20 +107,16 @@ export function BookingEventsTimeline({
       {events.length === 0 ? (
         <p className="text-sm text-muted-foreground">No events recorded.</p>
       ) : (
-        <ol className="flex flex-col gap-3 border-l border-border pl-4">
-          {events.map((event) => (
-            <li key={event.id} className="flex flex-col gap-1 text-sm">
-              <p className="text-xs text-muted-foreground">
-                {formatBookingDateTime(event.created_at, timeZone)} ·{" "}
-                {event.actor_name ?? "Staff"}
-              </p>
-              <EventSummary event={event} timeZone={timeZone} />
-              {event.notes && (
-                <p className="text-muted-foreground">Reason: {event.notes}</p>
-              )}
-            </li>
-          ))}
-        </ol>
+        <Timeline
+          formatTime={(iso) => formatBookingDateTime(iso, timeZone)}
+          events={events.map((event) => ({
+            id: event.id,
+            actor: event.actor_name ?? "Staff",
+            occurred_at: event.created_at,
+            note: event.notes ? `Reason: ${event.notes}` : null,
+            title: <EventSummary event={event} timeZone={timeZone} />,
+          }))}
+        />
       )}
       {truncated ? (
         <p className="text-sm text-muted-foreground">

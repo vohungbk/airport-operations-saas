@@ -37,6 +37,7 @@ export function EditBookingForm({ booking, timeZone }: EditBookingFormProps) {
     });
   const {
     register,
+    control,
     formState: { errors },
   } = form;
 
@@ -71,6 +72,7 @@ export function EditBookingForm({ booking, timeZone }: EditBookingFormProps) {
       <BookingForm
         mode="edit"
         register={register}
+        control={control}
         errors={errors}
         isPending={isPending}
         availableSeats={availableSeats}

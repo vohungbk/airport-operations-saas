@@ -1,11 +1,13 @@
 "use client";
 
-import type {
-  FieldError,
-  FieldErrors,
-  FieldValues,
-  Path,
-  UseFormRegister,
+import {
+  Controller,
+  type Control,
+  type FieldError,
+  type FieldErrors,
+  type FieldValues,
+  type Path,
+  type UseFormRegister,
 } from "react-hook-form";
 
 import {
@@ -16,7 +18,14 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import type { AvailableSeat } from "@/features/bookings/actions/get-available-seats.action";
 import type { BookingFormOptions } from "@/features/bookings/lib/get-booking-form-options";
 import type {
@@ -36,6 +45,7 @@ interface SeatPickerState {
 type CreateModeProps = {
   mode: "create";
   register: UseFormRegister<CreateBookingInput>;
+  control: Control<CreateBookingInput>;
   errors: FieldErrors<CreateBookingInput>;
   isPending: boolean;
   options: BookingFormOptions;
@@ -46,6 +56,7 @@ type CreateModeProps = {
 type EditModeProps = {
   mode: "edit";
   register: UseFormRegister<UpdateBookingInput>;
+  control: Control<UpdateBookingInput>;
   errors: FieldErrors<UpdateBookingInput>;
   isPending: boolean;
   availableSeats: SeatPickerState;
@@ -58,6 +69,7 @@ type EditModeProps = {
 type PartnerCreateModeProps = {
   mode: "partner-create";
   register: UseFormRegister<CreatePartnerBookingInput>;
+  control: Control<CreatePartnerBookingInput>;
   errors: FieldErrors<CreatePartnerBookingInput>;
   isPending: boolean;
   options: Pick<BookingFormOptions, "airports" | "categories">;
@@ -77,9 +89,6 @@ type BookingFormProps =
   | EditModeProps
   | PartnerCreateModeProps
   | PartnerEditModeProps;
-
-const CONTROL_CLASS =
-  "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30";
 
 function describedBy(name: string, error?: FieldError, hint?: string) {
   const ids = [];
@@ -142,13 +151,17 @@ function TextField<TFieldValues extends FieldValues>({
 function SelectField<TFieldValues extends FieldValues>({
   name,
   label,
-  register,
+  control,
   errors,
   isPending,
   hint,
   placeholder = "Select...",
   choices,
-}: FieldShellProps<TFieldValues> & {
+}: Pick<
+  FieldShellProps<TFieldValues>,
+  "name" | "label" | "errors" | "isPending" | "hint"
+> & {
+  control: Control<TFieldValues>;
   placeholder?: string;
   choices: { value: string; label: string }[];
 }) {
@@ -157,21 +170,35 @@ function SelectField<TFieldValues extends FieldValues>({
   return (
     <Field data-invalid={!!error}>
       <FieldLabel htmlFor={name}>{label}</FieldLabel>
-      <select
-        id={name}
-        aria-invalid={!!error}
-        aria-describedby={describedBy(name, error, hint)}
-        disabled={isPending}
-        className={cn(CONTROL_CLASS, "h-8 py-1")}
-        {...register(name as Path<TFieldValues>)}
-      >
-        <option value="">{placeholder}</option>
-        {choices.map((choice) => (
-          <option key={choice.value} value={choice.value}>
-            {choice.label}
-          </option>
-        ))}
-      </select>
+      <Controller
+        control={control}
+        name={name as Path<TFieldValues>}
+        render={({ field }) => (
+          <Select
+            value={field.value ?? ""}
+            items={[{ value: "", label: placeholder }, ...choices]}
+            onValueChange={(value) => field.onChange(value)}
+            disabled={isPending}
+          >
+            <SelectTrigger
+              id={name}
+              aria-invalid={!!error}
+              aria-describedby={describedBy(name, error, hint)}
+              className="w-full"
+            >
+              <SelectValue placeholder={placeholder} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">{placeholder}</SelectItem>
+              {choices.map((choice) => (
+                <SelectItem key={choice.value} value={choice.value}>
+                  {choice.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      />
       {hint && <FieldDescription id={`${name}-hint`}>{hint}</FieldDescription>}
       <FieldErrorMessage
         id={`${name}-error`}
@@ -193,13 +220,12 @@ function TextAreaField<TFieldValues extends FieldValues>({
   return (
     <Field data-invalid={!!error}>
       <FieldLabel htmlFor={name}>{label}</FieldLabel>
-      <textarea
+      <Textarea
         id={name}
         rows={3}
         aria-invalid={!!error}
         aria-describedby={describedBy(name, error)}
         disabled={isPending}
-        className={CONTROL_CLASS}
         {...register(name as Path<TFieldValues>)}
       />
       <FieldErrorMessage
@@ -212,6 +238,8 @@ function TextAreaField<TFieldValues extends FieldValues>({
 
 interface SharedFieldsProps<TFieldValues extends FieldValues> {
   register: UseFormRegister<TFieldValues>;
+  /** Needed only where the seat is picked (`availableSeats` is set). */
+  control?: Control<TFieldValues>;
   errors: FieldErrors<TFieldValues>;
   isPending: boolean;
   /** `null` hides the seat field (a partner user does not pick a seat). */
@@ -223,6 +251,7 @@ interface SharedFieldsProps<TFieldValues extends FieldValues> {
 /** Fields editable in every mode; the seat only where `availableSeats` is set. */
 function SharedFields<TFieldValues extends FieldValues>({
   register,
+  control,
   errors,
   isPending,
   availableSeats,
@@ -266,9 +295,10 @@ function SharedFields<TFieldValues extends FieldValues>({
         type="datetime-local"
         hint={timeHint}
       />
-      {availableSeats && (
+      {availableSeats && control && (
         <SelectField
           {...shell}
+          control={control}
           name="assigned_seat_id"
           label="Seat"
           placeholder="No seat (assign later)"
@@ -305,19 +335,21 @@ function SharedFields<TFieldValues extends FieldValues>({
  */
 export function BookingForm(props: BookingFormProps) {
   if (props.mode === "partner-create") {
-    const { register, errors, isPending, options, timeZone } = props;
+    const { register, control, errors, isPending, options, timeZone } = props;
     const shell = { register, errors, isPending };
 
     return (
       <FieldGroup>
         <SelectField
           {...shell}
+          control={control}
           name="airport_id"
           label="Airport"
           choices={options.airports}
         />
         <SelectField
           {...shell}
+          control={control}
           name="seat_category_id"
           label="Seat category"
           choices={options.categories}
@@ -357,26 +389,36 @@ export function BookingForm(props: BookingFormProps) {
   }
 
   if (props.mode === "create") {
-    const { register, errors, isPending, options, availableSeats, timeZone } =
-      props;
+    const {
+      register,
+      control,
+      errors,
+      isPending,
+      options,
+      availableSeats,
+      timeZone,
+    } = props;
     const shell = { register, errors, isPending };
 
     return (
       <FieldGroup>
         <SelectField
           {...shell}
+          control={control}
           name="partner_id"
           label="Partner"
           choices={options.partners}
         />
         <SelectField
           {...shell}
+          control={control}
           name="airport_id"
           label="Airport"
           choices={options.airports}
         />
         <SelectField
           {...shell}
+          control={control}
           name="seat_category_id"
           label="Seat category"
           choices={options.categories}
@@ -390,6 +432,7 @@ export function BookingForm(props: BookingFormProps) {
         />
         <SharedFields
           {...shell}
+          control={control}
           availableSeats={availableSeats}
           timeZone={timeZone}
           currentSeat={null}
@@ -398,13 +441,21 @@ export function BookingForm(props: BookingFormProps) {
     );
   }
 
-  const { register, errors, isPending, availableSeats, timeZone, currentSeat } =
-    props;
+  const {
+    register,
+    control,
+    errors,
+    isPending,
+    availableSeats,
+    timeZone,
+    currentSeat,
+  } = props;
 
   return (
     <FieldGroup>
       <SharedFields
         register={register}
+        control={control}
         errors={errors}
         isPending={isPending}
         availableSeats={availableSeats}

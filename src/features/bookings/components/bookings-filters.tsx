@@ -3,8 +3,8 @@
 import { useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
+import { SearchInput } from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TextLink } from "@/components/ui/text-link";
 import {
   BOOKING_STATUSES,
   BOOKING_STATUS_LABEL,
@@ -89,32 +90,35 @@ export function BookingsFilters({
     return !value || value === ALL_VALUE ? "" : value;
   }
 
+  const hasFilters = Boolean(q || airportId || status || dateFrom || dateTo);
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <form
         onSubmit={handleSearchSubmit}
         role="search"
-        className="flex w-full items-center gap-2 sm:w-auto"
+        className="flex w-full items-center gap-2 sm:w-70"
       >
-        <Input
-          placeholder="Search by booking number..."
+        <SearchInput
+          placeholder="Search booking number…"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          className="min-w-0 flex-1 sm:w-60 sm:flex-none"
+          className="h-11"
           aria-label="Search bookings"
         />
-        <Button type="submit" variant="outline">
-          Search
-        </Button>
       </form>
 
       <Select
         value={airportId ?? ALL_VALUE}
+        items={[{ value: ALL_VALUE, label: "All airports" }, ...airports]}
         onValueChange={(value) =>
           navigate({ airport_id: toFilterValue(value) })
         }
       >
-        <SelectTrigger className="w-48" aria-label="Filter by airport">
+        <SelectTrigger
+          className="h-11 w-full flex-row-reverse justify-end gap-2 bg-card px-4 font-medium data-[size=default]:h-11 sm:w-fit"
+          aria-label="Filter by airport"
+        >
           <SelectValue placeholder="All airports" />
         </SelectTrigger>
         <SelectContent>
@@ -129,9 +133,19 @@ export function BookingsFilters({
 
       <Select
         value={status ?? ALL_VALUE}
+        items={[
+          { value: ALL_VALUE, label: "All statuses" },
+          ...BOOKING_STATUSES.map((value) => ({
+            value,
+            label: BOOKING_STATUS_LABEL[value],
+          })),
+        ]}
         onValueChange={(value) => navigate({ status: toFilterValue(value) })}
       >
-        <SelectTrigger className="w-40" aria-label="Filter by status">
+        <SelectTrigger
+          className="h-11 w-full flex-row-reverse justify-end gap-2 bg-card px-4 font-medium data-[size=default]:h-11 sm:w-fit"
+          aria-label="Filter by status"
+        >
           <SelectValue placeholder="All statuses" />
         </SelectTrigger>
         <SelectContent>
@@ -144,20 +158,26 @@ export function BookingsFilters({
         </SelectContent>
       </Select>
 
-      <Input
-        type="date"
-        value={dateFrom ?? ""}
-        onChange={(event) => navigate({ date_from: event.target.value })}
-        className="w-40"
-        aria-label="Pickup date from"
+      <DatePicker
+        value={dateFrom}
+        onValueChange={(value) => navigate({ date_from: value })}
+        placeholder="Pickup from"
+        className="h-11 w-full bg-card px-4 sm:w-40"
       />
-      <Input
-        type="date"
-        value={dateTo ?? ""}
-        onChange={(event) => navigate({ date_to: event.target.value })}
-        className="w-40"
-        aria-label="Pickup date to"
+      <DatePicker
+        value={dateTo}
+        onValueChange={(value) => navigate({ date_to: value })}
+        placeholder="Pickup to"
+        className="h-11 w-full bg-card px-4 sm:w-40"
       />
+      {hasFilters && (
+        <TextLink
+          href={`${pathname}?sort=${sort}&order=${order}`}
+          className="text-muted-foreground"
+        >
+          Clear all
+        </TextLink>
+      )}
     </div>
   );
 }
