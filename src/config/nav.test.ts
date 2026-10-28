@@ -21,6 +21,7 @@ import {
   User,
   UserCircle,
   Users,
+  ScanLine,
 } from "lucide-react";
 
 import {
@@ -78,10 +79,11 @@ describe("getVisibleNavItems", () => {
     );
   });
 
-  it("should give the technician Today's Jobs, My History and Incidents, and nothing else", () => {
+  it("should give the technician Today's Jobs, My History, Scan and Incidents, and nothing else", () => {
     expect(getVisibleNavItems("technician").map((item) => [item.label, item.href])).toEqual([
       ["Today's Jobs", "/technician"],
       ["My History", "/technician/history"],
+      ["Scan", "/technician/scan"],
       ["Incidents", "/incidents"],
     ]);
   });
@@ -102,6 +104,7 @@ describe("getVisibleNavItems", () => {
     expect(labelsAndIcons("technician")).toEqual([
       ["Today's Jobs", ClipboardList],
       ["My History", History],
+      ["Scan", ScanLine],
       ["Incidents", TriangleAlert],
     ]);
     expect(labelsAndIcons("partner_user")).toEqual([
