@@ -102,6 +102,22 @@ describe("where the restyle stands", () => {
     expect(group.checks.design_check).toBe("noted");
   });
 
+  it("should have the bookings done, with the form that has no design frame noted", () => {
+    const group = RESTYLE_GROUPS.find((g) => g.id === "bookings")!;
+
+    expect(isGroupDone(group)).toBe(true);
+    expect(group.screens.every((s) => s.restyled)).toBe(true);
+    expect(group.checks.design_check).toBe("noted");
+    expect(group.notes?.join(" ")).toContain("booking form");
+  });
+
+  it("should not mark the bookings done while one of its screens is not restyled (E4)", () => {
+    const group = RESTYLE_GROUPS.find((g) => g.id === "bookings")!;
+    const partial = { ...group, screens: group.screens.map((s, i) => ({ ...s, restyled: i !== 2 })) };
+
+    expect(isGroupDone(partial)).toBe(false);
+  });
+
   it("should not mark the seat detail with QR done while the scanned seat page is not restyled (E4)", () => {
     const group = RESTYLE_GROUPS.find((g) => g.id === "seat_detail_with_qr")!;
 
@@ -111,7 +127,7 @@ describe("where the restyle stands", () => {
   });
 
   it("should not mark a group done before its screens are restyled", () => {
-    const later = RESTYLE_GROUPS.filter((g) => !["sign_in_and_system", "reference_data"].includes(g.id));
+    const later = RESTYLE_GROUPS.filter((g) => !["sign_in_and_system", "reference_data", "bookings"].includes(g.id));
 
     for (const group of later) expect(isGroupDone(group), group.id).toBe(false);
   });

@@ -21,9 +21,6 @@ const ALLOWED = new Set([join("components", "layout", "more-sheet.tsx")]);
  * higher number, fails the test, so a new control goes into the library first (E1).
  */
 const BASELINE = new Map<string, number>([
-  ["features/bookings/components/adjustment-form.tsx", 1],
-  ["features/bookings/components/booking-form.tsx", 2],
-  ["features/bookings/components/change-booking-status-dialog.tsx", 2],
   ["features/cleaning/components/cleaning-complete-form.tsx", 3],
   ["features/incidents/components/change-incident-status-dialog.tsx", 2],
   ["features/incidents/components/incident-report-form.tsx", 2],

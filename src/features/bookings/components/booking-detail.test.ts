@@ -42,12 +42,16 @@ describe("BookingDetail actions (VI-F03-S03)", () => {
     expect(html).not.toContain("STATUS_DIALOG");
   });
 
-  it.each(["confirmed", "assigned", "in_progress", "completed", "cancelled", "no_show"])(
-    "should offer a partner user no Edit for a %s booking",
-    (status) => {
-      expect(render(status, false, true)).not.toContain("/edit");
-    },
-  );
+  it.each([
+    "confirmed",
+    "assigned",
+    "in_progress",
+    "completed",
+    "cancelled",
+    "no_show",
+  ])("should offer a partner user no Edit for a %s booking", (status) => {
+    expect(render(status, false, true)).not.toContain("/edit");
+  });
 
   it("should offer a viewer without either permission no action at all", () => {
     const html = render("pending", false, false);
@@ -79,7 +83,9 @@ describe("BookingDetail revenue link (VI-F04-S08)", () => {
   it("should link to how the revenue was calculated for a viewer with the finance permission", () => {
     const html = renderWithRevenue(true);
 
-    expect(html).toContain('href="/bookings/f0000000-0000-4000-8000-000000000001/revenue"');
+    expect(html).toContain(
+      'href="/bookings/f0000000-0000-4000-8000-000000000001/revenue"',
+    );
     expect(html).toContain(">Revenue<");
   });
 
@@ -89,5 +95,41 @@ describe("BookingDetail revenue link (VI-F04-S08)", () => {
 
   it("should not link to it when the prop is not given", () => {
     expect(render("completed", false, false)).not.toContain("/revenue");
+  });
+});
+
+describe("BookingDetail tabs (UI-F06-S03)", () => {
+  const html = () =>
+    renderToStaticMarkup(
+      createElement(BookingDetail, {
+        booking: booking("confirmed"),
+        events: { items: [], truncated: false },
+        canManage: false,
+        canEditOwn: false,
+      }),
+    );
+
+  it("should show the booking, its partner and its status under the title", () => {
+    expect(html()).toContain("BK-00001 · ERAC · Confirmed");
+  });
+
+  it("should offer the overview, the flight and the timeline as tabs", () => {
+    const out = html();
+
+    for (const name of ["Overview", "Flight", "Timeline"])
+      expect(out).toContain(`>${name}<`);
+  });
+
+  it("should say that no flight is linked when the booking has none", () => {
+    const out = renderToStaticMarkup(
+      createElement(BookingDetail, {
+        booking: { ...booking("confirmed"), flight: null } as never,
+        events: { items: [], truncated: false },
+        canManage: false,
+        canEditOwn: false,
+      }),
+    );
+
+    expect(out).not.toContain("flight-status-card");
   });
 });
