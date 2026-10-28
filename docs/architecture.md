@@ -931,3 +931,28 @@ starts, to a Postgres schema/table group protected by RLS.
   Export report button, and the figures whose formulas are another ticket (the tiles, the revenue rows, the launch
   credit, the queues of Operational attention). Each is noted in `screen-groups.ts`. The design frames for the
   field and incident screens are text wireframes.
+
+
+#### UI-F07-S01 — Today's Jobs on a phone
+
+- **Page.** `/technician` is Today's Jobs, built from the frame `Today's Jobs · Technician` of the design (read with
+  `get_design_context`): a heading with a line under it (the technician, the date, the airport code and the count of
+  jobs), the priority banner when a flight arrives early, a card for the first job, the card of its flight, the
+  button `Open installation job` (to `/jobs/[id]/installation`) and the card `Next jobs` (a record for each other
+  job, opening `/jobs/[id]`). The page checks `jobs:view_assigned` on the server; RLS scopes the rows to the
+  technician's own jobs. `loading.tsx` is the Loading state, the group's `error.tsx` the Error state and
+  `forbidden.tsx` Permission Denied. A failed read throws, so the page shows the error and never an empty list.
+- **Order and "today".** A job has no deadline column, so the list is ordered by the pickup time of the booking.
+  "Today" is the UTC day (as on the dashboard). A job of an earlier day that is not done stays on top, and a job in
+  progress stays whatever its pickup. Completed and cancelled jobs are not listed. The logic is in `todays-jobs.ts`
+  (pure); the read is `getTodaysJobs` (one nested select, explicit columns: no price, revenue share, partner or
+  booking notes). Times are written in the zone of the airport (`job-time.ts`; `GST` for Asia/Dubai).
+- **A dash.** The job number, the partner, the deadline, the installation deadline and the line under the banner
+  (`Complete - before -`) have no source yet: there is no job number column, the partner is not readable by a
+  technician (RLS), and there is no formula for the deadline. They are a dash until each has one, and no value is
+  made up.
+- **Empty.** The frame has no empty state. The spec (E3) gives "No jobs today." with the time of the next open job
+  when there is one.
+- **Not here.** The scanner, the step screens, the success and next-job screen, the poor-network banner and the
+  other stories of UI-F07; the end-to-end journey of AC05 needs them. The bottom navigation of the frame (Jobs,
+  History, Scan, Incidents, More) is not changed: the app keeps its menu of the role, and Scan has no page yet.
