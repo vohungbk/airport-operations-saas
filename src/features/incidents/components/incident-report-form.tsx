@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { FieldError, UseFormRegisterReturn } from "react-hook-form";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Field,
   FieldError as FieldErrorMessage,
@@ -56,7 +57,7 @@ function SelectField({
         aria-invalid={!!error}
         aria-describedby={error ? `${name}-error` : undefined}
         disabled={isPending}
-        className={`h-8 ${CONTROL_CLASS}`}
+        className={`h-11 ${CONTROL_CLASS}`}
         {...registration}
       >
         <option value="">{placeholder}</option>
@@ -127,13 +128,14 @@ export function IncidentReportForm({
 
       <Field data-invalid={!!errors.description}>
         <FieldLabel htmlFor="description">Description</FieldLabel>
-        <textarea
+        <Textarea
           id="description"
           rows={5}
           aria-invalid={!!errors.description}
-          aria-describedby={errors.description ? "description-error" : undefined}
+          aria-describedby={
+            errors.description ? "description-error" : undefined
+          }
           disabled={isPending}
-          className={CONTROL_CLASS}
           {...register("description")}
         />
         <FieldErrorMessage
@@ -143,12 +145,15 @@ export function IncidentReportForm({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className="min-h-11 px-4">
           {isPending ? "Saving..." : "Save"}
         </Button>
         <Link
           href={cancelHref}
-          className={buttonVariants({ variant: "outline" })}
+          className={buttonVariants({
+            variant: "outline",
+            className: "min-h-11 px-4",
+          })}
         >
           Cancel
         </Link>

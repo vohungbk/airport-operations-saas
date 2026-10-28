@@ -58,11 +58,13 @@ describe("NewIncidentPage", () => {
   });
 
   function formProps(node: Awaited<ReturnType<typeof element>>) {
-    // The form sits in the page's second child div.
-    const container = (node.props.children as unknown[])[1] as {
-      props: { children: { props: Record<string, unknown> } };
+    // The form sits in the card of the page's second child.
+    const card = (node.props.children as unknown[])[1] as {
+      props: {
+        children: { props: { children: { props: Record<string, unknown> } } };
+      };
     };
-    return container.props.children.props;
+    return card.props.children.props.children.props;
   }
 
   it("should select the job from the url when the user can report on it", async () => {

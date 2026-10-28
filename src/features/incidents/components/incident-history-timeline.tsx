@@ -1,3 +1,4 @@
+import { Timeline } from "@/components/domain/timeline";
 import { IncidentStatusBadge } from "@/features/incidents/components/incident-status-badge";
 import { INCIDENT_HISTORY_LIMIT } from "@/features/incidents/lib/get-incident-history";
 import type { IncidentHistoryItem } from "@/features/incidents/types";
@@ -16,20 +17,21 @@ export function IncidentHistoryTimeline({
     <section className="flex flex-col gap-3" aria-labelledby="incident-history">
       <h2
         id="incident-history"
-        className="text-lg font-medium text-foreground"
+        className="text-lg font-semibold tracking-tight text-foreground"
       >
         History
       </h2>
       {history.length === 0 ? (
         <p className="text-sm text-muted-foreground">No changes recorded.</p>
       ) : (
-        <ol className="flex flex-col gap-3 border-l border-border pl-4">
-          {history.map((entry) => (
-            <li key={entry.id} className="flex flex-col gap-1 text-sm">
-              <p className="text-xs text-muted-foreground">
-                {new Date(entry.created_at).toLocaleString()} ·{" "}
-                {entry.actor_name ?? "Staff"}
-              </p>
+        <Timeline
+          formatTime={(iso) => new Date(iso).toLocaleString()}
+          events={history.map((entry) => ({
+            id: entry.id,
+            actor: entry.actor_name ?? "Staff",
+            occurred_at: entry.created_at,
+            note: entry.notes ? `Note: ${entry.notes}` : null,
+            title: (
               <span className="flex flex-wrap items-center gap-2">
                 Status changed
                 {entry.from_status && (
@@ -38,12 +40,9 @@ export function IncidentHistoryTimeline({
                 <span aria-hidden="true">→</span>
                 <IncidentStatusBadge status={entry.to_status} />
               </span>
-              {entry.notes && (
-                <p className="text-muted-foreground">Note: {entry.notes}</p>
-              )}
-            </li>
-          ))}
-        </ol>
+            ),
+          }))}
+        />
       )}
       {truncated && (
         <p className="text-sm text-muted-foreground">

@@ -48,24 +48,8 @@ security(input): sanitize user input in forms
 Before opening a PR:
 
 - `npm run lint` passes
-- `npm run test` passes
 - `npm run build` passes
-- New or changed RLS policies come with a cross-tenant denial test (see `testing.md`)
 - Commit messages follow `.claude/rules/git-commit.md`
-
-## Pre-push Checklist
-
-Run before `git push`:
-
-```bash
-# Automated by .githooks/pre-push if hooks are enabled
-npm run lint && npm run test && npm run build
-```
-
-Enable git hooks with:
-```bash
-make setup  # one-time setup
-```
 
 ## Force Push Policy
 

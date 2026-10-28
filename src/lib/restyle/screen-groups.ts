@@ -49,14 +49,6 @@ export interface RestyleGroup {
   notes?: readonly string[];
 }
 
-const pending: RestyleGroup["checks"] = {
-  same_behavior: "pending",
-  both_themes: "pending",
-  phone_layout: "pending",
-  page_states: "pending",
-  design_check: "pending",
-};
-
 const screen = (name: string, route: string | null, file: string, restyled = false): RestyleScreen => ({ name, route, file, restyled });
 
 /** In the order of R12: sign-in and system pages, reference data, bookings, field operations, incidents, dashboards. */
@@ -139,36 +131,53 @@ export const RESTYLE_GROUPS: readonly RestyleGroup[] = [
     name: "Field operations",
     rule: "R5",
     screens: [
-      screen("Jobs", "/jobs", "(dashboard)/jobs/page.tsx"),
-      screen("Job detail", "/jobs/[id]", "(dashboard)/jobs/[id]/page.tsx"),
-      screen("Installation", "/jobs/[id]/installation", "(dashboard)/jobs/[id]/installation/page.tsx"),
-      screen("Cleaning", "/jobs/[id]/cleaning", "(dashboard)/jobs/[id]/cleaning/page.tsx"),
-      screen("Inspection", "/jobs/[id]/inspection", "(dashboard)/jobs/[id]/inspection/page.tsx"),
-      screen("Technician queue", "/technician", "(technician)/technician/page.tsx"),
+      screen("Jobs", "/jobs", "(dashboard)/jobs/page.tsx", true),
+      screen("Job detail", "/jobs/[id]", "(dashboard)/jobs/[id]/page.tsx", true),
+      screen("Installation", "/jobs/[id]/installation", "(dashboard)/jobs/[id]/installation/page.tsx", true),
+      screen("Cleaning", "/jobs/[id]/cleaning", "(dashboard)/jobs/[id]/cleaning/page.tsx", true),
+      screen("Inspection", "/jobs/[id]/inspection", "(dashboard)/jobs/[id]/inspection/page.tsx", true),
+      screen("Technician queue", "/technician", "(technician)/technician/page.tsx", true),
     ],
-    checks: pending,
+    checks: { same_behavior: "done", both_themes: "done", phone_layout: "done", page_states: "done", design_check: "noted" },
+    notes: [
+      "The design frames for these screens (Jobs, Job detail, the cleaning states, Inspection record) are text wireframes, not drawn screens, so they set the heading, the actions and the order of the groups; the look comes from the base components and the bookings screens (spec E3). There is no frame for the installation form or the technician queue.",
+      "The jobs list keeps its columns (Booking, Technician, Status, Assigned, Vehicle bay). The design wireframe has Job, Booking, Technician, Deadline and Status; a job has no number of its own and no deadline column in the database, so those are not shown. The Deadline filter is not built for the same reason.",
+      "The Return queue has a frame in the design (D-38) but no screen in the app, so it is not restyled here; it is a new screen, not a restyle.",
+      "The technician queue is still the placeholder of the project start; it has the new heading and a card, and no list of jobs (that is a new feature, OOS-1).",
+      "The cleaning states of the design (quarantine, blocked by booking, failed) are not drawn as screens of their own: the app has the start panel, the complete form and the record, and shows the rest as page-state messages.",
+    ],
   },
   {
     id: "incidents",
     name: "Incidents",
     rule: "R6",
     screens: [
-      screen("Incidents", "/incidents", "(dashboard)/incidents/page.tsx"),
-      screen("Incident detail", "/incidents/[id]", "(dashboard)/incidents/[id]/page.tsx"),
-      screen("Report an incident", "/incidents/new", "(dashboard)/incidents/new/page.tsx"),
+      screen("Incidents", "/incidents", "(dashboard)/incidents/page.tsx", true),
+      screen("Incident detail", "/incidents/[id]", "(dashboard)/incidents/[id]/page.tsx", true),
+      screen("Report an incident", "/incidents/new", "(dashboard)/incidents/new/page.tsx", true),
     ],
-    checks: pending,
+    checks: { same_behavior: "done", both_themes: "done", phone_layout: "done", page_states: "done", design_check: "noted" },
+    notes: [
+      "The incident detail has the Description and Details cards and the status history as a timeline. The design adds a Photo evidence card; the database stores no incident photo, so it is not built (as for the seat detail).",
+      "The report form keeps its native selects (job, severity) at 44 px; they are registered with the form, and moving them to the library Select needs a Controller for each field; that is left for later (the two status dialogs already use it).",
+    ],
   },
   {
     id: "dashboards",
     name: "Dashboards",
     rule: "R7",
     screens: [
-      screen("Command centre", "/dashboard", "(dashboard)/dashboard/page.tsx"),
-      screen("Partner overview", "/partner", "(partner)/partner/page.tsx"),
-      screen("Partner seats", "/partner/seats", "(partner)/partner/seats/page.tsx"),
+      screen("Command centre", "/dashboard", "(dashboard)/dashboard/page.tsx", true),
+      screen("Partner overview", "/partner", "(partner)/partner/page.tsx", true),
+      screen("Partner seats", "/partner/seats", "(partner)/partner/seats/page.tsx", true),
     ],
-    checks: pending,
+    checks: { same_behavior: "done", both_themes: "done", phone_layout: "done", page_states: "done", design_check: "noted" },
+    notes: [
+      "The Command Centre and the Partner Overview are the Operations dashboards frame of the design (Dark): the heading, the metric tiles, the flight banners, the status charts side by side (a ring for the seats, bars for bookings and jobs, a stacked bar for the open incidents, the stock by category), the Operational attention table, and for the partner Revenue and invoices, Launch credit and the upcoming rentals. Nothing else is on the pages.",
+      "A figure whose formula is not built has a dash and no number, because the formulas are another ticket: the four tiles of the Command Centre, the eight tiles of the Partner Overview, the revenue rows, the launch credit and the next item and status of each queue.",
+      "Left out on purpose: the Export report button (there is no export), the line 'installation deadline moved' of the flight banners (no deadline is stored), and the flight number and the booking under a banner (the alert part has no line for them). The banners show an early and a late flight from the flights table.",
+      "The count cards of the earlier dashboard, with their links to the lists, and the partner home cards (Bookings, Seats, Finance) are no longer on these pages, because the design does not have them. Their components (MetricTile, DashboardMetricsGrid, DashboardFigures, PartnerHomeNav) and tests are still in the code, unused; removing them is a decision for the team.",
+    ],
   },
 ];
 

@@ -126,8 +126,25 @@ describe("where the restyle stands", () => {
     expect(isGroupDone(group)).toBe(false);
   });
 
+  it.each(["field_operations", "incidents", "dashboards"])("should have %s done, with the difference from the design noted", (id) => {
+    const group = RESTYLE_GROUPS.find((g) => g.id === id)!;
+
+    expect(isGroupDone(group)).toBe(true);
+    expect(group.screens.every((s) => s.restyled)).toBe(true);
+    expect(group.checks.design_check).toBe("noted");
+    expect(group.notes?.length).toBeGreaterThan(0);
+  });
+
+  it("should note that the Return queue has a frame but no screen", () => {
+    const group = RESTYLE_GROUPS.find((g) => g.id === "field_operations")!;
+
+    expect(group.notes?.join(" ")).toContain("Return queue");
+  });
+
   it("should not mark a group done before its screens are restyled", () => {
-    const later = RESTYLE_GROUPS.filter((g) => !["sign_in_and_system", "reference_data", "bookings"].includes(g.id));
+    const later = RESTYLE_GROUPS.filter(
+      (g) => !["sign_in_and_system", "reference_data", "bookings", "field_operations", "incidents", "dashboards"].includes(g.id),
+    );
 
     for (const group of later) expect(isGroupDone(group), group.id).toBe(false);
   });

@@ -18,13 +18,18 @@ interface CleaningStartPanelProps {
  * own result, not a form. Why a start can be refused (a booking holds or uses
  * the seat in the cleaning period) comes back from the database and is shown here.
  */
-export function CleaningStartPanel({ jobId, seatLabel }: CleaningStartPanelProps) {
+export function CleaningStartPanel({
+  jobId,
+  seatLabel,
+}: CleaningStartPanelProps) {
   const { start, isPending, result, viewCleaning } = useStartCleaning(jobId);
 
   return (
     <div className="flex flex-col gap-5">
-      {result && !result.success && result.error && (
-        isAlreadyRecordedError(result.error) ? (
+      {result &&
+        !result.success &&
+        result.error &&
+        (isAlreadyRecordedError(result.error) ? (
           <CleaningConflictAlert
             message="Someone started this cleaning first."
             onViewRecord={viewCleaning}
@@ -34,8 +39,7 @@ export function CleaningStartPanel({ jobId, seatLabel }: CleaningStartPanelProps
             error={result.error}
             fallbackTitle="Could not start the cleaning"
           />
-        )
-      )}
+        ))}
 
       <dl className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -49,12 +53,20 @@ export function CleaningStartPanel({ jobId, seatLabel }: CleaningStartPanelProps
       </p>
 
       <div className="flex items-center gap-2">
-        <Button type="button" onClick={start} disabled={isPending}>
+        <Button
+          type="button"
+          onClick={start}
+          disabled={isPending}
+          className="min-h-11 px-4"
+        >
           {isPending ? "Starting..." : "Start cleaning"}
         </Button>
         <Link
           href={`/jobs/${jobId}`}
-          className={buttonVariants({ variant: "outline" })}
+          className={buttonVariants({
+            variant: "outline",
+            className: "min-h-11 px-4",
+          })}
         >
           Cancel
         </Link>

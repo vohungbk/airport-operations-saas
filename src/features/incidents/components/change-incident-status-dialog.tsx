@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Controller } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +18,14 @@ import {
   FieldError as FieldErrorMessage,
   FieldLabel,
 } from "@/components/ui/field";
-import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { IncidentActionErrorAlert } from "@/features/incidents/components/incident-action-error-alert";
 import { useChangeIncidentStatusForm } from "@/features/incidents/hooks/use-change-incident-status-form";
 import { isIncidentUnavailableError } from "@/features/incidents/lib/incident-errors";
@@ -33,9 +41,6 @@ interface ChangeIncidentStatusDialogProps {
   currentStatus: IncidentStatus;
   allowedStatuses: IncidentStatus[];
 }
-
-const CONTROL_CLASS =
-  "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30";
 
 /**
  * Only serializable props cross the Server->Client boundary. Targets are the
@@ -57,6 +62,7 @@ export function ChangeIncidentStatusDialog({
     });
   const {
     register,
+    control,
     watch,
     formState: { errors },
   } = form;
@@ -73,7 +79,9 @@ export function ChangeIncidentStatusDialog({
         if (nextOpen) reset();
       }}
     >
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger
+        render={<Button variant="outline" className="min-h-11 px-4" />}
+      >
         Update status
       </DialogTrigger>
       <DialogContent>
@@ -92,31 +100,44 @@ export function ChangeIncidentStatusDialog({
 
           <Field data-invalid={!!errors.to_status}>
             <FieldLabel htmlFor="to_status">New status</FieldLabel>
-            <select
-              id="to_status"
-              disabled={isPending}
-              className={cn(CONTROL_CLASS, "h-8 py-1")}
-              {...register("to_status")}
-            >
-              {allowedStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {INCIDENT_STATUS_LABEL[status]}
-                </option>
-              ))}
-            </select>
+            <Controller
+              control={control}
+              name="to_status"
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  items={allowedStatuses.map((status) => ({
+                    value: status,
+                    label: INCIDENT_STATUS_LABEL[status],
+                  }))}
+                  onValueChange={(value) => field.onChange(value)}
+                  disabled={isPending}
+                >
+                  <SelectTrigger id="to_status" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allowedStatuses.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {INCIDENT_STATUS_LABEL[status]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </Field>
 
           <Field data-invalid={!!errors.note}>
             <FieldLabel htmlFor="note">
               {noteRequired ? "Note" : "Note (optional)"}
             </FieldLabel>
-            <textarea
+            <Textarea
               id="note"
               rows={3}
               aria-invalid={!!errors.note}
               aria-describedby={errors.note ? "note-error" : undefined}
               disabled={isPending}
-              className={CONTROL_CLASS}
               {...register("note")}
             />
             <FieldErrorMessage

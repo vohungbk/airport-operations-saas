@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlusIcon } from "lucide-react";
 
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import {
@@ -35,18 +36,31 @@ export default async function IncidentsPage({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Incidents
-        </h1>
-        {canReport && (
-          <Link href="/incidents/new" className={buttonVariants()}>
-            Report incident
-          </Link>
-        )}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            Incidents
+          </h1>
+          {canReport && (
+            <Link
+              href="/incidents/new"
+              className={buttonVariants({ className: "min-h-11 px-4" })}
+            >
+              <PlusIcon aria-hidden="true" />
+              Report incident
+            </Link>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {total} incident{total === 1 ? "" : "s"}
+        </p>
       </div>
 
-      <IncidentsFilters query={query} />
+      <IncidentsFilters
+        // The search box keeps what was typed; a new search starts it again from the address.
+        key={query.q ?? ""}
+        query={query}
+      />
 
       {search_error && (
         <Alert variant="destructive">

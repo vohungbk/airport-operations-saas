@@ -4,6 +4,7 @@ import {
   INCIDENT_REPORT_PERMISSIONS,
   hasAnyPermission,
 } from "@/lib/auth/permissions";
+import { Card, CardContent } from "@/components/ui/card";
 import { IncidentReportForm } from "@/features/incidents/components/incident-report-form";
 import { getIncidentJobOptions } from "@/features/incidents/lib/get-incident-job-options";
 
@@ -27,23 +28,27 @@ export default async function NewIncidentPage({
   ]);
   // Only a job the user can report on is selected first.
   const requested = typeof params.job_id === "string" ? params.job_id : "";
-  const initialJobId = jobs.some((job) => job.id === requested) ? requested : "";
+  const initialJobId = jobs.some((job) => job.id === requested)
+    ? requested
+    : "";
   const cancelHref = hasAnyPermission(user.role, INCIDENTS_ACCESS_PERMISSIONS)
     ? "/incidents"
     : "/jobs";
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+      <h1 className="text-3xl font-semibold tracking-tight text-foreground">
         Report incident
       </h1>
-      <div className="max-w-lg">
-        <IncidentReportForm
-          jobs={jobs}
-          initialJobId={initialJobId}
-          cancelHref={cancelHref}
-        />
-      </div>
+      <Card className="max-w-lg">
+        <CardContent>
+          <IncidentReportForm
+            jobs={jobs}
+            initialJobId={initialJobId}
+            cancelHref={cancelHref}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

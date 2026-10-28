@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { INSPECTION_RECORD_PERMISSIONS } from "@/lib/auth/permissions";
 import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { PageEmpty, PageForbidden } from "@/components/shared/page-state";
 import { InspectionForm } from "@/features/inspections/components/inspection-form";
 import { InspectionRecord } from "@/features/inspections/components/inspection-record";
@@ -51,41 +52,48 @@ export default async function InspectionPage({ params }: InspectionPageProps) {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex items-start justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <h1 className="text-3xl font-semibold tracking-tight break-words text-foreground">
           Inspection {booking.booking_number}
         </h1>
         <Link
           href={`/jobs/${job.id}`}
-          className={buttonVariants({ variant: "outline" })}
+          className={buttonVariants({
+            variant: "outline",
+            className: "min-h-11 px-4",
+          })}
         >
           Back to job
         </Link>
       </div>
 
-      <div className="max-w-lg">
-        {inspection ? (
-          <InspectionRecord record={inspection} timeZone={timeZone} />
-        ) : !isActive ? (
-          <PageEmpty message="This job is not active, so an inspection cannot be recorded." />
-        ) : !booking.seat ? (
-          <PageEmpty message="This job's booking has no seat assigned yet." />
-        ) : !canInspectSeat(booking.seat.status) ? (
-          <PageEmpty
-            message={`The seat status is ${
-              SEAT_STATUS_LABEL[booking.seat.status]
-            }, so an inspection cannot be recorded.`}
-          />
-        ) : (
-          <InspectionForm
-            jobId={job.id}
-            seatId={booking.seat.id}
-            seatLabel={`${booking.seat.serial_number}${
-              booking.seat.category_name ? ` (${booking.seat.category_name})` : ""
-            }`}
-          />
-        )}
-      </div>
+      <Card className="max-w-lg">
+        <CardContent>
+          {inspection ? (
+            <InspectionRecord record={inspection} timeZone={timeZone} />
+          ) : !isActive ? (
+            <PageEmpty message="This job is not active, so an inspection cannot be recorded." />
+          ) : !booking.seat ? (
+            <PageEmpty message="This job's booking has no seat assigned yet." />
+          ) : !canInspectSeat(booking.seat.status) ? (
+            <PageEmpty
+              message={`The seat status is ${
+                SEAT_STATUS_LABEL[booking.seat.status]
+              }, so an inspection cannot be recorded.`}
+            />
+          ) : (
+            <InspectionForm
+              jobId={job.id}
+              seatId={booking.seat.id}
+              seatLabel={`${booking.seat.serial_number}${
+                booking.seat.category_name
+                  ? ` (${booking.seat.category_name})`
+                  : ""
+              }`}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

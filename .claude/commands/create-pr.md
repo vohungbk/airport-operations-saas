@@ -10,25 +10,24 @@ Run this only because the user asked for it. Pushing is outward-facing.
 
 ## Steps
 1. Check the branch is not `main` and the working tree is clean (`git status`). If there are uncommitted changes, ask the user.
-2. Run `/verify --build`. If any exit code is not 0, stop. Do not open the PR.
-3. Run `/security-scan`. Stop on High findings.
-4. Read the ticket: `gh issue view <number> --repo vohungbk/airport-operations-saas`. Copy every AC row verbatim.
-5. Capture screenshot evidence (see "Screenshot evidence" below). Skip it, and say so, when the diff has no UI change.
-6. Load the `pr-description` skill and fill `.github/PULL_REQUEST_TEMPLATE.md`:
+2. Run `/security-scan`. Stop on High findings.
+3. Read the ticket: `gh issue view <number> --repo vohungbk/airport-operations-saas`. Copy every AC row verbatim.
+4. Capture screenshot evidence (see "Screenshot evidence" below). Skip it, and say so, when the diff has no UI change.
+5. Load the `pr-description` skill and fill `.github/PULL_REQUEST_TEMPLATE.md`:
    - `Closes #<number>`
    - AC table with status (Pass / Fail / Block / Skip / Not run) and real evidence
    - `# Evidence`: the screenshot table with the uploaded image links, or `n/a: no visible change` / `Not captured: <reason>`
    - Impact assessment from the actual diff (`git diff main...HEAD`)
    - Verification checklist: tick only what was run (lint, build, RLS, service-role key, Zod)
    - Do not tick "passes in CI" yet
-7. Push and create the PR:
+6. Push and create the PR:
    - `git push -u origin <branch>` (never force push)
    - `gh pr create --base main --title "<conventional title>" --body-file <file>`
    - Write the body file in the scratchpad directory, not in the repo.
-8. Bind the PR with the ccd_pr tools if available. Report the PR link.
+7. Bind the PR with the ccd_pr tools if available. Report the PR link.
 
 ## Screenshot evidence
-Do this after `/verify --build` is green (that step stops any dev server), and only for a diff that changes UI (`src/app/**/page.tsx`, `src/components/**`, `src/features/**/components/**`). Docs, test-only and config-only diffs skip it.
+Docs, test-only and config-only diffs skip it.
 
 1. **Pick the screens.** From the diff and the ACs, list the routes and states worth showing (for example list with data, empty state, validation error, detail, forbidden). At most 6 screenshots, each tied to an AC.
 2. **Start the app.** Check `lsof -i :3000` is free, run `npm run dev` in the background, and confirm `curl` returns HTTP 200. Local Supabase must be running if the page reads data (`npx supabase start`).

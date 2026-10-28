@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Field,
   FieldDescription,
@@ -22,9 +23,6 @@ interface InstallationFormProps {
   timeZone: string;
   defaultInstalledAt: string;
 }
-
-const CONTROL_CLASS =
-  "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30";
 
 /**
  * Cancel is a plain link: nothing is saved until Save succeeds, so leaving
@@ -52,16 +50,17 @@ export function InstallationForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-      {result && !result.success && result.error && (
-        isAlreadyRecordedError(result.error) ? (
+      {result &&
+        !result.success &&
+        result.error &&
+        (isAlreadyRecordedError(result.error) ? (
           <InstallationConflictAlert onViewRecord={viewRecordedInstallation} />
         ) : (
           <JobActionErrorAlert
             error={result.error}
             fallbackTitle="Could not record installation"
           />
-        )
-      )}
+        ))}
 
       <input type="hidden" {...register("job_id")} />
       <input type="hidden" {...register("seat_id")} />
@@ -96,13 +95,12 @@ export function InstallationForm({
 
       <Field data-invalid={!!errors.notes}>
         <FieldLabel htmlFor="notes">Installation notes (optional)</FieldLabel>
-        <textarea
+        <Textarea
           id="notes"
           rows={4}
           aria-invalid={!!errors.notes}
           aria-describedby={errors.notes ? "notes-error" : undefined}
           disabled={isPending}
-          className={CONTROL_CLASS}
           {...register("notes")}
         />
         <FieldErrorMessage
@@ -112,12 +110,15 @@ export function InstallationForm({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className="min-h-11 px-4">
           {isPending ? "Saving..." : "Save"}
         </Button>
         <Link
           href={`/jobs/${jobId}`}
-          className={buttonVariants({ variant: "outline" })}
+          className={buttonVariants({
+            variant: "outline",
+            className: "min-h-11 px-4",
+          })}
         >
           Cancel
         </Link>
