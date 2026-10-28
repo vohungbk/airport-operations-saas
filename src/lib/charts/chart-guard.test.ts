@@ -176,6 +176,15 @@ describe("findMultiSeriesWithoutMarks", () => {
     expect(findMultiSeriesWithoutMarks("export const A = () => <ChartFrame legend_style='marker'><Line /></ChartFrame>;")).toEqual([]);
   });
 
+  it("should accept a computed legend style, as a computed paint is not read", () => {
+    const code = "export const A = () => <ChartFrame legend_style={solid ? 'symbol' : 'pattern'}><Bar stackId='s' /></ChartFrame>;";
+    expect(findMultiSeriesWithoutMarks(code)).toEqual([]);
+  });
+
+  it("should accept a symbol for stacked bars", () => {
+    expect(findMultiSeriesWithoutMarks("export const A = () => <ChartFrame legend_style='symbol'><Bar stackId='s' /></ChartFrame>;")).toEqual([]);
+  });
+
   it("should not ask a chart of one series for marks", () => {
     expect(findMultiSeriesWithoutMarks("export const A = () => <ChartFrame><BarChart><Bar dataKey='v' /></BarChart></ChartFrame>;")).toEqual([]);
   });

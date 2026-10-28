@@ -1,10 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("@/features/dashboard/components/dashboard-retry-button", () => ({
-  DashboardRetryButton: () => "RETRY_BUTTON",
-}));
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
 import { CommandCentre } from "@/features/dashboard/components/command-centre";
 import { DASHBOARD_CHARTS } from "@/features/dashboard/lib/dashboard-charts";
@@ -117,7 +115,7 @@ describe("Command Centre banners", () => {
   });
 });
 
-describe("Command Centre charts", () => {
+describe("Command Centre charts (UI-F06-S05, R7)", () => {
   it("should draw only the charts the role has", () => {
     const out = render({
       charts: [chartResult("bookings_by_status", [18, 9, 11, 2])],
@@ -128,13 +126,30 @@ describe("Command Centre charts", () => {
     expect(out).not.toContain("Jobs by status");
   });
 
-  it("should keep the card that says Unavailable, with a retry, when a count could not be read", () => {
+  it("should draw each chart in the frame of the chart components, with a legend and the table switch", () => {
+    const out = render({
+      charts: [
+        chartResult("seats_by_status", [16, 6, 12, 2, 2, 2, 0]),
+        chartResult("bookings_by_status", [18, 9, 11, 2]),
+        chartResult("jobs_by_status", [3, 2, 1, 4]),
+        chartResult("open_incidents_by_severity", [0, 1, 3, 2]),
+      ],
+      stock: [{ label: "Convertible", value: 16 }],
+    });
+
+    expect(out.match(/data-slot="chart-frame"/g)).toHaveLength(5);
+    expect(out.match(/data-slot="chart-legend"/g)).toHaveLength(5);
+    expect(out.match(/View as table/g)).toHaveLength(5);
+  });
+
+  it("should show the chart error with a retry, not zeros, when a count could not be read", () => {
     const out = render({
       charts: [chartResult("jobs_by_status", [null, 2, 3, 1])],
     });
 
-    expect(out).toContain("Unavailable");
-    expect(out).toContain("RETRY_BUTTON");
+    expect(out).toContain("This chart could not be loaded.");
+    expect(out).toContain("Retry");
+    expect(out).not.toContain('data-slot="chart-legend"');
   });
 
   it("should say there is nothing to chart when every count is zero, not draw zeros", () => {
@@ -142,10 +157,11 @@ describe("Command Centre charts", () => {
       charts: [chartResult("open_incidents_by_severity", [0, 0, 0, 0])],
     });
 
-    expect(out).toContain("No open incidents.");
+    expect(out).toContain("No data to chart yet.");
+    expect(out).not.toContain('data-slot="chart-legend"');
   });
 
-  it("should show the stock by category next to the seats chart, and say Unavailable when it could not be read", () => {
+  it("should show the stock by category next to the seats chart, and the chart error when it could not be read", () => {
     const seats = chartResult("seats_by_status", [16, 6, 12, 2, 2, 2, 0]);
     const ready = render({
       charts: [seats],
@@ -156,16 +172,30 @@ describe("Command Centre charts", () => {
     expect(ready).toContain("Stock by category");
     expect(ready).toContain("Convertible");
     expect(failed).toContain("Stock by category");
-    expect(failed).toContain("RETRY_BUTTON");
+    expect(failed).toContain("This chart could not be loaded.");
   });
 
-  it("should say there are no seat categories when the stock is empty", () => {
+  it("should say there is nothing to chart when the stock is empty", () => {
     const out = render({
       charts: [chartResult("seats_by_status", [1, 0, 0, 0, 0, 0, 0])],
       stock: [],
     });
 
-    expect(out).toContain("No seat categories yet.");
+    expect(out).toContain("No data to chart yet.");
+  });
+
+  it("should not draw a chart by hand in the dashboard components", () => {
+    for (const file of ["status-chart.tsx", "stock-by-category.tsx"]) {
+      const source = readFileSync(
+        join(process.cwd(), "src/features/dashboard/components", file),
+        "utf8",
+      );
+
+      expect(source).toContain("@/components/charts/");
+      expect(source).not.toContain("<svg");
+      expect(source).not.toContain("<circle");
+      expect(source).not.toContain("style={{");
+    }
   });
 });
 
@@ -188,47 +218,40 @@ describe("Operational attention", () => {
 });
 
 describe("Command Centre chart style", () => {
-  it("should draw solid colors, with no hatch or dot pattern", () => {
-    const out = render({
-      charts: [
-        chartResult("seats_by_status", [16, 6, 12, 2, 2, 2, 0]),
-        chartResult("bookings_by_status", [18, 9, 11, 2]),
-        chartResult("open_incidents_by_severity", [0, 1, 3, 2]),
-      ],
-    });
+  const charts = [
+    chartResult("seats_by_status", [16, 6, 12, 2, 2, 2, 0]),
+    chartResult("bookings_by_status", [18, 9, 11, 2]),
+    chartResult("open_incidents_by_severity", [0, 1, 3, 2]),
+  ];
+
+  it("should paint the ring and the stacked bar in solid colors, with no hatch or dot pattern", () => {
+    const out = render({ charts });
 
     expect(out).not.toContain("<pattern");
     expect(out).not.toContain("url(#");
+    expect(out).toContain("var(--chart-1)");
   });
 
-  it("should put the symbol in front of each label, as the legend of the design does", () => {
-    const out = render({
-      charts: [chartResult("bookings_by_status", [18, 9, 11, 2])],
-    });
+  it("should put a symbol before each name in the legend of the ring and the stacked bar", () => {
+    const out = render({ charts });
 
-    expect(out).toContain("● Pending");
-    expect(out).toContain("◆ Confirmed");
-    expect(out).toContain("Legend: symbol + status label · count");
+    expect(out).toContain("● Available");
+    expect(out).toContain("◆ Active rental");
+    expect(out).toContain("● Low");
+    expect(out).toContain("◆ Medium");
   });
+});
 
+describe("Command Centre chart content", () => {
   it("should group the seats as the ring of the design does, and leave the retired ones out", () => {
     const out = render({
       charts: [chartResult("seats_by_status", [16, 6, 12, 2, 2, 2, 9])],
     });
 
-    expect(out).toContain("◆ Active rental");
-    expect(out).toContain("▲ Cleaning / inspection");
+    expect(out).toContain("Active rental");
+    expect(out).toContain("Cleaning / inspection");
     expect(out).not.toContain("Retired");
     expect(out).toContain(">40<");
-  });
-
-  it("should show the total in the ring and the value of each status in the legend", () => {
-    const out = render({
-      charts: [chartResult("seats_by_status", [16, 6, 12, 2, 2, 2, 0])],
-    });
-
-    expect(out).toContain(">40<");
-    expect(out).toContain("seats");
   });
 
   it("should list the severities from the lightest to the heaviest with their counts", () => {
@@ -236,7 +259,8 @@ describe("Command Centre chart style", () => {
       charts: [chartResult("open_incidents_by_severity", [0, 1, 3, 2])],
     });
 
-    expect(out).toContain("○ Low 2 · ▲ Medium 3 · ✚ High 1 · Critical 0");
-    expect(out).toContain("6 open incidents");
+    expect(out.indexOf("Low")).toBeLessThan(out.indexOf("Medium"));
+    expect(out.indexOf("Medium")).toBeLessThan(out.indexOf("High"));
+    expect(out.indexOf("High")).toBeLessThan(out.indexOf("Critical"));
   });
 });
