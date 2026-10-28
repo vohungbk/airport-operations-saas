@@ -808,7 +808,8 @@ starts, to a Postgres schema/table group protected by RLS.
   The sparkline is the one exception (a small line inside a KPI tile that holds the numbers as text,
   drawn only when `sparklineReady`); a test keeps that exemption honest.
 - **Told apart by more than color (R7).** A chart of several series sets `legend_style` to
-  `pattern` (stacked bars, donut) or `marker` (lines); the guard fails on `color`.
+  `pattern` (stacked bars, donut), `symbol` (the solid mode of those two, a symbol before each name) or
+  `marker` (lines); the guard fails on `color`. It does not read a computed value.
 - **Table view (R5, NAV-1).** Every chart has a "View as table" button (a real button, so a keyboard
   reaches and presses it) and a table of the same numbers, whole, with a gap as a dash.
 - **Keyboard and screen reader (E5).** Every chart turns on `accessibilityLayer`: Tab reaches the
@@ -917,8 +918,13 @@ starts, to a Postgres schema/table group protected by RLS.
   frame of the design and nothing else: the count cards of the earlier dashboard and the partner home cards are
   no longer on the pages (their components stay in the code, unused). `OverviewTile` is the tile; a figure whose
   formula is not built is a dash. The charts are the library parts (`DonutChart`, `HorizontalBarChart`,
-  `StackedBarChart`) through `StatusChart`; a group that could not be read or has nothing to count keeps the card
-  that says so. New reads: `getFlightAlerts` (early and late flights, for the banners), `getStockByCategory`
+  `StackedBarChart`) through `StatusChart` and `StockByCategory` (UI-F06-S05 replaced the hand-drawn cards of
+  UI-F06-S04, so the Command Centre has no chart of its own; `chart-cards.tsx` is gone). A group that could not be
+  read shows the chart error with a retry, and one with nothing to count shows the chart's empty state, both from
+  `ChartFrame`. The ring and the stacked bar use the `solid` mode of `DonutChart` and
+  `StackedBarChart` (UI-F06-S05): each series is a solid chart token, and the legend puts a symbol before each
+  name (`legend_style="symbol"`), as the design frame does. The symbol is the second cue of R7, so a series is
+  still not told by color alone. Without `solid` the charts keep their patterns. New reads: `getFlightAlerts` (early and late flights, for the banners), `getStockByCategory`
   (seats of each category in one nested select) and `getUpcomingPartnerRentals`. Each catches its own failure and
   gives no banner or `null`. The partner seats list is a stacked table.
 - **Not built.** The job deadline and number, incident photos, the Return queue, the technician job list, the

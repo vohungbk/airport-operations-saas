@@ -18,7 +18,7 @@ import {
   toStackRows,
 } from "@/lib/charts/bar-data"
 import { abbreviateNumber, formatFullNumber, type ChartSeries, type ChartStatus } from "@/lib/charts/chart-data"
-import { CHART_GRID_COLOR } from "@/lib/charts/chart-tokens"
+import { CHART_GRID_COLOR, seriesColor } from "@/lib/charts/chart-tokens"
 import { cn } from "@/lib/utils"
 
 interface StackedBarChartProps {
@@ -29,6 +29,8 @@ interface StackedBarChartProps {
   series: readonly ChartSeries[]
   on_retry?: () => void
   gap_note?: string
+  /** Paint each segment a solid color and tell them apart by a symbol before the legend name, not by a pattern (spec R7). */
+  solid?: boolean
   className?: string
 }
 
@@ -66,18 +68,18 @@ function SegmentLabel({ x = 0, y = 0, width = 0, height = 0, value }: SegmentLab
  * Segments of a bar, each with its value, and the total of the bar at its end (spec R1). Segments next to
  * each other differ by a pattern as well as by color (R7). The full numbers are in the tooltip and the table.
  */
-function StackedBarChart({ title, description, status, series, on_retry, gap_note, className }: StackedBarChartProps) {
+function StackedBarChart({ title, description, status, series, on_retry, gap_note, solid = false, className }: StackedBarChartProps) {
   const id = patternId(useId())
   const rows = toStackRows(series)
   const labels = rows.map((row) => row.label)
   const height = barChartHeight(rows.length, maxLabelLines(labels))
 
   return (
-    <ChartFrame title={title} description={description} status={status} series={series} on_retry={on_retry} gap_note={gap_note} legend_style="pattern" label_heading="Name" className={className}>
+    <ChartFrame title={title} description={description} status={status} series={series} on_retry={on_retry} gap_note={gap_note} legend_style={solid ? "symbol" : "pattern"} label_heading="Name" className={className}>
       <div data-slot="bar-chart-scroll" className={cn("min-w-0", needsScroll(height) && "max-h-96 overflow-y-auto")}>
         <ChartContainer label={describeStacks(title, series)} name={title} height={height}>
           <BarChart layout="vertical" data={rows} margin={{ top: 4, right: 0, bottom: 4, left: 0 }} accessibilityLayer>
-            <ChartPatternDefs id={id} count={series.length} />
+            {!solid && <ChartPatternDefs id={id} count={series.length} />}
             <CartesianGrid horizontal={false} stroke={CHART_GRID_COLOR} />
             <XAxis type="number" hide />
             <YAxis type="category" dataKey="label" width={labelColumnWidth(labels)} tickLine={false} axisLine={false} interval={0} tick={<WrappedTick />} />
@@ -96,7 +98,7 @@ function StackedBarChart({ title, description, status, series, on_retry, gap_not
               tick={{ className: "fill-foreground text-xs font-medium" }}
             />
             {series.map((s, index) => (
-              <Bar key={s.name} dataKey={segmentKey(index)} name={s.name} stackId="stack" fill={patternFill(id, index)} maxBarSize={28} isAnimationActive={false}>
+              <Bar key={s.name} dataKey={segmentKey(index)} name={s.name} stackId="stack" fill={solid ? seriesColor(index) : patternFill(id, index)} maxBarSize={28} isAnimationActive={false}>
                 <LabelList dataKey={segmentKey(index)} position="center" content={(props) => <SegmentLabel {...(props as SegmentLabelProps)} />} />
               </Bar>
             ))}
