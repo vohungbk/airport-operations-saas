@@ -74,7 +74,7 @@ export function BookingsTable({ bookings, query }: BookingsTableProps) {
             return (
               <TableRow
                 key={booking.id}
-                className="relative cursor-pointer sm:h-13"
+                className="relative cursor-pointer focus-within:bg-muted/50 sm:h-13"
               >
                 <TableCell
                   data-label="Booking"
@@ -83,7 +83,7 @@ export function BookingsTable({ bookings, query }: BookingsTableProps) {
                   <Link
                     href={`/bookings/${booking.id}`}
                     aria-label={`View booking ${booking.booking_number}`}
-                    className="outline-none after:absolute after:inset-0 hover:underline focus-visible:after:rounded-md focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+                    className="after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                   >
                     {booking.booking_number}
                   </Link>
