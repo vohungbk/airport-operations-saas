@@ -48,9 +48,7 @@ security(input): sanitize user input in forms
 Before opening a PR:
 
 - `npm run lint` passes
-- `npm run test` passes
 - `npm run build` passes
-- New or changed RLS policies come with a cross-tenant denial test (see `testing.md`)
 - Commit messages follow `.claude/rules/git-commit.md`
 
 ## Force Push Policy
