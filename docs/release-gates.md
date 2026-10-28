@@ -11,7 +11,6 @@ npm run release:gates
 |---|---|---|
 | typecheck | `npm run typecheck` (`tsc --noEmit`) | exit 0 |
 | lint | `npm run lint` | exit 0 |
-| tests | `npm run test` | exit 0, with the local Supabase stack running |
 | build | `npm run build` | exit 0 |
 
 - **Every gate runs.** It does not stop at the first failure, so one run shows

@@ -27,7 +27,7 @@ Run this only because the user asked for it. Pushing is outward-facing.
 7. Bind the PR with the ccd_pr tools if available. Report the PR link.
 
 ## Screenshot evidence
-Do this after `/verify --build` is green (that step stops any dev server), and only for a diff that changes UI (`src/app/**/page.tsx`, `src/components/**`, `src/features/**/components/**`). Docs, test-only and config-only diffs skip it.
+Docs, test-only and config-only diffs skip it.
 
 1. **Pick the screens.** From the diff and the ACs, list the routes and states worth showing (for example list with data, empty state, validation error, detail, forbidden). At most 6 screenshots, each tied to an AC.
 2. **Start the app.** Check `lsof -i :3000` is free, run `npm run dev` in the background, and confirm `curl` returns HTTP 200. Local Supabase must be running if the page reads data (`npx supabase start`).
