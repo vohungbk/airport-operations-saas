@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/input-group";
+import { TextLink } from "@/components/ui/text-link";
 import {
   Select,
   SelectContent,
@@ -38,6 +38,7 @@ interface IncidentsFiltersProps {
  */
 export function IncidentsFilters({ query }: IncidentsFiltersProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [searchInput, setSearchInput] = useState(query.q ?? "");
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -52,9 +53,14 @@ export function IncidentsFilters({ query }: IncidentsFiltersProps) {
     }
 
     router.push(
-      buildIncidentsHref(query, { q: searchInput.trim() || undefined, page: 1 }),
+      buildIncidentsHref(query, {
+        q: searchInput.trim() || undefined,
+        page: 1,
+      }),
     );
   }
+
+  const hasFilters = Boolean(query.q || query.status || query.severity);
 
   return (
     <div className="flex flex-col gap-2">
@@ -63,24 +69,28 @@ export function IncidentsFilters({ query }: IncidentsFiltersProps) {
           onSubmit={handleSearchSubmit}
           role="search"
           noValidate
-          className="flex w-full items-center gap-2 sm:w-auto"
+          className="flex w-full items-center gap-2 sm:w-72"
         >
-          <Input
-            placeholder="Search by type or description..."
+          <SearchInput
+            placeholder="Search type or description…"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            className="min-w-0 flex-1 sm:w-72 sm:flex-none"
+            className="h-11"
             aria-label="Search incidents"
             aria-invalid={searchError !== null}
             aria-describedby={searchError ? "incident-search-error" : undefined}
           />
-          <Button type="submit" variant="outline">
-            Search
-          </Button>
         </form>
 
         <Select
           value={query.status ?? ALL_VALUE}
+          items={[
+            { value: ALL_VALUE, label: "All statuses" },
+            ...INCIDENT_STATUSES.map((value) => ({
+              value,
+              label: INCIDENT_STATUS_LABEL[value],
+            })),
+          ]}
           onValueChange={(value) =>
             router.push(
               buildIncidentsHref(query, {
@@ -93,7 +103,10 @@ export function IncidentsFilters({ query }: IncidentsFiltersProps) {
             )
           }
         >
-          <SelectTrigger className="w-44" aria-label="Filter by status">
+          <SelectTrigger
+            className="h-11 w-full bg-card px-4 font-medium data-[size=default]:h-11 sm:w-fit"
+            aria-label="Filter by status"
+          >
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
@@ -108,6 +121,13 @@ export function IncidentsFilters({ query }: IncidentsFiltersProps) {
 
         <Select
           value={query.severity ?? ALL_VALUE}
+          items={[
+            { value: ALL_VALUE, label: "All severities" },
+            ...INCIDENT_SEVERITIES.map((value) => ({
+              value,
+              label: INCIDENT_SEVERITY_LABEL[value],
+            })),
+          ]}
           onValueChange={(value) =>
             router.push(
               buildIncidentsHref(query, {
@@ -120,7 +140,10 @@ export function IncidentsFilters({ query }: IncidentsFiltersProps) {
             )
           }
         >
-          <SelectTrigger className="w-44" aria-label="Filter by severity">
+          <SelectTrigger
+            className="h-11 w-full bg-card px-4 font-medium data-[size=default]:h-11 sm:w-fit"
+            aria-label="Filter by severity"
+          >
             <SelectValue placeholder="All severities" />
           </SelectTrigger>
           <SelectContent>
@@ -132,6 +155,15 @@ export function IncidentsFilters({ query }: IncidentsFiltersProps) {
             ))}
           </SelectContent>
         </Select>
+
+        {hasFilters && (
+          <TextLink
+            href={`${pathname}?sort=${query.sort}&order=${query.order}`}
+            className="text-muted-foreground"
+          >
+            Clear all
+          </TextLink>
+        )}
       </div>
 
       {searchError && (

@@ -1,3 +1,4 @@
+import { Timeline } from "@/components/domain/timeline";
 import { JobStatusBadge } from "@/features/jobs/components/job-status-badge";
 import { JOB_EVENTS_LIMIT } from "@/features/jobs/lib/get-job-events";
 import type { JobEventItem } from "@/features/jobs/types";
@@ -37,27 +38,23 @@ export function JobEventsTimeline({
     <section className="flex flex-col gap-3" aria-labelledby="job-events">
       <h2
         id="job-events"
-        className="text-lg font-medium text-foreground"
+        className="text-lg font-semibold tracking-tight text-foreground"
       >
         History
       </h2>
       {events.length === 0 ? (
         <p className="text-sm text-muted-foreground">No changes recorded.</p>
       ) : (
-        <ol className="flex flex-col gap-3 border-l border-border pl-4">
-          {events.map((event) => (
-            <li key={event.id} className="flex flex-col gap-1 text-sm">
-              <p className="text-xs text-muted-foreground">
-                {new Date(event.created_at).toLocaleString()} ·{" "}
-                {event.actor_name ?? "Staff"}
-              </p>
-              <EventSummary event={event} />
-              {event.notes && (
-                <p className="text-muted-foreground">Reason: {event.notes}</p>
-              )}
-            </li>
-          ))}
-        </ol>
+        <Timeline
+          formatTime={(iso) => new Date(iso).toLocaleString()}
+          events={events.map((event) => ({
+            id: event.id,
+            actor: event.actor_name ?? "Staff",
+            occurred_at: event.created_at,
+            note: event.notes ? `Reason: ${event.notes}` : null,
+            title: <EventSummary event={event} />,
+          }))}
+        />
       )}
       {truncated && (
         <p className="text-sm text-muted-foreground">

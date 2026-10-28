@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Field,
   FieldError as FieldErrorMessage,
@@ -22,9 +23,6 @@ interface CleaningCompleteFormProps {
   startedLabel: string;
 }
 
-const CONTROL_CLASS =
-  "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30";
-
 /**
  * Step two. The result is chosen, never defaulted: a passed cleaning returns
  * the seat to available, a failed one does not.
@@ -43,8 +41,10 @@ export function CleaningCompleteForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-      {result && !result.success && result.error && (
-        isAlreadyRecordedError(result.error) ? (
+      {result &&
+        !result.success &&
+        result.error &&
+        (isAlreadyRecordedError(result.error) ? (
           <CleaningConflictAlert
             message="Someone completed this cleaning first. Your result was not saved."
             onViewRecord={viewCleaning}
@@ -54,8 +54,7 @@ export function CleaningCompleteForm({
             error={result.error}
             fallbackTitle="Could not complete the cleaning"
           />
-        )
-      )}
+        ))}
 
       <input type="hidden" {...register("job_id")} />
 
@@ -104,13 +103,12 @@ export function CleaningCompleteForm({
 
       <Field data-invalid={!!errors.notes}>
         <FieldLabel htmlFor="notes">Cleaning notes (optional)</FieldLabel>
-        <textarea
+        <Textarea
           id="notes"
           rows={4}
           aria-invalid={!!errors.notes}
           aria-describedby={errors.notes ? "notes-error" : undefined}
           disabled={isPending}
-          className={CONTROL_CLASS}
           {...register("notes")}
         />
         <FieldErrorMessage
@@ -120,12 +118,15 @@ export function CleaningCompleteForm({
       </Field>
 
       <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className="min-h-11 px-4">
           {isPending ? "Saving..." : "Complete cleaning"}
         </Button>
         <Link
           href={`/jobs/${jobId}`}
-          className={buttonVariants({ variant: "outline" })}
+          className={buttonVariants({
+            variant: "outline",
+            className: "min-h-11 px-4",
+          })}
         >
           Cancel
         </Link>

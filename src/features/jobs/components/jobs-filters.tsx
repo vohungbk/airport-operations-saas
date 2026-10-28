@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/input-group";
+import { TextLink } from "@/components/ui/text-link";
 import {
   Select,
   SelectContent,
@@ -36,6 +36,7 @@ interface JobsFiltersProps {
  */
 export function JobsFilters({ query, technicians }: JobsFiltersProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [searchInput, setSearchInput] = useState(query.q ?? "");
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -54,6 +55,8 @@ export function JobsFilters({ query, technicians }: JobsFiltersProps) {
     );
   }
 
+  const hasFilters = Boolean(query.q || query.status || query.technician_id);
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -61,24 +64,28 @@ export function JobsFilters({ query, technicians }: JobsFiltersProps) {
           onSubmit={handleSearchSubmit}
           role="search"
           noValidate
-          className="flex w-full items-center gap-2 sm:w-auto"
+          className="flex w-full items-center gap-2 sm:w-70"
         >
-          <Input
-            placeholder="Search by booking number..."
+          <SearchInput
+            placeholder="Search booking number…"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            className="min-w-0 flex-1 sm:w-60 sm:flex-none"
+            className="h-11"
             aria-label="Search jobs"
             aria-invalid={searchError !== null}
             aria-describedby={searchError ? "job-search-error" : undefined}
           />
-          <Button type="submit" variant="outline">
-            Search
-          </Button>
         </form>
 
         <Select
           value={query.status ?? ALL_VALUE}
+          items={[
+            { value: ALL_VALUE, label: "All statuses" },
+            ...JOB_STATUSES.map((value) => ({
+              value,
+              label: JOB_STATUS_LABEL[value],
+            })),
+          ]}
           onValueChange={(value) =>
             router.push(
               buildJobsHref(query, {
@@ -91,7 +98,10 @@ export function JobsFilters({ query, technicians }: JobsFiltersProps) {
             )
           }
         >
-          <SelectTrigger className="w-40" aria-label="Filter by status">
+          <SelectTrigger
+            className="h-11 w-full bg-card px-4 font-medium data-[size=default]:h-11 sm:w-fit"
+            aria-label="Filter by status"
+          >
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
@@ -107,6 +117,10 @@ export function JobsFilters({ query, technicians }: JobsFiltersProps) {
         {technicians && (
           <Select
             value={query.technician_id ?? ALL_VALUE}
+            items={[
+              { value: ALL_VALUE, label: "All technicians" },
+              ...technicians.map((t) => ({ value: t.id, label: t.full_name })),
+            ]}
             onValueChange={(value) =>
               router.push(
                 buildJobsHref(query, {
@@ -117,7 +131,10 @@ export function JobsFilters({ query, technicians }: JobsFiltersProps) {
               )
             }
           >
-            <SelectTrigger className="w-48" aria-label="Filter by technician">
+            <SelectTrigger
+              className="h-11 w-full bg-card px-4 font-medium data-[size=default]:h-11 sm:w-fit"
+              aria-label="Filter by technician"
+            >
               <SelectValue placeholder="All technicians" />
             </SelectTrigger>
             <SelectContent>
@@ -130,10 +147,23 @@ export function JobsFilters({ query, technicians }: JobsFiltersProps) {
             </SelectContent>
           </Select>
         )}
+
+        {hasFilters && (
+          <TextLink
+            href={`${pathname}?sort=${query.sort}&order=${query.order}`}
+            className="text-muted-foreground"
+          >
+            Clear all
+          </TextLink>
+        )}
       </div>
 
       {searchError && (
-        <p id="job-search-error" role="alert" className="text-sm text-danger-fg">
+        <p
+          id="job-search-error"
+          role="alert"
+          className="text-sm text-danger-fg"
+        >
           {searchError}
         </p>
       )}

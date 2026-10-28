@@ -13,7 +13,7 @@ interface PartnerSeatsFiltersProps {
 }
 
 const SELECT_CLASS =
-  "h-8 w-40 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+  "h-11 w-full sm:w-40 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 /**
  * Server Component: a plain GET form, so it needs no client JS. A new search
@@ -33,7 +33,7 @@ export function PartnerSeatsFilters({ query }: PartnerSeatsFiltersProps) {
         name="q"
         defaultValue={query.q ?? ""}
         placeholder="Search by serial number..."
-        className="w-full sm:w-72"
+        className="h-11 w-full sm:w-72"
         aria-label="Search seats"
       />
       <select
@@ -51,13 +51,16 @@ export function PartnerSeatsFilters({ query }: PartnerSeatsFiltersProps) {
       </select>
       <input type="hidden" name="sort" value={query.sort} />
       <input type="hidden" name="order" value={query.order} />
-      <Button type="submit" variant="outline">
+      <Button type="submit" variant="outline" className="min-h-11 px-4">
         Search
       </Button>
       {isFiltered && (
         <Link
           href="/partner/seats"
-          className={buttonVariants({ variant: "ghost" })}
+          className={buttonVariants({
+            variant: "ghost",
+            className: "min-h-11 px-4",
+          })}
         >
           Clear
         </Link>

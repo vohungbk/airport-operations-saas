@@ -1,6 +1,5 @@
-import Link from "next/link";
-
 import {
+  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -37,25 +36,12 @@ function SortHeader({
   });
 
   return (
-    <TableHead
-      aria-sort={
-        isActive
-          ? query.order === "asc"
-            ? "ascending"
-            : "descending"
-          : undefined
-      }
-    >
-      <Link
-        href={href}
-        className="flex items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        {label}
-        {isActive && (
-          <span aria-hidden="true">{query.order === "asc" ? "↑" : "↓"}</span>
-        )}
-      </Link>
-    </TableHead>
+    <SortableTableHead
+      href={href}
+      label={label}
+      direction={isActive ? query.order : null}
+      idleIcon
+    />
   );
 }
 
@@ -65,27 +51,35 @@ function SortHeader({
  */
 export function PartnerSeatsTable({ seats, query }: PartnerSeatsTableProps) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <SortHeader query={query} column="serial_number" label="Serial" />
-          <TableHead>Category</TableHead>
-          <TableHead>Airport</TableHead>
-          <SortHeader query={query} column="status" label="Status" />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {seats.map((seat) => (
-          <TableRow key={seat.id}>
-            <TableCell className="font-medium">{seat.serial_number}</TableCell>
-            <TableCell>{seat.category?.name ?? "-"}</TableCell>
-            <TableCell>{seat.airport?.code ?? "-"}</TableCell>
-            <TableCell>
-              <SeatStatusBadge status={seat.status} />
-            </TableCell>
+    <div className="min-w-0 sm:overflow-hidden sm:rounded-lg sm:border sm:bg-card">
+      <Table stacked>
+        <TableHeader className="sm:bg-muted [&_th]:h-13 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_th_a]:text-[11px] [&_th_a]:font-semibold">
+          <TableRow>
+            <SortHeader query={query} column="serial_number" label="Serial" />
+            <TableHead>Category</TableHead>
+            <TableHead>Airport</TableHead>
+            <SortHeader query={query} column="status" label="Status" />
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody className="sm:[&_tr]:border-0">
+          {seats.map((seat) => (
+            <TableRow key={seat.id} className="sm:h-13">
+              <TableCell data-label="Serial" className="font-mono text-[13px]">
+                {seat.serial_number}
+              </TableCell>
+              <TableCell data-label="Category">
+                {seat.category?.name ?? "-"}
+              </TableCell>
+              <TableCell data-label="Airport">
+                {seat.airport?.code ?? "-"}
+              </TableCell>
+              <TableCell data-label="Status">
+                <SeatStatusBadge status={seat.status} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

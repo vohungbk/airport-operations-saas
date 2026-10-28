@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlusIcon } from "lucide-react";
 
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { hasPermission, JOBS_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
@@ -45,18 +46,32 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Jobs
-        </h1>
-        {canManageJobs && (
-          <Link href="/jobs/new" className={buttonVariants()}>
-            Create job
-          </Link>
-        )}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            Jobs
+          </h1>
+          {canManageJobs && (
+            <Link
+              href="/jobs/new"
+              className={buttonVariants({ className: "min-h-11 px-4" })}
+            >
+              <PlusIcon aria-hidden="true" />
+              Create job
+            </Link>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {total} job{total === 1 ? "" : "s"}
+        </p>
       </div>
 
-      <JobsFilters query={query} technicians={technicians} />
+      <JobsFilters
+        // The search box keeps what was typed; a new search starts it again from the address.
+        key={query.q ?? ""}
+        query={query}
+        technicians={technicians}
+      />
 
       {search_error && (
         <Alert variant="destructive">

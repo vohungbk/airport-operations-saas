@@ -17,7 +17,10 @@ interface PageLinkProps {
 }
 
 function PageLink({ href, children }: PageLinkProps) {
-  const linkClass = buttonVariants({ variant: "outline", size: "sm" });
+  const linkClass = cn(
+    buttonVariants({ variant: "outline" }),
+    "min-h-11 px-4 text-sm",
+  );
 
   return href ? (
     <Link href={href} className={linkClass}>
@@ -32,16 +35,21 @@ function PageLink({ href, children }: PageLinkProps) {
 
 export function JobsPagination({ query, total }: JobsPaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / query.page_size));
+  const last = Math.min(query.page * query.page_size, total);
+  // An out-of-range page still says a range that exists.
+  const first = Math.min((query.page - 1) * query.page_size + 1, last);
 
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-2">
       <p className="text-sm text-muted-foreground">
-        Page {query.page} of {totalPages} ({total} job{total === 1 ? "" : "s"})
+        Showing {first}–{last} of {total}
       </p>
       <div className="flex items-center gap-2">
         <PageLink
           href={
-            query.page > 1 ? buildJobsHref(query, { page: query.page - 1 }) : null
+            query.page > 1
+              ? buildJobsHref(query, { page: query.page - 1 })
+              : null
           }
         >
           Previous

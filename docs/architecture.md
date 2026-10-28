@@ -854,8 +854,8 @@ starts, to a Postgres schema/table group protected by RLS.
   only the columns that sort, as a row of links after "Sort by". From `sm` up it is the table it was. It is
   CSS only; the roles (`table`, `rowgroup`, `row`, `columnheader`, `cell`) are written out because a table
   made of blocks loses its native roles in some browsers. Only the four lists of this story use it
-  (partners, airports, seat categories, seats); the other tables scroll sideways in their box until their
-  group is restyled.
+  (partners, airports, seat categories, seats); the tables of later stories use it too (bookings, jobs,
+  incidents, partner seats); the rest scroll sideways in their box until their group is restyled.
 - **Sorting and links.** `SortableTableHead` is the head of a column that sorts: a link that is 44 px high on
   a touch screen, with `aria-sort`. The View link of a row is a `TextLink`.
 - **Seat detail (R3).** `SeatQrCard` makes the code from the seat and draws it with the shared `QrCodeCard`;
@@ -898,3 +898,30 @@ starts, to a Postgres schema/table group protected by RLS.
   history (there is only the flight as it is now, no table of its changes). There is no frame for the
   booking form. The revenue and adjustment pages are not part of R4. The differences from the design that are
   left are noted for design review in `screen-groups.ts`.
+
+
+#### UI-F06-S04 — field operations, incidents and dashboards
+
+- **Lists.** Jobs, incidents and the partner seats list follow the bookings list: a 30 px title with a line
+  below it, a primary button with a plus, 44 px filters (search with a magnifier that submits on Enter, the
+  library selects, "Clear all" once a filter is set), a stacked `Table` in a bordered box with a muted header
+  row, the whole row opening the record through a link stretched over it, and "Showing a-b of N" with
+  Previous and Next. Cards below 640 px.
+- **Details and forms.** The job and incident details are a heading with its badges below it, the actions at
+  the right, and a `Card` for each group; their history is the shared `Timeline`. The installation, cleaning
+  and inspection pages and the report form are a `Card` with `Textarea` and buttons of 44 px. The two status
+  dialogs use `Select` through `Controller` and `Textarea`; the baseline of native controls went down.
+  The report form keeps native selects for the job and the severity, at 44 px (they are registered with the
+  form).
+- **Dashboards.** The Command Centre (`CommandCentre`) and the Partner Overview (`PartnerOverview`) are the
+  frame of the design and nothing else: the count cards of the earlier dashboard and the partner home cards are
+  no longer on the pages (their components stay in the code, unused). `OverviewTile` is the tile; a figure whose
+  formula is not built is a dash. The charts are the library parts (`DonutChart`, `HorizontalBarChart`,
+  `StackedBarChart`) through `StatusChart`; a group that could not be read or has nothing to count keeps the card
+  that says so. New reads: `getFlightAlerts` (early and late flights, for the banners), `getStockByCategory`
+  (seats of each category in one nested select) and `getUpcomingPartnerRentals`. Each catches its own failure and
+  gives no banner or `null`. The partner seats list is a stacked table.
+- **Not built.** The job deadline and number, incident photos, the Return queue, the technician job list, the
+  Export report button, and the figures whose formulas are another ticket (the tiles, the revenue rows, the launch
+  credit, the queues of Operational attention). Each is noted in `screen-groups.ts`. The design frames for the
+  field and incident screens are text wireframes.

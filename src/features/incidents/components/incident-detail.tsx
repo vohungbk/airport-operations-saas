@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { ChangeIncidentStatusDialog } from "@/features/incidents/components/change-incident-status-dialog";
 import { IncidentHistoryTimeline } from "@/features/incidents/components/incident-history-timeline";
 import { IncidentSeverityBadge } from "@/features/incidents/components/incident-severity-badge";
@@ -33,9 +34,11 @@ function formatDateTime(value: string | null): string {
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
+    <div className="min-w-0">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="mt-1 text-sm text-foreground">{children}</dd>
+      <dd className="mt-1 min-w-0 text-sm break-words text-foreground">
+        {children}
+      </dd>
     </div>
   );
 }
@@ -54,17 +57,17 @@ export function IncidentDetail({
 }: IncidentDetailProps) {
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight break-words text-foreground">
             Incident: {incident.type}
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <IncidentSeverityBadge severity={incident.severity} />
             <IncidentStatusBadge status={incident.status} />
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {allowedStatuses.length > 0 && (
             <ChangeIncidentStatusDialog
               incidentId={incident.id}
@@ -75,65 +78,86 @@ export function IncidentDetail({
           )}
           <Link
             href="/incidents"
-            className={buttonVariants({ variant: "outline" })}
+            className={buttonVariants({
+              variant: "outline",
+              className: "min-h-11 px-4",
+            })}
           >
             Back to incidents
           </Link>
         </div>
       </div>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium text-foreground">Description</h2>
-        <p className="max-w-prose text-sm whitespace-pre-wrap text-foreground">
-          {incident.description}
-        </p>
-      </section>
+      <Card>
+        <CardContent className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            Description
+          </h2>
+          <p className="max-w-prose text-sm break-words whitespace-pre-wrap text-foreground">
+            {incident.description}
+          </p>
+        </CardContent>
+      </Card>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium text-foreground">Details</h2>
-        <dl className="grid gap-4 sm:grid-cols-2">
-          <Detail label="Partner">{incident.partner?.name ?? "-"}</Detail>
-          <Detail label="Seat">{formatIncidentSeat(incident.seat) ?? "-"}</Detail>
-          <Detail label="Booking">
-            {incident.booking?.booking_number ?? "-"}
-          </Detail>
-          {showStaffDetails && (
-            <Detail label="Job">
-              {incident.technician_job_id ? (
-                <Link
-                  href={`/jobs/${incident.technician_job_id}`}
-                  className="text-primary underline-offset-4 hover:underline"
-                >
-                  View job
-                </Link>
-              ) : (
-                "-"
-              )}
+      <Card>
+        <CardContent className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            Details
+          </h2>
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <Detail label="Partner">{incident.partner?.name ?? "-"}</Detail>
+            <Detail label="Seat">
+              {formatIncidentSeat(incident.seat) ?? "-"}
             </Detail>
-          )}
-          {showStaffDetails && (
-            <Detail label="Reported by">
-              {incident.reporter?.full_name ?? "-"}
+            <Detail label="Booking">
+              {incident.booking?.booking_number ?? "-"}
             </Detail>
-          )}
-          <Detail label="Reported at">{formatDateTime(incident.created_at)}</Detail>
-          <Detail label="Updated at">{formatDateTime(incident.updated_at)}</Detail>
-          {showStaffDetails && (
-            <Detail label="Resolved by">
-              {incident.resolver?.full_name ?? "-"}
+            {showStaffDetails && (
+              <Detail label="Job">
+                {incident.technician_job_id ? (
+                  <Link
+                    href={`/jobs/${incident.technician_job_id}`}
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    View job
+                  </Link>
+                ) : (
+                  "-"
+                )}
+              </Detail>
+            )}
+            {showStaffDetails && (
+              <Detail label="Reported by">
+                {incident.reporter?.full_name ?? "-"}
+              </Detail>
+            )}
+            <Detail label="Reported at">
+              {formatDateTime(incident.created_at)}
             </Detail>
-          )}
-          <Detail label="Resolved at">
-            {formatDateTime(incident.resolved_at)}
-          </Detail>
-        </dl>
-      </section>
+            <Detail label="Updated at">
+              {formatDateTime(incident.updated_at)}
+            </Detail>
+            {showStaffDetails && (
+              <Detail label="Resolved by">
+                {incident.resolver?.full_name ?? "-"}
+              </Detail>
+            )}
+            <Detail label="Resolved at">
+              {formatDateTime(incident.resolved_at)}
+            </Detail>
+          </dl>
+        </CardContent>
+      </Card>
 
       {history && (
-        <IncidentHistoryTimeline
-          history={history}
-          truncated={historyTruncated}
-        />
+        <Card>
+          <CardContent>
+            <IncidentHistoryTimeline
+              history={history}
+              truncated={historyTruncated}
+            />
+          </CardContent>
+        </Card>
       )}
     </div>
   );

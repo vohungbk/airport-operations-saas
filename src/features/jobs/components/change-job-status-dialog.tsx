@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Controller } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +18,14 @@ import {
   FieldError as FieldErrorMessage,
   FieldLabel,
 } from "@/components/ui/field";
-import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
 import { isJobUnavailableError } from "@/features/jobs/lib/job-errors";
 import { useChangeJobStatusForm } from "@/features/jobs/hooks/use-change-job-status-form";
@@ -34,9 +42,6 @@ interface ChangeJobStatusDialogProps {
   currentStatus: JobStatus;
   allowedStatuses: JobTargetStatus[];
 }
-
-const CONTROL_CLASS =
-  "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30";
 
 /**
  * Only serializable props cross the Server->Client boundary. Targets are
@@ -58,6 +63,7 @@ export function ChangeJobStatusDialog({
   });
   const {
     register,
+    control,
     watch,
     formState: { errors },
   } = form;
@@ -74,7 +80,9 @@ export function ChangeJobStatusDialog({
         if (nextOpen) reset();
       }}
     >
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger
+        render={<Button variant="outline" className="min-h-11 px-4" />}
+      >
         Update status
       </DialogTrigger>
       <DialogContent>
@@ -82,8 +90,8 @@ export function ChangeJobStatusDialog({
           <DialogHeader>
             <DialogTitle>Update status of {jobLabel}</DialogTitle>
             <DialogDescription>
-              Completed and cancelled jobs cannot be changed again. Every
-              change is kept in the job history.
+              Completed and cancelled jobs cannot be changed again. Every change
+              is kept in the job history.
             </DialogDescription>
           </DialogHeader>
 
@@ -93,30 +101,43 @@ export function ChangeJobStatusDialog({
 
           <Field data-invalid={!!errors.to_status}>
             <FieldLabel htmlFor="to_status">New status</FieldLabel>
-            <select
-              id="to_status"
-              disabled={isPending}
-              className={cn(CONTROL_CLASS, "h-8 py-1")}
-              {...register("to_status")}
-            >
-              {allowedStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {JOB_STATUS_LABEL[status]}
-                </option>
-              ))}
-            </select>
+            <Controller
+              control={control}
+              name="to_status"
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  items={allowedStatuses.map((status) => ({
+                    value: status,
+                    label: JOB_STATUS_LABEL[status],
+                  }))}
+                  onValueChange={(value) => field.onChange(value)}
+                  disabled={isPending}
+                >
+                  <SelectTrigger id="to_status" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allowedStatuses.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {JOB_STATUS_LABEL[status]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </Field>
 
           {reasonRequired && (
             <Field data-invalid={!!errors.reason}>
               <FieldLabel htmlFor="reason">Reason</FieldLabel>
-              <textarea
+              <Textarea
                 id="reason"
                 rows={3}
                 aria-invalid={!!errors.reason}
                 aria-describedby={errors.reason ? "reason-error" : undefined}
                 disabled={isPending}
-                className={CONTROL_CLASS}
                 {...register("reason")}
               />
               <FieldErrorMessage
