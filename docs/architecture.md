@@ -130,9 +130,10 @@ Two small shared modules outside any single feature support this:
   separate from `session.ts`, doing the `public.users` round trip that
   `session.ts`'s JWT-only helpers intentionally don't. See
   `docs/security.md` for the full behavior/rationale.
-- `src/config/nav.ts` — `NavItem[]` for the 3 protected areas and the
-  pure `getVisibleNavItems(role)`, gating each link by the same business
-  permission the area's own route guard uses.
+- `src/config/nav.ts` — `NavItem[]` for the protected areas (`NAV_ITEMS` for
+  admin and operations manager, `ROLE_MENUS` for technician and partner user)
+  and the pure `getVisibleNavItems(role)`, gating each link by the same
+  business permission the area's own route guard uses.
 - `src/components/layout/app-shell.tsx` — Server Component; computes
   `getVisibleNavItems(user.role)` and renders the shared shell (sidebar +
   content) for every protected route group.
@@ -587,9 +588,10 @@ starts, to a Postgres schema/table group protected by RLS.
   More. `splitMobileNav` (`src/lib/layout/mobile-nav.ts`, pure) picks the four
   from a priority list per role (`MOBILE_NAV_PRIORITY`) and leaves the rest
   for More. The lists are a proposal for spec question Q3: operations manager
-  and admin get Dashboard, Bookings, Jobs, Incidents; technician gets
-  Technician Jobs, Jobs, Incidents, Dashboard; partner user gets Partner
-  Portal, Bookings, Incidents, Settlements. The menu given to the function is
+  and admin get Command Centre, Bookings, Jobs, Incidents; technician gets
+  Today's Jobs, Incidents; partner user gets Overview, Rentals, Seats,
+  Finance. The bar is never filled with an item whose page is not built yet
+  (`planned`); it stays in More. The menu given to the function is
   already filtered by role on the server, so the lists grant nothing. Each slot
   has an icon and a label and is at least 44 px high; the current item has a
   bar on top, a heavier label and `aria-current="page"`.
@@ -597,8 +599,8 @@ starts, to a Postgres schema/table group protected by RLS.
   Esc closes, focus returns to the More button). It lists the other items, a
   Theme row with the theme control, and the name, role and email of the user
   with Sign out. It closes when an item is chosen or the page changes
-  (`useMobileNav`). A technician has only four items, so the list is empty and
-  the sheet still holds Theme and Sign out.
+  (`useMobileNav`). The technician list holds My History and the partner list
+  holds KPI, ROI and Assistant, whose pages are not built yet.
 - **App bar.** `buildMobileAppBar` (`src/lib/layout/mobile-title.ts`, pure)
   takes the title from the last crumb of the breadcrumb and adds a Back arrow
   to the crumb above on a page below an area (detail, new, edit), or to the
@@ -616,11 +618,10 @@ starts, to a Postgres schema/table group protected by RLS.
 
 - **Menus.** Admin and operations manager have the full menu (`NAV_ITEMS`).
   The technician and the partner user have a shorter one of their own
-  (`ROLE_MENUS` in `src/config/nav.ts`): technician, Today's Jobs and
-  Incidents; partner user, Overview, Rentals, Seats and Finance. Each item is
-  still filtered by the permission of the role on the server
-  (`getVisibleNavItems`). My History, KPI, ROI and Assistant of the spec are
-  not listed because their pages do not exist yet. A menu is only a look: the
+  (`ROLE_MENUS` in `src/config/nav.ts`): technician, Today's Jobs, My History
+  and Incidents; partner user, Overview, Rentals, Seats, Finance, KPI, ROI and
+  Assistant (UI-F02-T01). Each item is still filtered by the permission of the
+  role on the server (`getVisibleNavItems`). A menu is only a look: the
   pages are guarded on the server (spec R9), and a role can still open a page
   it holds the permission for even when the page is not in its menu.
 - **Icons and the current item.** The client looks an icon up by address
@@ -628,6 +629,26 @@ starts, to a Postgres schema/table group protected by RLS.
   `findActiveHref` marks only the item with the longest matching address, so
   `/partner/seats` does not light up Overview as well. The bottom bar of a
   phone follows the role menus (`MOBILE_NAV_PRIORITY`).
+
+
+#### UI-F02-T01 — the sidebar by role
+
+- **One config.** `src/config/nav.ts` is the only place that says which item a
+  role sees: `NAV_ITEMS` (admin and operations manager) and `ROLE_MENUS`
+  (technician and partner user). `getVisibleNavItems` filters by permission on
+  the server.
+- **Figma.** Text, order and icons of the full menu are those of the Figma
+  sidebar (file `2qiL4qrfp3rNIOuCxUOFt7`): one flat list, no section labels,
+  because the design has none. The technician has no frame in the design; its
+  menu follows the ticket.
+- **Items without a page.** Return Queue, Flights, Reports, Import, Settings,
+  My History, KPI, ROI and Assistant are in the menu because the design has
+  them; their pages belong to other features and answer 404 for now
+  (`planned: true` in the config). The admin ones use `dashboards:view` until
+  their feature adds a permission. The role ones sit under the layout of their
+  area, so another role gets 403. The phone bar never takes a `planned` item.
+- **Admin menu.** `Technician Jobs` and `Partner Portal` are no longer in it; an
+  admin can still open both addresses.
 - **403 inside the shell (spec E4).** `requirePermission`,
   `requireAnyPermission` and `requireRole` call `forbidden()` instead of
   redirecting. Next.js answers 403 and renders `forbidden.tsx` of the nearest
