@@ -9,7 +9,7 @@ import {
 } from "@/lib/layout/mobile-nav";
 
 const menuOf = (role: Parameters<typeof getVisibleNavItems>[0]) =>
-  getVisibleNavItems(role).map(({ href, label }) => ({ href, label }));
+  getVisibleNavItems(role).map(({ href, label, planned }) => ({ href, label, planned }));
 
 describe("splitMobileNav", () => {
   it("should put at most four items in the bar, so five slots with More", () => {
@@ -25,12 +25,17 @@ describe("splitMobileNav", () => {
     expect(bottom.map((i) => i.href)).toEqual(["/dashboard", "/bookings", "/jobs", "/incidents"]);
     expect(more.map((i) => i.href)).toEqual([
       "/admin",
-      "/partners",
-      "/airports",
-      "/seat-categories",
       "/seats",
+      "/seat-categories",
+      "/airports",
+      "/partners",
       "/technicians",
+      "/return-queue",
+      "/flights",
       "/settlements",
+      "/reports",
+      "/import",
+      "/settings",
     ]);
   });
 
@@ -45,18 +50,30 @@ describe("splitMobileNav", () => {
     }
   });
 
-  it("should leave More with no items for a technician, whose menu has two", () => {
+  it("should keep My History, whose page is not built yet, out of the bar of a technician and in More", () => {
     const { bottom, more } = splitMobileNav(menuOf("technician"), "technician");
 
     expect(bottom.map((i) => i.href)).toEqual(["/technician", "/incidents"]);
-    expect(more).toEqual([]);
+    expect(more.map((i) => i.href)).toEqual(["/technician/history"]);
   });
 
-  it("should put the four items of the partner menu in the bar of a partner user", () => {
+  it("should not fill a free slot of the bar with an item whose page is not built yet", () => {
+    const menu = [
+      { href: "/bookings", label: "Bookings" },
+      { href: "/flights", label: "Flights", planned: true as const },
+      { href: "/seats", label: "Seats" },
+    ];
+    const { bottom, more } = splitMobileNav(menu, "operations_manager");
+
+    expect(bottom.map((i) => i.href)).toEqual(["/bookings", "/seats"]);
+    expect(more.map((i) => i.href)).toEqual(["/flights"]);
+  });
+
+  it("should put the first four items of the partner menu in the bar and the rest in More", () => {
     const { bottom, more } = splitMobileNav(menuOf("partner_user"), "partner_user");
 
     expect(bottom.map((i) => i.href)).toEqual(["/partner", "/bookings", "/partner/seats", "/settlements"]);
-    expect(more).toEqual([]);
+    expect(more.map((i) => i.href)).toEqual(["/partner/kpi", "/partner/roi", "/partner/assistant"]);
   });
 
   it("should skip a priority item that the menu does not have", () => {

@@ -59,7 +59,12 @@ vi.mock("@/features/settlements/components/generate-settlement-form", () => ({
   GenerateSettlementForm: () => null,
 }));
 
-import { NAV_ITEMS, getNavItemPermissions, getVisibleNavItems } from "@/config/nav";
+import {
+  NAV_ITEMS,
+  ROLE_MENUS,
+  getNavItemPermissions,
+  getVisibleNavItems,
+} from "@/config/nav";
 import { hasAnyPermission } from "@/lib/auth/permissions";
 
 /** The entry (layout, or page where there is no layout) that guards each nav link. */
@@ -75,21 +80,36 @@ const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
   "/jobs": () => import("@/app/(dashboard)/jobs/layout"),
   "/incidents": () => import("@/app/(dashboard)/incidents/layout"),
   "/settlements": () => import("@/app/(dashboard)/settlements/page"),
-  "/technician": () => import("@/app/(technician)/technician/layout"),
-  "/partner": () => import("@/app/(partner)/partner/layout"),
 };
 
 /**
- * Pages of a role menu that are not a link of the full menu. The layout of the partner portal
- * guards the pages below it, so `/partner/seats` is guarded by it.
+ * Pages of a role menu that are not a link of the full menu. The layout of the technician area
+ * and the layout of the partner portal guard the pages below them, so `/partner/seats` and the
+ * pages not built yet (My History, KPI, ROI, Assistant) are guarded by them: another role gets a
+ * 403 now, and the right role gets a 404 until the page exists.
  */
 const EXTRA_GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
+  "/technician": () => import("@/app/(technician)/technician/layout"),
+  "/technician/history": () => import("@/app/(technician)/technician/layout"),
+  "/partner": () => import("@/app/(partner)/partner/layout"),
   "/partner/seats": () => import("@/app/(partner)/partner/layout"),
+  "/partner/kpi": () => import("@/app/(partner)/partner/layout"),
+  "/partner/roi": () => import("@/app/(partner)/partner/layout"),
+  "/partner/assistant": () => import("@/app/(partner)/partner/layout"),
 };
+
+const guardOf = (href: string) => GUARDS[href] ?? EXTRA_GUARDS[href];
+
+/** Every item of every menu, by address. */
+const ALL_ITEMS = new Map(
+  [...NAV_ITEMS, ...Object.values(ROLE_MENUS).flat()].map(
+    (item) => [item.href, item],
+  ),
+);
 
 async function opens(href: string, role: Role): Promise<boolean> {
   current.role = role;
-  const entry = (await (GUARDS[href] ?? EXTRA_GUARDS[href])()).default as (props: {
+  const entry = (await guardOf(href)()).default as (props: {
     children: null;
   }) => Promise<unknown>;
 
@@ -114,19 +134,41 @@ describe("navigation and the module it opens (VI-F01-S04, Nav-2)", () => {
     current.role = "admin";
   });
 
-  it("should have a guarded destination for every nav item", () => {
+  it("should have a guarded destination for every item of the full menu whose page exists", () => {
     expect(Object.keys(GUARDS).sort()).toEqual(
-      NAV_ITEMS.map((item) => item.href).sort(),
+      NAV_ITEMS.filter((item) => !item.planned)
+        .map((item) => item.href)
+        .sort(),
     );
   });
 
+  it("should guard every item of a role menu, by its own page or by the layout of its area", () => {
+    for (const menu of Object.values(ROLE_MENUS)) {
+      for (const { href } of menu) {
+        expect(guardOf(href), href).toBeDefined();
+      }
+    }
+  });
+
   it.each(ROLES)(
-    "should open the module of every link of the full menu that %s holds the permission for, and refuse the others",
+    "should open the module of every link that %s holds the permission for, and answer forbidden for the others",
     async (role) => {
-      for (const item of NAV_ITEMS) {
+      for (const [href, item] of ALL_ITEMS) {
+        if (!guardOf(href)) continue;
         const allowed = hasAnyPermission(role, getNavItemPermissions(item));
 
-        expect(await opens(item.href, role), `${role}: ${item.href}`).toBe(allowed);
+        expect(await opens(href, role), `${role}: ${href}`).toBe(allowed);
+      }
+    },
+  );
+
+  it.each(["technician", "partner_user"] as const)(
+    "should answer forbidden to %s for the address of an admin-only page that is not in its menu",
+    async (role) => {
+      const adminOnly = ["/admin", "/partners", "/airports", "/seat-categories", "/seats", "/technicians"];
+
+      for (const href of adminOnly) {
+        expect(await opens(href, role), `${role}: ${href}`).toBe(false);
       }
     },
   );
@@ -135,6 +177,8 @@ describe("navigation and the module it opens (VI-F01-S04, Nav-2)", () => {
     "should never show %s a link that its guard refuses",
     async (role) => {
       for (const item of getVisibleNavItems(role)) {
+        if (!guardOf(item.href)) continue;
+
         expect(await opens(item.href, role), `${role}: ${item.href}`).toBe(true);
       }
     },

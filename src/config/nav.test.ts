@@ -1,6 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { Circle } from "lucide-react";
+import {
+  BarChart3,
+  Briefcase,
+  ClipboardList,
+  Circle,
+  CreditCard,
+  History,
+  LayoutDashboard,
+  LayoutGrid,
+  MapPin,
+  MessageSquare,
+  Plane,
+  RefreshCw,
+  Settings,
+  Tag,
+  TrendingUp,
+  TriangleAlert,
+  Upload,
+  User,
+  UserCircle,
+  Users,
+} from "lucide-react";
 
 import {
   getNavIcon,
@@ -12,11 +33,33 @@ import {
 import { hasAnyPermission } from "@/lib/auth/permissions";
 import { ROLES } from "@/lib/auth/roles";
 
+/** The text and the icon of each item of the Figma sidebar of admin, in order (UI-F02-T01). */
+const FIGMA_ADMIN_MENU = [
+  ["Command Centre", LayoutDashboard],
+  ["Bookings", Plane],
+  ["Workflow Board", LayoutGrid],
+  ["Seats", Users],
+  ["Seat Categories", Tag],
+  ["Airports", MapPin],
+  ["Partners", Briefcase],
+  ["Technicians", User],
+  ["Jobs", ClipboardList],
+  ["Return Queue", RefreshCw],
+  ["Incidents", TriangleAlert],
+  ["Flights", Plane],
+  ["Finance", CreditCard],
+  ["Reports", BarChart3],
+  ["Import", Upload],
+  ["Settings", Settings],
+] as const;
+
+const labelsAndIcons = (role: Parameters<typeof getVisibleNavItems>[0]) =>
+  getVisibleNavItems(role).map((item) => [item.label, item.icon]);
+
 describe("getVisibleNavItems", () => {
   it("should match hasAnyPermission() for every nav item, for every role that has the full menu", () => {
     for (const role of ROLES.filter((r) => !ROLE_MENUS[r])) {
-      const visible = getVisibleNavItems(role);
-      const visibleHrefs = visible.map((item) => item.href);
+      const visibleHrefs = getVisibleNavItems(role).map((item) => item.href);
 
       for (const item of NAV_ITEMS) {
         const expected = hasAnyPermission(role, getNavItemPermissions(item));
@@ -25,73 +68,67 @@ describe("getVisibleNavItems", () => {
     }
   });
 
-  it("should show all 13 area links to admin (full system access)", () => {
-    const visible = getVisibleNavItems("admin");
+  it("should give admin the whole menu, flat, with the text, icons and order of the Figma sidebar", () => {
+    expect(labelsAndIcons("admin")).toEqual(FIGMA_ADMIN_MENU.map((entry) => [...entry]));
+  });
 
-    expect(visible.map((item) => item.href).sort()).toEqual(
-      [
-        "/admin",
-        "/airports",
-        "/bookings",
-        "/dashboard",
-        "/incidents",
-        "/jobs",
-        "/partner",
-        "/partners",
-        "/seat-categories",
-        "/seats",
-        "/settlements",
-        "/technician",
-        "/technicians",
-      ].sort(),
+  it("should give the operations manager the same full menu as admin", () => {
+    expect(getVisibleNavItems("operations_manager").map((item) => item.href)).toEqual(
+      getVisibleNavItems("admin").map((item) => item.href),
     );
   });
 
-  it("should show the admin, partners, airports, seat categories, seats, technicians, jobs, bookings, incidents, and settlements links to operations_manager", () => {
-    const visible = getVisibleNavItems("operations_manager");
-
-    expect(visible.map((item) => item.href).sort()).toEqual(
-      [
-        "/admin",
-        "/airports",
-        "/bookings",
-        "/dashboard",
-        "/incidents",
-        "/jobs",
-        "/partners",
-        "/seat-categories",
-        "/seats",
-        "/settlements",
-        "/technicians",
-      ].sort(),
-    );
-  });
-
-  it("should give the technician Today's Jobs and Incidents, and nothing else (spec R8)", () => {
-    const visible = getVisibleNavItems("technician");
-
-    expect(visible.map((item) => [item.label, item.href])).toEqual([
+  it("should give the technician Today's Jobs, My History and Incidents, and nothing else", () => {
+    expect(getVisibleNavItems("technician").map((item) => [item.label, item.href])).toEqual([
       ["Today's Jobs", "/technician"],
+      ["My History", "/technician/history"],
       ["Incidents", "/incidents"],
     ]);
   });
 
-  it("should give the partner user Overview, Rentals, Seats and Finance, in that order (spec R8)", () => {
-    const visible = getVisibleNavItems("partner_user");
-
-    expect(visible.map((item) => [item.label, item.href])).toEqual([
+  it("should give the partner user Overview, Rentals, Seats, Finance, KPI, ROI and Assistant, in that order", () => {
+    expect(getVisibleNavItems("partner_user").map((item) => [item.label, item.href])).toEqual([
       ["Overview", "/partner"],
       ["Rentals", "/bookings"],
       ["Seats", "/partner/seats"],
       ["Finance", "/settlements"],
+      ["KPI", "/partner/kpi"],
+      ["ROI", "/partner/roi"],
+      ["Assistant", "/partner/assistant"],
     ]);
   });
 
-  it("should leave out the pages that do not exist yet: My History, KPI, ROI and Assistant", () => {
-    const labels = [...ROLES.flatMap((role) => getVisibleNavItems(role))].map((item) => item.label);
+  it("should use the icons the design gives to the technician and partner items that have one", () => {
+    expect(labelsAndIcons("technician")).toEqual([
+      ["Today's Jobs", ClipboardList],
+      ["My History", History],
+      ["Incidents", TriangleAlert],
+    ]);
+    expect(labelsAndIcons("partner_user")).toEqual([
+      ["Overview", UserCircle],
+      ["Rentals", Plane],
+      ["Seats", Users],
+      ["Finance", CreditCard],
+      ["KPI", BarChart3],
+      ["ROI", TrendingUp],
+      ["Assistant", MessageSquare],
+    ]);
+  });
 
-    for (const missing of ["My History", "KPI", "ROI", "Assistant"]) {
-      expect(labels).not.toContain(missing);
+  it("should leave the admin-only pages out of the technician and partner menus", () => {
+    const internal = ["/admin", "/partners", "/airports", "/seat-categories", "/seats", "/technicians", "/jobs"];
+
+    for (const role of ["technician", "partner_user"] as const) {
+      const hrefs = getVisibleNavItems(role).map((item) => item.href);
+      for (const href of internal) expect(hrefs, `${role}: ${href}`).not.toContain(href);
+    }
+  });
+
+  it("should not show the technician and partner pages in the menu of admin and operations manager", () => {
+    for (const role of ["admin", "operations_manager"] as const) {
+      const labels = getVisibleNavItems(role).map((item) => item.label);
+      expect(labels).not.toContain("Technician Jobs");
+      expect(labels).not.toContain("Partner Portal");
     }
   });
 
@@ -104,6 +141,13 @@ describe("getVisibleNavItems", () => {
       for (const item of getVisibleNavItems(role)) {
         expect(hasAnyPermission(role, getNavItemPermissions(item)), `${role}: ${item.href}`).toBe(true);
       }
+    }
+  });
+
+  it("should not repeat an address inside one menu", () => {
+    for (const role of ROLES) {
+      const hrefs = getVisibleNavItems(role).map((item) => item.href);
+      expect(new Set(hrefs).size, role).toBe(hrefs.length);
     }
   });
 });
@@ -141,5 +185,15 @@ describe("NAV_ITEMS", () => {
     for (const item of NAV_ITEMS) {
       expect(item.icon).toBeDefined();
     }
+  });
+
+  it("should mark the items whose page is not built yet, so they are easy to find", () => {
+    expect(NAV_ITEMS.filter((item) => item.planned).map((item) => item.label)).toEqual([
+      "Return Queue",
+      "Flights",
+      "Reports",
+      "Import",
+      "Settings",
+    ]);
   });
 });
