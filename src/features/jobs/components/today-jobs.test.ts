@@ -10,6 +10,7 @@ const NOW = new Date("2026-10-24T10:05:00Z");
 const job = (overrides: Partial<TodayJob> = {}): TodayJob => ({
   id: "j1",
   status: "assigned",
+  job_type: "installation",
   pickup_at: "2026-10-24T11:00:00Z",
   booking_number: "BK-2026-000123",
   technician: "Omar Haddad",

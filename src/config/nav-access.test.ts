@@ -91,6 +91,7 @@ const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
 const EXTRA_GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
   "/technician": () => import("@/app/(technician)/technician/layout"),
   "/technician/history": () => import("@/app/(technician)/technician/layout"),
+  "/technician/scan": () => import("@/app/(technician)/technician/layout"),
   "/partner": () => import("@/app/(partner)/partner/layout"),
   "/partner/seats": () => import("@/app/(partner)/partner/layout"),
   "/partner/kpi": () => import("@/app/(partner)/partner/layout"),

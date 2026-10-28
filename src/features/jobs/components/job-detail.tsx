@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { ScanLine } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +19,8 @@ interface JobDetailProps {
   allowedStatuses: JobTargetStatus[];
   /** Matching workflow screen; null hides the "Record work" link. */
   workRecordHref: string | null;
+  /** The scan of the seat of this job; null hides the button. */
+  scanHref?: string | null;
   /** The incident report form for this job; null hides the link. */
   reportIncidentHref?: string | null;
 }
@@ -48,6 +51,7 @@ export function JobDetail({
   eventsTruncated,
   allowedStatuses,
   workRecordHref,
+  scanHref = null,
   reportIncidentHref = null,
 }: JobDetailProps) {
   const { booking } = job;
@@ -64,6 +68,15 @@ export function JobDetail({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {scanHref && (
+            <Link
+              href={scanHref}
+              className={buttonVariants({ className: "min-h-11 px-4" })}
+            >
+              <ScanLine aria-hidden="true" data-icon="inline-start" />
+              Scan assigned seat
+            </Link>
+          )}
           {workRecordHref && (
             <Link
               href={workRecordHref}

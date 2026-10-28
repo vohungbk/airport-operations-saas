@@ -30,6 +30,7 @@ describe("getTodaysJobs", () => {
         {
           id: "j1",
           status: "assigned",
+          job_type: "installation",
           vehicle_bay: null,
           technician: null,
           booking: {

@@ -11,6 +11,7 @@ import {
   MessageSquare,
   RefreshCw,
   Plane,
+  ScanLine,
   Settings,
   Tag,
   TrendingUp,
@@ -141,7 +142,7 @@ export const NAV_ITEMS: NavItem[] = [
  * above. A menu is only a look: the page behind an item is guarded on the server (spec R9), and a
  * role can still open a page it holds the permission for even when the page is not in its menu.
  *
- * My History, KPI, ROI and Assistant have no page yet. The layout of their area already guards
+ * Scan opens the scan of the seat of the first job of the day (UI-F07-S02). My History, KPI, ROI and Assistant have no page yet. The layout of their area already guards
  * them, so another role gets a 403 and the right role gets a 404 until the page exists.
  */
 export const ROLE_MENUS: Partial<Record<Role, NavItem[]>> = {
@@ -158,6 +159,12 @@ export const ROLE_MENUS: Partial<Record<Role, NavItem[]>> = {
       permission: "jobs:view_assigned",
       icon: History,
       planned: true,
+    },
+    {
+      label: "Scan",
+      href: "/technician/scan",
+      permission: "jobs:view_assigned",
+      icon: ScanLine,
     },
     {
       label: "Incidents",

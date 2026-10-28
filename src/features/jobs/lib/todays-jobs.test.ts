@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { endOfUtcDay, selectTodaysJobs, type TodayJobRow } from "@/features/jobs/lib/todays-jobs";
+import { endOfUtcDay, pickJobToScan, selectTodaysJobs, type TodayJobRow } from "@/features/jobs/lib/todays-jobs";
 
 const NOW = new Date("2026-10-28T10:00:00Z");
 
 const row = (id: string, pickup_at: string, overrides: Partial<TodayJobRow> = {}): TodayJobRow => ({
   id,
   status: "assigned",
+  job_type: "installation",
   vehicle_bay: null,
   technician: { full_name: "Omar Haddad" },
   booking: {
@@ -126,5 +127,26 @@ describe("selectTodaysJobs", () => {
       seat: "SEAT-0001",
       flight: { flight_number: "EK 203", terminal: "3", timing: "early", offset_minutes: -45 },
     });
+  });
+});
+
+describe("pickJobToScan", () => {
+  it("should pick the first job of the day that is an installation", () => {
+    const { jobs } = selectTodaysJobs(
+      [
+        row("clean", "2026-10-28T11:00:00Z", { job_type: "cleaning" }),
+        row("install", "2026-10-28T12:00:00Z"),
+        row("later", "2026-10-28T13:00:00Z"),
+      ],
+      NOW,
+    );
+
+    expect(pickJobToScan(jobs)?.id).toBe("install");
+  });
+
+  it("should pick nothing when no job of the day is an installation", () => {
+    const { jobs } = selectTodaysJobs([row("clean", "2026-10-28T11:00:00Z", { job_type: "inspection" })], NOW);
+
+    expect(pickJobToScan(jobs)).toBeUndefined();
   });
 });

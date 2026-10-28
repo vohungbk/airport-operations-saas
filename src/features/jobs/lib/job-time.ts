@@ -26,6 +26,11 @@ export function formatTime(iso: string, timeZone: string): string {
   }).format(new Date(iso));
 }
 
+/** `24 Oct` */
+export function formatDayMonth(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone }).format(new Date(iso));
+}
+
 /** `24 Oct 2026` */
 export function formatDate(iso: string | Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-GB", {

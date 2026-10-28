@@ -1,4 +1,4 @@
-import type { JobActionResult } from "@/features/jobs/lib/job-errors";
+import type { JobActionError, JobActionResult } from "@/features/jobs/lib/job-errors";
 import { NETWORK_ERROR } from "@/features/jobs/lib/job-errors";
 
 /**
@@ -17,9 +17,9 @@ function isFrameworkSignal(error: unknown): boolean {
  * error, so the form stays on screen with the user's input and can retry.
  * Redirects and other Next signals are re-thrown.
  */
-export async function runJobAction(
-  action: () => Promise<JobActionResult>,
-): Promise<JobActionResult> {
+export async function runJobAction<T extends JobActionResult>(
+  action: () => Promise<T>,
+): Promise<T | { success: false; error: JobActionError }> {
   try {
     return await action();
   } catch (error) {

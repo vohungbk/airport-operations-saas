@@ -21,6 +21,7 @@ const JOB: JobDetailItem = {
 function render(
   workRecordHref: string | null,
   reportIncidentHref?: string | null,
+  scanHref?: string | null,
 ) {
   return renderToStaticMarkup(
     createElement(JobDetail, {
@@ -30,6 +31,7 @@ function render(
       allowedStatuses: [],
       workRecordHref,
       reportIncidentHref,
+      scanHref,
     }),
   );
 }
@@ -40,6 +42,14 @@ describe("JobDetail", () => {
 
     expect(html).toContain('href="/jobs/j-1/installation"');
     expect(html).toContain("Record work");
+  });
+
+  it("should link Scan assigned seat to the scanner when one is offered, and hide it otherwise", () => {
+    const shown = render(null, null, "/jobs/j-1/scan");
+
+    expect(shown).toContain('href="/jobs/j-1/scan"');
+    expect(shown).toContain("Scan assigned seat");
+    expect(render(null, null, null)).not.toContain("Scan assigned seat");
   });
 
   it("should link Report incident to the report form when it is offered", () => {

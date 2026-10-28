@@ -53,7 +53,7 @@ describe("splitMobileNav", () => {
   it("should keep My History, whose page is not built yet, out of the bar of a technician and in More", () => {
     const { bottom, more } = splitMobileNav(menuOf("technician"), "technician");
 
-    expect(bottom.map((i) => i.href)).toEqual(["/technician", "/incidents"]);
+    expect(bottom.map((i) => i.href)).toEqual(["/technician", "/technician/scan", "/incidents"]);
     expect(more.map((i) => i.href)).toEqual(["/technician/history"]);
   });
 
