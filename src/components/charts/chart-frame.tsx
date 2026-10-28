@@ -13,10 +13,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { chartFrameState, toChartTable, type ChartSeries, type ChartStatus, type ChartTable } from "@/lib/charts/chart-data"
-import { seriesColor } from "@/lib/charts/chart-tokens"
+import { seriesColor, seriesSymbol } from "@/lib/charts/chart-tokens"
 import { cn } from "@/lib/utils"
 
-type LegendStyle = "color" | "pattern" | "marker"
+type LegendStyle = "color" | "pattern" | "marker" | "symbol"
 
 interface LegendItem {
   name: string
@@ -38,7 +38,7 @@ interface ChartFrameProps {
    * after the name (a value and a share).
    */
   legend_items?: readonly LegendItem[]
-  /** What the key of each legend item shows besides its color: a pattern for filled marks, a marker for lines (spec R7). */
+  /** What the key of each legend item shows besides its color: a pattern for filled marks, a marker for lines, a symbol in front of the name beside a solid color (spec R7). */
   legend_style?: LegendStyle
   /** The table of the table view, when it has more than the series give (a donut adds a share). */
   table?: ChartTable
@@ -133,7 +133,7 @@ function ChartFrame({ title, description, status, series, on_retry, gap_note = "
                       ) : (
                         <span aria-hidden="true" className="size-2.5 shrink-0 rounded-sm bg-(--swatch)" style={{ "--swatch": seriesColor(index) } as React.CSSProperties} />
                       )}
-                      <span className="min-w-0 break-words">{item.name}</span>
+                      <span className="min-w-0 break-words">{legend_style === "symbol" ? `${seriesSymbol(index)} ${item.name}` : item.name}</span>
                       {item.detail && <span className="shrink-0 tabular-nums text-muted-foreground">{item.detail}</span>}
                     </li>
                   ))}

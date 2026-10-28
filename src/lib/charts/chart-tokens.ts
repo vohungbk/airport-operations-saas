@@ -31,6 +31,11 @@ export function seriesPattern(index: number): SeriesPattern {
   return SERIES_PATTERNS[mod(index + Math.floor(Math.max(index, 0) / CHART_COLOR_COUNT), SERIES_PATTERNS.length)];
 }
 
+/** The symbol before a legend name when a chart is told apart by symbol and solid color instead of by pattern. */
+export const SERIES_SYMBOLS = ["●", "◆", "▲", "■", "✚", "○"] as const;
+
+export const seriesSymbol = (index: number): string => SERIES_SYMBOLS[mod(index, SERIES_SYMBOLS.length)];
+
 export function seriesMarker(index: number): SeriesMarker {
   return SERIES_MARKERS[mod(index, SERIES_MARKERS.length)];
 }

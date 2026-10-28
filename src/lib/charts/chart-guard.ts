@@ -105,6 +105,8 @@ export function findMultiSeriesWithoutMarks(source: string): string[] {
   return frames
     .filter((frame) => {
       const style = frame.attributes.properties.find((a): a is ts.JsxAttribute => ts.isJsxAttribute(a) && a.name.getText() === "legend_style");
+      // A computed value (`legend_style={solid ? "symbol" : "pattern"}`) is not read, as a computed paint is not.
+      if (style?.initializer && !ts.isStringLiteral(style.initializer)) return false;
       const value = style?.initializer && ts.isStringLiteral(style.initializer) ? style.initializer.text : "color";
       return value === "color";
     })
