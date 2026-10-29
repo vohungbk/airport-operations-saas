@@ -93,7 +93,7 @@ describe("getVisibleNavItems", () => {
       ["Overview", "/partner"],
       ["Rentals", "/bookings"],
       ["Seats", "/partner/seats"],
-      ["Finance", "/settlements"],
+      ["Finance", "/partner/finance"],
       ["KPI", "/partner/kpi"],
       ["ROI", "/partner/roi"],
       ["Assistant", "/partner/assistant"],

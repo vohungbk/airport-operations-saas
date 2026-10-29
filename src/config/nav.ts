@@ -194,8 +194,8 @@ export const ROLE_MENUS: Partial<Record<Role, NavItem[]>> = {
     },
     {
       label: "Finance",
-      href: "/settlements",
-      permission: FINANCE_ACCESS_PERMISSIONS,
+      href: "/partner/finance",
+      permission: "finance:view_own_partner",
       icon: CreditCard,
     },
     {

@@ -407,7 +407,8 @@ starts, to a Postgres schema/table group protected by RLS.
   existing components keep working. New code uses the design names.
 - **Known gaps.** The ticket asks for 40 color tokens but the design has 36;
   the question is open with the PO. The dark theme is defined but nothing
-  switches it on yet. The font is still Geist; the design uses Inter.
+  switches it on yet. The font is Inter, as in the design (`next/font/google`
+  in `src/app/layout.tsx`); the mono font is still Geist Mono.
 - **Tests.** `src/app/design-tokens.test.ts` checks names and hex values in
   both themes, the status trios, the chart colors, the legacy aliases, and
   that no raw color appears outside `globals.css`.

@@ -12,12 +12,10 @@ export interface PartnerHomeItem {
 }
 
 /**
- * Whether the finance of a partner is released (VI-F04). It is not: VI-F04 has
- * no spec or code yet, so there is no finance screen to open. Turn this on in
- * the same change that adds the finance route (the route test below fails if a
- * link points at a page that is not there), and add its isolation tests.
+ * Whether the finance of a partner is released. It is since VI-F04-S14, which adds the
+ * `/partner/finance` screen (the route test fails if a link points at a page that is not there).
  */
-export const PARTNER_FINANCE_RELEASED = false;
+export const PARTNER_FINANCE_RELEASED = true;
 
 /** The finance view, once VI-F04 adds it. */
 export const PARTNER_FINANCE_HREF = "/partner/finance";

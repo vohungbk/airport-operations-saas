@@ -13,7 +13,7 @@ export const MOBILE_NAV_PRIORITY: Record<Role, readonly string[]> = {
   admin: ["/dashboard", "/bookings", "/jobs", "/incidents"],
   operations_manager: ["/dashboard", "/bookings", "/jobs", "/incidents"],
   technician: ["/technician", "/technician/scan", "/incidents"],
-  partner_user: ["/partner", "/bookings", "/partner/seats", "/settlements"],
+  partner_user: ["/partner", "/bookings", "/partner/seats", "/partner/finance"],
 };
 
 export interface MobileNavSplit<T> {

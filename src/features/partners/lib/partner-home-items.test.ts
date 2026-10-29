@@ -30,11 +30,11 @@ function pageRoutes(dir = APP_DIR, route = ""): string[] {
 }
 
 describe("PARTNER_HOME_ITEMS", () => {
-  it("should lead to the bookings list, the partner seats view and, not yet, finance", () => {
+  it("should lead to the bookings list, the partner seats view and the partner finance view", () => {
     expect(PARTNER_HOME_ITEMS.map((item) => [item.id, item.href])).toEqual([
       ["bookings", "/bookings"],
       ["seats", "/partner/seats"],
-      ["finance", null],
+      ["finance", "/partner/finance"],
     ]);
   });
 
@@ -56,17 +56,12 @@ describe("PARTNER_HOME_ITEMS", () => {
 });
 
 describe("partner finance (VI-F03-S06)", () => {
-  it("should not be released: VI-F04 has no screen yet, so the finance card has no link", () => {
+  it("should be released, with a finance page for a partner user to open", () => {
     const finance = PARTNER_HOME_ITEMS.find((item) => item.id === "finance");
 
-    expect(PARTNER_FINANCE_RELEASED).toBe(false);
-    expect(finance?.href).toBeNull();
-  });
-
-  it("should not have a finance page or route for a partner user to open yet", () => {
-    const routes = pageRoutes();
-
-    expect(routes.filter((route) => /finance/i.test(route))).toEqual([]);
+    expect(PARTNER_FINANCE_RELEASED).toBe(true);
+    expect(finance?.href).toBe(PARTNER_FINANCE_HREF);
+    expect(pageRoutes()).toContain(PARTNER_FINANCE_HREF);
   });
 
   it("should link the finance card, and only then, once finance is released", () => {
