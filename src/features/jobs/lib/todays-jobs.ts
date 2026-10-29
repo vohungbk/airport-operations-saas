@@ -153,3 +153,8 @@ export function selectTodaysJobs(rows: readonly TodayJobRow[], now: Date): Today
 export function pickJobToScan(jobs: readonly TodayJob[]): TodayJob | undefined {
   return jobs.find((job) => job.job_type === "installation");
 }
+
+/** The job after this one: the first job of the day that is not it (a job in progress included). */
+export function pickNextJob(jobs: readonly TodayJob[], currentJobId: string): TodayJob | undefined {
+  return jobs.find((job) => job.id !== currentJobId);
+}

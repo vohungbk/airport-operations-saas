@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { InstallationConflictAlert } from "@/features/installations/components/installation-conflict-alert";
 import { isAlreadyRecordedError } from "@/features/installations/lib/installation-errors";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
+import { StepActionBar } from "@/features/jobs/components/step-action-bar";
 import { useRecordInstallationForm } from "@/features/installations/hooks/use-record-installation-form";
 
 interface InstallationFormProps {
@@ -49,7 +50,7 @@ export function InstallationForm({
   } = form;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
+    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5 pb-24 md:pb-0">
       {result &&
         !result.success &&
         result.error &&
@@ -109,7 +110,7 @@ export function InstallationForm({
         />
       </Field>
 
-      <div className="flex items-center gap-2">
+      <StepActionBar>
         <Button type="submit" disabled={isPending} className="min-h-11 px-4">
           {isPending ? "Saving..." : "Save"}
         </Button>
@@ -122,7 +123,7 @@ export function InstallationForm({
         >
           Cancel
         </Link>
-      </div>
+      </StepActionBar>
     </form>
   );
 }

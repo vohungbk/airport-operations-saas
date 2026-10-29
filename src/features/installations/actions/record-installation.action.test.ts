@@ -56,9 +56,9 @@ describe("recordInstallationAction", () => {
     fromMock.mockClear();
   });
 
-  it("should insert the installation and redirect to the job on success", async () => {
+  it("should insert the installation and redirect to the success screen on success", async () => {
     await expect(recordInstallationAction(VALID_INPUT)).rejects.toThrow(
-      `REDIRECT:/jobs/${JOB_ID}`,
+      `REDIRECT:/jobs/${JOB_ID}/done?step=installation`,
     );
 
     expect(requireAnyPermissionMock).toHaveBeenCalledWith([

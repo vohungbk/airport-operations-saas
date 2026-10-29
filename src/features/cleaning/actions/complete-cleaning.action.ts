@@ -41,5 +41,5 @@ export async function completeCleaningAction(
     return { success: false, error: mapCleaningError(error) };
   }
 
-  redirect(`/jobs/${parsed.data.job_id}`);
+  redirect(`/jobs/${parsed.data.job_id}/done?step=cleaning`);
 }

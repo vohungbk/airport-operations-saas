@@ -992,3 +992,29 @@ starts, to a Postgres schema/table group protected by RLS.
 - **Not here.** The checklist (`Continue to checklist` goes to the existing installation form until the story of
   the step screens), the History item (its page is not built), the "Readiness gate" banner and the rest of the `Job information` frame, the poor-network
   banner, and a check on a real phone.
+
+
+#### UI-F07-S03 — run steps one task at a time
+
+- **The bar of the main action (spec R3, R7).** `StepActionBar` holds the one main action of a step and the way
+  out (Cancel). On a phone it is `fixed` above the bottom navigation (`bottom-[calc(4.25rem+env(safe-area-inset-bottom))]`)
+  and the content above it scrolls (the form has `pb-24`); from 768 px up it sits in the flow below the content.
+  It is `fixed`, not `sticky`, because the `Card` around a form clips with `overflow-hidden`. The installation form,
+  the start and the completion of a cleaning and the inspection form use it, and a test reads their source for it.
+- **The success screen (spec R4, NAV-3).** `/jobs/[id]/done?step=installation|cleaning|inspection` is where these
+  steps end: the installation, a completed cleaning, and an inspection that did not fail (a failed inspection
+  still goes to the inspection page, which shows the quarantine and the bookings it affects). The page does not
+  trust the address for the fact that a step is done: `getStepDone` reads the record of the step through RLS, and
+  with none (the step is not done, or the job is not the user's) the user goes to the job screen. `step` is
+  checked with Zod.
+- **The next job.** For a technician the main action is `Next job` (the first job of the day that is not this one,
+  `pickNextJob`, to its job screen) and, with none left, `Back to Today's Jobs`. A manager gets `Back to jobs`. A
+  failed read of the day's jobs keeps the success screen and offers the way back.
+- **From the design.** The frame `Installation success` has the button `Back to Today's Jobs` and no `Next job`; the
+  spec has both, and this follows the spec with the frame's button as the fallback. Its banner and its handover
+  card (Family Ready, the vehicle location, the deadline, the note to the partner) have no source in the app, so
+  they are not written: the banner says `Installation completed` (the text of the next frame) with the booking and
+  the time, and the card has the seat and who completed it. The titles for a cleaning and an inspection are not in
+  the design.
+- **Not here.** The checklist, photos, vehicle bay, completion confirmation and Mark Family Ready screens of the
+  design: they need data and storage that do not exist (checks that are saved, photo storage, a Family Ready status).

@@ -29,10 +29,10 @@ describe("completeCleaningAction", () => {
     rpcMock.mockResolvedValue({ error: null });
   });
 
-  it("should complete as passed and go back to the job", async () => {
+  it("should complete as passed and go to the success screen", async () => {
     await expect(
       completeCleaningAction({ job_id: JOB_ID, result: "passed", notes: "  Wiped " }),
-    ).rejects.toThrow(`REDIRECT:/jobs/${JOB_ID}`);
+    ).rejects.toThrow(`REDIRECT:/jobs/${JOB_ID}/done?step=cleaning`);
 
     expect(rpcMock).toHaveBeenCalledWith("complete_cleaning", {
       p_job_id: JOB_ID,

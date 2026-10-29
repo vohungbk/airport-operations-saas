@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { endOfUtcDay, pickJobToScan, selectTodaysJobs, type TodayJobRow } from "@/features/jobs/lib/todays-jobs";
+import { endOfUtcDay, pickJobToScan, pickNextJob, selectTodaysJobs, type TodayJobRow } from "@/features/jobs/lib/todays-jobs";
 
 const NOW = new Date("2026-10-28T10:00:00Z");
 
@@ -148,5 +148,24 @@ describe("pickJobToScan", () => {
     const { jobs } = selectTodaysJobs([row("clean", "2026-10-28T11:00:00Z", { job_type: "inspection" })], NOW);
 
     expect(pickJobToScan(jobs)).toBeUndefined();
+  });
+});
+
+describe("pickNextJob", () => {
+  it("should pick the first job of the day that is not the current one", () => {
+    const { jobs } = selectTodaysJobs(
+      [row("a", "2026-10-28T11:00:00Z"), row("b", "2026-10-28T12:00:00Z"), row("c", "2026-10-28T13:00:00Z")],
+      NOW,
+    );
+
+    expect(pickNextJob(jobs, "a")?.id).toBe("b");
+    expect(pickNextJob(jobs, "b")?.id).toBe("a");
+  });
+
+  it("should pick nothing when the current job is the only one, or there is none", () => {
+    const { jobs } = selectTodaysJobs([row("a", "2026-10-28T11:00:00Z")], NOW);
+
+    expect(pickNextJob(jobs, "a")).toBeUndefined();
+    expect(pickNextJob([], "a")).toBeUndefined();
   });
 });

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { InspectionConflictAlert } from "@/features/inspections/components/inspection-conflict-alert";
 import { isAlreadyRecordedError } from "@/features/inspections/lib/inspection-errors";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
+import { StepActionBar } from "@/features/jobs/components/step-action-bar";
 import { useRecordInspectionForm } from "@/features/inspections/hooks/use-record-inspection-form";
 import {
   INSPECTION_RESULTS,
@@ -45,7 +46,7 @@ export function InspectionForm({
   } = form;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
+    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5 pb-24 md:pb-0">
       {result &&
         !result.success &&
         result.error &&
@@ -111,7 +112,7 @@ export function InspectionForm({
         />
       </Field>
 
-      <div className="flex items-center gap-2">
+      <StepActionBar>
         <Button type="submit" disabled={isPending} className="min-h-11 px-4">
           {isPending ? "Saving..." : "Save"}
         </Button>
@@ -124,7 +125,7 @@ export function InspectionForm({
         >
           Cancel
         </Link>
-      </div>
+      </StepActionBar>
     </form>
   );
 }
