@@ -7,11 +7,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { recordInstallationAction } from "@/features/installations/actions/record-installation.action";
 import type { JobActionResult } from "@/features/jobs/lib/job-errors";
+import { useStepDraft } from "@/features/jobs/hooks/use-step-draft";
 import { runJobAction } from "@/features/jobs/lib/run-job-action";
 import {
   buildRecordInstallationSchema,
   type RecordInstallationInput,
 } from "@/features/installations/schemas/record-installation.schema";
+
+const DRAFT_FIELDS = ["installed_at", "notes"] as const;
 
 interface UseRecordInstallationFormArgs {
   jobId: string;
@@ -40,6 +43,7 @@ export function useRecordInstallationForm({
       notes: "",
     },
   });
+  const discardDraft = useStepDraft(form, "installation", jobId, DRAFT_FIELDS);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<JobActionResult | null>(null);
 
@@ -57,5 +61,5 @@ export function useRecordInstallationForm({
     router.refresh();
   }
 
-  return { form, onSubmit, isPending, result, viewRecordedInstallation };
+  return { form, onSubmit, isPending, result, viewRecordedInstallation, discardDraft };
 }

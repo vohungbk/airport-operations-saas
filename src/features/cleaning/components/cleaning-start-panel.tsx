@@ -6,6 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { CleaningConflictAlert } from "@/features/cleaning/components/cleaning-conflict-alert";
 import { isAlreadyRecordedError } from "@/features/cleaning/lib/cleaning-errors";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
+import { OfflineBanner } from "@/features/jobs/components/offline-banner";
 import { StepActionBar } from "@/features/jobs/components/step-action-bar";
 import { useStartCleaning } from "@/features/cleaning/hooks/use-start-cleaning";
 
@@ -27,6 +28,7 @@ export function CleaningStartPanel({
 
   return (
     <div className="flex flex-col gap-5 pb-24 md:pb-0">
+      <OfflineBanner />
       {result &&
         !result.success &&
         result.error &&
@@ -38,6 +40,7 @@ export function CleaningStartPanel({
         ) : (
           <JobActionErrorAlert
             error={result.error}
+            onRetry={start}
             fallbackTitle="Could not start the cleaning"
           />
         ))}

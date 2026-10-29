@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   isJobUnavailableError,
   type JobActionError,
@@ -11,6 +11,8 @@ interface JobActionErrorAlertProps {
   error: JobActionError;
   /** Title for an error a retry can fix; the action the user was doing. */
   fallbackTitle?: string;
+  /** Sends the same request again; the Retry button shows only for a failed connection (UI-F07-S04). */
+  onRetry?: () => void;
 }
 
 /**
@@ -22,6 +24,7 @@ interface JobActionErrorAlertProps {
 export function JobActionErrorAlert({
   error,
   fallbackTitle = "Could not update status",
+  onRetry,
 }: JobActionErrorAlertProps) {
   const unavailable = isJobUnavailableError(error);
   const title =
@@ -36,6 +39,11 @@ export function JobActionErrorAlert({
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription className="flex flex-col items-start gap-3">
         {error.message}
+        {error.code === "NETWORK_ERROR" && onRetry && (
+          <Button type="button" variant="outline" className="min-h-11 px-4" onClick={onRetry}>
+            Retry
+          </Button>
+        )}
         {unavailable && (
           <Link href="/jobs" className={buttonVariants({ variant: "outline" })}>
             Back to jobs

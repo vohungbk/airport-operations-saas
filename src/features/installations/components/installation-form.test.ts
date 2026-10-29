@@ -63,6 +63,36 @@ describe("InstallationForm", () => {
     expect(html).toContain('href="/jobs"');
   });
 
+  it("should keep the form and offer Retry after the network fails", () => {
+    hookMock.mockReturnValue(
+      hookState({
+        success: false,
+        error: { code: "NETWORK_ERROR", message: "Could not reach the server." },
+      }),
+    );
+
+    const html = render();
+
+    expect(html).toContain("Could not record installation");
+    expect(html).toContain("Retry");
+    expect(html).toContain('id="installed_at"');
+    expect(html).toContain('id="notes"');
+  });
+
+  it("should not offer Retry when the job was reassigned", () => {
+    hookMock.mockReturnValue(
+      hookState({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "This job was not found or is no longer assigned to you.",
+        },
+      }),
+    );
+
+    expect(render()).not.toContain("Retry");
+  });
+
   it("should say access was lost when the database denies the insert", () => {
     hookMock.mockReturnValue(
       hookState({

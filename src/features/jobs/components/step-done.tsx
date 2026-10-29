@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ScanBanner } from "@/features/installations/components/scan-banner";
+import { ClearStepDraft } from "@/features/jobs/components/clear-step-draft";
 import { StepActionBar } from "@/features/jobs/components/step-action-bar";
 import {
   KeyValue,
@@ -35,6 +36,7 @@ export function StepDone({ done, nextJobId, backHref, backLabel }: StepDoneProps
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 pb-24 md:p-8 md:pb-8">
+      <ClearStepDraft step={done.step} jobId={done.job_id} />
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold text-foreground">{heading}</h1>
         <p className="text-sm break-words text-muted-foreground">

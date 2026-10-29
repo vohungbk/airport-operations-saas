@@ -62,4 +62,35 @@ describe("JobActionErrorAlert", () => {
     expect(html).toContain("Could not record installation");
     expect(html).not.toContain("Could not update status");
   });
+
+  describe("Retry", () => {
+    function renderWithRetry(code: "NETWORK_ERROR" | "NOT_FOUND" | "STALE_DATA" | "FORBIDDEN") {
+      return renderToStaticMarkup(
+        createElement(JobActionErrorAlert, {
+          error: { code, message: "message" },
+          onRetry: () => undefined,
+        }),
+      );
+    }
+
+    it("should offer Retry after a network error", () => {
+      expect(renderWithRetry("NETWORK_ERROR")).toContain("Retry");
+    });
+
+    it("should not offer Retry when the job was reassigned", () => {
+      expect(renderWithRetry("NOT_FOUND")).not.toContain("Retry");
+    });
+
+    it("should not offer Retry when the user lost access", () => {
+      expect(renderWithRetry("FORBIDDEN")).not.toContain("Retry");
+    });
+
+    it("should not offer Retry for a conflict that a second try would not fix", () => {
+      expect(renderWithRetry("STALE_DATA")).not.toContain("Retry");
+    });
+
+    it("should not offer Retry when the screen gives no way to retry", () => {
+      expect(render("NETWORK_ERROR", "Could not reach the server.")).not.toContain("Retry");
+    });
+  });
 });

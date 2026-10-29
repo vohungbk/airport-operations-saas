@@ -60,6 +60,11 @@ function device(options: { dark?: boolean } = {}) {
   };
 }
 
+const STEP_DRAFT_FILES = new Set([
+  join("features", "jobs", "lib", "step-draft.ts"),
+  join("features", "jobs", "hooks", "use-step-draft.ts"),
+]);
+
 describe("remembering the theme between visits", () => {
   it("should start the next visit with the theme that was selected", () => {
     const d = device();
@@ -136,7 +141,14 @@ describe("a visitor who is signed out", () => {
     const srcDir = join(process.cwd(), "src");
     const touching = listSourceFiles(srcDir)
       .filter((file) => !relative(srcDir, file).startsWith(join("lib", "theme")))
-      .filter((file) => /\b(?:localStorage|sessionStorage)\b/.test(readFileSync(file, "utf8")))
+      .filter((file) => {
+        const text = readFileSync(file, "utf8");
+
+        // The draft of a step form (UI-F07-S04) uses sessionStorage only, never the localStorage of the theme.
+        return STEP_DRAFT_FILES.has(relative(srcDir, file))
+          ? /\blocalStorage\b/.test(text)
+          : /\b(?:localStorage|sessionStorage)\b/.test(text);
+      })
       .map((file) => relative(srcDir, file));
 
     // Sign-in and sign-out must not clear what the theme saved.

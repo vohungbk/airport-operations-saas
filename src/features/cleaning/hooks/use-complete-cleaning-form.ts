@@ -7,11 +7,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { completeCleaningAction } from "@/features/cleaning/actions/complete-cleaning.action";
 import type { JobActionResult } from "@/features/jobs/lib/job-errors";
+import { useStepDraft } from "@/features/jobs/hooks/use-step-draft";
 import { runJobAction } from "@/features/jobs/lib/run-job-action";
 import {
   completeCleaningSchema,
   type CompleteCleaningInput,
 } from "@/features/cleaning/schemas/cleaning.schema";
+
+const DRAFT_FIELDS = ["result", "notes"] as const;
 
 export function useCompleteCleaningForm(jobId: string) {
   const router = useRouter();
@@ -20,6 +23,7 @@ export function useCompleteCleaningForm(jobId: string) {
     // No default result: the technician has to choose one.
     defaultValues: { job_id: jobId, notes: "" },
   });
+  const discardDraft = useStepDraft(form, "cleaning", jobId, DRAFT_FIELDS);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<JobActionResult | null>(null);
 
@@ -36,5 +40,5 @@ export function useCompleteCleaningForm(jobId: string) {
     router.refresh();
   }
 
-  return { form, onSubmit, isPending, result, viewCleaning };
+  return { form, onSubmit, isPending, result, viewCleaning, discardDraft };
 }

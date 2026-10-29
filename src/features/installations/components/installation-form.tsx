@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { InstallationConflictAlert } from "@/features/installations/components/installation-conflict-alert";
 import { isAlreadyRecordedError } from "@/features/installations/lib/installation-errors";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
+import { OfflineBanner } from "@/features/jobs/components/offline-banner";
 import { StepActionBar } from "@/features/jobs/components/step-action-bar";
 import { useRecordInstallationForm } from "@/features/installations/hooks/use-record-installation-form";
 
@@ -37,7 +38,7 @@ export function InstallationForm({
   timeZone,
   defaultInstalledAt,
 }: InstallationFormProps) {
-  const { form, onSubmit, isPending, result, viewRecordedInstallation } =
+  const { form, onSubmit, isPending, result, viewRecordedInstallation, discardDraft } =
     useRecordInstallationForm({
       jobId,
       seatId,
@@ -51,6 +52,7 @@ export function InstallationForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5 pb-24 md:pb-0">
+      <OfflineBanner />
       {result &&
         !result.success &&
         result.error &&
@@ -59,6 +61,7 @@ export function InstallationForm({
         ) : (
           <JobActionErrorAlert
             error={result.error}
+            onRetry={() => void onSubmit()}
             fallbackTitle="Could not record installation"
           />
         ))}
@@ -116,6 +119,7 @@ export function InstallationForm({
         </Button>
         <Link
           href={`/jobs/${jobId}`}
+          onClick={discardDraft}
           className={buttonVariants({
             variant: "outline",
             className: "min-h-11 px-4",

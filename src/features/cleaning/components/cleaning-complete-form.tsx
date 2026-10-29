@@ -14,6 +14,7 @@ import {
 import { CleaningConflictAlert } from "@/features/cleaning/components/cleaning-conflict-alert";
 import { isAlreadyRecordedError } from "@/features/cleaning/lib/cleaning-errors";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
+import { OfflineBanner } from "@/features/jobs/components/offline-banner";
 import { StepActionBar } from "@/features/jobs/components/step-action-bar";
 import { useCompleteCleaningForm } from "@/features/cleaning/hooks/use-complete-cleaning-form";
 
@@ -33,7 +34,7 @@ export function CleaningCompleteForm({
   seatLabel,
   startedLabel,
 }: CleaningCompleteFormProps) {
-  const { form, onSubmit, isPending, result, viewCleaning } =
+  const { form, onSubmit, isPending, result, viewCleaning, discardDraft } =
     useCompleteCleaningForm(jobId);
   const {
     register,
@@ -42,6 +43,7 @@ export function CleaningCompleteForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5 pb-24 md:pb-0">
+      <OfflineBanner />
       {result &&
         !result.success &&
         result.error &&
@@ -53,6 +55,7 @@ export function CleaningCompleteForm({
         ) : (
           <JobActionErrorAlert
             error={result.error}
+            onRetry={() => void onSubmit()}
             fallbackTitle="Could not complete the cleaning"
           />
         ))}
@@ -124,6 +127,7 @@ export function CleaningCompleteForm({
         </Button>
         <Link
           href={`/jobs/${jobId}`}
+          onClick={discardDraft}
           className={buttonVariants({
             variant: "outline",
             className: "min-h-11 px-4",
