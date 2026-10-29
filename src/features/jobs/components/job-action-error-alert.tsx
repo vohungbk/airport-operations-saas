@@ -45,7 +45,7 @@ export function JobActionErrorAlert({
           </Button>
         )}
         {unavailable && (
-          <Link href="/jobs" className={buttonVariants({ variant: "outline" })}>
+          <Link href="/jobs" className={buttonVariants({ variant: "outline", className: "min-h-11 px-4" })}>
             Back to jobs
           </Link>
         )}
