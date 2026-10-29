@@ -2040,6 +2040,33 @@ Supabase stack and skip without it.
   (VI-F04-S05), which will need the same "terms on a date" lookup in the database. The table does
   not keep who saved a version, so the history shows the terms and their dates, not the author.
 
+## Finance access (VI-F04-S15)
+
+Who may read and write the finance data. The database decides; the screens only follow it (spec R18, E9).
+
+| Surface | Admin | Operations manager | Partner user | Technician |
+|---|---|---|---|---|
+| `settlements`, `invoices`, `partner_commercial_terms` (read) | all partners | all partners | own partner only | nothing |
+| `settlement_carried_adjustments`, `booking_adjustments` (read) | all partners | all partners | own partner only | nothing |
+| Finance columns of `bookings` | all | all | own partner's bookings only | none of another partner's |
+| Write to `settlements`, `invoices`, `partner_commercial_terms` | admin only | no | no | no |
+| Write to the two adjustment tables | the finance functions only (no insert policy) | same | no | no |
+| `generate_monthly_settlement()`, `move_settlement_status()` | yes | refused (`42501`) | refused (`42501`) | refused (`42501`) |
+| `add_booking_adjustment()` | yes | yes | refused (`42501`) | refused (`42501`) |
+
+- **Scope is the policy, not the query.** A partner user's rows are those where `partner_id = current_user_partner_id()`.
+  That function returns a partner only for an active `partner_user` of an active partner, so a changed role, a
+  deactivated user or a suspended partner gives nothing at the next request. No finance read adds a `partner_id`
+  filter of its own and none takes a partner from the address or the form.
+- **No existence oracle (E9).** The three finance functions check the role first and look at the row after. A partner
+  who names another partner's settlement, partner or booking gets the same `42501` and message as for an id that does
+  not exist. A page for a booking that RLS hides is the same not-found page as for an unknown booking.
+- **No service role.** No finance code uses the service-role key; the Server Actions that write finance check
+  `requireRole(["admin"])` before the first database call, and the functions check the role again.
+- **Proof.** `src/lib/finance/finance-access-matrix.integration.test.ts` (every role against both seed partners; needs
+  the local stack) and `src/features/settlements/lib/finance-access-guard.test.ts` (the code side). The per-table
+  cross-tenant tests stay in `src/lib/auth/rls.integration.test.ts`.
+
 ## Storage
 
 - Supabase Storage buckets are tenant-scoped. Access rules mirror the
