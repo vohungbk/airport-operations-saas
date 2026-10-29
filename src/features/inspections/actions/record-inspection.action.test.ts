@@ -66,9 +66,9 @@ describe("recordInspectionAction", () => {
     fromMock.mockClear();
   });
 
-  it("should insert the inspection and redirect to the job on success", async () => {
+  it("should insert the inspection and redirect to the success screen on success", async () => {
     await expect(recordInspectionAction(VALID_INPUT)).rejects.toThrow(
-      `REDIRECT:/jobs/${JOB_ID}`,
+      `REDIRECT:/jobs/${JOB_ID}/done?step=inspection`,
     );
 
     expect(requireAnyPermissionMock).toHaveBeenCalledWith([
@@ -93,11 +93,11 @@ describe("recordInspectionAction", () => {
   });
 
   it.each([["pass"], ["conditional_pass"]])(
-    "should redirect to the job when the result is %s",
+    "should redirect to the success screen when the result is %s",
     async (result) => {
       await expect(
         recordInspectionAction({ ...VALID_INPUT, result }),
-      ).rejects.toThrow(`REDIRECT:/jobs/${JOB_ID}`);
+      ).rejects.toThrow(`REDIRECT:/jobs/${JOB_ID}/done?step=inspection`);
     },
   );
 
