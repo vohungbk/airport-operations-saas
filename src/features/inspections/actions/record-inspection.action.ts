@@ -68,6 +68,6 @@ export async function recordInspectionAction(
   redirect(
     parsed.data.result === "fail"
       ? `/jobs/${context.job.id}/inspection`
-      : `/jobs/${context.job.id}`,
+      : `/jobs/${context.job.id}/done?step=inspection`,
   );
 }

@@ -14,6 +14,7 @@ import {
 import { CleaningConflictAlert } from "@/features/cleaning/components/cleaning-conflict-alert";
 import { isAlreadyRecordedError } from "@/features/cleaning/lib/cleaning-errors";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
+import { StepActionBar } from "@/features/jobs/components/step-action-bar";
 import { useCompleteCleaningForm } from "@/features/cleaning/hooks/use-complete-cleaning-form";
 
 interface CleaningCompleteFormProps {
@@ -40,7 +41,7 @@ export function CleaningCompleteForm({
   } = form;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
+    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5 pb-24 md:pb-0">
       {result &&
         !result.success &&
         result.error &&
@@ -117,7 +118,7 @@ export function CleaningCompleteForm({
         />
       </Field>
 
-      <div className="flex items-center gap-2">
+      <StepActionBar>
         <Button type="submit" disabled={isPending} className="min-h-11 px-4">
           {isPending ? "Saving..." : "Complete cleaning"}
         </Button>
@@ -130,7 +131,7 @@ export function CleaningCompleteForm({
         >
           Cancel
         </Link>
-      </div>
+      </StepActionBar>
     </form>
   );
 }

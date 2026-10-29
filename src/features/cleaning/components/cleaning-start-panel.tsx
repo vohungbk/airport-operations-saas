@@ -6,6 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { CleaningConflictAlert } from "@/features/cleaning/components/cleaning-conflict-alert";
 import { isAlreadyRecordedError } from "@/features/cleaning/lib/cleaning-errors";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
+import { StepActionBar } from "@/features/jobs/components/step-action-bar";
 import { useStartCleaning } from "@/features/cleaning/hooks/use-start-cleaning";
 
 interface CleaningStartPanelProps {
@@ -25,7 +26,7 @@ export function CleaningStartPanel({
   const { start, isPending, result, viewCleaning } = useStartCleaning(jobId);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pb-24 md:pb-0">
       {result &&
         !result.success &&
         result.error &&
@@ -52,7 +53,7 @@ export function CleaningStartPanel({
         the cleaning is completed.
       </p>
 
-      <div className="flex items-center gap-2">
+      <StepActionBar>
         <Button
           type="button"
           onClick={start}
@@ -70,7 +71,7 @@ export function CleaningStartPanel({
         >
           Cancel
         </Link>
-      </div>
+      </StepActionBar>
     </div>
   );
 }

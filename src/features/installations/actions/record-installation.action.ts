@@ -78,5 +78,5 @@ export async function recordInstallationAction(
     return { success: false, error: mapInstallationError(error) };
   }
 
-  redirect(`/jobs/${context.job.id}`);
+  redirect(`/jobs/${context.job.id}/done?step=installation`);
 }
