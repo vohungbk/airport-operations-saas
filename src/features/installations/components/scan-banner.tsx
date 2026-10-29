@@ -3,12 +3,21 @@ import { CircleAlert, CircleCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ScanBannerProps {
-  tone: "success" | "danger";
+  tone: "success" | "danger" | "info";
   title: string;
   children: string;
 }
 
-/** The banner of the scan result screens of the design: an icon, a title of 14 px semibold and one line. */
+const TONE_CLASS = {
+  success: "bg-success-bg text-success-fg",
+  danger: "bg-danger-bg text-danger-fg",
+  info: "bg-info-bg text-info-fg",
+} as const;
+
+/**
+ * The banner of the design: an icon, a title of 14 px semibold and one line. The scan result screens use
+ * success and danger; the partner finance screen uses info (VI-F04-S14).
+ */
 export function ScanBanner({ tone, title, children }: ScanBannerProps) {
   const Icon = tone === "success" ? CircleCheck : CircleAlert;
 
@@ -18,9 +27,7 @@ export function ScanBanner({ tone, title, children }: ScanBannerProps) {
       data-tone={tone}
       className={cn(
         "flex min-w-0 items-start gap-3 rounded-lg p-4 text-sm",
-        tone === "success"
-          ? "bg-success-bg text-success-fg"
-          : "bg-danger-bg text-danger-fg",
+        TONE_CLASS[tone],
       )}
     >
       <Icon aria-hidden="true" className="size-5 shrink-0" />

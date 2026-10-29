@@ -170,6 +170,7 @@ export const RESTYLE_GROUPS: readonly RestyleGroup[] = [
       screen("Command centre", "/dashboard", "(dashboard)/dashboard/page.tsx", true),
       screen("Partner overview", "/partner", "(partner)/partner/page.tsx", true),
       screen("Partner seats", "/partner/seats", "(partner)/partner/seats/page.tsx", true),
+      screen("Partner finance", "/partner/finance", "(partner)/partner/finance/page.tsx", true),
     ],
     checks: { same_behavior: "done", both_themes: "done", phone_layout: "done", page_states: "done", design_check: "noted" },
     notes: [
