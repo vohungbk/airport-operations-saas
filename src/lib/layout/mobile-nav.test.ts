@@ -72,7 +72,7 @@ describe("splitMobileNav", () => {
   it("should put the first four items of the partner menu in the bar and the rest in More", () => {
     const { bottom, more } = splitMobileNav(menuOf("partner_user"), "partner_user");
 
-    expect(bottom.map((i) => i.href)).toEqual(["/partner", "/bookings", "/partner/seats", "/settlements"]);
+    expect(bottom.map((i) => i.href)).toEqual(["/partner", "/bookings", "/partner/seats", "/partner/finance"]);
     expect(more.map((i) => i.href)).toEqual(["/partner/kpi", "/partner/roi", "/partner/assistant"]);
   });
 
