@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { InspectionConflictAlert } from "@/features/inspections/components/inspection-conflict-alert";
 import { isAlreadyRecordedError } from "@/features/inspections/lib/inspection-errors";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
+import { OfflineBanner } from "@/features/jobs/components/offline-banner";
 import { StepActionBar } from "@/features/jobs/components/step-action-bar";
 import { useRecordInspectionForm } from "@/features/inspections/hooks/use-record-inspection-form";
 import {
@@ -38,7 +39,7 @@ export function InspectionForm({
   seatId,
   seatLabel,
 }: InspectionFormProps) {
-  const { form, onSubmit, isPending, result, viewRecordedInspection } =
+  const { form, onSubmit, isPending, result, viewRecordedInspection, discardDraft } =
     useRecordInspectionForm({ jobId, seatId });
   const {
     register,
@@ -47,6 +48,7 @@ export function InspectionForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5 pb-24 md:pb-0">
+      <OfflineBanner />
       {result &&
         !result.success &&
         result.error &&
@@ -55,6 +57,7 @@ export function InspectionForm({
         ) : (
           <JobActionErrorAlert
             error={result.error}
+            onRetry={() => void onSubmit()}
             fallbackTitle="Could not record inspection"
           />
         ))}
@@ -118,6 +121,7 @@ export function InspectionForm({
         </Button>
         <Link
           href={`/jobs/${jobId}`}
+          onClick={discardDraft}
           className={buttonVariants({
             variant: "outline",
             className: "min-h-11 px-4",

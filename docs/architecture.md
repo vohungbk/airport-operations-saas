@@ -1018,3 +1018,27 @@ starts, to a Postgres schema/table group protected by RLS.
   the design.
 - **Not here.** The checklist, photos, vehicle bay, completion confirmation and Mark Family Ready screens of the
   design: they need data and storage that do not exist (checks that are saved, photo storage, a Family Ready status).
+
+
+#### UI-F07-S04 — handle a poor network in the field
+
+- **A failed save keeps the screen (AC01, AC02).** `runJobAction` already turns a failed call into
+  `NETWORK_ERROR`, and the forms stay mounted with what was entered. `JobActionErrorAlert` now takes `onRetry`
+  and shows a `Retry` button for that error only; the four step screens pass it (the forms submit again with the
+  same values, the cleaning start presses start again). A job that was reassigned (`NOT_FOUND`), a lost
+  permission (`FORBIDDEN`) and a conflict have no Retry. The actions are single database calls, so a failed one
+  leaves nothing half saved.
+- **Connection lost in a step (AC03).** `OfflineBanner` (`useOnlineStatus`, the browser's `online`/`offline`
+  events through `useSyncExternalStore`) is shown at the top of each step screen while the phone says it is
+  offline. The browser can be wrong about being online, so a failed save is still the source of truth.
+- **Back from the background (AC04).** `useStepDraft` keeps the text fields of a step (installation: time and
+  notes; cleaning and inspection: result and notes) in `sessionStorage` under `step-draft:<step>:<job id>` and
+  puts them back when the page loads again. The draft is dropped by Cancel and on the success screen
+  (`ClearStepDraft`). Storage access is guarded: when it is blocked the form works without a draft. A failed
+  inspection goes to the inspection page, not the success screen, so its draft stays until the tab closes.
+- **Reassigned while open (AC05).** Unchanged: the next action is rejected with `NOT_FOUND` and the alert points
+  back to the jobs.
+- **Not here.** No offline queue and no automatic send when the connection is back (the spec asks for Retry). A
+  Retry after a response that was lost on the way can meet the record it already saved, and then the existing
+  conflict message is shown. The design has no frame for the banner (node `8:378` is a text label), so it uses
+  the destructive `Alert`.
