@@ -82,9 +82,10 @@ export function InspectionForm({
         <FieldLegend variant="label">Inspection result</FieldLegend>
         <div className="flex flex-col gap-2 text-sm">
           {INSPECTION_RESULTS.map((value) => (
-            <label key={value} className="flex items-center gap-2">
+            <label key={value} className="flex min-h-11 items-center gap-3">
               <input
                 type="radio"
+                className="size-5"
                 value={value}
                 disabled={isPending}
                 {...register("result")}

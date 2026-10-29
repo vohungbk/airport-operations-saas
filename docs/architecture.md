@@ -1042,3 +1042,25 @@ starts, to a Postgres schema/table group protected by RLS.
   Retry after a response that was lost on the way can meet the record it already saved, and then the existing
   conflict message is shown. The design has no frame for the banner (node `8:378` is a text label), so it uses
   the destructive `Alert`.
+
+
+#### UI-F07-S05 — keep field screens usable outdoors
+
+- **Touch targets (AC01, spec R6).** The shared parts already give 44 px on a touch screen
+  (`pointer-coarse`, UI-F03-S05); the buttons of the field screens set `min-h-11`. What was left: the radios of
+  the cleaning result and the inspection result were native 13 px circles in 20 px rows. Each choice is now a
+  row of `min-h-11` with a `size-5` radio. `Badge` (job status, flight status, "Reserved for another booking")
+  was 12 px text in a 20 px pill; on a touch screen it is 14 px text in a 24 px pill (`pointer-coarse:`), and
+  the same for a mouse as before.
+- **Text size.** `field-screens.test.ts` reads the source of the field screens and fails on `text-xs`,
+  `text-caption` or a bracket size under 14 px, and on a button without `min-h-11`.
+- **Exception: the bottom navigation.** Its labels are 11 px (`text-caption`), as in the design frames. At 14 px a
+  label such as "Today's Jobs" or "My History" would take two lines in a slot of a 375 px phone and break the
+  height of the bar in the design. The slot itself is 44 px or more. Decide with the design before changing it.
+- **Contrast (AC02, spec R11).** Not changed. `token-contrast.test.ts` and `class-contrast.test.ts` hold every
+  text pair, the primary button pair included, to 4.5:1 in the Light and the Dark theme, and the Theme control
+  is in the More sheet on a phone (`app-shell.test.ts`).
+- **Thumb zone (AC03, spec R7).** Done in UI-F07-S03: `StepActionBar` is fixed above the bottom navigation on a
+  phone and the content above it scrolls.
+- **Not checked.** A real phone in the sun, browser text size and zoom to 200 %. The design has no frame for this
+  story (node `8:378` is a text label).

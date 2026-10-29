@@ -80,18 +80,20 @@ export function CleaningCompleteForm({
       >
         <FieldLegend variant="label">Result</FieldLegend>
         <div className="flex flex-col gap-2 text-sm">
-          <label className="flex items-center gap-2">
+          <label className="flex min-h-11 items-center gap-3">
             <input
               type="radio"
+              className="size-5"
               value="passed"
               disabled={isPending}
               {...register("result")}
             />
             Passed: the seat is ready to use
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex min-h-11 items-center gap-3">
             <input
               type="radio"
+              className="size-5"
               value="failed"
               disabled={isPending}
               {...register("result")}
