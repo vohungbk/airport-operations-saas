@@ -6172,6 +6172,82 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  describe("invoice_lines (VI-F09-S03)", () => {
+    const lineIds: string[] = [];
+
+    beforeAll(async () => {
+      for (const [invoiceId, description] of [
+        [fixtureIds.invoiceA, "Platform share A"],
+        [fixtureIds.invoiceB, "Platform share B"],
+      ] as const) {
+        const { data, error } = await service
+          .from("invoice_lines")
+          .insert({ invoice_id: invoiceId, position: 1, description, amount: 100 })
+          .select("id")
+          .single();
+
+        expect(error).toBeNull();
+        lineIds.push(data!.id);
+      }
+    });
+
+    afterAll(async () => {
+      await service.from("invoice_lines").delete().in("id", lineIds);
+    });
+
+    it("each partner user is given the lines of the invoices of their own partner and none of the other's", async () => {
+      for (const [client, own, other] of [
+        [partnerAClient, "Platform share A", "Platform share B"],
+        [partnerBClient, "Platform share B", "Platform share A"],
+      ] as const) {
+        const { data, error } = await client.from("invoice_lines").select("description");
+
+        expect(error).toBeNull();
+        expect(data!.map((row) => row.description)).toContain(own);
+        expect(data!.map((row) => row.description)).not.toContain(other);
+      }
+    });
+
+    it("another partner's lines cannot be read even by asking for their invoice", async () => {
+      const { data } = await partnerAClient.from("invoice_lines").select("id").eq("invoice_id", fixtureIds.invoiceB);
+
+      expect(data).toEqual([]);
+    });
+
+    it("admin and operations_manager read the lines of every partner", async () => {
+      for (const client of [adminClient, opsClient]) {
+        const { data, error } = await client.from("invoice_lines").select("description").in("id", lineIds);
+
+        expect(error).toBeNull();
+        expect(data).toHaveLength(2);
+      }
+    });
+
+    it("a partner user with no partner and a technician are given no lines", async () => {
+      for (const client of [partnerNullClient, technicianClient]) {
+        const { data, error } = await client.from("invoice_lines").select("id");
+
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+      }
+    });
+
+    it("no app role can create, change or remove a line, an admin included", async () => {
+      for (const client of [adminClient, opsClient, partnerAClient]) {
+        const insert = await client.from("invoice_lines").insert({ invoice_id: fixtureIds.invoiceA, position: 2, description: "Forged", amount: 1 });
+
+        expect(insert.error).not.toBeNull();
+      }
+
+      await adminClient.from("invoice_lines").update({ amount: 999 }).eq("id", lineIds[0]);
+      await adminClient.from("invoice_lines").delete().eq("id", lineIds[0]);
+
+      const { data } = await service.from("invoice_lines").select("amount").eq("id", lineIds[0]).single();
+
+      expect(Number(data!.amount)).toBe(100);
+    });
+  });
+
   describe("finance_history (VI-F04-S16)", () => {
     it("admin and operations_manager can read the financial history, which the finance fixtures wrote", async () => {
       for (const client of [adminClient, opsClient]) {

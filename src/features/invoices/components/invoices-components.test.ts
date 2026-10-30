@@ -133,17 +133,82 @@ describe("InvoicesEmpty", () => {
   });
 });
 
-describe("InvoiceDetail", () => {
-  it("should show the number, the status and the figures", () => {
-    const view = buildInvoiceDetail(
-      { id: "i-1", invoice_number: "INV-2026-000018", issue_date: "2026-10-31", due_date: "2026-11-14", subtotal: 5650, vat: 282.5, total: 5932.5, status: "issued", partner: { name: "Emirates Rent A Car", code: "EMR" }, period_start: "2026-10-01" },
-      "2026-10-30",
-    );
-    const out = html(createElement(InvoiceDetail, { view }));
+describe("InvoiceDetail (VI-F09-S03)", () => {
+  const ROW = {
+    id: "i-1",
+    invoice_number: "INV-2026-000045",
+    issue_date: "2026-10-01",
+    due_date: "2026-10-31",
+    subtotal: 5050,
+    vat: 252.5,
+    total: 5302.5,
+    status: "issued" as const,
+    partner: { name: "Emirates Rent A Car", code: "EMR" },
+    period_start: "2026-09-01",
+    lines: [
+      { position: 1, description: "Platform share", amount: 5550, counts_toward_subtotal: true },
+      { position: 2, description: "Onboarding credits", amount: -500, counts_toward_subtotal: true },
+    ],
+  };
+  const render = (row = ROW) => html(createElement(InvoiceDetail, { view: buildInvoiceDetail(row, true) }));
 
-    expect(out).toContain("INV-2026-000018");
+  it("should show the number as the title with the status, and who, which month and when", () => {
+    const out = render();
+
+    expect(out).toContain("<h1");
+    expect(out).toContain("INV-2026-000045");
     expect(out).toContain('data-status="issued"');
-    expect(out).toContain("USD 5,932.50");
+    expect(out).toContain("Emirates Rent A Car / September 2026");
+  });
+
+  it("should show the three cards", () => {
+    const out = render();
+
+    for (const text of ["Amount due", "USD 5,302.50", "Payment terms: 30 days", "VAT / 5%", "Subtotal USD 5,050.00"]) {
+      expect(out).toContain(text);
+    }
+  });
+
+  it("should show the lines with a credit in red, then the subtotal, the VAT and the total", () => {
+    const out = render();
+
+    expect(out).toContain("Invoice lines");
+    expect(out).toContain("Platform share");
+    expect(out).toContain("-$500.00");
+    expect(out).toMatch(/text-danger-fg[^>]*>-\$500\.00/);
+    for (const text of ["Subtotal", "$5,050.00", "VAT 5%", "$252.50", "Total USD", "$5,302.50"]) {
+      expect(out).toContain(text);
+    }
+  });
+
+  it("should explain how the total is calculated", () => {
+    expect(render()).toContain("How this total is calculated: 5,550.00 platform share - 500.00 onboarding credits = 5,050.00");
+  });
+
+  it("should say there are no lines, and still show the figures of the invoice, when none was recorded", () => {
+    const out = render({ ...ROW, lines: [] });
+
+    expect(out).toContain("No lines recorded for this invoice.");
+    expect(out).toContain("USD 5,302.50");
+  });
+
+  it("should show where the invoice is on its payment status, with the current step marked", () => {
+    const out = render();
+
+    expect(out).toContain("Payment status");
+    expect(out).toContain("1 Draft");
+    expect(out).toContain('aria-current="step"');
+    expect(out).toContain("Current: Issued");
+    expect(out).toContain("Side states:");
+  });
+
+  it("should offer no PDF, statement, status update or void, which are other tickets", () => {
+    const out = render();
+
+    for (const text of ["Download PDF", "Statement PDF", "Statement CSV", "Update payment status", "More / Void"]) {
+      expect(out).not.toContain(text);
+    }
+    expect(out).not.toContain("<button");
   });
 });
 
