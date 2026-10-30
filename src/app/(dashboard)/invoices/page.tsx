@@ -1,10 +1,12 @@
 import { PageEmpty } from "@/components/shared/page-state";
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { FINANCE_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
+import { ExportCsvLink } from "@/features/invoices/components/export-csv-link";
 import { InvoicesEmpty } from "@/features/invoices/components/invoices-empty";
 import { InvoicesFilters } from "@/features/invoices/components/invoices-filters";
 import { InvoicesPagination } from "@/features/invoices/components/invoices-pagination";
 import { InvoicesTable } from "@/features/invoices/components/invoices-table";
+import { buildInvoicesExportHref } from "@/features/invoices/lib/build-invoices-href";
 import { buildInvoiceRows } from "@/features/invoices/lib/invoice-list";
 import { getInvoices } from "@/features/invoices/lib/get-invoices";
 import {
@@ -51,11 +53,14 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Invoices</h1>
-        <p className="text-sm text-muted-foreground">
-          {isPartner ? "Invoices for your account" : "Invoices for all partners"}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Invoices</h1>
+          <p className="text-sm text-muted-foreground">
+            {isPartner ? "Invoices for your account" : "Invoices for all partners"}
+          </p>
+        </div>
+        <ExportCsvLink href={buildInvoicesExportHref(query)} />
       </div>
 
       <InvoicesFilters query={query} isPartner={isPartner} partners={partners} />
