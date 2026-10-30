@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { runClientAction } from "@/lib/actions/run-client-action";
 import { moveSettlementStatusAction } from "@/features/settlements/actions/move-settlement-status.action";
 import { NETWORK_ERROR, type SettlementActionError } from "@/features/settlements/lib/settlement-errors";
 import type { SettlementStatus } from "@/features/settlements/lib/settlement";
@@ -13,13 +14,13 @@ export function useMoveSettlementStatus(settlementId: string) {
   const move = (to: SettlementStatus) => {
     setError(null);
     startTransition(async () => {
-      try {
-        const result = await moveSettlementStatusAction({ settlement_id: settlementId, to_status: to });
-        if (!result.success) {
-          setError(result.error ?? NETWORK_ERROR);
-        }
-      } catch {
-        setError(NETWORK_ERROR);
+      const result = await runClientAction(
+        () => moveSettlementStatusAction({ settlement_id: settlementId, to_status: to }),
+        NETWORK_ERROR,
+      );
+
+      if (!result.success) {
+        setError(result.error ?? NETWORK_ERROR);
       }
     });
   };

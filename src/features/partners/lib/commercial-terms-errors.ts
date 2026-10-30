@@ -5,7 +5,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
  * a message. A raw database error never reaches the client.
  */
 export interface CommercialTermsActionError {
-  code: "VALIDATION_ERROR" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "INTERNAL_ERROR";
+  code: "VALIDATION_ERROR" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "NETWORK_ERROR" | "INTERNAL_ERROR";
   message: string;
   /** The field the message belongs to, when there is one. */
   field?:
@@ -26,6 +26,11 @@ export const VALIDATION_ERROR: CommercialTermsActionError = {
 export const FORBIDDEN_ERROR: CommercialTermsActionError = {
   code: "FORBIDDEN",
   message: "Only an admin can change commercial terms.",
+};
+
+export const NETWORK_ERROR: CommercialTermsActionError = {
+  code: "NETWORK_ERROR",
+  message: "Could not reach the server. Your entries are kept: try again.",
 };
 
 export const NOT_FOUND_ERROR: CommercialTermsActionError = {
