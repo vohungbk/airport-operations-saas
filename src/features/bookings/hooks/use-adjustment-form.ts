@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 
+import { runClientAction } from "@/lib/actions/run-client-action";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { recordAdjustmentAction } from "@/features/bookings/actions/record-adjustment.action";
 import {
@@ -20,16 +21,6 @@ interface UseAdjustmentFormArgs {
   maxAmount: number;
 }
 
-/**
- * Next signals `redirect()` / `notFound()` by throwing an error whose digest starts with `NEXT_`. It
- * must reach the framework untouched, or a successful save would look like a failure.
- */
-function isFrameworkSignal(error: unknown): boolean {
-  const digest = (error as { digest?: unknown } | null)?.digest;
-
-  return typeof digest === "string" && digest.startsWith("NEXT_");
-}
-
 export function useAdjustmentForm({ bookingId, maxAmount }: UseAdjustmentFormArgs) {
   const form = useForm<AdjustmentInput>({
     resolver: zodResolver(createAdjustmentSchema(maxAmount)),
@@ -41,17 +32,11 @@ export function useAdjustmentForm({ bookingId, maxAmount }: UseAdjustmentFormArg
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
     startTransition(async () => {
-      let outcome: AdjustmentActionResult;
-
-      try {
-        outcome = await recordAdjustmentAction(bookingId, values);
-      } catch (error) {
-        if (isFrameworkSignal(error)) {
-          throw error;
-        }
-        // The call did not get through: the form stays as it is, so the user can try again.
-        outcome = { success: false, error: NETWORK_ERROR };
-      }
+      // A call that did not get through leaves the form as it is, so the user can try again.
+      const outcome: AdjustmentActionResult = await runClientAction(
+        () => recordAdjustmentAction(bookingId, values),
+        NETWORK_ERROR,
+      );
 
       setResult(outcome);
 

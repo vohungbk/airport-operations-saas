@@ -3,11 +3,13 @@
 import { useState, useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
+import { runClientAction } from "@/lib/actions/run-client-action";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import {
   saveCommercialTermsAction,
   type SaveCommercialTermsActionResult,
 } from "@/features/partners/actions/save-commercial-terms.action";
+import { NETWORK_ERROR } from "@/features/partners/lib/commercial-terms-errors";
 import { dayAfter, platformShareOf } from "@/features/partners/lib/commercial-terms";
 import {
   createCommercialTermsSchema,
@@ -35,7 +37,11 @@ export function useCommercialTermsForm({ partnerId, today, defaultValues }: UseC
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
     startTransition(async () => {
-      const outcome = await saveCommercialTermsAction(partnerId, values);
+      // A call that did not get through leaves the form as it is, so the user can try again (E10).
+      const outcome: SaveCommercialTermsActionResult = await runClientAction(
+        () => saveCommercialTermsAction(partnerId, values),
+        NETWORK_ERROR,
+      );
       setResult(outcome);
 
       // The next change must start later than the terms just saved.

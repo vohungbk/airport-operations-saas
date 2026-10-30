@@ -75,3 +75,54 @@ describe("the actions that write finance check the role first", () => {
     expect(role).toBeLessThan(database);
   });
 });
+
+const FINANCE_WRITE_ACTIONS = [
+  "src/features/settlements/actions/generate-settlement.action.ts",
+  "src/features/settlements/actions/move-settlement-status.action.ts",
+  "src/features/partners/actions/save-commercial-terms.action.ts",
+  "src/features/bookings/actions/record-adjustment.action.ts",
+];
+
+const FINANCE_FORM_HOOKS = [
+  "src/features/settlements/hooks/use-generate-settlement-form.ts",
+  "src/features/settlements/hooks/use-move-settlement-status.ts",
+  "src/features/partners/hooks/use-commercial-terms-form.ts",
+  "src/features/bookings/hooks/use-adjustment-form.ts",
+];
+
+describe("a user who lost the permission is stopped before anything is read (VI-F04-S17, E11)", () => {
+  it.each(FINANCE_WRITE_ACTIONS)("should check the role or the permission first in %s", (path) => {
+    const source = read(path);
+    const guard = source.search(/await require(Role|Permission|AnyPermission)\(/);
+    const database = Math.min(
+      ...["getBookingRevenue(", "createClient(", ".rpc(", ".from("]
+        .map((call) => source.indexOf(call))
+        .filter((index) => index !== -1),
+    );
+
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(database);
+  });
+});
+
+describe("a finance form keeps what was entered when the network fails (VI-F04-S17, E10)", () => {
+  it.each(FINANCE_FORM_HOOKS)("should run the action of %s through runClientAction and catch nothing itself", (path) => {
+    const source = read(path);
+
+    expect(source).toContain("runClientAction(");
+    expect(source).toContain("NETWORK_ERROR");
+    // A catch of its own would swallow the signal of Next that sends a user without the permission away.
+    expect(source).not.toMatch(/\bcatch\b/);
+  });
+
+  it.each(FINANCE_FORM_HOOKS)("should not reset the form when the action fails in %s", (path) => {
+    const source = read(path);
+    const resets = source.match(/form\.reset\(/g) ?? [];
+
+    // Only the terms form resets, and only after a success.
+    expect(resets.length).toBeLessThanOrEqual(1);
+    if (resets.length === 1) {
+      expect(source).toMatch(/if \(outcome\.success\) \{\s*form\.reset\(/);
+    }
+  });
+});

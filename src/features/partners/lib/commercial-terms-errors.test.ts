@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   FORBIDDEN_ERROR,
   INTERNAL_ERROR,
+  NETWORK_ERROR,
   NOT_FOUND_ERROR,
   mapCommercialTermsError,
 } from "@/features/partners/lib/commercial-terms-errors";
@@ -34,5 +35,16 @@ describe("mapCommercialTermsError", () => {
 
     expect(error).toBe(INTERNAL_ERROR);
     expect(error.message).not.toMatch(/XX000|relation|constraint/);
+  });
+});
+
+describe("NETWORK_ERROR (VI-F04-S17, E10)", () => {
+  it("should say the server could not be reached and that the entries are kept", () => {
+    expect(NETWORK_ERROR.code).toBe("NETWORK_ERROR");
+    expect(NETWORK_ERROR.message).toContain("Your entries are kept");
+  });
+
+  it("should belong to no field, so the form shows it above the fields", () => {
+    expect(NETWORK_ERROR).not.toHaveProperty("field");
   });
 });
