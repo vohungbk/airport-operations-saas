@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
+import { ExportCsvLink } from "@/features/invoices/components/export-csv-link";
 import { InvoiceDetail } from "@/features/invoices/components/invoice-detail";
 import { InvoicesEmpty } from "@/features/invoices/components/invoices-empty";
 import { InvoicesFilters } from "@/features/invoices/components/invoices-filters";
@@ -143,5 +144,15 @@ describe("InvoiceDetail", () => {
     expect(out).toContain("INV-2026-000018");
     expect(out).toContain('data-status="issued"');
     expect(out).toContain("USD 5,932.50");
+  });
+});
+
+describe("ExportCsvLink (VI-F09-S02)", () => {
+  it("should be a download link to the address it is given", () => {
+    const out = html(createElement(ExportCsvLink, { href: "/api/invoices/export?status=paid&sort=due_date&order=desc" }));
+
+    expect(out).toContain("Export CSV");
+    expect(out).toContain("download");
+    expect(out).toContain('href="/api/invoices/export?status=paid&amp;sort=due_date&amp;order=desc"');
   });
 });
