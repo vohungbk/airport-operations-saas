@@ -1099,6 +1099,16 @@ starts, to a Postgres schema/table group protected by RLS.
   whether the amount is a part of the subtotal). The sentence is written only when those parts add up to the
   stored subtotal. Nothing is calculated again except the VAT rate and the payment terms, which are read off the
   stored figures. Nothing in the app writes lines yet: the story that generates an invoice will.
-- **Left out of the design on purpose.** Download PDF and the statements (no stored PDF yet), the update of the
+- **Invoice PDF (VI-F09-S04).** `GET /api/invoices/[id]/pdf` builds the PDF of an invoice on demand from the stored
+  invoice, its lines and its settlement (`pdf-lib`, standard fonts; `invoices.pdf_path` is not used, nothing is
+  stored). The layout is the document of the design (F9): the title, two lines that wait for the legal details of
+  the company (spec Q2, labelled Placeholder), the number, who is billed, the month and the dates, the lines with the
+  subtotal, the VAT and the total, and how the total is made up. It is drawn from the same view as the invoice
+  detail (`buildInvoiceDetail`), so the document and the screen cannot disagree. The standard fonts hold the
+  Western European characters only; another character is written as `?`. Sign-in, a finance permission and an active
+  partner are checked (401, 403); RLS is the scope and an unknown, malformed or hidden invoice is the same 404; a
+  failure is the standardized error body (500). The Download PDF button (detail) and the "Download PDF" item of the
+  row menu ask the route, save the file, and on a failure show the message with Retry; nothing is written.
+- **Left out of the design on purpose.** The invoice PDF preview page and its zoom, the statements, the update of the
   payment status, Void, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
   ("Invoices"), not "Finance > Invoices > Invoice list".
