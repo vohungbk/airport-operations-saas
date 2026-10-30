@@ -33,6 +33,7 @@ describe("splitMobileNav", () => {
       "/return-queue",
       "/flights",
       "/settlements",
+      "/invoices",
       "/reports",
       "/import",
       "/settings",
@@ -73,7 +74,7 @@ describe("splitMobileNav", () => {
     const { bottom, more } = splitMobileNav(menuOf("partner_user"), "partner_user");
 
     expect(bottom.map((i) => i.href)).toEqual(["/partner", "/bookings", "/partner/seats", "/partner/finance"]);
-    expect(more.map((i) => i.href)).toEqual(["/partner/kpi", "/partner/roi", "/partner/assistant"]);
+    expect(more.map((i) => i.href)).toEqual(["/invoices", "/partner/kpi", "/partner/roi", "/partner/assistant"]);
   });
 
   it("should skip a priority item that the menu does not have", () => {

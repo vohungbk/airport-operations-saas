@@ -55,6 +55,9 @@ vi.mock("@/features/settlements/lib/get-settlements", () => ({
 vi.mock("@/features/settlements/lib/get-settlement-partners", () => ({
   getSettlementPartners: async () => [],
 }));
+vi.mock("@/features/invoices/lib/get-invoices", () => ({
+  getInvoices: async () => ({ invoices: [], total: 0, page: 1 }),
+}));
 vi.mock("@/features/settlements/components/generate-settlement-form", () => ({
   GenerateSettlementForm: () => null,
 }));
@@ -80,6 +83,7 @@ const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
   "/jobs": () => import("@/app/(dashboard)/jobs/layout"),
   "/incidents": () => import("@/app/(dashboard)/incidents/layout"),
   "/settlements": () => import("@/app/(dashboard)/settlements/page"),
+  "/invoices": () => import("@/app/(dashboard)/invoices/page"),
 };
 
 /**
@@ -113,10 +117,11 @@ async function opens(href: string, role: Role): Promise<boolean> {
   current.role = role;
   const entry = (await guardOf(href)()).default as (props: {
     children: null;
+    searchParams: Promise<Record<string, string>>;
   }) => Promise<unknown>;
 
   try {
-    await entry({ children: null });
+    await entry({ children: null, searchParams: Promise.resolve({}) });
     return true;
   } catch (error) {
     if (error instanceof Error && error.message === "FORBIDDEN") {

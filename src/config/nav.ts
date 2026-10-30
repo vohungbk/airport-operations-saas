@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Circle,
   CreditCard,
+  FileText,
   History,
   LayoutDashboard,
   LayoutGrid,
@@ -114,6 +115,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: CreditCard,
   },
   {
+    label: "Invoices",
+    href: "/invoices",
+    permission: FINANCE_ACCESS_PERMISSIONS,
+    icon: FileText,
+  },
+  {
     label: "Reports",
     href: "/reports",
     permission: "dashboards:view",
@@ -197,6 +204,12 @@ export const ROLE_MENUS: Partial<Record<Role, NavItem[]>> = {
       href: "/partner/finance",
       permission: "finance:view_own_partner",
       icon: CreditCard,
+    },
+    {
+      label: "Invoices",
+      href: "/invoices",
+      permission: FINANCE_ACCESS_PERMISSIONS,
+      icon: FileText,
     },
     {
       label: "KPI",
