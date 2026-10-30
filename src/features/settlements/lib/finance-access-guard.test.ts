@@ -29,6 +29,8 @@ const FINANCE_CODE = [
   "src/features/bookings/lib/get-booking-revenue.ts",
   "src/app/(dashboard)/invoices/page.tsx",
   "src/features/invoices/lib/get-invoices.ts",
+  "src/app/api/invoices/export/route.ts",
+  "src/features/invoices/lib/invoices-csv.ts",
 ];
 
 describe("finance reads leave the scope to RLS", () => {

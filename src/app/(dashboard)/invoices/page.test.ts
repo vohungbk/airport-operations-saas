@@ -114,7 +114,23 @@ describe("InvoicesPage (VI-F09-S01)", () => {
     expect(await render({ page: "9", page_size: "10" })).toContain("Showing 11–12 of 12");
   });
 
-  it("should offer no Export CSV, which has no export behind it", async () => {
-    expect(await render()).not.toContain("Export CSV");
+  it("should offer Export CSV with the filters and the sort of the list, and no page, in every state", async () => {
+    const html = await render({ q: "INV-9", status: "paid", from: "2026-01", sort: "amount", order: "asc", page: "3", page_size: "25" });
+
+    expect(html).toContain("Export CSV");
+    expect(html).toContain('href="/api/invoices/export?');
+    expect(html).toContain("q=INV-9");
+    expect(html).toContain("status=paid");
+    expect(html).toContain("sort=amount");
+    expect(html).not.toMatch(/api\/invoices\/export\?[^"]*page/);
+
+    getInvoicesMock.mockResolvedValue({ invoices: [], total: 0, page: 1 });
+    expect(await render()).toContain("Export CSV");
+  });
+
+  it("should leave a partner the user is not allowed to filter by out of its export address", async () => {
+    const html = await render({ partner_id: "b0000000-0000-0000-0000-000000000002" });
+
+    expect(html).not.toContain("partner_id=");
   });
 });

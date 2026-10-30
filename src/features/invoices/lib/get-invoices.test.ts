@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { INVOICE_LIST_SELECT, INVOICE_LIST_SELECT_BY_PERIOD, getInvoices } from "@/features/invoices/lib/get-invoices";
+import {
+  INVOICE_EXPORT_BATCH,
+  INVOICE_EXPORT_LIMIT,
+  INVOICE_LIST_SELECT,
+  INVOICE_LIST_SELECT_BY_PERIOD,
+  InvoiceExportTooLargeError,
+  getInvoices,
+  getInvoicesForExport,
+} from "@/features/invoices/lib/get-invoices";
 import { invoicesQuerySchema, resolveInvoicesQuery } from "@/features/invoices/schemas/invoices-query.schema";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -114,5 +122,73 @@ describe("getInvoices (VI-F09-S01)", () => {
     const { client } = fakeClient({ data: null, count: null, error: { code: "42501" } });
 
     await expect(getInvoices(resolve({}), false, client)).rejects.toMatchObject({ code: "42501" });
+  });
+});
+
+describe("getInvoicesForExport (VI-F09-S02)", () => {
+  const batch = (size: number) => Array.from({ length: size }, (_, index) => ({ ...ROW, id: `i-${index}` }));
+
+  it("should read every invoice the filters match, in batches, in the order of the list", async () => {
+    const { client, calls } = fakeClient(
+      { data: null, count: 1500, error: null },
+      OK(batch(INVOICE_EXPORT_BATCH), 1500),
+      OK(batch(500), 1500),
+    );
+
+    const invoices = await getInvoicesForExport(resolve({ sort: "amount", order: "asc", page: "4", page_size: "10" }), false, client);
+
+    expect(invoices).toHaveLength(1500);
+    expect(calls).toContainEqual(["range", 0, INVOICE_EXPORT_BATCH - 1]);
+    expect(calls).toContainEqual(["range", INVOICE_EXPORT_BATCH, 2 * INVOICE_EXPORT_BATCH - 1]);
+    expect(calls).toContainEqual(["order", "total", { ascending: true }]);
+    expect(calls).toContainEqual(["order", "id", { ascending: true }]);
+  });
+
+  it("should use the filters and the scope of the list: statuses of the role, search, period and partner", async () => {
+    const { client, calls } = fakeClient({ data: null, count: 0, error: null });
+
+    await getInvoicesForExport(
+      resolve({ q: "50%", status: "paid", from: "2026-01", to: "2026-06", partner_id: "b0000000-0000-0000-0000-000000000001" }),
+      false,
+      client,
+    );
+
+    expect(calls).toContainEqual(["in", "status", ["draft", "issued", "paid", "overdue", "void"]]);
+    expect(calls).toContainEqual(["ilike", "invoice_number", "%50\\%%"]);
+    expect(calls).toContainEqual(["eq", "status", "paid"]);
+    expect(calls).toContainEqual(["eq", "partner_id", "b0000000-0000-0000-0000-000000000001"]);
+    expect(calls).toContainEqual(["gte", "settlement.period_start", "2026-01-01"]);
+    expect(calls).toContainEqual(["lte", "settlement.period_start", "2026-06-01"]);
+  });
+
+  it("should ask a partner user only for the statuses it may see", async () => {
+    const { client, calls } = fakeClient({ data: null, count: 0, error: null });
+
+    await getInvoicesForExport(resolve({}, true), true, client);
+
+    expect(calls).toContainEqual(["in", "status", ["issued", "paid", "overdue"]]);
+  });
+
+  it("should read nothing and give an empty list when nothing matches", async () => {
+    const { client, calls } = fakeClient({ data: null, count: 0, error: null });
+
+    await expect(getInvoicesForExport(resolve({}), false, client)).resolves.toEqual([]);
+    expect(calls.some((call) => call[0] === "range")).toBe(false);
+  });
+
+  it("should refuse an export above the limit, with the number that matched, and read no row", async () => {
+    const { client, calls } = fakeClient({ data: null, count: INVOICE_EXPORT_LIMIT + 1, error: null });
+
+    await expect(getInvoicesForExport(resolve({}), false, client)).rejects.toMatchObject({
+      total: INVOICE_EXPORT_LIMIT + 1,
+    });
+    await expect(getInvoicesForExport(resolve({}), false, client)).rejects.toBeInstanceOf(InvoiceExportTooLargeError);
+    expect(calls.some((call) => call[0] === "range")).toBe(false);
+  });
+
+  it("should throw, not give a short file, when a batch fails", async () => {
+    const { client } = fakeClient({ data: null, count: 5, error: null }, { data: null, count: null, error: { code: "42501" } });
+
+    await expect(getInvoicesForExport(resolve({}), false, client)).rejects.toMatchObject({ code: "42501" });
   });
 });

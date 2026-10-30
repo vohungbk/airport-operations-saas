@@ -1083,6 +1083,15 @@ starts, to a Postgres schema/table group protected by RLS.
   sorting by "Period" sorts by the issue date, because an invoice has no period column.
 - **Overdue.** "Overdue by N days" is shown for an invoice whose stored status is overdue; nothing here sets
   that status from the due date.
-- **Left out of the design on purpose.** Export CSV and Download PDF (no export and no stored PDF yet), the
-  invoice lines and the payment control of the invoice detail (other tickets). The breadcrumb is the one the
-  shell builds from the menu ("Invoices"), not "Finance > Invoices > Invoice list".
+- **Export CSV (VI-F09-S02).** `GET /api/invoices/export` downloads the list as CSV. It takes the filters and
+  the sort of the list from the address and ignores the page: the file holds every invoice they match, read in
+  batches of 1000 with the same filter code as the list (`filteredRequest` in `get-invoices.ts`). Signed-in,
+  a finance permission and an active partner are checked first (401, 403); RLS is the scope, and a partner is
+  given only issued, paid and overdue invoices of its own partner. More than 10,000 invoices is refused with a
+  400 that asks to narrow the filters, never cut. The file is machine-readable: the month as `YYYY-MM`, dates as
+  `YYYY-MM-DD`, the amount as a plain number; the Partner column is for the operations team. A text cell that
+  starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'` so a spreadsheet does not run it.
+  The file starts with a UTF-8 mark so Excel keeps accents, and has CRLF line ends.
+- **Left out of the design on purpose.** Download PDF (no stored PDF yet), the invoice lines and the payment
+  control of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
+  ("Invoices"), not "Finance > Invoices > Invoice list".
