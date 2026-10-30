@@ -8,6 +8,8 @@ import { listSourceFiles } from "@/lib/accessibility/source-files";
 import { readBlock, readDeclarations } from "@/lib/accessibility/token-css";
 
 const SRC_DIR = join(process.cwd(), "src");
+/** The files that draw a printed document, not a screen, relative to `src`. */
+const PRINTED_DOCUMENT_FILES = new Set([join("features", "invoices", "lib", "invoice-pdf.ts")]);
 const GLOBALS_CSS = join(SRC_DIR, "app", "globals.css");
 
 // Names and hex values from the design file, frame "Foundations / Exact source tokens".
@@ -58,11 +60,15 @@ describe("design tokens", () => {
   const theme = readDeclarations(readBlock(css, "@theme inline"));
 
   it("should not contain raw color values outside globals.css", () => {
-    const offenders = listSourceFiles(SRC_DIR).flatMap((file) =>
-      findRawColorLines(readFileSync(file, "utf8")).map(
-        (line) => `${relative(SRC_DIR, file)}:${line}`,
-      ),
-    );
+    const offenders = listSourceFiles(SRC_DIR)
+      // A printed document is white in both themes and cannot use the CSS variables of the screen, so the
+      // invoice PDF names its few colors itself (VI-F09-S04).
+      .filter((file) => !PRINTED_DOCUMENT_FILES.has(relative(SRC_DIR, file)))
+      .flatMap((file) =>
+        findRawColorLines(readFileSync(file, "utf8")).map(
+          (line) => `${relative(SRC_DIR, file)}:${line}`,
+        ),
+      );
 
     expect(offenders).toEqual([]);
   });

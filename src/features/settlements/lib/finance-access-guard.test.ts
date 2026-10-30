@@ -19,6 +19,7 @@ const PARTNER_FINANCE_READS = [
   "src/app/(dashboard)/bookings/[id]/revenue/page.tsx",
   "src/app/(dashboard)/invoices/[id]/page.tsx",
   "src/features/invoices/lib/get-invoice.ts",
+  "src/app/api/invoices/[id]/pdf/route.ts",
 ];
 
 const FINANCE_CODE = [
@@ -31,6 +32,7 @@ const FINANCE_CODE = [
   "src/features/invoices/lib/get-invoices.ts",
   "src/app/api/invoices/export/route.ts",
   "src/features/invoices/lib/invoices-csv.ts",
+  "src/features/invoices/lib/invoice-pdf.ts",
 ];
 
 describe("finance reads leave the scope to RLS", () => {

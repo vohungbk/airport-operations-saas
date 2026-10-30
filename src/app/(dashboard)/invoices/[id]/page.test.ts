@@ -57,6 +57,7 @@ describe("InvoicePage (VI-F09-S01, NAV-1)", () => {
     expect(html).toContain("Platform share");
     expect(html).toContain("VAT 5%");
     expect(html).toContain("Current: Issued");
+    expect(html).toContain("Download PDF");
   });
 
   it("should show the partner to the operations team and leave it out for a partner user", async () => {
