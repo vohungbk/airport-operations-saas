@@ -28,6 +28,7 @@ const INVOICE = {
   status: "issued",
   partner: { name: "Emirates Rent A Car", code: "EMR" },
   period_start: "2026-10-01",
+  lines: [{ position: 1, description: "Platform share", amount: 5650, counts_toward_subtotal: true }],
 };
 
 const render = async (id = ID) => renderToStaticMarkup(await InvoicePage({ params: Promise.resolve({ id }) }));
@@ -48,13 +49,22 @@ describe("InvoicePage (VI-F09-S01, NAV-1)", () => {
     expect(getInvoiceMock).not.toHaveBeenCalled();
   });
 
-  it("should show the invoice with a way back to the list", async () => {
+  it("should show the invoice with its lines, its VAT and its payment status", async () => {
     const html = await render();
 
-    expect(html).toContain("Invoice detail");
     expect(html).toContain("INV-2026-000018");
     expect(html).toContain("USD 5,932.50");
-    expect(html).toContain('href="/invoices"');
+    expect(html).toContain("Platform share");
+    expect(html).toContain("VAT 5%");
+    expect(html).toContain("Current: Issued");
+  });
+
+  it("should show the partner to the operations team and leave it out for a partner user", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ role: "admin" });
+    expect(await render()).toContain("Emirates Rent A Car /");
+
+    requireAnyPermissionMock.mockResolvedValue({ role: "partner_user" });
+    expect(await render()).not.toContain("Emirates Rent A Car /");
   });
 
   it("should read the invoice as a partner user or as an operations user, as the role is", async () => {

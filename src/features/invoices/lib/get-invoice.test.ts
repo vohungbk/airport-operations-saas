@@ -11,7 +11,7 @@ function fakeClient(answer: { data: unknown; error: { code?: string } | null }) 
   const calls: unknown[][] = [];
   const query: Record<string, unknown> = {};
 
-  for (const method of ["select", "eq", "in"]) {
+  for (const method of ["select", "eq", "in", "order"]) {
     query[method] = vi.fn((...args: unknown[]) => {
       calls.push([method, ...args]);
       return query;
@@ -47,13 +47,29 @@ describe("getInvoice (VI-F09-S01)", () => {
     await expect(getInvoice(ID, true)).resolves.toBeNull();
   });
 
-  it("should flatten the period of the settlement", async () => {
+  it("should read the lines with the invoice, in the order of their position", async () => {
+    const calls = fakeClient({ data: null, error: null });
+
+    await getInvoice(ID, false);
+
+    expect(INVOICE_DETAIL_SELECT).toContain("lines:invoice_lines(position, description, amount, counts_toward_subtotal)");
+    expect(calls).toContainEqual(["order", "position", { referencedTable: "invoice_lines", ascending: true }]);
+  });
+
+  it("should flatten the period of the settlement and keep the lines", async () => {
+    const lines = [{ position: 1, description: "Platform share", amount: 10, counts_toward_subtotal: true }];
     fakeClient({
-      data: { id: ID, invoice_number: "INV-1", total: 1, settlement: { period_start: "2026-10-01" } },
+      data: { id: ID, invoice_number: "INV-1", total: 1, settlement: { period_start: "2026-10-01" }, lines },
       error: null,
     });
 
-    await expect(getInvoice(ID, false)).resolves.toMatchObject({ id: ID, period_start: "2026-10-01" });
+    await expect(getInvoice(ID, false)).resolves.toMatchObject({ id: ID, period_start: "2026-10-01", lines });
+  });
+
+  it("should give an empty list of lines for an invoice that has none, or whose lines RLS hides", async () => {
+    fakeClient({ data: { id: ID, invoice_number: "INV-1", total: 1, settlement: null, lines: null }, error: null });
+
+    await expect(getInvoice(ID, true)).resolves.toMatchObject({ lines: [], period_start: null });
   });
 
   it("should throw, not answer null, when the read fails", async () => {

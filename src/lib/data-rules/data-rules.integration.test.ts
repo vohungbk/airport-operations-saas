@@ -46,6 +46,10 @@ const booking = (number: string, pickup = "2030-01-01 10:00+00", ret = "2030-01-
 const adjustment = (amount: string, reason: string) =>
   `insert into public.booking_adjustments (booking_id, type, amount, reason)
    values ('c3000000-0000-0000-0000-000000000099', 'partial_refund', ${amount}, ${reason});`;
+/** A line of an invoice; the foreign keys are off in these cases. */
+const invoiceLine = (invoice: number, position: number, description: string) =>
+  `insert into public.invoice_lines (invoice_id, position, description, amount)
+   values ('c3000000-0000-0000-0000-0000000000${invoice}', ${position}, ${description}, 10);`;
 /** A row of the financial history; the foreign keys are off in these cases. */
 const financeHistory = (table: string, action: string, reason: string) =>
   `insert into public.finance_history (table_name, row_id, action, reason, new_values)
@@ -319,6 +323,25 @@ const CASES: Case[] = [
     code: "23505",
     inside: `insert into public.settlements (partner_id, period_start, period_end) values (${PARTNER}, '2031-05-01', '2031-05-31');`,
     outside: `insert into public.settlements (partner_id, period_start, period_end) values (${PARTNER}, '2031-05-01', '2031-05-31');`,
+  },
+  // The lines of an invoice (VI-F09-S03). The foreign keys are off in these cases, so the invoice need not exist.
+  {
+    constraint: "invoice_lines_position_check",
+    code: "23514",
+    inside: invoiceLine(91, 1, "'A line'"),
+    outside: invoiceLine(91, 0, "'A line'"),
+  },
+  {
+    constraint: "invoice_lines_description_check",
+    code: "23514",
+    inside: `${invoiceLine(92, 1, "'x'")} ${invoiceLine(92, 2, "repeat('x', 200)")}`,
+    outside: invoiceLine(92, 3, "'   '"),
+  },
+  {
+    constraint: "invoice_lines_invoice_position_unique",
+    code: "23505",
+    inside: invoiceLine(93, 1, "'A line'"),
+    outside: invoiceLine(93, 1, "'A line'"),
   },
   {
     constraint: "inspection_records_follow_up_check",
