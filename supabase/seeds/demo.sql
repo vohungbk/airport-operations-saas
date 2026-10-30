@@ -370,6 +370,7 @@ begin
   alter table public.technician_job_events disable trigger user;
   alter table public.incident_status_history disable trigger user;
   alter table public.seat_status_history disable trigger user;
+  alter table public.finance_history disable trigger user;
 
   update public.users set created_at = c_base, updated_at = c_base where email like '%.example';
   update public.partners set created_at = c_base, updated_at = c_base where id in (c_dcr, c_dmo);
@@ -435,6 +436,19 @@ begin
     ) r
    where h.id = r.id;
 
+  update public.finance_history h
+     set id = md5('finance_history:' || r.n)::uuid,
+         changed_at = c_base + (r.n || ' seconds')::interval
+    from (
+      select id, row_number() over (
+               order by changed_at, table_name, row_id, action, reason,
+                        coalesce(old_values::text, ''), new_values::text
+             ) as n
+        from public.finance_history
+       where partner_id in (c_dcr, c_dmo)
+    ) r
+   where h.id = r.id;
+
   alter table public.users enable trigger user;
   alter table public.partners enable trigger user;
   alter table public.airports enable trigger user;
@@ -447,5 +461,6 @@ begin
   alter table public.technician_job_events enable trigger user;
   alter table public.incident_status_history enable trigger user;
   alter table public.seat_status_history enable trigger user;
+  alter table public.finance_history enable trigger user;
 end
 $demo$;

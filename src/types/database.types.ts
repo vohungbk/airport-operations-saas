@@ -464,6 +464,53 @@ export type Database = {
           },
         ]
       }
+      finance_history: {
+        Row: {
+          action: string
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_values: Json
+          old_values: Json | null
+          partner_id: string | null
+          reason: string
+          row_id: string
+          table_name: string
+        }
+        Insert: {
+          action: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_values: Json
+          old_values?: Json | null
+          partner_id?: string | null
+          reason: string
+          row_id: string
+          table_name: string
+        }
+        Update: {
+          action?: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_values?: Json
+          old_values?: Json | null
+          partner_id?: string | null
+          reason?: string
+          row_id?: string
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flights: {
         Row: {
           actual_arrival_at: string | null
