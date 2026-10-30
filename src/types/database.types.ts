@@ -847,6 +847,44 @@ export type Database = {
           },
         ]
       }
+      invoice_lines: {
+        Row: {
+          amount: number
+          counts_toward_subtotal: boolean
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          position: number
+        }
+        Insert: {
+          amount: number
+          counts_toward_subtotal?: boolean
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          position: number
+        }
+        Update: {
+          amount?: number
+          counts_toward_subtotal?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           created_at: string
@@ -1554,6 +1592,7 @@ export type Database = {
         Returns: undefined
       }
       booking_partner_id: { Args: { p_booking_id: string }; Returns: string }
+      invoice_partner_id: { Args: { p_invoice_id: string }; Returns: string }
       move_settlement_status: {
         Args: {
           p_settlement_id: string
