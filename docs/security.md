@@ -2067,6 +2067,33 @@ Who may read and write the finance data. The database decides; the screens only 
   the local stack) and `src/features/settlements/lib/finance-access-guard.test.ts` (the code side). The per-table
   cross-tenant tests stay in `src/lib/auth/rls.integration.test.ts`.
 
+## Financial history (VI-F04-S16)
+
+Every change of a financial value is kept with who made it, when and why (spec R16).
+
+- **What is kept.** `finance_history` gets one row after every insert and every value-changing update of
+  `settlements`, `invoices` and `partner_commercial_terms`: the table, the row, the partner, insert or update,
+  `changed_by` (`auth.uid()`; empty when the database itself or the service role made the change),
+  `changed_at`, a `reason`, and the columns that changed (old and new). `created_at` and `updated_at` are bookkeeping, not values: they are
+  not kept, and a change of them alone is not a change. Adjustments keep their own history in `booking_adjustments` (actor, time and the reason typed by the user).
+- **Who writes it.** Only the trigger `record_finance_change()`. There is no insert, update or delete policy and
+  the grants are revoked, so no app role can write it.
+- **Append only.** Update, delete and truncate are refused (`55000`) for every role, the owner and the service role
+  included. The table has no foreign key to the rows it describes, so the history stays whole when a row is removed.
+- **The reason is worked out from the change** ("Settlement generated for 2026-01", "Status moved from draft to
+  pending_approval", "Commercial terms version saved", "Launch credit updated by a completed rental", ...). It is not
+  typed by the admin: a screen that asks for a reason sets `app.finance_reason` for its transaction
+  (`set_config('app.finance_reason', ..., true)`) and that wins. A change made straight in the table by an admin is
+  kept with the reason worked out from what changed; it is not marked as direct.
+- **Finance rows are not deleted by the app roles.** A trigger on `settlements`, `invoices`,
+  `partner_commercial_terms` and `settlement_carried_adjustments` refuses a delete by `anon` and
+  `authenticated` (`55000`), a second wall behind the missing delete policy (they have no truncate privilege). The database owner and the service role
+  can still remove a row (tests and demo data use it); its history stays.
+- **Who reads it.** Admin and operations manager. A partner user and a technician read nothing.
+- **Demo data.** The last step of `supabase/seeds/demo.sql` gives the history rows of the seed a fixed id and time, like
+  the other logs, so two loads of the demo data give the same `finance_history`.
+- **Proof.** `src/lib/finance/finance-history.integration.test.ts` (needs the local stack).
+
 ## Storage
 
 - Supabase Storage buckets are tenant-scoped. Access rules mirror the

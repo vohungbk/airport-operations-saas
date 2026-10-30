@@ -6172,6 +6172,40 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  describe("finance_history (VI-F04-S16)", () => {
+    it("admin and operations_manager can read the financial history, which the finance fixtures wrote", async () => {
+      for (const client of [adminClient, opsClient]) {
+        const { data, error } = await client.from("finance_history").select("id").limit(1);
+
+        expect(error).toBeNull();
+        expect(data!.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("a partner user, a partner user with no partner and a technician are given no finance_history row", async () => {
+      for (const client of [partnerAClient, partnerBClient, partnerNullClient, technicianClient]) {
+        const { data, error } = await client.from("finance_history").select("id");
+
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+      }
+    });
+
+    it("no app role can write finance_history, an admin included", async () => {
+      for (const client of [adminClient, opsClient, partnerAClient]) {
+        const { error } = await client.from("finance_history").insert({
+          table_name: "invoices",
+          row_id: fixtureIds.invoiceA,
+          action: "insert",
+          reason: "Forged",
+          new_values: {},
+        });
+
+        expect(error).not.toBeNull();
+      }
+    });
+  });
+
   describe("partner finance scope (VI-F03-S06)", () => {
     const TABLES = ["settlements", "invoices", "partner_commercial_terms"] as const;
     const FIXTURE_IDS = {

@@ -46,6 +46,10 @@ const booking = (number: string, pickup = "2030-01-01 10:00+00", ret = "2030-01-
 const adjustment = (amount: string, reason: string) =>
   `insert into public.booking_adjustments (booking_id, type, amount, reason)
    values ('c3000000-0000-0000-0000-000000000099', 'partial_refund', ${amount}, ${reason});`;
+/** A row of the financial history; the foreign keys are off in these cases. */
+const financeHistory = (table: string, action: string, reason: string) =>
+  `insert into public.finance_history (table_name, row_id, action, reason, new_values)
+   values ('${table}', 'c3000000-0000-0000-0000-000000000098', '${action}', ${reason}, '{}'::jsonb);`;
 /** A booking with one more column set, for the finance checks of VI-F04-S04. */
 const bookingWith = (number: string, column: string, value: string) =>
   `insert into public.bookings (booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate, ${column})
@@ -165,6 +169,25 @@ const CASES: Case[] = [
     code: "23514",
     inside: `${adjustment("1", "'x'")} ${adjustment("1", "repeat('x', 1000)")}`,
     outside: adjustment("1", "'   '"),
+  },
+  // The financial history (VI-F04-S16).
+  {
+    constraint: "finance_history_table_check",
+    code: "23514",
+    inside: financeHistory("invoices", "insert", "'A reason'"),
+    outside: financeHistory("bookings", "insert", "'A reason'"),
+  },
+  {
+    constraint: "finance_history_action_check",
+    code: "23514",
+    inside: financeHistory("invoices", "update", "'A reason'"),
+    outside: financeHistory("invoices", "delete", "'A reason'"),
+  },
+  {
+    constraint: "finance_history_reason_check",
+    code: "23514",
+    inside: `${financeHistory("invoices", "insert", "'x'")} ${financeHistory("invoices", "insert", "repeat('x', 1000)")}`,
+    outside: financeHistory("invoices", "insert", "'   '"),
   },
   // Early returns, cancellations and no-shows (VI-F04-S07).
   {
@@ -331,7 +354,7 @@ const CASES: Case[] = [
   },
 ];
 
-const HISTORY_TABLES = ["booking_events", "technician_job_events", "incident_status_history", "booking_adjustments"];
+const HISTORY_TABLES = ["booking_events", "technician_job_events", "incident_status_history", "booking_adjustments", "finance_history"];
 
 /** SQL with plain output: one value per line, no headers. */
 const plain = (sql: string) => `\\set QUIET on\n\\pset tuples_only on\n\\pset format unaligned\n${sql}`;
