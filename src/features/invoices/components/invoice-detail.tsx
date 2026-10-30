@@ -1,29 +1,83 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { OverviewTile } from "@/features/dashboard/components/overview-tile";
+import { PaymentStatus } from "@/features/invoices/components/payment-status";
 import type { InvoiceDetailView } from "@/features/invoices/lib/invoice-detail";
+import { cn } from "@/lib/utils";
 
 interface InvoiceDetailProps {
   view: InvoiceDetailView;
 }
 
-/** The summary of one invoice. Read only; the lines, the PDF and the statement are other tickets. */
+/**
+ * The invoice detail as the design draws it (VI-F09-S03): the number and the status, who, which month and
+ * when, three cards (the amount, the due date, the VAT), the lines with the subtotal, the VAT and the total,
+ * how the total is made up, and where the invoice is on its payment status. Read only: the PDF, the
+ * statements, the update of the status and the history of the design are other tickets.
+ */
 export function InvoiceDetail({ view }: InvoiceDetailProps) {
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 className="font-mono text-base font-semibold text-foreground">{view.invoice_number}</h2>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-mono text-3xl font-semibold tracking-tight break-all text-foreground">
+            {view.invoice_number}
+          </h1>
           <StatusBadge domain="invoice" value={view.status} />
         </div>
-        <dl className="grid gap-3 text-sm sm:grid-cols-2">
-          {view.lines.map((line) => (
-            <div key={line.label} className="flex min-w-0 gap-3">
-              <dt className="min-w-0 flex-1 text-muted-foreground">{line.label}</dt>
-              <dd className="min-w-0 flex-1 text-right break-words text-foreground">{line.value}</dd>
+        <p className="text-sm text-muted-foreground">{view.meta}</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {view.cards.map((card) => (
+          <OverviewTile key={card.label} label={card.label} value={card.value} caption={card.caption} />
+        ))}
+      </div>
+
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">Invoice lines</h2>
+          {!view.has_lines ? (
+            <p className="text-sm text-muted-foreground">No lines recorded for this invoice.</p>
+          ) : (
+            <div className="min-w-0 sm:overflow-hidden sm:rounded-lg sm:border sm:bg-card">
+              <Table stacked>
+                <TableHeader className="sm:bg-muted [&_th]:h-11 [&_th]:text-xs [&_th]:font-semibold [&_th]:text-muted-foreground">
+                  <TableRow>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="sm:text-right">Amount (USD)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {view.lines.map((line) => (
+                    <TableRow key={line.description} className={cn(line.is_total && "font-semibold")}>
+                      <TableCell data-label="Description">{line.description}</TableCell>
+                      <TableCell
+                        data-label="Amount (USD)"
+                        className={cn("font-mono text-[13px] tabular-nums sm:text-right", line.negative && "text-danger-fg")}
+                      >
+                        {line.amount}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          ))}
-        </dl>
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      {view.explanation && <p className="text-sm text-muted-foreground">{view.explanation}</p>}
+
+      <PaymentStatus steps={view.steps} sideStates={view.side_states} current={view.current} />
+    </div>
   );
 }
