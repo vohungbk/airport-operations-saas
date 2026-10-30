@@ -28,7 +28,7 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <InvoiceDetail view={buildInvoiceDetail(invoice, !isPartner)} />
+      <InvoiceDetail view={buildInvoiceDetail(invoice, !isPartner)} invoiceId={invoice.id} />
     </div>
   );
 }

@@ -150,7 +150,7 @@ describe("InvoiceDetail (VI-F09-S03)", () => {
       { position: 2, description: "Onboarding credits", amount: -500, counts_toward_subtotal: true },
     ],
   };
-  const render = (row = ROW) => html(createElement(InvoiceDetail, { view: buildInvoiceDetail(row, true) }));
+  const render = (row = ROW) => html(createElement(InvoiceDetail, { view: buildInvoiceDetail(row, true), invoiceId: row.id }));
 
   it("should show the number as the title with the status, and who, which month and when", () => {
     const out = render();
@@ -202,13 +202,13 @@ describe("InvoiceDetail (VI-F09-S03)", () => {
     expect(out).toContain("Side states:");
   });
 
-  it("should offer no PDF, statement, status update or void, which are other tickets", () => {
+  it("should offer to download the invoice as a PDF, and nothing else of the design that is another ticket", () => {
     const out = render();
 
-    for (const text of ["Download PDF", "Statement PDF", "Statement CSV", "Update payment status", "More / Void"]) {
+    expect(out).toContain("Download PDF");
+    for (const text of ["Statement PDF", "Statement CSV", "Update payment status", "More / Void"]) {
       expect(out).not.toContain(text);
     }
-    expect(out).not.toContain("<button");
   });
 });
 
