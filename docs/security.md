@@ -2094,6 +2094,23 @@ Every change of a financial value is kept with who made it, when and why (spec R
   the other logs, so two loads of the demo data give the same `finance_history`.
 - **Proof.** `src/lib/finance/finance-history.integration.test.ts` (needs the local stack).
 
+## Finance errors (VI-F04-S17)
+
+How the four screens that write finance data (commercial terms, a settlement, a status move, an adjustment) behave
+when a save fails or the permission is lost.
+
+- **The network fails while saving (E10).** The form calls its Server Action through `runClientAction()`
+  (`src/lib/actions/run-client-action.ts`). A call that did not get through becomes a failed result with the
+  `NETWORK_ERROR` message ("Could not reach the server. Your entries are kept: try again."); the form is not reset,
+  so the user presses save again. A raw failure never reaches the screen.
+- **The permission is revoked while the screen is open (E11).** Every finance Server Action checks the role or the
+  permission on the server before it reads anything, so the next action of a user who lost it is refused. The action
+  calls `forbidden()`; `runClientAction()` throws the signals of Next (`NEXT_...`) again, so the framework shows the
+  forbidden page. A form hook must not catch the error itself: it would swallow that signal and show a network
+  message in place of the forbidden state. If the database refuses after the check (`42501`), the form shows the
+  `FORBIDDEN` message of that form instead and keeps the entries.
+- **Proof.** `src/lib/actions/run-client-action.test.ts` and `src/features/settlements/lib/finance-access-guard.test.ts`.
+
 ## Storage
 
 - Supabase Storage buckets are tenant-scoped. Access rules mirror the
