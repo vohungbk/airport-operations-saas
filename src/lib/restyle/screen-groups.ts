@@ -171,6 +171,8 @@ export const RESTYLE_GROUPS: readonly RestyleGroup[] = [
       screen("Partner overview", "/partner", "(partner)/partner/page.tsx", true),
       screen("Partner seats", "/partner/seats", "(partner)/partner/seats/page.tsx", true),
       screen("Partner finance", "/partner/finance", "(partner)/partner/finance/page.tsx", true),
+      screen("Invoices", "/invoices", "(dashboard)/invoices/page.tsx", true),
+      screen("Invoice detail", "/invoices/[id]", "(dashboard)/invoices/[id]/page.tsx", true),
     ],
     checks: { same_behavior: "done", both_themes: "done", phone_layout: "done", page_states: "done", design_check: "noted" },
     notes: [
