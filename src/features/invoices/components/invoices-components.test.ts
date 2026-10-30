@@ -118,14 +118,14 @@ describe("InvoicesPagination", () => {
 
 describe("InvoicesEmpty", () => {
   it("should offer to clear the filters when nothing matched", () => {
-    const out = html(createElement(InvoicesEmpty, { isFiltered: true, isPartner: true }));
+    const out = html(createElement(InvoicesEmpty, { isFiltered: true }, "Try a different invoice number, status, or period."));
 
     expect(out).toContain("No invoices match your filters");
     expect(out).toContain("Clear filters");
   });
 
   it("should say there is nothing yet, with no Clear filters, when there is no invoice", () => {
-    const out = html(createElement(InvoicesEmpty, { isFiltered: false, isPartner: true }));
+    const out = html(createElement(InvoicesEmpty, { isFiltered: false }, "Invoices appear here once they are issued to your organization."));
 
     expect(out).toContain("No invoices yet");
     expect(out).not.toContain("Clear filters");

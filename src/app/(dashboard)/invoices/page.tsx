@@ -1,3 +1,4 @@
+import { PageEmpty } from "@/components/shared/page-state";
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { FINANCE_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { InvoicesEmpty } from "@/features/invoices/components/invoices-empty";
@@ -12,6 +13,17 @@ import {
 } from "@/features/invoices/schemas/invoices-query.schema";
 import { utcToday } from "@/features/partners/lib/commercial-terms";
 import { getSettlementPartners } from "@/features/settlements/lib/get-settlement-partners";
+
+/** What the empty state says, which depends on whether a filter is on and on who is looking. */
+function emptyMessage(isFiltered: boolean, isPartner: boolean): string {
+  if (isFiltered) {
+    return "Try a different invoice number, status, or period.";
+  }
+
+  return isPartner
+    ? "Invoices appear here once they are issued to your organization."
+    : "Invoices appear here once they are issued to a partner.";
+}
 
 interface InvoicesPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -49,7 +61,9 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
       <InvoicesFilters query={query} isPartner={isPartner} partners={partners} />
 
       {result.total === 0 ? (
-        <InvoicesEmpty isFiltered={isFiltered} isPartner={isPartner} />
+        <InvoicesEmpty isFiltered={isFiltered}>
+          <PageEmpty message={emptyMessage(isFiltered, isPartner)} className="max-w-sm" />
+        </InvoicesEmpty>
       ) : (
         <>
           <InvoicesTable rows={buildInvoiceRows(result.invoices, utcToday())} query={query} showPartner={!isPartner} />
