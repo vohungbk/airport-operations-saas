@@ -2050,6 +2050,7 @@ Who may read and write the finance data. The database decides; the screens only 
 | `settlement_carried_adjustments`, `booking_adjustments` (read) | all partners | all partners | own partner only | nothing |
 | Finance columns of `bookings` | all | all | own partner's bookings only | none of another partner's |
 | Write to `settlements`, `invoices`, `partner_commercial_terms` | admin only | no | no | no |
+| `invoice_lines` (read) | all partners | all partners | own partner's invoices only | nothing |
 | Write to the two adjustment tables | the finance functions only (no insert policy) | same | no | no |
 | `generate_monthly_settlement()`, `move_settlement_status()` | yes | refused (`42501`) | refused (`42501`) | refused (`42501`) |
 | `add_booking_adjustment()` | yes | yes | refused (`42501`) | refused (`42501`) |

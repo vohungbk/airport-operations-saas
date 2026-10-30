@@ -1092,6 +1092,13 @@ starts, to a Postgres schema/table group protected by RLS.
   `YYYY-MM-DD`, the amount as a plain number; the Partner column is for the operations team. A text cell that
   starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'` so a spreadsheet does not run it.
   The file starts with a UTF-8 mark so Excel keeps accents, and has CRLF line ends.
-- **Left out of the design on purpose.** Download PDF (no stored PDF yet), the invoice lines and the payment
-  control of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
+- **Invoice detail (VI-F09-S03).** `/invoices/[id]` shows the number and the status, who, which month and when, three
+  cards (amount, due date with its payment terms, VAT with its rate), the lines with the subtotal, the VAT and the
+  total, a sentence on how the total is made up, and where the invoice is on Draft, Issued, Paid (overdue and void
+  are side states). The lines are the rows of `invoice_lines` (a description and a signed amount; a flag says
+  whether the amount is a part of the subtotal). The sentence is written only when those parts add up to the
+  stored subtotal. Nothing is calculated again except the VAT rate and the payment terms, which are read off the
+  stored figures. Nothing in the app writes lines yet: the story that generates an invoice will.
+- **Left out of the design on purpose.** Download PDF and the statements (no stored PDF yet), the update of the
+  payment status, Void, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
   ("Invoices"), not "Finance > Invoices > Invoice list".
