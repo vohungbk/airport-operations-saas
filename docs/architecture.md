@@ -1065,3 +1065,24 @@ starts, to a Postgres schema/table group protected by RLS.
   phone and the content above it scrolls.
 - **Not checked.** A real phone in the sun, browser text size and zoom to 200 %. The design has no frame for this
   story (node `8:378` is a text label).
+
+## Invoice list (VI-F09-S01)
+
+- **Route.** `/invoices` (list) and `/invoices/[id]` (a summary of one invoice), in the `(dashboard)` group.
+  An admin, an operations manager and a partner user open them (`finance:view` or `finance:view_own_partner`),
+  checked in the page; a technician gets the 403 of the route (`forbidden.tsx`, the banner of the design). The
+  menu has an "Invoices" item for those three roles, next to "Finance".
+- **Scope is RLS.** A partner user is given only the invoices of its own partner by the database. The address
+  has no way to name a partner for it: `partner_id` is dropped for a partner user. An operations user may
+  filter by partner. A partner is shown only issued, paid and overdue invoices; draft and void are for the
+  operations team (a filter in the read, as for the partner finance screen: RLS still lets a partner read
+  them, which is a separate ticket).
+- **Reads.** `getInvoices()` takes a query that Zod has already cleaned (`invoices-query.schema.ts`: search,
+  status, from and to month, partner, sort column from an allowlist, page, page size 10, 25 or 50). The period
+  of an invoice is the month of its settlement, filtered with an inner join only when a period is asked for;
+  sorting by "Period" sorts by the issue date, because an invoice has no period column.
+- **Overdue.** "Overdue by N days" is shown for an invoice whose stored status is overdue; nothing here sets
+  that status from the due date.
+- **Left out of the design on purpose.** Export CSV and Download PDF (no export and no stored PDF yet), the
+  invoice lines and the payment control of the invoice detail (other tickets). The breadcrumb is the one the
+  shell builds from the menu ("Invoices"), not "Finance > Invoices > Invoice list".
