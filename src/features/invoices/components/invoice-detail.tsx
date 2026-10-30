@@ -9,21 +9,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { OverviewTile } from "@/features/dashboard/components/overview-tile";
+import { DownloadPdfButton } from "@/features/invoices/components/download-pdf-button";
 import { PaymentStatus } from "@/features/invoices/components/payment-status";
 import type { InvoiceDetailView } from "@/features/invoices/lib/invoice-detail";
 import { cn } from "@/lib/utils";
 
 interface InvoiceDetailProps {
   view: InvoiceDetailView;
+  invoiceId: string;
 }
 
 /**
  * The invoice detail as the design draws it (VI-F09-S03): the number and the status, who, which month and
  * when, three cards (the amount, the due date, the VAT), the lines with the subtotal, the VAT and the total,
- * how the total is made up, and where the invoice is on its payment status. Read only: the PDF, the
+ * how the total is made up, and where the invoice is on its payment status. It downloads as a PDF (S04); the
  * statements, the update of the status and the history of the design are other tickets.
  */
-export function InvoiceDetail({ view }: InvoiceDetailProps) {
+export function InvoiceDetail({ view, invoiceId }: InvoiceDetailProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -35,6 +37,8 @@ export function InvoiceDetail({ view }: InvoiceDetailProps) {
         </div>
         <p className="text-sm text-muted-foreground">{view.meta}</p>
       </div>
+
+      <DownloadPdfButton invoiceId={invoiceId} invoiceNumber={view.invoice_number} />
 
       <div className="grid gap-3 sm:grid-cols-3">
         {view.cards.map((card) => (
