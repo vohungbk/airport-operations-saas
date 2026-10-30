@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Circle,
   CreditCard,
+  FileText,
   History,
   LayoutDashboard,
   LayoutGrid,
@@ -49,6 +50,7 @@ const FIGMA_ADMIN_MENU = [
   ["Incidents", TriangleAlert],
   ["Flights", Plane],
   ["Finance", CreditCard],
+  ["Invoices", FileText],
   ["Reports", BarChart3],
   ["Import", Upload],
   ["Settings", Settings],
@@ -88,12 +90,13 @@ describe("getVisibleNavItems", () => {
     ]);
   });
 
-  it("should give the partner user Overview, Rentals, Seats, Finance, KPI, ROI and Assistant, in that order", () => {
+  it("should give the partner user Overview, Rentals, Seats, Finance, Invoices, KPI, ROI and Assistant, in that order", () => {
     expect(getVisibleNavItems("partner_user").map((item) => [item.label, item.href])).toEqual([
       ["Overview", "/partner"],
       ["Rentals", "/bookings"],
       ["Seats", "/partner/seats"],
       ["Finance", "/partner/finance"],
+      ["Invoices", "/invoices"],
       ["KPI", "/partner/kpi"],
       ["ROI", "/partner/roi"],
       ["Assistant", "/partner/assistant"],
@@ -112,6 +115,7 @@ describe("getVisibleNavItems", () => {
       ["Rentals", Plane],
       ["Seats", Users],
       ["Finance", CreditCard],
+      ["Invoices", FileText],
       ["KPI", BarChart3],
       ["ROI", TrendingUp],
       ["Assistant", MessageSquare],

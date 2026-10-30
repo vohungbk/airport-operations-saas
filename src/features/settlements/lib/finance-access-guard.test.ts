@@ -17,6 +17,8 @@ const PARTNER_FINANCE_READS = [
   "src/app/(dashboard)/settlements/page.tsx",
   "src/features/settlements/lib/get-settlements.ts",
   "src/app/(dashboard)/bookings/[id]/revenue/page.tsx",
+  "src/app/(dashboard)/invoices/[id]/page.tsx",
+  "src/features/invoices/lib/get-invoice.ts",
 ];
 
 const FINANCE_CODE = [
@@ -25,6 +27,8 @@ const FINANCE_CODE = [
   "src/features/settlements/actions/generate-settlement.action.ts",
   "src/features/settlements/actions/move-settlement-status.action.ts",
   "src/features/bookings/lib/get-booking-revenue.ts",
+  "src/app/(dashboard)/invoices/page.tsx",
+  "src/features/invoices/lib/get-invoices.ts",
 ];
 
 describe("finance reads leave the scope to RLS", () => {
