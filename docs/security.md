@@ -2086,8 +2086,8 @@ Every change of a financial value is kept with who made it, when and why (spec R
   (`set_config('app.finance_reason', ..., true)`) and that wins. A change made straight in the table by an admin is
   kept with the reason worked out from what changed; it is not marked as direct.
 - **Finance rows are not deleted by the app roles.** A trigger on `settlements`, `invoices`,
-  `partner_commercial_terms` and `settlement_carried_adjustments` refuses a delete or truncate by `anon` and
-  `authenticated` (`55000`), a second wall behind the missing delete policy. The database owner and the service role
+  `partner_commercial_terms` and `settlement_carried_adjustments` refuses a delete by `anon` and
+  `authenticated` (`55000`), a second wall behind the missing delete policy (they have no truncate privilege). The database owner and the service role
   can still remove a row (tests and demo data use it); its history stays.
 - **Who reads it.** Admin and operations manager. A partner user and a technician read nothing.
 - **Demo data.** The last step of `supabase/seeds/demo.sql` gives the history rows of the seed a fixed id and time, like

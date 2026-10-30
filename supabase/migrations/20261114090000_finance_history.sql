@@ -38,7 +38,7 @@
 --   drop trigger record_finance_change_partner_commercial_terms on public.partner_commercial_terms;
 --   drop function public.record_finance_change();
 --   drop trigger prevent_finance_delete on public.settlements; (and on invoices,
---     partner_commercial_terms, settlement_carried_adjustments; and the truncate triggers)
+--     partner_commercial_terms, settlement_carried_adjustments)
 --   drop function public.prevent_finance_row_delete();
 --   drop table public.finance_history; drop function public.prevent_finance_history_mutation();
 
@@ -211,7 +211,7 @@ create trigger record_finance_change_partner_commercial_terms
   execute function public.record_finance_change();
 
 -- -----------------------------------------------------------------------------
--- The finance rows are not deleted by the app roles.
+-- The finance rows are not deleted by the app roles (they have no TRUNCATE privilege).
 -- -----------------------------------------------------------------------------
 create function public.prevent_finance_row_delete()
 returns trigger
@@ -221,10 +221,6 @@ as $$
 begin
   if current_user in ('anon', 'authenticated') then
     raise exception '% rows are never deleted', tg_table_name using errcode = '55000';
-  end if;
-
-  if tg_op = 'TRUNCATE' then
-    return null;
   end if;
 
   return old;
@@ -252,24 +248,4 @@ create trigger prevent_finance_delete
 create trigger prevent_finance_delete
   before delete on public.settlement_carried_adjustments
   for each row
-  execute function public.prevent_finance_row_delete();
-
-create trigger prevent_finance_truncate
-  before truncate on public.settlements
-  for each statement
-  execute function public.prevent_finance_row_delete();
-
-create trigger prevent_finance_truncate
-  before truncate on public.invoices
-  for each statement
-  execute function public.prevent_finance_row_delete();
-
-create trigger prevent_finance_truncate
-  before truncate on public.partner_commercial_terms
-  for each statement
-  execute function public.prevent_finance_row_delete();
-
-create trigger prevent_finance_truncate
-  before truncate on public.settlement_carried_adjustments
-  for each statement
   execute function public.prevent_finance_row_delete();
