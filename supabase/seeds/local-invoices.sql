@@ -23,14 +23,16 @@ declare
   v_count integer;
   v_prefix text;
   v_number text;
+  v_settlement record;
   i integer;
 begin
   select id into v_dmo from public.partners where code = 'DMO';
   select id into v_admin from public.users where email = 'admin@airportops.example';
 
-  -- Completed rentals: DCR September (30), DMO September (12), DCR October (1150, more than one batch of the statement).
+  -- Completed rentals: DCR September (30), DMO September (12), DCR October (1150, more than one batch of the statement),
+  -- DMO October (12, its settlement is approved and has no invoice, to try Generate invoice).
   for v_month, v_partner, v_count in
-    values ('2026-09-01'::date, v_dcr, 30), ('2026-09-01', v_dmo, 12), ('2026-10-01', v_dcr, 1150)
+    values ('2026-09-01'::date, v_dcr, 30), ('2026-09-01', v_dmo, 12), ('2026-10-01', v_dcr, 1150), ('2026-10-01', v_dmo, 12)
   loop
     v_prefix := 'BK-S' || to_char(v_month, 'MM') || case when v_partner = v_dcr then 'C' else 'M' end;
 
@@ -58,17 +60,29 @@ begin
   perform set_config('request.jwt.claim.sub', v_admin::text, true);
 
   for v_month, v_partner in
-    values ('2026-09-01'::date, v_dcr), ('2026-09-01', v_dmo), ('2026-10-01', v_dcr)
+    values ('2026-09-01'::date, v_dcr), ('2026-09-01', v_dmo), ('2026-10-01', v_dcr), ('2026-10-01', v_dmo)
   loop
     if not exists (select 1 from public.settlements where partner_id = v_partner and period_start = v_month) then
       perform public.generate_monthly_settlement(v_partner, v_month);
     end if;
   end loop;
+
+  -- An invoice is made from an approved settlement, so these are approved.
+  for v_settlement in
+    select s.id, s.status from public.settlements s
+     where s.period_start >= '2026-09-01' and s.partner_id in (v_dcr, v_dmo) and s.status in ('draft', 'pending_approval')
+  loop
+    if v_settlement.status = 'draft' then
+      perform public.move_settlement_status(v_settlement.id, 'pending_approval');
+    end if;
+    perform public.move_settlement_status(v_settlement.id, 'approved');
+  end loop;
 end
 $seed$;
 
 -- The invoices: the platform share of each settlement plus 5 % VAT, with its lines. September of Demo Car Rental is
--- paid, September of Demo Mobility is overdue, October of Demo Car Rental is issued.
+-- paid, September of Demo Mobility is overdue, October of Demo Car Rental is issued. October of Demo Mobility is left
+-- without one: it is the month to generate.
 with new_invoices as (
   insert into public.invoices (partner_id, settlement_id, invoice_number, issue_date, due_date, subtotal, vat, total, status)
   select s.partner_id, s.id,
@@ -89,6 +103,7 @@ with new_invoices as (
     from public.settlements s
     join public.partners p on p.id = s.partner_id
    where s.period_start >= '2026-09-01'
+     and not (p.code = 'DMO' and s.period_start = '2026-10-01')
      and not exists (select 1 from public.invoices i where i.settlement_id = s.id)
   returning id, settlement_id
 )
