@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useInvoicePdf } from "@/features/invoices/hooks/use-invoice-pdf";
+import { useInvoiceStatement } from "@/features/invoices/hooks/use-invoice-statement";
 
 interface InvoiceRowMenuProps {
   id: string;
@@ -18,11 +19,13 @@ interface InvoiceRowMenuProps {
 }
 
 /**
- * The menu of a row (VI-F09-S01, S04): it opens the invoice, or downloads it as a PDF. A failed download is
- * said next to the menu, and the item can be chosen again.
+ * The menu of a row (VI-F09-S01, S04, S05): it opens the invoice, downloads it as a PDF, or downloads its booking
+ * statement. A failed download is said next to the menu, and the item can be chosen again.
  */
 export function InvoiceRowMenu({ id, invoice_number }: InvoiceRowMenuProps) {
-  const { download, isPending, error } = useInvoicePdf(id, invoice_number);
+  const pdf = useInvoicePdf(id, invoice_number);
+  const statement = useInvoiceStatement(id, invoice_number);
+  const errors = [pdf.error, statement.error].filter((message): message is string => message !== null);
 
   return (
     <div className="flex flex-col items-start gap-1">
@@ -42,16 +45,19 @@ export function InvoiceRowMenu({ id, invoice_number }: InvoiceRowMenuProps) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem render={<Link href={`/invoices/${id}`} />}>View invoice</DropdownMenuItem>
-          <DropdownMenuItem disabled={isPending} onClick={download}>
-            {isPending ? "Preparing PDF…" : "Download PDF"}
+          <DropdownMenuItem disabled={pdf.isPending} onClick={pdf.download}>
+            {pdf.isPending ? "Preparing PDF…" : "Download PDF"}
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={statement.isPending} onClick={statement.download}>
+            {statement.isPending ? "Preparing statement…" : "Download statement"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {error && (
-        <p role="alert" className="max-w-48 text-xs text-danger-fg">
-          {error}
+      {errors.map((message) => (
+        <p key={message} role="alert" className="max-w-48 text-xs text-danger-fg">
+          {message}
         </p>
-      )}
+      ))}
     </div>
   );
 }
