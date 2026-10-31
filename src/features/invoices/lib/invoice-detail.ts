@@ -78,7 +78,7 @@ function formatDay(date: string): string {
 const lineAmount = (value: number) => formatInvoiceAmount(value).replace("USD ", "$");
 
 /** The amount with no currency, for the sentence that explains the total: `3,200.00`. */
-const plainAmount = (value: number) => formatInvoiceAmount(value).replace("USD ", "");
+export const plainAmount = (value: number) => formatInvoiceAmount(value).replace("USD ", "");
 
 /** The whole days from the issue date to the due date: the payment terms the invoice was given. */
 function paymentTermsDays(issueDate: string, dueDate: string): number | null {

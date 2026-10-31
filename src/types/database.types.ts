@@ -1625,6 +1625,30 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      generate_invoice: {
+        Args: { p_month: string; p_partner_id: string }
+        Returns: {
+          created_at: string
+          due_date: string
+          id: string
+          invoice_number: string
+          issue_date: string
+          partner_id: string
+          pdf_path: string | null
+          settlement_id: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          subtotal: number
+          total: number
+          updated_at: string
+          vat: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invoices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       generate_monthly_settlement: {
         Args: { p_month: string; p_partner_id: string }
         Returns: {
