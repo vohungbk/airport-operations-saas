@@ -1122,6 +1122,35 @@ starts, to a Postgres schema/table group protected by RLS.
   are checked (401, 403); RLS is the scope and an unknown, malformed or hidden invoice is the same 404. The Download
   statement button (detail) and the row menu item ask the route, save the file, and on a failure show the message with
   Retry. Nothing is written and there is no migration.
-- **Left out of the design on purpose.** The invoice PDF preview page and its zoom, the update of the
+- **Generate invoice (VI-F09-S06).** `/invoices/new` (an admin only, `requireRole(["admin"])` in the page and the Server
+  Action; anyone else gets the 403 of the invoices) makes a draft invoice from an approved settlement. The invoice list
+  has a Generate invoice button for an admin. The screen is the card of design F12: a partner, a period (a select and the
+  list "Available settlement periods": the month of an approved settlement is selectable, any other is disabled), the
+  amount the invoice will be worth (read only), a box that says this only makes a draft, Generate draft and Cancel. Its
+  states are the frames of the design: Validation error (client, same Zod schema), Submitting ("Generating..."), Server
+  error (Retry), Duplicate invoice (the button is off; a "View invoice" link to the first one, added for the ticket, not
+  in the frame), Settlement not approved, and Success (Draft generated, View new draft opens the detail). The months are
+  the newest 12 settlements of the partner, read with the user's client together with the invoice made from each
+  (`getInvoiceablePeriods`); the amount shown is `invoiceAmounts()`, the same sum as the database.
+  `generate_invoice(partner, month)` (migration `20261116090000`) is `SECURITY DEFINER` and checks an active admin
+  itself (42501). The settlement row is locked, so two calls at once make one invoice, and a partial unique index on
+  `invoices(settlement_id)` where the status is not void is the second wall. It refuses a month with no approved
+  settlement (IN002) and a settlement that has an invoice (IN003; the id of that invoice is in the DETAIL, so the screen
+  can show it). It writes the draft and its lines in one transaction: gross revenue and partner share (shown only), platform
+  share and fees (the subtotal; fees only above zero), VAT 5 percent of the subtotal rounded to the cent, issued on the
+  first day after the month and due 30 days later (assumptions: the spec gives no rate; both are the design's figures).
+  The number is `INV-YYYY-NNNNNN`, the year of the issue date, counting from 000001 again each year (spec Q5): the highest
+  number of the year plus one, taken under a lock for the year. The number is unique and an invoice is never deleted (a
+  trigger refuses it for the app roles; a wrong one is voided), so a number is never used twice. A partner is shown only
+  issued, paid and overdue invoices, so a draft is not seen by it. Finance history records the invoice and who made it.
+  No new table and no new policy; `invoice_lines` still has no insert policy, so the function is the only writer.
+  Errors are the stable codes of `backend.md` (a settlement that is not approved is `SETTLEMENT_NOT_APPROVED`, a
+  duplicate is `CONFLICT`); a raw database error never reaches the screen. The operations manager is not given the
+  button, although the design says "also permitted; issue role to be confirmed": the ticket and the policy are admin
+  only, so only an admin has the button. A settlement whose platform share plus fees is zero or negative (for example
+  one made of adjustments carried from earlier months) still makes a draft with that figure; whether it should be
+  refused is open.
+- **Left out of the design on purpose.** Issuing the draft (the Issue invoice button and its confirmation of F12, a step
+  that moves a draft to issued), the invoice PDF preview page and its zoom, the update of the
   payment status, Void, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
   ("Invoices"), not "Finance > Invoices > Invoice list".

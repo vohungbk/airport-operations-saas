@@ -837,9 +837,11 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=
 
 It adds completed rentals (Demo Car Rental October 1150, enough for more than one
 batch of a booking statement; Demo Car Rental September 30; Demo Mobility
-September 12), makes the settlements with `generate_monthly_settlement()` as the
-admin, and three invoices with their lines (October of Demo Car Rental issued,
-September of Demo Mobility overdue, September of Demo Car Rental paid). It leaves
+September 12; Demo Mobility October 12), makes the settlements with
+`generate_monthly_settlement()` as the admin and approves them, and three invoices
+with their lines (October of Demo Car Rental issued, September of Demo Mobility
+overdue, September of Demo Car Rental paid). October of Demo Mobility is approved
+and has no invoice, so Generate invoice can be tried on it. It leaves
 August 2026 alone, because the RLS integration test makes its own August
 settlements for these two partners. It only adds, and skips a partner and month
 that are already there. `demo:reset` wipes it: run it again after.

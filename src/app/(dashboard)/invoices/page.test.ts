@@ -128,6 +128,16 @@ describe("InvoicesPage (VI-F09-S01)", () => {
     expect(await render()).toContain("Export CSV");
   });
 
+  it("should offer Generate invoice to an admin only, and to nobody else (VI-F09-S06, AC06)", async () => {
+    requireAnyPermissionMock.mockResolvedValue(user("admin"));
+    expect(await render()).toMatch(/<a[^>]*href="\/invoices\/new"[^>]*>Generate invoice<\/a>/);
+
+    for (const role of ["operations_manager", "partner_user"]) {
+      requireAnyPermissionMock.mockResolvedValue(user(role));
+      expect(await render()).not.toContain("Generate invoice");
+    }
+  });
+
   it("should leave a partner the user is not allowed to filter by out of its export address", async () => {
     const html = await render({ partner_id: "b0000000-0000-0000-0000-000000000002" });
 

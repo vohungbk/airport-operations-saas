@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { PageEmpty } from "@/components/shared/page-state";
+import { buttonVariants } from "@/components/ui/button";
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { FINANCE_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { ExportCsvLink } from "@/features/invoices/components/export-csv-link";
@@ -36,7 +39,8 @@ interface InvoicesPageProps {
  * (`finance:view_own_partner`) open it, checked here before anything is read; a technician gets the 403 of
  * this route. RLS decides which invoices each one gets: the partner of a partner user is never taken from the
  * address (its `partner_id` is dropped), and a partner is shown only issued, paid and overdue invoices. A
- * failed read is thrown to the error boundary, never shown as an empty list.
+ * failed read is thrown to the error boundary, never shown as an empty list. An admin also gets the Generate invoice
+ * button (VI-F09-S06); the screen it opens checks the role again.
  */
 export default async function InvoicesPage({ searchParams }: InvoicesPageProps) {
   const user = await requireAnyPermission(FINANCE_ACCESS_PERMISSIONS);
@@ -60,7 +64,14 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
             {isPartner ? "Invoices for your account" : "Invoices for all partners"}
           </p>
         </div>
-        <ExportCsvLink href={buildInvoicesExportHref(query)} />
+        <div className="flex flex-wrap items-center gap-3">
+          {user.role === "admin" && (
+            <Link href="/invoices/new" className={buttonVariants({ className: "min-h-11 px-4" })}>
+              Generate invoice
+            </Link>
+          )}
+          <ExportCsvLink href={buildInvoicesExportHref(query)} />
+        </div>
       </div>
 
       <InvoicesFilters query={query} isPartner={isPartner} partners={partners} />
