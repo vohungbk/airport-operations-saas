@@ -50,6 +50,10 @@ const adjustment = (amount: string, reason: string) =>
 const invoiceLine = (invoice: number, position: number, description: string) =>
   `insert into public.invoice_lines (invoice_id, position, description, amount)
    values ('c3000000-0000-0000-0000-0000000000${invoice}', ${position}, ${description}, 10);`;
+/** An invoice of one settlement; the foreign keys are off in these cases, so the settlement need not exist. */
+const invoiceOf = (number: string, status: string) =>
+  `insert into public.invoices (partner_id, settlement_id, invoice_number, issue_date, due_date, subtotal, total, status)
+   values (${PARTNER}, 'c3000000-0000-0000-0000-000000000097', '${number}', '2030-01-01', '2030-01-31', 1, 1, '${status}');`;
 /** A row of the financial history; the foreign keys are off in these cases. */
 const financeHistory = (table: string, action: string, reason: string) =>
   `insert into public.finance_history (table_name, row_id, action, reason, new_values)
@@ -235,6 +239,13 @@ const CASES: Case[] = [
     code: "23505",
     inside: `insert into public.invoices (partner_id, invoice_number, issue_date, due_date, subtotal, total) values (${PARTNER}, 'DR-INV-1', '2030-01-01', '2030-01-31', 1, 1);`,
     outside: `insert into public.invoices (partner_id, invoice_number, issue_date, due_date, subtotal, total) values (${PARTNER}, 'DR-INV-1', '2030-02-01', '2030-02-28', 1, 1);`,
+  },
+  // One invoice that is not void for each settlement (VI-F09-S06). A void invoice does not count.
+  {
+    constraint: "invoices_settlement_id_open_key",
+    code: "23505",
+    inside: `${invoiceOf("DR-INV-2", "void")} ${invoiceOf("DR-INV-3", "draft")}`,
+    outside: invoiceOf("DR-INV-4", "issued"),
   },
   {
     constraint: "partner_commercial_terms_annual_fee_check",
