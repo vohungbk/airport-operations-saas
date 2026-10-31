@@ -1109,6 +1109,19 @@ starts, to a Postgres schema/table group protected by RLS.
   partner are checked (401, 403); RLS is the scope and an unknown, malformed or hidden invoice is the same 404; a
   failure is the standardized error body (500). The Download PDF button (detail) and the "Download PDF" item of the
   row menu ask the route, save the file, and on a failure show the message with Retry; nothing is written.
-- **Left out of the design on purpose.** The invoice PDF preview page and its zoom, the statements, the update of the
+- **Booking statement (VI-F09-S05).** `GET /api/invoices/[id]/statement` downloads the bookings of an invoice as CSV
+  (spec Q3, PDF or CSV, is open; CSV is the assumption: it streams and needs no new dependency). The bookings are the
+  ones the settlement of the invoice counted: completed rentals of the partner with revenue (standard or early
+  return), in the month of the day they were really returned, or were due when there is no return time (UTC). The
+  columns are the booking number, the day returned, the case, the paid days, the gross revenue, the two shares, the
+  launch credit and the adjustments (the gross revenue is already net of them). Adjustments carried from an earlier
+  month are not listed (assumption). The bookings are read in batches of 1000 after the last booking number
+  (`statementBookingBatches`) and streamed, so a long statement has no limit and is never held whole. The first batch
+  is read before the answer starts, so a failure there is the standardized 500; a failure later ends the download. An
+  invoice with no settlement or no booking gives the header alone. Sign-in, a finance permission and an active partner
+  are checked (401, 403); RLS is the scope and an unknown, malformed or hidden invoice is the same 404. The Download
+  statement button (detail) and the row menu item ask the route, save the file, and on a failure show the message with
+  Retry. Nothing is written and there is no migration.
+- **Left out of the design on purpose.** The invoice PDF preview page and its zoom, the update of the
   payment status, Void, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
   ("Invoices"), not "Finance > Invoices > Invoice list".

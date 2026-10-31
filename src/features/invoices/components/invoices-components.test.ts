@@ -210,6 +210,13 @@ describe("InvoiceDetail (VI-F09-S03)", () => {
       expect(out).not.toContain(text);
     }
   });
+
+  it("should offer to download the booking statement next to the PDF (VI-F09-S05, AC01)", () => {
+    const out = render();
+
+    expect(out).toContain("Download statement");
+    expect(out).toContain("Download PDF");
+  });
 });
 
 describe("ExportCsvLink (VI-F09-S02)", () => {

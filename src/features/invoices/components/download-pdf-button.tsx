@@ -2,8 +2,7 @@
 
 import { Download } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { DownloadActionButton } from "@/features/invoices/components/download-action-button";
 import { useInvoicePdf } from "@/features/invoices/hooks/use-invoice-pdf";
 
 interface DownloadPdfButtonProps {
@@ -11,29 +10,15 @@ interface DownloadPdfButtonProps {
   invoiceNumber: string;
 }
 
-/** The Download PDF button of the invoice detail. A failure shows an alert with Retry; the invoice is not touched. */
+/** The Download PDF button of the invoice detail. */
 export function DownloadPdfButton({ invoiceId, invoiceNumber }: DownloadPdfButtonProps) {
-  const { download, isPending, error } = useInvoicePdf(invoiceId, invoiceNumber);
-
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <Button type="button" className="min-h-11 px-4" disabled={isPending} onClick={download}>
-          <Download aria-hidden="true" />
-          {isPending ? "Preparing PDF…" : "Download PDF"}
-        </Button>
-      </div>
-      {error && (
-        <Alert variant="destructive">
-          <AlertTitle>Could not download the PDF</AlertTitle>
-          <AlertDescription className="flex flex-col items-start gap-3">
-            {error}
-            <Button type="button" variant="outline" className="min-h-11 px-4" disabled={isPending} onClick={download}>
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-    </div>
+    <DownloadActionButton
+      icon={Download}
+      label="Download PDF"
+      pendingLabel="Preparing PDF…"
+      errorTitle="Could not download the PDF"
+      {...useInvoicePdf(invoiceId, invoiceNumber)}
+    />
   );
 }
