@@ -826,6 +826,24 @@ finished ones, a seat in quarantine after a failed inspection, and two incidents
 (one open, one resolved by the operations manager). The next booking made in the
 app is `BK-00031`.
 
+**Invoices to try (optional, not in the demo seed).** The demo seed has no invoice.
+`supabase/seeds/local-invoices.sql` adds some to a local database, by hand, after
+the demo seed (it is not in `[db.seed]`, so a reset does not load it and the demo
+data and its checks do not change):
+
+```bash
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/seeds/local-invoices.sql
+```
+
+It adds completed rentals (Demo Car Rental October 1150, enough for more than one
+batch of a booking statement; Demo Car Rental September 30; Demo Mobility
+September 12), makes the settlements with `generate_monthly_settlement()` as the
+admin, and three invoices with their lines (October of Demo Car Rental issued,
+September of Demo Mobility overdue, September of Demo Car Rental paid). It leaves
+August 2026 alone, because the RLS integration test makes its own August
+settlements for these two partners. It only adds, and skips a partner and month
+that are already there. `demo:reset` wipes it: run it again after.
+
 **Rules the data follows.**
 - *Coherence (R1).* Every reference is valid; a seat has the airport and category
   of its booking and no two active bookings share one for overlapping periods;
