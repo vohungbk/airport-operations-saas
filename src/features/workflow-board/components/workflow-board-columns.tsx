@@ -36,7 +36,7 @@ export function WorkflowBoardColumns({ columns, query }: WorkflowBoardColumnsPro
             aria-labelledby={`board-column-${column.status}`}
             data-slot="board-column"
             data-status={column.status}
-            className="flex w-72 shrink-0 flex-col gap-3"
+            className="flex w-60 shrink-0 flex-col gap-3 sm:w-72"
           >
             <div className="flex items-center justify-between gap-2">
               <h2 id={`board-column-${column.status}`} className="font-semibold text-foreground">
