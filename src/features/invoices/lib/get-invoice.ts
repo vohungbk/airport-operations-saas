@@ -5,9 +5,14 @@ import { visibleInvoiceStatuses } from "@/features/invoices/lib/invoice-list";
 import type { InvoiceDetailRow } from "@/features/invoices/lib/invoice-detail";
 
 export const INVOICE_DETAIL_SELECT =
-  "id, invoice_number, issue_date, due_date, subtotal, vat, total, status, partner:partners(name, code), settlement:settlements(period_start), lines:invoice_lines(position, description, amount, counts_toward_subtotal)";
+  "id, partner_id, invoice_number, issue_date, due_date, subtotal, vat, total, status, partner:partners(name, code), settlement:settlements(period_start), lines:invoice_lines(position, description, amount, counts_toward_subtotal)";
 
-interface Row extends Omit<InvoiceDetailRow, "period_start" | "lines"> {
+/** The invoice with the id of its partner, which the page needs to read the payment terms of a draft. */
+export interface InvoiceRecord extends InvoiceDetailRow {
+  partner_id: string;
+}
+
+interface Row extends Omit<InvoiceRecord, "period_start" | "lines"> {
   settlement: { period_start: string } | null;
   lines: InvoiceDetailRow["lines"] | null;
 }
@@ -18,7 +23,7 @@ interface Row extends Omit<InvoiceDetailRow, "period_start" | "lines"> {
  * not exist or is hidden is the same `null`, so nothing tells which of the three it was. A failed read is
  * thrown, never turned into `null`.
  */
-export async function getInvoice(id: string, isPartner: boolean): Promise<InvoiceDetailRow | null> {
+export async function getInvoice(id: string, isPartner: boolean): Promise<InvoiceRecord | null> {
   if (!z.guid().safeParse(id).success) {
     return null;
   }

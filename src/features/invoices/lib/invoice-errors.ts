@@ -52,6 +52,46 @@ export const INTERNAL_ERROR: InvoiceActionError = {
   message: "The invoice could not be generated. Try again.",
 };
 
+export interface IssuedInvoice {
+  id: string;
+  invoice_number: string;
+  issue_date: string;
+  due_date: string;
+}
+
+export type IssueInvoiceResult =
+  | { success: true; invoice: IssuedInvoice }
+  | { success: false; error: InvoiceActionError };
+
+export const ISSUE_NETWORK_ERROR: InvoiceActionError = {
+  code: "NETWORK_ERROR",
+  message: "Could not reach the server. Try again.",
+};
+
+export const ISSUE_INTERNAL_ERROR: InvoiceActionError = {
+  code: "INTERNAL_ERROR",
+  message: "The invoice could not be issued. Try again.",
+};
+
+/** The error codes of `issue_invoice()`. Anything else is a generic error. */
+export function mapIssueInvoiceError(error: Pick<PostgrestError, "code">): InvoiceActionError {
+  switch (error.code) {
+    case "42501":
+      return { code: "FORBIDDEN", message: "You cannot issue an invoice." };
+    case "P0002":
+      return { code: "NOT_FOUND", message: "Invoice not found." };
+    case "IV002":
+      return {
+        code: "CONFLICT",
+        message: "This invoice is no longer a draft. Reload the page to see it.",
+      };
+    case "22023":
+      return VALIDATION_ERROR;
+    default:
+      return ISSUE_INTERNAL_ERROR;
+  }
+}
+
 /** The error codes of `generate_invoice()`. Anything else is a generic error. */
 export function mapInvoiceError(error: Pick<PostgrestError, "code"> & { details?: string | null }): InvoiceActionError {
   switch (error.code) {

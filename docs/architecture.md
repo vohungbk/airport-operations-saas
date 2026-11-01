@@ -1150,7 +1150,24 @@ starts, to a Postgres schema/table group protected by RLS.
   only, so only an admin has the button. A settlement whose platform share plus fees is zero or negative (for example
   one made of adjustments carried from earlier months) still makes a draft with that figure; whether it should be
   refused is open.
-- **Left out of the design on purpose.** Issuing the draft (the Issue invoice button and its confirmation of F12, a step
-  that moves a draft to issued), the invoice PDF preview page and its zoom, the update of the
+- **Issue invoice (VI-F09-S07).** The invoice detail of a draft shows Issue invoice to an admin (an operations manager sees
+  the draft without it: the design says "also permitted, to be confirmed", the ticket and the policy are admin only). It
+  opens the Issue confirmation of design F8 (a dialog, as the change-status dialogs are): the number and the partner,
+  the issue date (today, UTC), the payment terms, the due date, "Confirm issue". A failure is said in the dialog (an
+  alert the design does not have) and Confirm issue can be run again; on success the page is read again.
+  `issue_invoice(id)` (migration `20261117090000`) is `SECURITY DEFINER` and checks an active admin itself (42501). It
+  locks the invoice, refuses one that is not a draft (IV002) and sets, in one update, the issue date to today (UTC), the
+  due date to that day plus `payment_terms_days` of the version of the partner's commercial terms in force that day (14
+  days when there is none, the default of the terms) and the status to issued. The placeholder dates a draft carries
+  (the first day after the month and 30 days later) are replaced. Finance history keeps the move and who made it.
+  A draft is shown as "Not issued / Due date on issue", with the due date card "On issue" and the payment terms the
+  invoice will be issued with (read from the terms of the partner, `getPaymentTermsDays`); an issued invoice shows its
+  own dates. Once an invoice is not a draft its amounts and lines cannot change (spec R13): `guard_issued_invoice_update`
+  refuses a change of the partner, the settlement, the number, the dates, the subtotal, the VAT or the total, and
+  `guard_invoice_line_change` refuses to add, change or delete a line (both IV003). The status can still move, which
+  paid, overdue and void (other stories) need. A correction is a new invoice (Q4); Void and reissue is not built here.
+  Known gap: `generate_invoice()` (S06) writes a VAT of 5 percent and a placeholder due date instead of reading the
+  VAT rate and the payment terms of the partner's terms; this story does not change it.
+- **Left out of the design on purpose.** Statement PDF and CSV of the F8 header (the statement is a CSV, S05), Void, the invoice PDF preview page and its zoom, the update of the
   payment status, Void, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
   ("Invoices"), not "Finance > Invoices > Invoice list".

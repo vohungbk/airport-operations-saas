@@ -68,11 +68,14 @@ const NONE = "—";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** `2026-10-01` -> `01 Oct 2026`, with the day of two digits as the design writes it. */
-function formatDay(date: string): string {
+export function formatDay(date: string): string {
   const [year, month, day] = date.split("-");
 
   return `${day} ${MONTHS[Number(month) - 1] ?? month} ${year}`;
 }
+
+/** The payment terms as the screen says them: `30 days`, `1 day`. */
+export const paymentTermsText = (days: number): string => `${days} ${days === 1 ? "day" : "days"}`;
 
 /** The amount in the lines table, as the design writes it: `$8,000.00`, `-$150.00`. */
 const lineAmount = (value: number) => formatInvoiceAmount(value).replace("USD ", "$");
@@ -153,9 +156,15 @@ const AMOUNT_LABEL: Record<InvoiceStatus, string> = {
  * calculated again, except the rate of the VAT and the payment terms, which are read off the figures.
  * `showPartner` is for the operations team; a partner user already knows whose invoice it is.
  */
-export function buildInvoiceDetail(row: InvoiceDetailRow, showPartner: boolean): InvoiceDetailView {
+export function buildInvoiceDetail(
+  row: InvoiceDetailRow,
+  showPartner: boolean,
+  /** The payment terms the draft will be issued with (VI-F09-S07); only a draft shows them. */
+  draftPaymentTermsDays: number | null = null,
+): InvoiceDetailView {
   const rate = vatRate(row.subtotal, row.vat);
   const terms = paymentTermsDays(row.issue_date, row.due_date);
+  const isDraft = row.status === "draft";
 
   return {
     invoice_number: row.invoice_number,
@@ -163,18 +172,25 @@ export function buildInvoiceDetail(row: InvoiceDetailRow, showPartner: boolean):
     meta: [
       showPartner ? (row.partner?.name ?? NONE) : null,
       row.period_start ? formatMonth(row.period_start) : null,
-      `Issued ${formatDay(row.issue_date)}`,
-      `Due ${formatDay(row.due_date)}`,
+      // A draft has no issue date and no due date yet: the dates it carries are placeholders until it is issued.
+      isDraft ? "Not issued" : `Issued ${formatDay(row.issue_date)}`,
+      isDraft ? "Due date on issue" : `Due ${formatDay(row.due_date)}`,
     ]
       .filter((part): part is string => part !== null)
       .join(" / "),
     cards: [
       { label: AMOUNT_LABEL[row.status], value: formatInvoiceAmount(row.total), caption: "Invoice total, including VAT" },
-      {
-        label: "Due date",
-        value: formatDay(row.due_date),
-        caption: terms === null ? "Payment terms: —" : `Payment terms: ${terms} ${terms === 1 ? "day" : "days"}`,
-      },
+      isDraft
+        ? {
+            label: "Due date",
+            value: "On issue",
+            caption: `Payment terms: ${draftPaymentTermsDays === null ? "—" : paymentTermsText(draftPaymentTermsDays)}`,
+          }
+        : {
+            label: "Due date",
+            value: formatDay(row.due_date),
+            caption: `Payment terms: ${terms === null ? "—" : paymentTermsText(terms)}`,
+          },
       {
         label: rate === null ? "VAT" : `VAT / ${rate}%`,
         value: formatInvoiceAmount(row.vat),
