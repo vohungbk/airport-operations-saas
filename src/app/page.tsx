@@ -1,14 +1,15 @@
-import { StandalonePage } from "@/components/shared/standalone-page";
+import { redirect } from "next/navigation";
 
-export default function Home() {
-  return (
-    <StandalonePage className="items-center justify-center gap-3 bg-background px-6 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        Airport Operations SaaS
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        Project foundation initialized successfully.
-      </p>
-    </StandalonePage>
-  );
+import { requireAuth } from "@/lib/auth/current-user";
+import { getHomeRouteForRole } from "@/lib/auth/role-home";
+
+/**
+ * The address of the site has no content of its own: it opens the home of the
+ * signed-in user's role. `requireAuth` sends a signed-out visitor to `/login` and
+ * a user without a valid profile or partner to `/forbidden`.
+ */
+export default async function Home() {
+  const user = await requireAuth();
+
+  redirect(getHomeRouteForRole(user.role));
 }

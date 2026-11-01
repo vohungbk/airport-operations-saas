@@ -6,6 +6,7 @@ import { getPublicEnv } from "@/lib/config/env";
 import {
   AUTH_ONLY_ROUTES,
   DASHBOARD_ROUTE,
+  HOME_ROUTE,
   LOGIN_ROUTE,
   PUBLIC_ROUTES,
   RETURN_TO_PARAM,
@@ -93,7 +94,7 @@ export async function updateSession(request: NextRequest) {
     const returnTo = safeNextPath(request.nextUrl.searchParams.get(RETURN_TO_PARAM));
     return withRefreshedCookies(
       supabaseResponse,
-      NextResponse.redirect(new URL(returnTo ?? DASHBOARD_ROUTE, request.url)),
+      NextResponse.redirect(new URL(returnTo ?? HOME_ROUTE, request.url)),
     );
   }
 

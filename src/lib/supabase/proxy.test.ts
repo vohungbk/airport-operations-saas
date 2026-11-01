@@ -74,17 +74,17 @@ describe("updateSession", () => {
     });
   });
 
-  it("should send a signed-in person on /login to the safe page they asked for, else the dashboard", async () => {
+  it("should send a signed-in person on /login to the safe page they asked for, else the home page", async () => {
     getClaimsMock.mockResolvedValue({ data: { claims: { sub: "u-1" } } });
 
     const back = await updateSession(makeRequest("/login?next=%2Fseats%2Fx%2Fcleaning"));
     const evil = await updateSession(makeRequest("/login?next=https%3A%2F%2Fevil.example"));
 
     expect(back.headers.get("location")).toBe("http://localhost:3000/seats/x/cleaning");
-    expect(evil.headers.get("location")).toBe("http://localhost:3000/dashboard");
+    expect(evil.headers.get("location")).toBe("http://localhost:3000/");
   });
 
-  it("should redirect an authenticated request on /login to /dashboard", async () => {
+  it("should redirect an authenticated request on /login to /", async () => {
     getClaimsMock.mockResolvedValue({
       data: { claims: { sub: "user-1" } },
     });
@@ -93,11 +93,11 @@ describe("updateSession", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3000/dashboard",
+      "http://localhost:3000/",
     );
   });
 
-  it("should redirect an authenticated request on /signup to /dashboard", async () => {
+  it("should redirect an authenticated request on /signup to /", async () => {
     getClaimsMock.mockResolvedValue({
       data: { claims: { sub: "user-1" } },
     });
@@ -105,7 +105,7 @@ describe("updateSession", () => {
     const response = await updateSession(makeRequest("/signup"));
 
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3000/dashboard",
+      "http://localhost:3000/",
     );
   });
 

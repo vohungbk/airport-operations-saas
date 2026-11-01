@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
-import { DASHBOARD_ROUTE } from "@/lib/constants/routes";
+import { HOME_ROUTE } from "@/lib/constants/routes";
 import {
   LOGIN_ERROR_MESSAGES,
   mapLoginError,
@@ -42,5 +42,5 @@ export async function loginAction(
   }
 
   // Back to the page that was asked for, only when it is a safe path of this app.
-  redirect(safeNextPath(next) ?? DASHBOARD_ROUTE);
+  redirect(safeNextPath(next) ?? HOME_ROUTE);
 }

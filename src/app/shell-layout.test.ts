@@ -100,7 +100,6 @@ describe("landmarks and the skip link (UI-F02-S05, spec R12)", () => {
     ["app", "not-found.tsx"],
     ["app", "error.tsx"],
     ["app", "forbidden.tsx"],
-    ["app", "page.tsx"],
     ["app", "forbidden", "page.tsx"],
   ])("should give %s/%s a skip link and a main landmark through StandalonePage", (...parts) => {
     expect(read(...parts)).toContain("<StandalonePage");

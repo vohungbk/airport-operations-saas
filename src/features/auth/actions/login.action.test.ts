@@ -23,12 +23,12 @@ describe("loginAction", () => {
     signInWithPasswordMock.mockReset();
   });
 
-  it("should redirect to /dashboard on successful sign-in", async () => {
+  it("should redirect to / on successful sign-in", async () => {
     signInWithPasswordMock.mockResolvedValue({ error: null });
 
     await expect(
       loginAction({ email: "user@example.com", password: "password123" }),
-    ).rejects.toThrow("REDIRECT:/dashboard");
+    ).rejects.toThrow("REDIRECT:/");
 
     expect(signInWithPasswordMock).toHaveBeenCalledWith({
       email: "user@example.com",
@@ -53,10 +53,10 @@ describe("loginAction", () => {
       ["a backslash address", "/\\evil.example"],
       ["the sign in page", "/login"],
       ["a path with a line break", "/\n/evil.example"],
-    ])("should go to the dashboard, not to %s", async (_name, next) => {
+    ])("should go to the home page, not to %s", async (_name, next) => {
       signInWithPasswordMock.mockResolvedValue({ error: null });
 
-      await expect(loginAction({ ...credentials, next })).rejects.toThrow("REDIRECT:/dashboard");
+      await expect(loginAction({ ...credentials, next })).rejects.toThrow("REDIRECT:/");
     });
 
     it("should not send the return address to Supabase", async () => {
@@ -138,7 +138,7 @@ describe("loginAction", () => {
     const first = await loginAction(input);
 
     expect(first.error).toBeTruthy();
-    await expect(loginAction(input)).rejects.toThrow("REDIRECT:/dashboard");
+    await expect(loginAction(input)).rejects.toThrow("REDIRECT:/");
   });
 
   it("should return a rate-limit message when Supabase reports too many requests", async () => {

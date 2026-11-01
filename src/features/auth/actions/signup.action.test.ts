@@ -34,7 +34,7 @@ describe("signupAction", () => {
     upsertMock.mockResolvedValue({ error: null });
   });
 
-  it("should sign up, write the profile row, and redirect to /dashboard when a session is returned", async () => {
+  it("should sign up, write the profile row, and redirect to / when a session is returned", async () => {
     signUpMock.mockResolvedValue({
       data: {
         user: { id: "user-1", identities: [{ id: "identity-1" }] },
@@ -44,7 +44,7 @@ describe("signupAction", () => {
     });
 
     await expect(signupAction(VALID_INPUT)).rejects.toThrow(
-      "REDIRECT:/dashboard",
+      "REDIRECT:/",
     );
 
     expect(signUpMock).toHaveBeenCalledWith({
@@ -149,7 +149,7 @@ describe("signupAction", () => {
     };
 
     await expect(signupAction(maliciousInput)).rejects.toThrow(
-      "REDIRECT:/dashboard",
+      "REDIRECT:/",
     );
 
     expect(upsertMock).toHaveBeenCalledWith(

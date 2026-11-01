@@ -35,7 +35,7 @@ describe("GET /api/auth/confirm", () => {
     syncUserProfileMock.mockResolvedValue({ error: null });
   });
 
-  it("should verify the token, sync the profile, and redirect to /dashboard for a successful signup confirmation", async () => {
+  it("should verify the token, sync the profile, and redirect to / for a successful signup confirmation", async () => {
     verifyOtpMock.mockResolvedValue({
       data: {
         user: {
@@ -49,7 +49,7 @@ describe("GET /api/auth/confirm", () => {
 
     await expect(
       GET(makeRequest("?token_hash=abc&type=signup")),
-    ).rejects.toThrow("REDIRECT:/dashboard");
+    ).rejects.toThrow("REDIRECT:/");
 
     expect(verifyOtpMock).toHaveBeenCalledWith({
       token_hash: "abc",
@@ -117,7 +117,7 @@ describe("GET /api/auth/confirm", () => {
     expect(syncUserProfileMock).not.toHaveBeenCalled();
   });
 
-  it("should redirect to /dashboard without syncing the profile for a non-signup, non-recovery otp type", async () => {
+  it("should redirect to / without syncing the profile for a non-signup, non-recovery otp type", async () => {
     verifyOtpMock.mockResolvedValue({
       data: {
         user: { id: "user-3", email: "user3@example.com", user_metadata: {} },
@@ -127,7 +127,7 @@ describe("GET /api/auth/confirm", () => {
 
     await expect(
       GET(makeRequest("?token_hash=abc&type=email_change")),
-    ).rejects.toThrow("REDIRECT:/dashboard");
+    ).rejects.toThrow("REDIRECT:/");
 
     expect(syncUserProfileMock).not.toHaveBeenCalled();
   });
@@ -142,7 +142,7 @@ describe("GET /api/auth/confirm", () => {
 
     await expect(
       GET(makeRequest("?token_hash=abc&type=signup")),
-    ).rejects.toThrow("REDIRECT:/dashboard");
+    ).rejects.toThrow("REDIRECT:/");
 
     expect(syncUserProfileMock).toHaveBeenCalledWith(expect.anything(), {
       id: "user-4",

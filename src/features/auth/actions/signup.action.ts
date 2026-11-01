@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import type { AuthError } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/server";
-import { DASHBOARD_ROUTE } from "@/lib/constants/routes";
+import { HOME_ROUTE } from "@/lib/constants/routes";
 import { signupSchema } from "@/features/auth/schemas/signup.schema";
 import { syncUserProfile } from "@/features/auth/lib/sync-user-profile";
 
@@ -97,7 +97,7 @@ export async function signupAction(
   }
 
   if (data.session) {
-    redirect(DASHBOARD_ROUTE);
+    redirect(HOME_ROUTE);
   }
 
   return { success: true, message: CHECK_EMAIL_MESSAGE };
