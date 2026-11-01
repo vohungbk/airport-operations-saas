@@ -2,7 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+vi.mock("@/features/invoices/actions/issue-invoice.action", () => ({ issueInvoiceAction: vi.fn() }));
 
 import { ExportCsvLink } from "@/features/invoices/components/export-csv-link";
 import { InvoiceDetail } from "@/features/invoices/components/invoice-detail";
@@ -209,6 +210,26 @@ describe("InvoiceDetail (VI-F09-S03)", () => {
     for (const text of ["Statement PDF", "Statement CSV", "Update payment status", "More / Void"]) {
       expect(out).not.toContain(text);
     }
+  });
+
+  it("should offer Issue invoice to an admin looking at a draft, and to nobody else (VI-F09-S07, AC01)", () => {
+    const draft = { ...ROW, status: "draft" as const };
+    const issue = { heading: "INV-2026-000045 / Emirates Rent A Car", issue_date: "01 Oct 2026", payment_terms: "30 days", due_date: "31 Oct 2026" };
+    const withIssue = html(createElement(InvoiceDetail, { view: buildInvoiceDetail(draft, true, 30), invoiceId: draft.id, issue }));
+
+    expect(withIssue).toContain("Issue invoice");
+    expect(render()).not.toContain("Issue invoice");
+    expect(html(createElement(InvoiceDetail, { view: buildInvoiceDetail(draft, true, 30), invoiceId: draft.id }))).not.toContain(
+      "Issue invoice",
+    );
+  });
+
+  it("should show a draft as not issued, with its due date on issue (VI-F09-S07)", () => {
+    const out = html(createElement(InvoiceDetail, { view: buildInvoiceDetail({ ...ROW, status: "draft" }, true, 30), invoiceId: ROW.id }));
+
+    expect(out).toContain("Not issued / Due date on issue");
+    expect(out).toContain("On issue");
+    expect(out).toContain("Payment terms: 30 days");
   });
 
   it("should offer to download the booking statement next to the PDF (VI-F09-S05, AC01)", () => {

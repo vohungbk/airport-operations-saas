@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { INTERNAL_ERROR, mapInvoiceError } from "@/features/invoices/lib/invoice-errors";
+import { INTERNAL_ERROR, ISSUE_INTERNAL_ERROR, mapInvoiceError, mapIssueInvoiceError } from "@/features/invoices/lib/invoice-errors";
 
 describe("mapInvoiceError (VI-F09-S06, AC09, AC10)", () => {
   it("should say the settlement is not approved for IN002, on the month", () => {
@@ -34,5 +34,26 @@ describe("mapInvoiceError (VI-F09-S06, AC09, AC10)", () => {
 
   it("should never show a raw database error: anything else is the generic error", () => {
     expect(mapInvoiceError({ code: "XX000", details: "connection to db.internal refused" })).toEqual(INTERNAL_ERROR);
+  });
+});
+
+describe("mapIssueInvoiceError (VI-F09-S07)", () => {
+  it("should say the invoice is no longer a draft for IV002", () => {
+    expect(mapIssueInvoiceError({ code: "IV002" })).toEqual({
+      code: "CONFLICT",
+      message: "This invoice is no longer a draft. Reload the page to see it.",
+    });
+  });
+
+  it.each([
+    ["42501", "FORBIDDEN"],
+    ["P0002", "NOT_FOUND"],
+    ["22023", "VALIDATION_ERROR"],
+  ])("should map %s to %s", (code, expected) => {
+    expect(mapIssueInvoiceError({ code }).code).toBe(expected);
+  });
+
+  it("should never show a raw database error: anything else is the generic error", () => {
+    expect(mapIssueInvoiceError({ code: "XX000" })).toEqual(ISSUE_INTERNAL_ERROR);
   });
 });

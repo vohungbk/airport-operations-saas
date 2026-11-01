@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const getInvoiceMock = vi.hoisted(() => vi.fn());
+const getTermsMock = vi.hoisted(() => vi.fn());
 const notFoundMock = vi.hoisted(() =>
   vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -11,7 +12,9 @@ const notFoundMock = vi.hoisted(() =>
 
 vi.mock("@/lib/auth/current-user", () => ({ requireAnyPermission: requireAnyPermissionMock }));
 vi.mock("@/features/invoices/lib/get-invoice", () => ({ getInvoice: getInvoiceMock }));
-vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
+vi.mock("@/features/invoices/lib/get-payment-terms-days", () => ({ getPaymentTermsDays: getTermsMock }));
+vi.mock("@/features/invoices/actions/issue-invoice.action", () => ({ issueInvoiceAction: vi.fn() }));
+vi.mock("next/navigation", () => ({ notFound: notFoundMock, useRouter: () => ({ refresh: vi.fn() }) }));
 
 import InvoicePage from "@/app/(dashboard)/invoices/[id]/page";
 
@@ -19,6 +22,7 @@ const ID = "d9100000-0000-0000-0000-000000000001";
 
 const INVOICE = {
   id: ID,
+  partner_id: "p-a",
   invoice_number: "INV-2026-000018",
   issue_date: "2026-10-31",
   due_date: "2026-11-14",
@@ -40,6 +44,8 @@ describe("InvoicePage (VI-F09-S01, NAV-1)", () => {
     getInvoiceMock.mockReset();
     getInvoiceMock.mockResolvedValue(INVOICE);
     notFoundMock.mockClear();
+    getTermsMock.mockReset();
+    getTermsMock.mockResolvedValue(30);
   });
 
   it("should check the finance permission before reading anything", async () => {
@@ -87,5 +93,48 @@ describe("InvoicePage (VI-F09-S01, NAV-1)", () => {
     getInvoiceMock.mockRejectedValue(new Error("db down"));
 
     await expect(render()).rejects.toThrow("db down");
+  });
+
+  describe("a draft (VI-F09-S07)", () => {
+    const DRAFT = { ...INVOICE, status: "draft" };
+
+    beforeEach(() => getInvoiceMock.mockResolvedValue(DRAFT));
+
+    it("should offer Issue invoice to an admin, with the payment terms of the partner (AC01, AC02)", async () => {
+      requireAnyPermissionMock.mockResolvedValue({ role: "admin" });
+
+      const html = await render();
+
+      expect(getTermsMock).toHaveBeenCalledWith("p-a");
+      expect(html).toContain("Issue invoice");
+      expect(html).toContain("Not issued / Due date on issue");
+      expect(html).toContain("Payment terms: 30 days");
+    });
+
+    it("should show an operations manager the draft without Issue invoice", async () => {
+      requireAnyPermissionMock.mockResolvedValue({ role: "operations_manager" });
+
+      const html = await render();
+
+      expect(html).not.toContain("Issue invoice");
+      expect(html).toContain("Payment terms: 30 days");
+    });
+
+    it("should not read the payment terms, or offer Issue invoice, for a partner user", async () => {
+      const html = await render();
+
+      expect(getTermsMock).not.toHaveBeenCalled();
+      expect(html).not.toContain("Issue invoice");
+    });
+
+    it("should not offer Issue invoice for an invoice that is already issued, and not read the terms", async () => {
+      requireAnyPermissionMock.mockResolvedValue({ role: "admin" });
+      getInvoiceMock.mockResolvedValue(INVOICE);
+
+      const html = await render();
+
+      expect(getTermsMock).not.toHaveBeenCalled();
+      expect(html).not.toContain("Issue invoice");
+    });
   });
 });

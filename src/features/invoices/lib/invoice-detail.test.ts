@@ -154,3 +154,32 @@ describe("an invoice with no settlement and no partner", () => {
     expect(buildInvoiceDetail({ ...ROW, partner: null, period_start: null }, true).meta).toBe("— / Issued 01 Oct 2026 / Due 31 Oct 2026");
   });
 });
+
+describe("buildInvoiceDetail of a draft (VI-F09-S07, AC01)", () => {
+  const draft = { ...ROW, status: "draft" as const };
+
+  it("should say it is not issued and that the due date comes on issue, instead of the placeholder dates it carries", () => {
+    expect(buildInvoiceDetail(draft, true, 30).meta).toBe("Emirates Rent A Car / September 2026 / Not issued / Due date on issue");
+    expect(buildInvoiceDetail(draft, false, 30).meta).toBe("September 2026 / Not issued / Due date on issue");
+  });
+
+  it("should show the due date as On issue with the payment terms the invoice will be issued with (AC02)", () => {
+    expect(buildInvoiceDetail(draft, true, 30).cards[1]).toEqual({
+      label: "Due date",
+      value: "On issue",
+      caption: "Payment terms: 30 days",
+    });
+    expect(buildInvoiceDetail(draft, true, 1).cards[1].caption).toBe("Payment terms: 1 day");
+  });
+
+  it("should show a dash for the payment terms when they are not known", () => {
+    expect(buildInvoiceDetail(draft, true).cards[1]).toMatchObject({ value: "On issue", caption: "Payment terms: —" });
+  });
+
+  it("should leave an invoice that is issued as it is, with its own dates, whatever terms are given", () => {
+    const view = buildInvoiceDetail(ROW, true, 99);
+
+    expect(view.meta).toContain("Issued 01 Oct 2026 / Due 31 Oct 2026");
+    expect(view.cards[1]).toEqual({ label: "Due date", value: "31 Oct 2026", caption: "Payment terms: 30 days" });
+  });
+});
