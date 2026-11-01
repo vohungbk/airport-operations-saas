@@ -1,6 +1,8 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 
+import type { InvoiceStatus } from "@/features/invoices/lib/invoice-list";
 import { PERIOD_REQUIRED } from "@/features/invoices/schemas/generate-invoice.schema";
+import { REASON_REQUIRED } from "@/features/invoices/schemas/update-invoice-status.schema";
 
 /**
  * The stable error of the generate Server Action, as in `backend.md`: a code to branch on and a message. A raw
@@ -17,7 +19,7 @@ export interface InvoiceActionError {
     | "INTERNAL_ERROR";
   message: string;
   /** The field the message belongs to, when there is one. */
-  field?: "partner_id" | "month";
+  field?: "partner_id" | "month" | "status" | "reason";
   /** The invoice that already exists for the settlement (CONFLICT), so the screen can show it. */
   existing_invoice_id?: string;
 }
@@ -72,6 +74,43 @@ export const ISSUE_INTERNAL_ERROR: InvoiceActionError = {
   code: "INTERNAL_ERROR",
   message: "The invoice could not be issued. Try again.",
 };
+
+export interface UpdatedInvoiceStatus {
+  id: string;
+  invoice_number: string;
+  status: InvoiceStatus;
+}
+
+export type UpdateInvoiceStatusResult =
+  | { success: true; invoice: UpdatedInvoiceStatus }
+  | { success: false; error: InvoiceActionError };
+
+export const STATUS_INTERNAL_ERROR: InvoiceActionError = {
+  code: "INTERNAL_ERROR",
+  message: "The status could not be updated. Try again.",
+};
+
+/** The error codes of `update_invoice_status()`. Anything else is a generic error. */
+export function mapUpdateInvoiceStatusError(error: Pick<PostgrestError, "code">): InvoiceActionError {
+  switch (error.code) {
+    case "42501":
+      return { code: "FORBIDDEN", message: "You cannot update the status of an invoice." };
+    case "P0002":
+      return { code: "NOT_FOUND", message: "Invoice not found." };
+    case "IV004":
+      return {
+        code: "CONFLICT",
+        message: "This status change is not allowed for the invoice as it is now. Reload the page to see it.",
+        field: "status",
+      };
+    case "IV005":
+      return { code: "VALIDATION_ERROR", message: REASON_REQUIRED, field: "reason" };
+    case "22023":
+      return VALIDATION_ERROR;
+    default:
+      return STATUS_INTERNAL_ERROR;
+  }
+}
 
 /** The error codes of `issue_invoice()`. Anything else is a generic error. */
 export function mapIssueInvoiceError(error: Pick<PostgrestError, "code">): InvoiceActionError {

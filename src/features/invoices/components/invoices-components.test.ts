@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/features/invoices/actions/issue-invoice.action", () => ({ issueInvoiceAction: vi.fn() }));
+vi.mock("@/features/invoices/actions/update-invoice-status.action", () => ({ updateInvoiceStatusAction: vi.fn() }));
 
 import { ExportCsvLink } from "@/features/invoices/components/export-csv-link";
 import { InvoiceDetail } from "@/features/invoices/components/invoice-detail";
@@ -222,6 +223,14 @@ describe("InvoiceDetail (VI-F09-S03)", () => {
     expect(html(createElement(InvoiceDetail, { view: buildInvoiceDetail(draft, true, 30), invoiceId: draft.id }))).not.toContain(
       "Issue invoice",
     );
+  });
+
+  it("should offer Update status only when the screen is given a status update (VI-F09-S08, AC01)", () => {
+    const statusUpdate = { invoiceId: ROW.id, invoiceNumber: ROW.invoice_number, current: "issued" as const };
+    const view = buildInvoiceDetail(ROW, true);
+
+    expect(html(createElement(InvoiceDetail, { view, invoiceId: ROW.id, statusUpdate }))).toContain("Update status");
+    expect(render()).not.toContain("Update status");
   });
 
   it("should show a draft as not issued, with its due date on issue (VI-F09-S07)", () => {

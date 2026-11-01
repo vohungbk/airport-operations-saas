@@ -1,4 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  UpdateInvoiceStatusButton,
+  type UpdateInvoiceStatusButtonProps,
+} from "@/features/invoices/components/update-invoice-status-button";
 import type { InvoiceDetailView } from "@/features/invoices/lib/invoice-detail";
 import { cn } from "@/lib/utils";
 
@@ -6,14 +10,16 @@ interface PaymentStatusProps {
   steps: InvoiceDetailView["steps"];
   sideStates: InvoiceDetailView["side_states"];
   current: string;
+  /** Only for an admin looking at an invoice that can still move (VI-F09-S08): it shows Update status. */
+  update?: UpdateInvoiceStatusButtonProps;
 }
 
 /**
- * Where the invoice is on Draft, Issued, Paid, and which side state (overdue or void) it is in. Read only: the
- * update of the status is another ticket, and who made the last change is in the history of the finance data,
- * which a partner user cannot read.
+ * Where the invoice is on Draft, Issued, Paid, and which side state (overdue or void) it is in. An admin can update
+ * the status by hand (VI-F09-S08). Who made the last change is in the history of the finance data, which a partner
+ * user cannot read.
  */
-export function PaymentStatus({ steps, sideStates, current }: PaymentStatusProps) {
+export function PaymentStatus({ steps, sideStates, current, update }: PaymentStatusProps) {
   return (
     <Card>
       <CardContent className="flex flex-col gap-3">
@@ -45,6 +51,7 @@ export function PaymentStatus({ steps, sideStates, current }: PaymentStatusProps
           </p>
         </div>
         <p className="text-sm text-muted-foreground">{current}</p>
+        {update && <UpdateInvoiceStatusButton {...update} />}
       </CardContent>
     </Card>
   );

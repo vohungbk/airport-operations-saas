@@ -5,6 +5,7 @@ import { FINANCE_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { InvoiceDetail } from "@/features/invoices/components/invoice-detail";
 import { buildInvoiceDetail } from "@/features/invoices/lib/invoice-detail";
 import { buildIssuePreview } from "@/features/invoices/lib/invoice-issue";
+import { allowedMoves } from "@/features/invoices/lib/invoice-status";
 import { getInvoice } from "@/features/invoices/lib/get-invoice";
 import { getPaymentTermsDays } from "@/features/invoices/lib/get-payment-terms-days";
 import { utcToday } from "@/features/partners/lib/commercial-terms";
@@ -18,7 +19,8 @@ interface InvoicePageProps {
  * partner user only an invoice of its own partner. An invoice that is unknown, malformed or hidden is the
  * same not-found page, so nothing tells another partner's invoice from one that does not exist. A draft (seen by the
  * operations team only) shows the payment terms its due date will come from, and an admin gets Issue invoice
- * (VI-F09-S07); the Server Action and the database function check the role again.
+ * (VI-F09-S07); an admin looking at an issued or overdue invoice gets Update status (VI-F09-S08). The Server Actions and
+ * the database functions check the role again.
  */
 export default async function InvoicePage({ params }: InvoicePageProps) {
   const user = await requireAnyPermission(FINANCE_ACCESS_PERMISSIONS);
@@ -42,9 +44,19 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
         })
       : undefined;
 
+  const statusUpdate =
+    user.role === "admin" && allowedMoves(invoice.status).length > 0
+      ? { invoiceId: invoice.id, invoiceNumber: invoice.invoice_number, current: invoice.status }
+      : undefined;
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <InvoiceDetail view={buildInvoiceDetail(invoice, !isPartner, termsDays)} invoiceId={invoice.id} issue={issue} />
+      <InvoiceDetail
+        view={buildInvoiceDetail(invoice, !isPartner, termsDays)}
+        invoiceId={invoice.id}
+        issue={issue}
+        statusUpdate={statusUpdate}
+      />
     </div>
   );
 }

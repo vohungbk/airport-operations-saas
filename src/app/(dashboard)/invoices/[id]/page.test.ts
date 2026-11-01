@@ -14,6 +14,7 @@ vi.mock("@/lib/auth/current-user", () => ({ requireAnyPermission: requireAnyPerm
 vi.mock("@/features/invoices/lib/get-invoice", () => ({ getInvoice: getInvoiceMock }));
 vi.mock("@/features/invoices/lib/get-payment-terms-days", () => ({ getPaymentTermsDays: getTermsMock }));
 vi.mock("@/features/invoices/actions/issue-invoice.action", () => ({ issueInvoiceAction: vi.fn() }));
+vi.mock("@/features/invoices/actions/update-invoice-status.action", () => ({ updateInvoiceStatusAction: vi.fn() }));
 vi.mock("next/navigation", () => ({ notFound: notFoundMock, useRouter: () => ({ refresh: vi.fn() }) }));
 
 import InvoicePage from "@/app/(dashboard)/invoices/[id]/page";
@@ -93,6 +94,28 @@ describe("InvoicePage (VI-F09-S01, NAV-1)", () => {
     getInvoiceMock.mockRejectedValue(new Error("db down"));
 
     await expect(render()).rejects.toThrow("db down");
+  });
+
+  describe("the payment status (VI-F09-S08)", () => {
+    it.each([["issued"], ["overdue"]])("should offer Update status to an admin looking at an invoice that is %s (AC01)", async (status) => {
+      requireAnyPermissionMock.mockResolvedValue({ role: "admin" });
+      getInvoiceMock.mockResolvedValue({ ...INVOICE, status });
+
+      expect(await render()).toContain("Update status");
+    });
+
+    it.each([["paid"], ["void"], ["draft"]])("should not offer Update status for an invoice that is %s, which has no move", async (status) => {
+      requireAnyPermissionMock.mockResolvedValue({ role: "admin" });
+      getInvoiceMock.mockResolvedValue({ ...INVOICE, status });
+
+      expect(await render()).not.toContain("Update status");
+    });
+
+    it.each([["operations_manager"], ["partner_user"]])("should not offer Update status to %s", async (role) => {
+      requireAnyPermissionMock.mockResolvedValue({ role });
+
+      expect(await render()).not.toContain("Update status");
+    });
   });
 
   describe("a draft (VI-F09-S07)", () => {
