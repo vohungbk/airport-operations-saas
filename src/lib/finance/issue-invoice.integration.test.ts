@@ -145,14 +145,14 @@ describe.skipIf(!available)("issuing an invoice (VI-F09-S07, spec R8, R11, R13)"
     expect(get(rows, "s")).toEqual(["100.00"]);
   });
 
-  it("should still let an issued invoice move to paid, overdue or void (AC03)", () => {
+  it("should still let an issued invoice move to overdue and paid, through update_invoice_status() (AC03, VI-F09-S08)", () => {
     const rows = run(`
       ${newPartner(9)}
       ${invoiceOf(1, 9)}
       ${asUser("admin")}
       ${issue("i", 1)}
-      ${attempt("overdue", `update public.invoices set status = 'overdue' where id = '${invoiceId(1)}';`)}
-      ${attempt("paid", `update public.invoices set status = 'paid' where id = '${invoiceId(1)}';`)}`);
+      ${attempt("overdue", `perform public.update_invoice_status('${invoiceId(1)}', 'overdue');`)}
+      ${attempt("paid", `perform public.update_invoice_status('${invoiceId(1)}', 'paid');`)}`);
 
     expect([get(rows, "overdue")[0], get(rows, "paid")[0]]).toEqual(["ok", "ok"]);
   });

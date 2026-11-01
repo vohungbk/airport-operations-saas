@@ -1,6 +1,43 @@
 import { describe, expect, it } from "vitest";
 
-import { INTERNAL_ERROR, ISSUE_INTERNAL_ERROR, mapInvoiceError, mapIssueInvoiceError } from "@/features/invoices/lib/invoice-errors";
+import {
+  INTERNAL_ERROR,
+  ISSUE_INTERNAL_ERROR,
+  STATUS_INTERNAL_ERROR,
+  mapInvoiceError,
+  mapIssueInvoiceError,
+  mapUpdateInvoiceStatusError,
+} from "@/features/invoices/lib/invoice-errors";
+
+describe("mapUpdateInvoiceStatusError (VI-F09-S08)", () => {
+  it("should say the change is not allowed for IV004, on the status", () => {
+    expect(mapUpdateInvoiceStatusError({ code: "IV004" })).toEqual({
+      code: "CONFLICT",
+      message: "This status change is not allowed for the invoice as it is now. Reload the page to see it.",
+      field: "status",
+    });
+  });
+
+  it("should ask for a reason for IV005, on the reason", () => {
+    expect(mapUpdateInvoiceStatusError({ code: "IV005" })).toEqual({
+      code: "VALIDATION_ERROR",
+      message: "Enter a reason for voiding the invoice.",
+      field: "reason",
+    });
+  });
+
+  it.each([
+    ["42501", "FORBIDDEN"],
+    ["P0002", "NOT_FOUND"],
+    ["22023", "VALIDATION_ERROR"],
+  ])("should map %s to %s", (code, expected) => {
+    expect(mapUpdateInvoiceStatusError({ code }).code).toBe(expected);
+  });
+
+  it("should never show a raw database error: anything else is the generic error", () => {
+    expect(mapUpdateInvoiceStatusError({ code: "XX000" })).toEqual(STATUS_INTERNAL_ERROR);
+  });
+});
 
 describe("mapInvoiceError (VI-F09-S06, AC09, AC10)", () => {
   it("should say the settlement is not approved for IN002, on the month", () => {
