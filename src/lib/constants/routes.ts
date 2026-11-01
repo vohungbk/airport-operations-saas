@@ -27,6 +27,9 @@ export const RETURN_TO_PARAM = "next";
  */
 export const PARTNER_HOME_ROUTE = "/partner";
 
+/** The Workflow Board (CO-F08-S01); the menu item "Workflow Board" opens it. */
+export const WORKFLOW_BOARD_ROUTE = "/admin";
+
 /** The home of a technician: the jobs of the day. */
 export const TECHNICIAN_HOME_ROUTE = "/technician";
 
