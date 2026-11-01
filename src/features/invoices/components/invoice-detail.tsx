@@ -11,13 +11,17 @@ import {
 import { OverviewTile } from "@/features/dashboard/components/overview-tile";
 import { DownloadPdfButton } from "@/features/invoices/components/download-pdf-button";
 import { DownloadStatementButton } from "@/features/invoices/components/download-statement-button";
+import { IssueInvoiceButton } from "@/features/invoices/components/issue-invoice-button";
 import { PaymentStatus } from "@/features/invoices/components/payment-status";
 import type { InvoiceDetailView } from "@/features/invoices/lib/invoice-detail";
+import type { IssuePreview } from "@/features/invoices/lib/invoice-issue";
 import { cn } from "@/lib/utils";
 
 interface InvoiceDetailProps {
   view: InvoiceDetailView;
   invoiceId: string;
+  /** What issuing the invoice will give, only for an admin looking at a draft (VI-F09-S07): it shows Issue invoice. */
+  issue?: IssuePreview;
 }
 
 /**
@@ -26,7 +30,7 @@ interface InvoiceDetailProps {
  * how the total is made up, and where the invoice is on its payment status. It downloads as a PDF (S04) and its
  * booking statement as a CSV (S05); the update of the status and the history of the design are other tickets.
  */
-export function InvoiceDetail({ view, invoiceId }: InvoiceDetailProps) {
+export function InvoiceDetail({ view, invoiceId, issue }: InvoiceDetailProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -42,6 +46,7 @@ export function InvoiceDetail({ view, invoiceId }: InvoiceDetailProps) {
       <div className="flex flex-wrap items-start gap-3">
         <DownloadPdfButton invoiceId={invoiceId} invoiceNumber={view.invoice_number} />
         <DownloadStatementButton invoiceId={invoiceId} invoiceNumber={view.invoice_number} />
+        {issue && <IssueInvoiceButton invoiceId={invoiceId} preview={issue} />}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
