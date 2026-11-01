@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { DASHBOARD_ROUTE } from "@/lib/constants/routes";
+import { HOME_ROUTE } from "@/lib/constants/routes";
 import { resetPasswordSchema } from "@/features/auth/schemas/reset-password.schema";
 
 export interface ResetPasswordActionResult {
@@ -33,5 +33,5 @@ export async function resetPasswordAction(
     };
   }
 
-  redirect(DASHBOARD_ROUTE);
+  redirect(HOME_ROUTE);
 }

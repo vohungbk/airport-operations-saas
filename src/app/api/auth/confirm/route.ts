@@ -4,7 +4,7 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/server";
 import {
-  DASHBOARD_ROUTE,
+  HOME_ROUTE,
   FORBIDDEN_ROUTE,
   LOGIN_ROUTE,
 } from "@/lib/constants/routes";
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
           // The confirmation token is single-use and already consumed by
           // verifyOtp() above, so there is no way to retry this exact
           // link. Land on /forbidden with a specific reason instead of
-          // silently proceeding to /dashboard, where requireAuth() would
+          // silently proceeding to the home page, where requireAuth() would
           // otherwise bounce this same user with the generic "access
           // denied" copy and no explanation. No email/full_name in the
           // log - just the (non-PII) auth user id and the DB error.
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      redirect(DASHBOARD_ROUTE);
+      redirect(HOME_ROUTE);
     }
   }
 

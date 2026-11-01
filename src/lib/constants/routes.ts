@@ -9,17 +9,26 @@ export const LOGIN_ROUTE = "/login";
 export const DASHBOARD_ROUTE = "/dashboard";
 
 /**
+ * Where every sign-in lands: the root page, which sends each person to the home
+ * of their role (`getHomeRouteForRole`). Login, signup, email confirmation,
+ * password reset and the proxy all use it, so the one rule works for each.
+ */
+export const HOME_ROUTE = "/";
+
+/**
  * The query parameter of the sign in page that holds the page to return to after
  * signing in (FO-F03-S11). Its value is never trusted: see `safeNextPath`.
  */
 export const RETURN_TO_PARAM = "next";
 
 /**
- * The home of a partner user. Every sign-in lands on `/dashboard`, which sends
- * a partner user here, so the one rule works for login, signup, email
- * confirmation and password reset alike.
+ * The home of a partner user. Every sign-in lands on `/` (`HOME_ROUTE`), which
+ * sends a partner user here.
  */
 export const PARTNER_HOME_ROUTE = "/partner";
+
+/** The home of a technician: the jobs of the day. */
+export const TECHNICIAN_HOME_ROUTE = "/technician";
 
 /**
  * Shown for both "authenticated but not permitted" (role/permission
@@ -46,8 +55,9 @@ export const NO_PARTNER_ROUTE = `${FORBIDDEN_ROUTE}?reason=no_partner`;
 export const PARTNER_INACTIVE_ROUTE = `${FORBIDDEN_ROUTE}?reason=partner_inactive`;
 
 /**
- * Routes reachable without an authenticated session. `/` is the F01
- * landing page and stays public. `/api/auth/confirm` is the email
+ * Routes reachable without an authenticated session. `/` stays public to the
+ * proxy; the page itself sends a signed-out visitor to `/login` and a signed-in
+ * user to the home of their role. `/api/auth/confirm` is the email
  * confirmation / recovery callback — it must be reachable while signed
  * out since that's exactly when it's used.
  */
