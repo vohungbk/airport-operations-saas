@@ -1165,9 +1165,23 @@ starts, to a Postgres schema/table group protected by RLS.
   own dates. Once an invoice is not a draft its amounts and lines cannot change (spec R13): `guard_issued_invoice_update`
   refuses a change of the partner, the settlement, the number, the dates, the subtotal, the VAT or the total, and
   `guard_invoice_line_change` refuses to add, change or delete a line (both IV003). The status can still move, which
-  paid, overdue and void (other stories) need. A correction is a new invoice (Q4); Void and reissue is not built here.
+  paid, overdue and void (S08) need. A correction is a new invoice (Q4); Void and reissue is not built here.
   Known gap: `generate_invoice()` (S06) writes a VAT of 5 percent and a placeholder due date instead of reading the
   VAT rate and the payment terms of the partner's terms; this story does not change it.
-- **Left out of the design on purpose.** Statement PDF and CSV of the F8 header (the statement is a CSV, S05), Void, the invoice PDF preview page and its zoom, the update of the
-  payment status, Void, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
+- **Update payment status (VI-F09-S08).** The payment status card of the invoice detail shows Update status to an admin
+  looking at an issued or overdue invoice (a paid, void or draft invoice has no move). There is no frame for it in the
+  design, so it is a dialog built like the Issue confirmation: the current status, a select of the statuses the invoice
+  can move to (`INVOICE_STATUS_MOVES`), a reason (needed for a void, optional for the others, at most 1000 characters)
+  and Confirm. The client checks the choice with the same table and the same Zod schema as the server (V1); a failure is
+  said in the dialog with the entries kept. `update_invoice_status(id, status, reason)` (migration `20261118090000`)
+  is `SECURITY DEFINER`, checks an active admin itself (42501), locks the invoice and allows issued to paid, overdue or
+  void and overdue to paid or void (IV004 otherwise; Q4 is open, so a paid invoice does not go on and a draft is only
+  issued with Issue invoice). A void without a reason is refused (IV005); the number and the amounts are not touched
+  (the guards of S07). Who changed it, when and why is kept by finance history (the actor, the time, and the reason as
+  `app.finance_reason`, or "Invoice status moved from X to Y"); no column was added. `guard_invoice_status_change`
+  refuses a change of the status of an invoice that is not a draft outside the function (IV004). Known gap: a draft can
+  still be set to paid or void by a direct update; only issue_invoice() is meant to move a draft. Marking an invoice
+  overdue when its due date passes (spec R12) is another ticket.
+- **Left out of the design on purpose.** Statement PDF and CSV of the F8 header (the statement is a CSV, S05), the invoice PDF
+  preview page and its zoom, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
   ("Invoices"), not "Finance > Invoices > Invoice list".

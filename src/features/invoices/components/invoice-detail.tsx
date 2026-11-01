@@ -13,6 +13,7 @@ import { DownloadPdfButton } from "@/features/invoices/components/download-pdf-b
 import { DownloadStatementButton } from "@/features/invoices/components/download-statement-button";
 import { IssueInvoiceButton } from "@/features/invoices/components/issue-invoice-button";
 import { PaymentStatus } from "@/features/invoices/components/payment-status";
+import type { UpdateInvoiceStatusButtonProps } from "@/features/invoices/components/update-invoice-status-button";
 import type { InvoiceDetailView } from "@/features/invoices/lib/invoice-detail";
 import type { IssuePreview } from "@/features/invoices/lib/invoice-issue";
 import { cn } from "@/lib/utils";
@@ -22,15 +23,17 @@ interface InvoiceDetailProps {
   invoiceId: string;
   /** What issuing the invoice will give, only for an admin looking at a draft (VI-F09-S07): it shows Issue invoice. */
   issue?: IssuePreview;
+  /** Only for an admin looking at an invoice that can still move (VI-F09-S08): the payment status can be updated. */
+  statusUpdate?: UpdateInvoiceStatusButtonProps;
 }
 
 /**
  * The invoice detail as the design draws it (VI-F09-S03): the number and the status, who, which month and
  * when, three cards (the amount, the due date, the VAT), the lines with the subtotal, the VAT and the total,
  * how the total is made up, and where the invoice is on its payment status. It downloads as a PDF (S04) and its
- * booking statement as a CSV (S05); the update of the status and the history of the design are other tickets.
+ * booking statement as a CSV (S05); an admin updates the status by hand (S08); the history of the design is another ticket.
  */
-export function InvoiceDetail({ view, invoiceId, issue }: InvoiceDetailProps) {
+export function InvoiceDetail({ view, invoiceId, issue, statusUpdate }: InvoiceDetailProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -90,7 +93,7 @@ export function InvoiceDetail({ view, invoiceId, issue }: InvoiceDetailProps) {
 
       {view.explanation && <p className="text-sm text-muted-foreground">{view.explanation}</p>}
 
-      <PaymentStatus steps={view.steps} sideStates={view.side_states} current={view.current} />
+      <PaymentStatus steps={view.steps} sideStates={view.side_states} current={view.current} update={statusUpdate} />
     </div>
   );
 }
