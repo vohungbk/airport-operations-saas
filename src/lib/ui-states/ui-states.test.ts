@@ -24,6 +24,16 @@ import {
  */
 const EXCEPTIONS: StateException[] = [
   {
+    id: "loading:page.tsx",
+    reason:
+      "The root page renders nothing: it only redirects to the home of the role. It reads the session and one profile row, so a loading state would never be seen.",
+  },
+  {
+    id: "error:page.tsx",
+    reason:
+      "It renders nothing and only redirects. A failure to read the profile is caught by the error boundary of the app root, which offers a retry.",
+  },
+  {
     id: "loading:forbidden/page.tsx",
     reason:
       "The landing page for a person who is not allowed. It reads only the session (no database call) and must never wait on anything; a loading state could hide where a redirect lands.",
