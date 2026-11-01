@@ -95,11 +95,7 @@ with new_invoices as (
          s.platform_share,
          round(s.platform_share * 0.05, 2),
          s.platform_share + round(s.platform_share * 0.05, 2),
-         case
-           when s.period_start = '2026-10-01' then 'issued'
-           when p.code = 'DMO' then 'overdue'
-           else 'paid'
-         end::public.invoice_status
+         'draft'
     from public.settlements s
     join public.partners p on p.id = s.partner_id
    where s.period_start >= '2026-09-01'
@@ -116,5 +112,20 @@ select n.id, l.position, l.description, l.amount, l.counts
     (2, 'Partner share', s.partner_share, false),
     (3, 'Platform share', s.platform_share, true)
   ) as l(position, description, amount, counts);
+
+-- The lines are written while the invoice is a draft (an invoice that is not a draft keeps its lines), then each invoice
+-- gets its status. A draft of Demo Mobility October is left alone: it is the month to generate.
+update public.invoices i
+   set status = case
+         when s.period_start = '2026-10-01' then 'issued'
+         when p.code = 'DMO' then 'overdue'
+         else 'paid'
+       end::public.invoice_status
+  from public.settlements s
+  join public.partners p on p.id = s.partner_id
+ where i.settlement_id = s.id
+   and i.status = 'draft'
+   and s.period_start >= '2026-09-01'
+   and not (p.code = 'DMO' and s.period_start = '2026-10-01');
 
 commit;
