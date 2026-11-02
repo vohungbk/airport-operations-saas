@@ -109,7 +109,7 @@ export function MoveBookingDialog({
             <p className="text-sm text-muted-foreground">Seat status that will follow</p>
             <Badge
               variant="info"
-              className="h-8 w-[142px] justify-start gap-2.5 rounded-lg px-3 text-sm font-semibold text-[#164FC3] dark:text-info-fg [&>svg]:size-4! [&>svg]:text-muted-foreground"
+              className="h-8 w-[142px] justify-start gap-2.5 rounded-lg px-3 text-sm font-semibold text-seat-chip-fg [&>svg]:size-4! [&>svg]:text-muted-foreground"
             >
               <CheckIcon aria-hidden="true" />
               {SEAT_STATUS_LABEL[seatFollows.to]}
