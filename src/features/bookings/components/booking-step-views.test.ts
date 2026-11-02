@@ -1,0 +1,96 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+
+import { BookingStepHistory } from "@/features/bookings/components/booking-step-history";
+import { BookingStepSummary } from "@/features/bookings/components/booking-step-summary";
+import { BookingStepper } from "@/features/bookings/components/booking-stepper";
+import type { StepHistoryRow } from "@/features/bookings/lib/booking-step-history";
+
+const ROWS: StepHistoryRow[] = [
+  {
+    id: "e2",
+    title: "Assigned",
+    actor_name: "Priya Nair",
+    created_at: "2026-10-24T09:05:00Z",
+    notes: "Seat reserved.",
+  },
+  { id: "e1", title: "Booking created", actor_name: null, created_at: "2026-10-24T08:08:00Z", notes: null },
+];
+
+describe("BookingStepper (CO-F08-S06 AC02)", () => {
+  it("should show every step in order and say which one the booking is at", () => {
+    const html = renderToStaticMarkup(createElement(BookingStepper, { status: "assigned" }));
+
+    expect(html).toContain("Step 3 of 5");
+    expect(html.indexOf("Pending")).toBeLessThan(html.indexOf("Confirmed"));
+    expect(html.indexOf("Confirmed")).toBeLessThan(html.indexOf("Assigned"));
+    expect(html.indexOf("In progress")).toBeLessThan(html.indexOf("Completed"));
+    expect(html.match(/aria-current="step"/g)).toHaveLength(1);
+  });
+
+  it("should mark the steps behind the booking as done", () => {
+    const html = renderToStaticMarkup(createElement(BookingStepper, { status: "in_progress" }));
+
+    expect(html.match(/\(done\)/g)).toHaveLength(3);
+  });
+
+  it("should have no current step for a booking off the path", () => {
+    const html = renderToStaticMarkup(createElement(BookingStepper, { status: "cancelled" }));
+
+    expect(html).not.toContain("aria-current");
+    expect(html).not.toContain("Step ");
+  });
+});
+
+describe("BookingStepSummary (CO-F08-S06 AC01, AC02)", () => {
+  it("should show the step, the seat status and the time in the step", () => {
+    const html = renderToStaticMarkup(
+      createElement(BookingStepSummary, { status: "assigned", seatStatus: "reserved", timeInStep: "2 h 10 min" }),
+    );
+
+    expect(html).toContain("Assigned");
+    expect(html).toContain("Reserved");
+    expect(html).toContain("2 h 10 min");
+  });
+
+  it("should show a dash, not a made-up value, when there is no seat and no event", () => {
+    const html = renderToStaticMarkup(
+      createElement(BookingStepSummary, { status: "pending", seatStatus: null, timeInStep: null }),
+    );
+
+    expect(html).toContain("Seat status");
+    expect(html.match(/>-</g)).toHaveLength(2);
+  });
+});
+
+describe("BookingStepHistory (CO-F08-S06 AC02, AC04)", () => {
+  it("should show who moved the booking, when, and the note", () => {
+    const html = renderToStaticMarkup(createElement(BookingStepHistory, { rows: ROWS, timeZone: "Asia/Dubai" }));
+
+    expect(html).toContain("Priya Nair");
+    expect(html).toContain("24 Oct 2026, 13:05");
+    expect(html).toContain("Seat reserved.");
+    expect(html).toContain("Booking created");
+  });
+
+  it("should say Staff when the actor is hidden from the viewer", () => {
+    const html = renderToStaticMarkup(createElement(BookingStepHistory, { rows: ROWS, timeZone: "Asia/Dubai" }));
+
+    expect(html).toContain("Staff · 24 Oct 2026, 12:08");
+  });
+
+  it("should say so when there are no events", () => {
+    const html = renderToStaticMarkup(createElement(BookingStepHistory, { rows: [], timeZone: "UTC" }));
+
+    expect(html).toContain("No events recorded.");
+  });
+
+  it("should say that older events are not shown when the list was cut off", () => {
+    const html = renderToStaticMarkup(
+      createElement(BookingStepHistory, { rows: ROWS, timeZone: "UTC", truncated: true }),
+    );
+
+    expect(html).toContain("Showing latest 100 events");
+  });
+});

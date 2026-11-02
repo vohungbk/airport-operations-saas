@@ -65,9 +65,10 @@ export function BookingDetail({
   const allowedTransitions = getAllowedManualTransitions(booking.status);
   const dateTime = (value: string | null) =>
     value ? formatBookingDateTime(value, timeZone) : "-";
-  const canEdit = canManage
-    ? isBookingEditable(booking.status)
-    : isPartnerBookingEditable(booking.status);
+  const hasActions = canManage || canEditOwn || canViewRevenue;
+  const canEdit =
+    hasActions &&
+    (canManage ? isBookingEditable(booking.status) : isPartnerBookingEditable(booking.status));
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
@@ -81,37 +82,44 @@ export function BookingDetail({
             {BOOKING_STATUS_LABEL[booking.status]}
           </p>
         </div>
-        {(canManage || canEditOwn || canViewRevenue) && (
-          <div className="flex flex-wrap items-center gap-2">
-            {canViewRevenue && (
-              <Link
-                href={`/bookings/${booking.id}/revenue`}
-                className={buttonVariants({
-                  variant: "outline",
-                  className: "min-h-11 px-4",
-                })}
-              >
-                Revenue
-              </Link>
-            )}
-            {canManage && allowedTransitions.length > 0 && (
-              <ChangeBookingStatusDialog
-                bookingId={booking.id}
-                bookingNumber={booking.booking_number}
-                allowedStatuses={allowedTransitions}
-              />
-            )}
-            {canEdit && (
-              <Link
-                href={`/bookings/${booking.id}/edit`}
-                className={buttonVariants({ className: "min-h-11 px-4" })}
-              >
-                <PencilIcon aria-hidden="true" />
-                Edit booking
-              </Link>
-            )}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/bookings/${booking.id}/workflow`}
+            className={buttonVariants({
+              variant: "outline",
+              className: "min-h-11 px-4",
+            })}
+          >
+            Workflow
+          </Link>
+          {canViewRevenue && (
+            <Link
+              href={`/bookings/${booking.id}/revenue`}
+              className={buttonVariants({
+                variant: "outline",
+                className: "min-h-11 px-4",
+              })}
+            >
+              Revenue
+            </Link>
+          )}
+          {canManage && allowedTransitions.length > 0 && (
+            <ChangeBookingStatusDialog
+              bookingId={booking.id}
+              bookingNumber={booking.booking_number}
+              allowedStatuses={allowedTransitions}
+            />
+          )}
+          {canEdit && (
+            <Link
+              href={`/bookings/${booking.id}/edit`}
+              className={buttonVariants({ className: "min-h-11 px-4" })}
+            >
+              <PencilIcon aria-hidden="true" />
+              Edit booking
+            </Link>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="overview">

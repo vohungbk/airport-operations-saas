@@ -60,6 +60,17 @@ describe("BookingDetail actions (VI-F03-S03)", () => {
     expect(html).not.toContain("STATUS_DIALOG");
   });
 
+  it.each([
+    ["a manager", true, false],
+    ["a partner user", false, true],
+    ["a viewer without either permission", false, false],
+  ])("should link %s to the workflow of the booking (CO-F08-S06 AC01)", (_who, canManage, canEditOwn) => {
+    const html = render("pending", canManage, canEditOwn);
+
+    expect(html).toContain('href="/bookings/f0000000-0000-4000-8000-000000000001/workflow"');
+    expect(html).toContain(">Workflow<");
+  });
+
   it("should keep a manager's Edit for a confirmed booking and the status dialog", () => {
     const html = render("confirmed", true, false);
 
