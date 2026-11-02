@@ -57,6 +57,16 @@ const move = (name: string, user: string | null, n: number, expected: string, no
     raise notice 'R|${name}|%|%', sqlstate, coalesce(d, '');
   end $$;`;
 
+/** Sets the status by hand as a user and reports `R|name|ok` or `R|name|<sqlstate>`. */
+const changeStatus = (name: string, user: string, n: number, to: string) => `
+  select set_config('request.jwt.claim.sub', coalesce(${user}, ''), true);
+  do $$ begin
+    perform public.change_booking_status('${bookingId(n)}', '${to}', null);
+    raise notice 'R|${name}|ok';
+  exception when others then
+    raise notice 'R|${name}|%', sqlstate;
+  end $$;`;
+
 /** Reports `R|name|<booking status>|<seat status>`. */
 const state = (name: string, n: number) => `
   do $$ declare b record; s text; begin
@@ -195,6 +205,34 @@ describe.skipIf(!available)("move a booking to the next step (CO-F08-S03)", () =
     for (const step of ["cancelled", "no_show"]) {
       expect(get(rows, step), step).toEqual(["none", "none"]);
     }
+  });
+
+  it("should reject a step back by the assigned technician and by a manager, and change nothing (CO-F08-S05 AC01)", () => {
+    const rows = run(`
+      ${booking(10, "in_progress")}
+      ${seatIs("in_use")}
+      ${changeStatus("tech-back", TECHNICIAN, 10, "assigned")}
+      ${changeStatus("ops-back", OPS, 10, "assigned")}
+      ${changeStatus("ops-back-far", OPS, 10, "pending")}
+      ${state("after", 10)}`);
+
+    expect(get(rows, "tech-back")).toEqual(["42501"]);
+    expect(get(rows, "ops-back")).toEqual(["55000"]);
+    expect(get(rows, "ops-back-far")).toEqual(["55000"]);
+    expect(get(rows, "after")).toEqual(["in_progress", "in_use"]);
+  });
+
+  it("should refuse a technician who moves on a stale view and keep the booking where it is (CO-F08-S05 AC01)", () => {
+    const rows = run(`
+      ${booking(11, "assigned")}
+      ${seatIs("reserved")}
+      ${move("ops-start", OPS, 11, "assigned")}
+      ${move("tech-stale", TECHNICIAN, 11, "assigned")}
+      ${state("after", 11)}`);
+
+    expect(get(rows, "ops-start")).toEqual(["ok"]);
+    expect(get(rows, "tech-stale")).toEqual(["BK007", "in_progress"]);
+    expect(get(rows, "after")).toEqual(["in_progress", "in_use"]);
   });
 
   it("should not move a booking at the last step or off the path", () => {
