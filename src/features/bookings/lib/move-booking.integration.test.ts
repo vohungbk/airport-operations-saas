@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { SEAT_FOLLOWS } from "@/features/bookings/lib/booking-move";
+import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
 import {
   AIRPORT,
   CATEGORY,
@@ -147,6 +149,52 @@ describe.skipIf(!available)("move a booking to the next step (CO-F08-S03)", () =
       ${move("assign", OPS, 6, "confirmed")}`);
 
     expect(get(rows, "assign")[0]).toBe("BK008");
+  });
+
+  it("should release the seat when the booking is completed (CO-F08-S04 AC01)", () => {
+    const rows = run(`
+      ${booking(8, "in_progress")}
+      ${seatIs("in_use")}
+      ${move("complete", TECHNICIAN, 8, "in_progress")}
+      ${state("after", 8)}
+      do $$ declare v_to text; begin
+        select h.to_status::text into v_to from public.seat_status_history h
+         where h.seat_id = ${SEAT} and h.reason like 'Booking MV-8 %' limit 1;
+        raise notice 'R|history|%', coalesce(v_to, 'none');
+      end $$;`);
+
+    expect(get(rows, "complete")).toEqual(["ok"]);
+    expect(get(rows, "after")).toEqual(["completed", "available"]);
+    expect(get(rows, "history")).toEqual(["available"]);
+  });
+
+  it("should leave the seat in use and the booking in progress when the seat is not in use (CO-F08-S04 AC02)", () => {
+    const rows = run(`
+      ${booking(9, "in_progress")}
+      ${seatIs("quarantine")}
+      ${move("complete", OPS, 9, "in_progress")}
+      ${state("after", 9)}`);
+
+    expect(get(rows, "complete")).toEqual(["BK009", "quarantine"]);
+    expect(get(rows, "after")).toEqual(["in_progress", "quarantine"]);
+  });
+
+  it("should keep the screen rule in step with the database rule (CO-F08-S04)", () => {
+    const rows = run(`
+      do $$ declare s public.booking_status; r record; begin
+        foreach s in array enum_range(null::public.booking_status) loop
+          select * into r from public.booking_seat_rule(s);
+          raise notice 'R|%|%|%', s, coalesce(r.seat_from::text, 'none'), coalesce(r.seat_to::text, 'none');
+        end loop;
+      end $$;`);
+
+    for (const step of BOOKING_BOARD_STEPS) {
+      const rule = SEAT_FOLLOWS[step];
+      expect(get(rows, step), step).toEqual(rule ? [rule.from, rule.to] : ["none", "none"]);
+    }
+    for (const step of ["cancelled", "no_show"]) {
+      expect(get(rows, step), step).toEqual(["none", "none"]);
+    }
   });
 
   it("should not move a booking at the last step or off the path", () => {

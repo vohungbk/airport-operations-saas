@@ -90,6 +90,24 @@ describe("checkMoveReadiness (AC01)", () => {
     expect(seatNotReadyMessage("in_progress")).toBe("The seat must be Reserved before In progress");
   });
 
+  it("should hand the seat from one step to the next without a gap (CO-F08-S04 AC01)", () => {
+    const withRule = BOOKING_BOARD_STEPS.filter((step) => SEAT_FOLLOWS[step]);
+
+    expect(withRule).toEqual(["assigned", "in_progress", "completed"]);
+    for (let i = 1; i < withRule.length; i += 1) {
+      expect(SEAT_FOLLOWS[withRule[i]!]?.from).toBe(SEAT_FOLLOWS[withRule[i - 1]!]?.to);
+    }
+  });
+
+  it("should name the seat status that blocks the move (CO-F08-S04 AC02)", () => {
+    expect(checkMoveReadiness("completed", { status: "quarantine" })).toEqual({
+      ok: false,
+      code: "SEAT_NOT_READY",
+      message: "The seat must be In use before Completed",
+      seat_status: "quarantine",
+    });
+  });
+
   it("should make the seat follow along its own path: reserved, in use, then available again", () => {
     expect(SEAT_FOLLOWS.assigned).toEqual({ from: "available", to: "reserved" });
     expect(SEAT_FOLLOWS.in_progress).toEqual({ from: "reserved", to: "in_use" });
