@@ -362,6 +362,19 @@ partner users, `SECURITY DEFINER`, see `docs/security.md`) and the internal
 also produce one `created` event per booking (`user_id` null). Rollback SQL
 is in a comment at the bottom of each migration file.
 
+**Step order (CO-F08-S02, `20261119090000_booking_step_order.sql`).** A booking
+follows a fixed path: `pending` (New) → `confirmed` → `assigned` →
+`in_progress` → `completed`; `cancelled` and `no_show` are off the path. The
+function `booking_step_order(status)` gives the position (NULL off the path) and
+the trigger `guard_bookings_step_order` (before update of `status`) allows only
+the next step, or `pending → cancelled` and `confirmed → cancelled | no_show`;
+anything else raises `55000`. Owner roles (`postgres`, `supabase_admin`) are
+exempt, and so is a `SECURITY DEFINER` function owned by `postgres`: a workflow
+written that way must follow the order itself. No data is migrated: a booking's
+step is read from its status. The same order is in `src/lib/workflow/board.ts`
+(`BOOKING_BOARD_STEPS`) and the clear messages are in
+`src/features/bookings/lib/booking-step-order.ts`.
+
 ### `booking_events` (immutable log)
 | column | type | notes |
 |---|---|---|
