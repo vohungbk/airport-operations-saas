@@ -3,6 +3,7 @@ import { getAirportTimezone } from "@/features/bookings/lib/get-airport-timezone
 import { buildBookingsQueryFilters } from "@/features/bookings/lib/build-bookings-query-filters";
 import type { BookingsQuery } from "@/features/bookings/schemas/bookings-query.schema";
 import type { Booking } from "@/features/bookings/types";
+import type { SeatStatus } from "@/features/seats/types";
 
 /** The flight a booking is linked to, as stored (`flights`); `null` when none is linked or RLS hides it. */
 export interface BookingFlight {
@@ -19,7 +20,7 @@ export interface BookingFlight {
 interface BookingRelations {
   partner: { id: string; name: string; code: string } | null;
   airport: { id: string; code: string; name: string; timezone: string } | null;
-  seat: { id: string; serial_number: string } | null;
+  seat: { id: string; serial_number: string; status: SeatStatus } | null;
   category: { id: string; name: string } | null;
   technician: { full_name: string } | null;
   flight: BookingFlight | null;
@@ -52,7 +53,7 @@ export interface GetBookingsResult {
 const FLIGHT_SELECT =
   "flight:flights(flight_number, status, terminal, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes, last_synced_at)";
 
-const BOOKING_RELATIONS_SELECT = `partner:partners(id, name, code), airport:airports(id, code, name, timezone), seat:seats(id, serial_number), category:seat_categories(id, name), ${FLIGHT_SELECT}`;
+const BOOKING_RELATIONS_SELECT = `partner:partners(id, name, code), airport:airports(id, code, name, timezone), seat:seats(id, serial_number, status), category:seat_categories(id, name), ${FLIGHT_SELECT}`;
 
 const BOOKING_COLUMNS =
   "id, booking_number, partner_id, airport_id, external_booking_number, pickup_at, return_at, flight_id, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, seat_category_id, child_age_band, child_height, vehicle, vehicle_bay, assigned_seat_id, assigned_technician_id, daily_rate, status, incident_status, notes, created_at, updated_at";
