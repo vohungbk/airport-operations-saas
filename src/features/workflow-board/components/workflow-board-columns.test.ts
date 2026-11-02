@@ -1,13 +1,22 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The Move dialog uses the router, which a server render does not have; here it is a marker.
+vi.mock("@/features/workflow-board/components/move-booking-dialog", () => ({
+  MoveBookingDialog: ({ step }: { step: string }) => createElement("button", { "data-testid": "move" }, `Move to ${step}`),
+}));
 
 import { WorkflowBoardColumns } from "@/features/workflow-board/components/workflow-board-columns";
 import type { BoardColumn } from "@/features/workflow-board/lib/get-workflow-board";
+import type { Role } from "@/lib/auth/roles";
 
 const CARD = {
   id: "booking-1",
   booking_number: "BK-2026-000123",
+  status: "pending" as const,
+  summary: "Emirates Rent A Car · EK 203 · DXB",
+  seat_status: "available" as const,
   partner_name: "Emirates Rent A Car",
   flight_number: "EK 203",
   seat_label: "SEAT-0001 · Convertible",
@@ -18,8 +27,8 @@ function column(status: BoardColumn["status"], total: number, cards = [] as Boar
   return { status, label: status, total, cards };
 }
 
-function render(columns: BoardColumn[], query = {}) {
-  return renderToStaticMarkup(createElement(WorkflowBoardColumns, { columns, query }));
+function render(columns: BoardColumn[], query = {}, role: Role = "admin") {
+  return renderToStaticMarkup(createElement(WorkflowBoardColumns, { columns, query, role }));
 }
 
 describe("WorkflowBoardColumns", () => {
@@ -65,6 +74,24 @@ describe("WorkflowBoardColumns", () => {
 
   it("should not show a more link when every booking of the step is shown", () => {
     expect(render([column("pending", 1, [CARD])])).not.toContain("more");
+  });
+
+  it("should offer the move to the next step to a role that may move to it", () => {
+    const html = render([column("pending", 1, [CARD])], {}, "operations_manager");
+
+    expect(html).toContain('data-testid="move"');
+    expect(html).toContain("Move to confirmed");
+  });
+
+  it("should not offer a move to a role that may not move to the next step", () => {
+    expect(render([column("pending", 1, [CARD])], {}, "partner_user")).not.toContain('data-testid="move"');
+    expect(render([column("pending", 1, [CARD])], {}, "technician")).not.toContain('data-testid="move"');
+  });
+
+  it("should not offer a move from the last step", () => {
+    const html = render([column("completed", 1, [{ ...CARD, status: "completed" }])]);
+
+    expect(html).not.toContain('data-testid="move"');
   });
 
   it("should leave out the lines a booking does not have", () => {

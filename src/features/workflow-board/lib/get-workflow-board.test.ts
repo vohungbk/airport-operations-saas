@@ -38,10 +38,11 @@ const PARTNER_ID = "b0000000-0000-0000-0000-000000000001";
 const ROW = {
   id: "booking-1",
   booking_number: "BK-2026-000123",
+  status: "pending",
   pickup_at: "2026-10-24T11:15:00Z",
   partner: { name: "Emirates Rent A Car" },
   airport: { code: "DXB", timezone: "Asia/Dubai" },
-  seat: { serial_number: "SEAT-0001" },
+  seat: { serial_number: "SEAT-0001", status: "available" },
   category: { name: "Convertible" },
   flight: { flight_number: "EK 203" },
 };
@@ -96,6 +97,9 @@ describe("getWorkflowBoard", () => {
       {
         id: "booking-1",
         booking_number: "BK-2026-000123",
+        status: "pending",
+        summary: "Emirates Rent A Car · EK 203 · DXB",
+        seat_status: "available",
         partner_name: "Emirates Rent A Car",
         flight_number: "EK 203",
         seat_label: "SEAT-0001 · Convertible",
@@ -132,7 +136,12 @@ describe("getWorkflowBoard", () => {
 
     const board = await getWorkflowBoard({});
 
-    expect(board.columns[0].cards[0]).toMatchObject({ seat_label: null, flight_number: null });
+    expect(board.columns[0].cards[0]).toMatchObject({
+      seat_label: null,
+      seat_status: null,
+      flight_number: null,
+      summary: "Emirates Rent A Car · DXB",
+    });
   });
 
   it("should throw the database error so the error boundary shows its retry", async () => {

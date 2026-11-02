@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   changeBookingStatusSchema,
   createBookingSchema,
+  moveBookingSchema,
   createPartnerBookingSchema,
   updateBookingSchema,
   updatePartnerBookingSchema,
@@ -186,6 +187,36 @@ describe("changeBookingStatusSchema", () => {
         to_status: "archived",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("moveBookingSchema", () => {
+  const BOOKING_ID = "f0000000-0000-0000-0000-000000000001";
+
+  it("should accept the step the person saw, with no note", () => {
+    const result = moveBookingSchema.safeParse({ booking_id: BOOKING_ID, expected_status: "pending" });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.note).toBeNull();
+  });
+
+  it("should trim the note and drop it when it is blank", () => {
+    expect(
+      moveBookingSchema.safeParse({ booking_id: BOOKING_ID, expected_status: "pending", note: "  Seat ready  " }).data?.note,
+    ).toBe("Seat ready");
+    expect(
+      moveBookingSchema.safeParse({ booking_id: BOOKING_ID, expected_status: "pending", note: "   " }).data?.note,
+    ).toBeNull();
+  });
+
+  it.each([
+    ["a note over 500 characters", { note: "x".repeat(501) }],
+    ["a step that is not a booking status", { expected_status: "archived" }],
+    ["a booking id that is not an id", { booking_id: "BK-1" }],
+  ])("should reject %s", (_name, change) => {
+    const input = { booking_id: BOOKING_ID, expected_status: "pending", ...change };
+
+    expect(moveBookingSchema.safeParse(input).success).toBe(false);
   });
 });
 
