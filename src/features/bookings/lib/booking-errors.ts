@@ -1,5 +1,8 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 
+import type { BookingStatus } from "@/features/bookings/types";
+import type { SeatStatus } from "@/features/seats/types";
+
 /**
  * Stable, machine-readable error shape shared by every booking Server
  * Action. Raw Postgres errors never reach the client, and messages never
@@ -16,16 +19,25 @@ export interface BookingActionError {
     | "SEAT_CATEGORY_MISMATCH"
     | "SEAT_NOT_FOUND"
     | "NO_SEAT_AVAILABLE"
+    | "STEP_CHANGED"
+    | "NO_SEAT"
+    | "SEAT_NOT_READY"
     | "STALE_DATA"
     | "NETWORK_ERROR"
     | "INTERNAL_ERROR";
   message: string;
+  /** For `STEP_CHANGED`: the step the booking is at now. */
+  current_step?: BookingStatus;
+  /** For `SEAT_NOT_READY`: the status the seat has now. */
+  seat_status?: SeatStatus;
 }
 
 /** Result shape shared by every booking Server Action and its form hook. */
 export interface BookingActionResult {
   success: boolean;
   error?: BookingActionError;
+  /** For a move to the next step: the step the booking is at now. */
+  moved_to?: BookingStatus;
 }
 
 export const VALIDATION_ERROR: BookingActionError = {

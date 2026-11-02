@@ -27,7 +27,7 @@ interface AdminPageProps {
  * of this story. A booking that is not visible or does not exist opens no preview.
  */
 export default async function AdminPage({ searchParams }: AdminPageProps) {
-  await requirePermission("dashboards:view");
+  const user = await requirePermission("dashboards:view");
 
   const options = await getWorkflowBoardOptions();
   const { query, errors } = resolveWorkflowBoardQuery(await searchParams, options);
@@ -75,7 +75,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </Link>
         </div>
       ) : (
-        <WorkflowBoardColumns columns={board.columns} query={query} />
+        <WorkflowBoardColumns columns={board.columns} query={query} role={user.role} />
       )}
 
       {booking && events && (

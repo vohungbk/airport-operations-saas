@@ -185,6 +185,24 @@ export type ChangeBookingStatusInput = z.infer<
   typeof changeBookingStatusSchema
 >;
 
+/**
+ * Move a booking to its next step (CO-F08-S03). `expected_status` is the step the person saw: when
+ * the booking is at another step by the time of the move, the move is refused and the current step
+ * is shown. The next step is never sent; the database works it out.
+ */
+export const moveBookingSchema = z.object({
+  booking_id: bookingIdSchema,
+  expected_status: z.enum(BOOKING_STATUSES),
+  note: z
+    .string()
+    .trim()
+    .max(500, "Note must be at most 500 characters.")
+    .nullish()
+    .transform((value) => (value ? value : null)),
+});
+
+export type MoveBookingInput = z.infer<typeof moveBookingSchema>;
+
 export const availableSeatsQuerySchema = z.object({
   airport_id: bookingIdSchema,
   seat_category_id: bookingIdSchema,

@@ -2076,6 +2076,57 @@ export type Database = {
         Returns: boolean
       }
       is_internal_user: { Args: never; Returns: boolean }
+      move_booking_to_next_step: {
+        Args: {
+          p_booking_id: string
+          p_expected_status: Database["public"]["Enums"]["booking_status"]
+          p_note?: string
+        }
+        Returns: {
+          actual_arrival_at: string | null
+          actual_return_at: string | null
+          adjustments_total: number
+          airport_id: string
+          assigned_seat_id: string | null
+          assigned_technician_id: string | null
+          booking_number: string
+          child_age_band: string | null
+          child_height: number | null
+          commercial_terms_id: string | null
+          created_at: string
+          daily_rate: number
+          estimated_arrival_at: string | null
+          external_booking_number: string | null
+          flight_id: string | null
+          gross_revenue: number | null
+          id: string
+          launch_credit: number
+          launch_credit_balance: number | null
+          incident_status: Database["public"]["Enums"]["incident_status"] | null
+          notes: string | null
+          paid_days: number
+          partner_id: string
+          partner_share: number | null
+          pickup_at: string
+          platform_share: number | null
+          rental_days: number | null
+          return_at: string
+          revenue_case: string | null
+          revenue_flag: string | null
+          scheduled_arrival_at: string | null
+          seat_category_id: string
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
+          vehicle: string | null
+          vehicle_bay: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       partner_booking_free_seats: {
         Args: {
           p_airport_id: string

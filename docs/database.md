@@ -375,6 +375,24 @@ step is read from its status. The same order is in `src/lib/workflow/board.ts`
 (`BOOKING_BOARD_STEPS`) and the clear messages are in
 `src/features/bookings/lib/booking-step-order.ts`.
 
+**Move to the next step (CO-F08-S03, `20261120090000_move_booking_to_next_step.sql`).**
+`move_booking_to_next_step(booking, expected_status, note)` moves a booking one
+step along the path and its seat follows, in one transaction:
+`→ assigned` seat `available → reserved`, `→ in_progress` seat `reserved →
+in_use`, `→ completed` seat `in_use → available`; `→ confirmed` leaves the seat.
+`admin` and `operations_manager` move to every step; the technician assigned to
+the booking (`bookings.assigned_technician_id`) moves only `in_progress` and
+`completed`; anyone else gets `42501` (also for a booking a technician is not
+assigned to, so the answer does not tell whether it exists). The booking row is
+locked and `expected_status` is compared: a move on a stale view is refused with
+`BK007` and the current step in DETAIL. Other codes: `BK008` the booking has no
+seat, `BK009` the seat is not in the status the step comes from (its status is in
+DETAIL), `22023` note over 500 characters, `55000` no next step, `P0002` not
+found (managers only). The function is `SECURITY DEFINER` (a technician has no
+row-level access to `bookings` or `seats`), so it follows `booking_step_order()`
+itself; the seat is changed by the internal `apply_booking_seat_status()`, which
+clients cannot call. Rollback SQL is in the migration.
+
 ### `booking_events` (immutable log)
 | column | type | notes |
 |---|---|---|

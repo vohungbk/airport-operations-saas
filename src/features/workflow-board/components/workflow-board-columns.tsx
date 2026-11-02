@@ -3,10 +3,12 @@ import Link from "next/link";
 import { BoardBookingCard } from "@/features/workflow-board/components/board-booking-card";
 import type { BoardColumn } from "@/features/workflow-board/lib/get-workflow-board";
 import type { WorkflowBoardQuery } from "@/features/workflow-board/schemas/workflow-board-query.schema";
+import type { Role } from "@/lib/auth/roles";
 
 interface WorkflowBoardColumnsProps {
   columns: BoardColumn[];
   query: WorkflowBoardQuery;
+  role: Role;
 }
 
 /** The address of the list of bookings in one step, with the filters the list also has (airport, search, day). */
@@ -24,7 +26,7 @@ function moreHref(column: BoardColumn, query: WorkflowBoardQuery): string {
 }
 
 /** One column per step of the booking path, each with its count and its cards. */
-export function WorkflowBoardColumns({ columns, query }: WorkflowBoardColumnsProps) {
+export function WorkflowBoardColumns({ columns, query, role }: WorkflowBoardColumnsProps) {
   return (
     <div className="flex flex-1 gap-6 overflow-x-auto bg-muted/40 p-6" data-slot="workflow-board">
       {columns.map((column) => {
@@ -65,6 +67,7 @@ export function WorkflowBoardColumns({ columns, query }: WorkflowBoardColumnsPro
                   booking={card}
                   query={query}
                   selected={card.id === query.booking}
+                  role={role}
                 />
               ))}
             </div>

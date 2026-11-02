@@ -7,6 +7,7 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 import { MobileAppBar } from "@/components/layout/mobile-app-bar";
 import { TopBar } from "@/components/layout/top-bar";
 import { MAIN_CONTENT_ID, SkipLink } from "@/components/shared/skip-link";
+import { Toaster } from "@/components/ui/toast";
 import type { AppUser } from "@/lib/auth/current-user";
 import { ROLE_LABELS } from "@/lib/auth/role-labels";
 import { splitMobileNav } from "@/lib/layout/mobile-nav";
@@ -64,6 +65,7 @@ export async function AppShell({ user, children }: AppShellProps) {
         </main>
       </div>
       <BottomNav items={bottom} moreItems={more} user={userInfo} />
+      <Toaster />
     </div>
   );
 }
