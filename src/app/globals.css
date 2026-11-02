@@ -44,6 +44,7 @@
   --color-info: var(--info);
   --color-info-bg: var(--info-bg);
   --color-info-fg: var(--info-fg);
+  --color-seat-chip-fg: var(--seat-chip-fg);
   --color-neutral-bg: var(--neutral-bg);
   --color-neutral-fg: var(--neutral-fg);
   --color-chart-1: var(--chart-1);
@@ -175,6 +176,7 @@
   --info: #0284C7;
   --info-bg: #E0F2FE;
   --info-fg: #075985;
+  --seat-chip-fg: #164FC3;
   --neutral-bg: #EEF2F7;
   --neutral-fg: #334155;
   --chart-1: #0F4C81;
@@ -226,6 +228,7 @@
     --info: #38BDF8;
     --info-bg: #0A2A3D;
     --info-fg: #7DD3FC;
+    --seat-chip-fg: #7DD3FC;
     --neutral-bg: #1B2842;
     --neutral-fg: #CBD5E1;
     --chart-1: #5AA2E8;

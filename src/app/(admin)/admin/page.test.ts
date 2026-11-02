@@ -34,6 +34,10 @@ vi.mock("@/features/workflow-board/components/workflow-board-filters", () => ({
     createElement("div", { "data-testid": "filters" }, `${total} in view`),
 }));
 
+vi.mock("@/features/workflow-board/components/move-booking-dialog", () => ({
+  MoveBookingDialog: () => createElement("button", null, "move"),
+}));
+
 vi.mock("@/features/workflow-board/components/preview-sheet", () => ({
   PreviewSheet: ({ children }: { children: ReactNode }) =>
     createElement("aside", { "data-testid": "preview" }, children),
@@ -70,6 +74,9 @@ function boardWith(card: unknown) {
 const CARD = {
   id: BOOKING_ID,
   booking_number: "BK-2026-000123",
+  status: "pending",
+  summary: "Emirates Rent A Car · EK 203 · DXB",
+  seat_status: "available",
   partner_name: "Emirates Rent A Car",
   flight_number: "EK 203",
   seat_label: "SEAT-0001 · Convertible",

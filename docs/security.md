@@ -224,6 +224,18 @@ partner. A `partner_user` with `partner_id is null` (e.g. immediately
 after signup) sees zero rows everywhere partner-scoped, never an error
 and never every partner's rows.
 
+**`move_booking_to_next_step()` (CO-F08-S03).** A `SECURITY DEFINER` function
+(`search_path` empty, `revoke` from `public` and `anon`, `grant` to
+`authenticated`). A technician has no row-level access to `bookings` or `seats`,
+so the function is the access rule: before it reads anything it checks that the
+caller is an active admin, operations manager or technician (`auth.uid()` and
+`current_user_role()`), and a technician only for the booking assigned to them
+and only for the field steps. A booking a technician may not move answers
+`42501`, the same as one that does not exist. Because it runs as the owner it is
+exempt from the step-order trigger and follows `booking_step_order()` itself.
+Tests: `src/features/bookings/lib/move-booking.integration.test.ts` (other
+technician, partner user and signed out are refused).
+
 **Helper functions** — all `SECURITY DEFINER`, `STABLE`, `SET
 search_path = ''` (every inner reference fully schema-qualified), with
 `EXECUTE` explicitly revoked from `PUBLIC` and from `anon` and re-granted
