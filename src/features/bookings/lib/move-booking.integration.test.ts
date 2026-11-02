@@ -235,6 +235,31 @@ describe.skipIf(!available)("move a booking to the next step (CO-F08-S03)", () =
     expect(get(rows, "after")).toEqual(["in_progress", "in_use"]);
   });
 
+  it("should keep the step change with who made it, when, and the note, and refuse to change or delete it (CO-F08-S06 AC04)", () => {
+    const rows = run(`
+      ${booking(12, "confirmed")}
+      ${seatIs("available")}
+      ${move("assign", OPS, 12, "confirmed", "'Seat reserved for the family'")}
+      do $$ declare e record; begin
+        select user_id, notes, created_at, to_status into e from public.booking_events
+         where booking_id = '${bookingId(12)}' and to_status = 'assigned';
+        raise notice 'R|event|%|%|%', e.user_id is not null, e.notes, e.created_at is not null;
+      end $$;
+      do $$ begin
+        update public.booking_events set notes = 'changed' where booking_id = '${bookingId(12)}';
+        raise notice 'R|update|ok';
+      exception when others then raise notice 'R|update|%', sqlstate; end $$;
+      do $$ begin
+        delete from public.booking_events where booking_id = '${bookingId(12)}';
+        raise notice 'R|delete|ok';
+      exception when others then raise notice 'R|delete|%', sqlstate; end $$;`);
+
+    expect(get(rows, "assign")).toEqual(["ok"]);
+    expect(get(rows, "event")).toEqual(["true", "Seat reserved for the family", "true"]);
+    expect(get(rows, "update")).toEqual(["55000"]);
+    expect(get(rows, "delete")).toEqual(["55000"]);
+  });
+
   it("should not move a booking at the last step or off the path", () => {
     const rows = run(`
       ${booking(7, "confirmed")}
