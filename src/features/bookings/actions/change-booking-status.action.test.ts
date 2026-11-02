@@ -109,6 +109,21 @@ describe("changeBookingStatusAction", () => {
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["in_progress", "assigned", "A booking cannot move back from In progress to Assigned."],
+    ["completed", "in_progress", "A booking cannot move back from Completed to In progress."],
+  ] as const)(
+    "should reject a step back from %s to %s and not call the RPC (CO-F08-S05 AC01)",
+    async (from, to, message) => {
+      currentStatusIs(from);
+
+      const result = await changeBookingStatusAction({ booking_id: BOOKING_ID, to_status: to });
+
+      expect(result).toEqual({ success: false, error: { code: "INVALID_TRANSITION", message } });
+      expect(rpcMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("should reject a change out of a status the booking cannot leave", async () => {
     currentStatusIs("cancelled");
 
