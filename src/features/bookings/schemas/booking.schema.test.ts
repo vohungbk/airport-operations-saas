@@ -167,7 +167,7 @@ describe("changeBookingStatusSchema", () => {
     expect(result.data?.reason).toBe("Did not arrive");
   });
 
-  it("should reject workflow-owned targets", () => {
+  it("should leave the decision on workflow-owned targets to the step order, with a message", () => {
     for (const to_status of ["assigned", "in_progress", "completed", "pending"]) {
       expect(
         changeBookingStatusSchema.safeParse({
@@ -175,8 +175,17 @@ describe("changeBookingStatusSchema", () => {
           to_status,
           reason: "x",
         }).success,
-      ).toBe(false);
+      ).toBe(true);
     }
+  });
+
+  it("should reject a value that is not a booking status", () => {
+    expect(
+      changeBookingStatusSchema.safeParse({
+        booking_id: BOOKING_ID,
+        to_status: "archived",
+      }).success,
+    ).toBe(false);
   });
 });
 

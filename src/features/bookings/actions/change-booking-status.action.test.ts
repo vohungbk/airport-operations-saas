@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requirePermissionMock = vi.hoisted(() => vi.fn());
 const rpcMock = vi.hoisted(() => vi.fn());
 const fromMock = vi.hoisted(() => vi.fn());
+const updateMock = vi.hoisted(() => vi.fn());
+const maybeSingleMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
   requirePermission: requirePermissionMock,
@@ -16,13 +18,24 @@ import { changeBookingStatusAction } from "@/features/bookings/actions/change-bo
 
 const BOOKING_ID = "f0000000-0000-4000-8000-000000000001";
 
+function currentStatusIs(status: string | null) {
+  maybeSingleMock.mockResolvedValue({ data: status ? { status } : null, error: null });
+}
+
 describe("changeBookingStatusAction", () => {
   beforeEach(() => {
     requirePermissionMock.mockReset();
     requirePermissionMock.mockResolvedValue({ role: "operations_manager" });
     rpcMock.mockReset();
     rpcMock.mockResolvedValue({ data: {}, error: null });
-    fromMock.mockClear();
+    updateMock.mockReset();
+    maybeSingleMock.mockReset();
+    currentStatusIs("pending");
+    fromMock.mockReset();
+    fromMock.mockReturnValue({
+      select: () => ({ eq: () => ({ maybeSingle: maybeSingleMock }) }),
+      update: updateMock,
+    });
   });
 
   it("should call change_booking_status with the target and trimmed reason on success", async () => {
@@ -47,7 +60,7 @@ describe("changeBookingStatusAction", () => {
       to_status: "confirmed",
     });
 
-    expect(fromMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("should return a validation error without calling the RPC when cancelling without a reason", async () => {
@@ -64,18 +77,77 @@ describe("changeBookingStatusAction", () => {
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
-  it("should reject a workflow-owned target status", async () => {
+  it("should reject a skipped step with a message that names the steps that come first", async () => {
     const result = await changeBookingStatusAction({
       booking_id: BOOKING_ID,
       to_status: "completed",
-      reason: "x",
     });
 
-    expect(result.error?.code).toBe("VALIDATION_ERROR");
+    expect(result).toEqual({
+      success: false,
+      error: {
+        code: "INVALID_TRANSITION",
+        message:
+          "Cannot move a booking from Pending to Completed. Confirmed, Assigned and In progress come first.",
+      },
+    });
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
-  it("should map an invalid transition from the RPC to INVALID_TRANSITION", async () => {
+  it("should say that a step of the operations workflow is not set by hand", async () => {
+    currentStatusIs("confirmed");
+
+    const result = await changeBookingStatusAction({
+      booking_id: BOOKING_ID,
+      to_status: "assigned",
+    });
+
+    expect(result.error).toEqual({
+      code: "INVALID_TRANSITION",
+      message: "Assigned is set by the operations workflow, not by hand.",
+    });
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it("should reject a change out of a status the booking cannot leave", async () => {
+    currentStatusIs("cancelled");
+
+    const result = await changeBookingStatusAction({
+      booking_id: BOOKING_ID,
+      to_status: "confirmed",
+    });
+
+    expect(result.error?.code).toBe("INVALID_TRANSITION");
+    expect(result.error?.message).toBe("A booking that is Cancelled cannot move to Confirmed.");
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it("should map a failed read of the booking, and not call the RPC", async () => {
+    maybeSingleMock.mockResolvedValue({ data: null, error: { code: "42501", message: "x" } });
+
+    const result = await changeBookingStatusAction({
+      booking_id: BOOKING_ID,
+      to_status: "confirmed",
+    });
+
+    expect(result.error?.code).toBe("FORBIDDEN");
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it("should return not found, without calling the RPC, when the booking does not exist or is hidden", async () => {
+    currentStatusIs(null);
+
+    const result = await changeBookingStatusAction({
+      booking_id: BOOKING_ID,
+      to_status: "confirmed",
+    });
+
+    expect(result.error?.code).toBe("NOT_FOUND");
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it("should map an invalid transition from the RPC to INVALID_TRANSITION (the database has the last word)", async () => {
+    currentStatusIs("confirmed");
     rpcMock.mockResolvedValue({ data: null, error: { code: "55000", message: "x" } });
 
     const result = await changeBookingStatusAction({

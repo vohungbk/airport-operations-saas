@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import {
-  MANUAL_TARGET_STATUSES,
+  BOOKING_STATUSES,
   isReasonRequired,
 } from "@/features/bookings/lib/booking-status";
 import { isLocalDateTime } from "@/features/bookings/lib/booking-time";
@@ -160,11 +160,15 @@ export const updateBookingSchema = z
 
 export type UpdateBookingInput = z.infer<typeof updateBookingSchema>;
 
-/** Manual targets only; operational statuses are never user-selectable. */
+/**
+ * Any status is a valid value here; whether the change is allowed is decided by the step order
+ * (`checkStatusTransition`, which says why a change is refused) and, last, by the database. The
+ * status menu offers manual targets only.
+ */
 export const changeBookingStatusSchema = z
   .object({
     booking_id: bookingIdSchema,
-    to_status: z.enum(MANUAL_TARGET_STATUSES),
+    to_status: z.enum(BOOKING_STATUSES),
     reason: z
       .string()
       .trim()
