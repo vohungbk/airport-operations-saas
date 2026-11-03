@@ -13,6 +13,10 @@ import { getBookings } from "@/features/bookings/lib/get-bookings";
 import { getBookingFilterOptions } from "@/features/bookings/lib/get-booking-form-options";
 import { bookingsQuerySchema } from "@/features/bookings/schemas/bookings-query.schema";
 import { BookingsFilters } from "@/features/bookings/components/bookings-filters";
+import {
+  BookingsListPendingProvider,
+  BookingsResults,
+} from "@/features/bookings/components/bookings-list-pending";
 import { BookingsPagination } from "@/features/bookings/components/bookings-pagination";
 import { BookingsTable } from "@/features/bookings/components/bookings-table";
 import { PageEmpty } from "@/components/shared/page-state";
@@ -74,33 +78,37 @@ export default async function BookingsPage({
         <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
-      <BookingsFilters
-        // The search box keeps what was typed; a new search (or Clear all) starts it again from the address.
-        key={query.q ?? ""}
-        q={query.q}
-        airportId={query.airport_id}
-        status={query.status}
-        dateFrom={query.date_from}
-        dateTo={query.date_to}
-        sort={query.sort}
-        order={query.order}
-        airports={options.airports}
-      />
-
-      {total === 0 ? (
-        <PageEmpty
-          message={
-            canCreate
-              ? "No bookings found. Try adjusting the search or filters, or add a new booking."
-              : "No bookings found. Try adjusting the search or filters."
-          }
+      <BookingsListPendingProvider>
+        <BookingsFilters
+          // The search box keeps what was typed; a new search (or Clear all) starts it again from the address.
+          key={query.q ?? ""}
+          q={query.q}
+          airportId={query.airport_id}
+          status={query.status}
+          dateFrom={query.date_from}
+          dateTo={query.date_to}
+          sort={query.sort}
+          order={query.order}
+          airports={options.airports}
         />
-      ) : (
-        <>
-          <BookingsTable bookings={bookings} query={query} />
-          <BookingsPagination query={query} total={total} />
-        </>
-      )}
+
+        <BookingsResults query={query}>
+          {total === 0 ? (
+            <PageEmpty
+              message={
+                canCreate
+                  ? "No bookings found. Try adjusting the search or filters, or add a new booking."
+                  : "No bookings found. Try adjusting the search or filters."
+              }
+            />
+          ) : (
+            <>
+              <BookingsTable bookings={bookings} query={query} />
+              <BookingsPagination query={query} total={total} />
+            </>
+          )}
+        </BookingsResults>
+      </BookingsListPendingProvider>
     </div>
   );
 }

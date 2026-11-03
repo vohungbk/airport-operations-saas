@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TextLink } from "@/components/ui/text-link";
+import { useBookingsListPending } from "@/features/bookings/components/bookings-list-pending";
 import {
   BOOKING_STATUSES,
   BOOKING_STATUS_LABEL,
@@ -57,6 +58,7 @@ export function BookingsFilters({
 }: BookingsFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { startTransition } = useBookingsListPending();
   const [searchInput, setSearchInput] = useState(q ?? "");
 
   function navigate(change: Partial<Record<FilterKey, string>>) {
@@ -78,7 +80,9 @@ export function BookingsFilters({
     params.set("order", order);
     // Any filter change resets pagination back to page 1.
 
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   }
 
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {

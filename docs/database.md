@@ -367,13 +367,25 @@ follows a fixed path: `pending` (New) → `confirmed` → `assigned` →
 `in_progress` → `completed`; `cancelled` and `no_show` are off the path. The
 function `booking_step_order(status)` gives the position (NULL off the path) and
 the trigger `guard_bookings_step_order` (before update of `status`) allows only
-the next step, or `pending → cancelled` and `confirmed → cancelled | no_show`;
+the next step, or `pending | assigned | in_progress → cancelled` and
+`confirmed → cancelled | no_show` (CO-F08-S08);
 anything else raises `55000`. Owner roles (`postgres`, `supabase_admin`) are
 exempt, and so is a `SECURITY DEFINER` function owned by `postgres`: a workflow
 written that way must follow the order itself. No data is migrated: a booking's
 step is read from its status. The same order is in `src/lib/workflow/board.ts`
 (`BOOKING_BOARD_STEPS`) and the clear messages are in
 `src/features/bookings/lib/booking-step-order.ts`.
+
+**Cancel releases the seat (CO-F08-S08, `20261124090000_cancel_releases_seat.sql`).**
+A booking can be cancelled in any step before `completed` (admin and
+operations manager, reason required); `completed`, `cancelled` and `no_show` are
+terminal. `change_booking_status()` is now `SECURITY DEFINER` and, in the same
+transaction, sets the seat to `available` when the booking was at a step that
+holds it (`assigned`: `reserved`, `in_progress`: `in_use`, read from
+`booking_seat_rule()`) and the seat is still in that status. A booking without a
+seat, or a seat in another status (for example `quarantine`), leaves the seat
+alone. The seat history keeps `Booking <number> cancelled`. Open technician jobs
+of the booking are not changed.
 
 **Move to the next step (CO-F08-S03, `20261120090000_move_booking_to_next_step.sql`).**
 `move_booking_to_next_step(booking, expected_status, note)` moves a booking one

@@ -4,9 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
+import { toast } from "@/components/ui/toast";
 import { zodResolver } from "@/lib/validation/zod-resolver";
 import { changeBookingStatusAction } from "@/features/bookings/actions/change-booking-status.action";
 import type { BookingActionResult } from "@/features/bookings/lib/booking-errors";
+import { BOOKING_STATUS_LABEL } from "@/features/bookings/lib/booking-status";
 import { runBookingAction } from "@/features/bookings/lib/run-booking-action";
 import {
   changeBookingStatusSchema,
@@ -45,6 +47,7 @@ export function useChangeBookingStatusForm({
       setResult(next);
 
       if (next.success) {
+        toast(`Status changed to ${BOOKING_STATUS_LABEL[values.to_status]}`, "success");
         onSuccess();
         // Re-runs the Server Component fetch so status and timeline cannot go stale.
         router.refresh();

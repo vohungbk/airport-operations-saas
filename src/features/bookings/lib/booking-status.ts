@@ -44,8 +44,9 @@ export const REASON_REQUIRED_STATUSES = [
 
 /**
  * Minimal manual (admin/ops) transition table. `assigned`, `in_progress`
- * and `completed` belong to later workflows, so they have no manual
- * transitions and are never a manual target. Must stay in sync with
+ * and `completed` belong to later workflows, so they are never a manual
+ * target; a booking at `assigned` or `in_progress` can only be cancelled,
+ * which releases its seat (CO-F08-S08). Must stay in sync with
  * `public.change_booking_status()`, which is the enforcing authority.
  */
 export const MANUAL_STATUS_TRANSITIONS: Record<
@@ -54,8 +55,8 @@ export const MANUAL_STATUS_TRANSITIONS: Record<
 > = {
   pending: ["confirmed", "cancelled"],
   confirmed: ["cancelled", "no_show"],
-  assigned: [],
-  in_progress: [],
+  assigned: ["cancelled"],
+  in_progress: ["cancelled"],
   completed: [],
   cancelled: [],
   no_show: [],
