@@ -13,14 +13,25 @@ export interface BoardStep {
   label: string;
 }
 
-/** The steps of a booking that runs its course. `cancelled` and `no_show` are not steps. */
+/** The 13 steps of a booking that runs its course. `cancelled` and `no_show` are not steps. */
 export const BOOKING_BOARD_STEPS = [
   "pending",
   "confirmed",
+  "preparation",
+  "ready",
   "assigned",
+  "en_route",
+  "installed",
+  "family_ready",
   "in_progress",
+  "returned",
+  "cleaning",
+  "inspection",
   "completed",
 ] as const satisfies readonly BookingStatus[];
+
+/** The field steps: the technician assigned to a booking may move it to these (CO-F08-S05). */
+export const FIELD_STEPS = ["en_route", "installed", "family_ready"] as const satisfies readonly BookingStatus[];
 
 export function stepOf(status: BookingStatus): BoardStep | null {
   const index = (BOOKING_BOARD_STEPS as readonly BookingStatus[]).indexOf(status);
