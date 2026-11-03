@@ -44,7 +44,7 @@ export function TechnicianBoardColumns({ columns, query, role }: TechnicianBoard
             aria-labelledby={`technician-column-${column.status}`}
             data-slot="board-column"
             data-status={column.status}
-            className="flex w-72 shrink-0 flex-col gap-3 rounded-lg bg-muted p-2"
+            className="flex w-60 shrink-0 flex-col gap-3 rounded-lg bg-muted p-2 sm:w-72"
           >
             <div className="flex items-center justify-between gap-2 px-2 pt-1">
               <h2 id={`technician-column-${column.status}`} className="font-semibold text-foreground">

@@ -3,6 +3,7 @@ import { ClipboardListIcon } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SearchInput } from "@/components/ui/input-group";
 import { requirePermission } from "@/lib/auth/current-user";
 import { TECHNICIAN_WORKFLOW_ROUTE } from "@/lib/constants/routes";
 import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
@@ -91,14 +92,13 @@ export default async function TechnicianWorkflowPage({ searchParams }: Technicia
             const value = query[field];
             return value ? <input key={field} type="hidden" name={field} value={value} /> : null;
           })}
-          <input
-            type="search"
+          <SearchInput
             name="q"
             defaultValue={query.q ?? ""}
             maxLength={50}
             placeholder="Search bookings"
             aria-label="Search bookings"
-            className="h-11 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground"
+            className="h-11"
           />
         </form>
 
