@@ -1,7 +1,9 @@
+import { Badge } from "@/components/ui/badge";
 import { SeatStatusBadge } from "@/features/seats/components/seat-status-badge";
 import { SEAT_STATUS_LABEL } from "@/features/seats/lib/seat-status";
 import type { SeatStatus } from "@/features/seats/types";
 import { BOOKING_STATUS_LABEL } from "@/features/bookings/lib/booking-status";
+import type { StepDeadlineView } from "@/features/bookings/lib/booking-deadlines";
 import type { BookingStatus } from "@/features/bookings/types";
 
 interface BookingStepSummaryProps {
@@ -10,6 +12,8 @@ interface BookingStepSummaryProps {
   seatStatus: SeatStatus | null;
   /** Already formatted, for example "2 h 10 min"; `null` when no event says when the step began. */
   timeInStep: string | null;
+  /** The deadline of the next step, already formatted; omitted when the viewer is not to see it or there is none. */
+  deadline?: StepDeadlineView | null;
 }
 
 const EMPTY = "-";
@@ -24,7 +28,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 /** The current step of a booking, the seat status that goes with it and how long it has lasted. */
-export function BookingStepSummary({ status, seatStatus, timeInStep }: BookingStepSummaryProps) {
+export function BookingStepSummary({ status, seatStatus, timeInStep, deadline }: BookingStepSummaryProps) {
   const label = BOOKING_STATUS_LABEL[status];
 
   return (
@@ -36,6 +40,11 @@ export function BookingStepSummary({ status, seatStatus, timeInStep }: BookingSt
         Current step
       </h2>
       <p className="text-[28px] font-semibold text-foreground">{label}</p>
+      {deadline?.overdue && (
+        <div>
+          <Badge variant="destructive">Overdue</Badge>
+        </div>
+      )}
       {seatStatus && (
         <div>
           <SeatStatusBadge status={seatStatus} />
@@ -44,6 +53,7 @@ export function BookingStepSummary({ status, seatStatus, timeInStep }: BookingSt
       <dl className="flex flex-col gap-4">
         <Row label="Current step">{label}</Row>
         <Row label="Time in step">{timeInStep ?? EMPTY}</Row>
+        {deadline && <Row label={`${deadline.stepLabel} due`}>{deadline.dueLabel}</Row>}
         <Row label="Seat status">{seatStatus ? SEAT_STATUS_LABEL[seatStatus] : EMPTY}</Row>
       </dl>
     </section>

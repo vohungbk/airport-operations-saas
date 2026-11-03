@@ -64,6 +64,42 @@ describe("BookingStepSummary (CO-F08-S06 AC01, AC02)", () => {
   });
 });
 
+describe("BookingStepSummary deadline (CO-F08-S07 AC01)", () => {
+  const base = { status: "confirmed" as const, seatStatus: null, timeInStep: null };
+
+  it("should show when the next step is due and flag it overdue", () => {
+    const html = renderToStaticMarkup(
+      createElement(BookingStepSummary, {
+        ...base,
+        deadline: { stepLabel: "Assigned", dueLabel: "10 Nov 2026, 12:00", overdue: true },
+      }),
+    );
+
+    expect(html).toContain("Assigned due");
+    expect(html).toContain("10 Nov 2026, 12:00");
+    expect(html).toContain("Overdue");
+  });
+
+  it("should not flag a step that is on time", () => {
+    const html = renderToStaticMarkup(
+      createElement(BookingStepSummary, {
+        ...base,
+        deadline: { stepLabel: "Assigned", dueLabel: "10 Nov 2026, 12:00", overdue: false },
+      }),
+    );
+
+    expect(html).toContain("Assigned due");
+    expect(html).not.toContain("Overdue");
+  });
+
+  it("should show no deadline row when there is none", () => {
+    const html = renderToStaticMarkup(createElement(BookingStepSummary, base));
+
+    expect(html).not.toMatch(/ due</);
+    expect(html).not.toContain("Overdue");
+  });
+});
+
 describe("BookingStepHistory (CO-F08-S06 AC02, AC04)", () => {
   it("should show who moved the booking, when, and the note", () => {
     const html = renderToStaticMarkup(createElement(BookingStepHistory, { rows: ROWS, timeZone: "Asia/Dubai" }));

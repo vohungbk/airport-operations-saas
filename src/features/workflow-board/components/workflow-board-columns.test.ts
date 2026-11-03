@@ -21,6 +21,7 @@ const CARD = {
   flight_number: "EK 203",
   seat_label: "SEAT-0001 · Convertible",
   pickup_label: "24 Oct 2026, 15:15 · DXB",
+  overdue: false,
 };
 
 function column(status: BoardColumn["status"], total: number, cards = [] as BoardColumn["cards"]): BoardColumn {
@@ -50,6 +51,13 @@ describe("WorkflowBoardColumns", () => {
     expect(html).toContain("SEAT-0001 · Convertible");
     expect(html).toContain("24 Oct 2026, 15:15 · DXB");
     expect(html).toContain('href="/admin?date=2026-10-24&amp;booking=booking-1"');
+  });
+
+  it("should flag a card whose next step is overdue and not one that is on time", () => {
+    const late = render([column("pending", 1, [{ ...CARD, overdue: true }])]);
+
+    expect(late).toContain("Overdue");
+    expect(render([column("pending", 1, [CARD])])).not.toContain("Overdue");
   });
 
   it("should mark the card that is open in the preview", () => {

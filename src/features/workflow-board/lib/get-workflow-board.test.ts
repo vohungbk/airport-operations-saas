@@ -104,6 +104,7 @@ describe("getWorkflowBoard", () => {
         flight_number: "EK 203",
         seat_label: "SEAT-0001 · Convertible",
         pickup_label: "24 Oct 2026, 15:15 · DXB",
+        overdue: true,
       },
     ]);
     expect(board.columns[4].total).toBe(12);

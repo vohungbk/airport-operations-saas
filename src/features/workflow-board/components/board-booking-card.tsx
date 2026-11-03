@@ -40,6 +40,11 @@ export function BoardBookingCard({ booking, query, selected, role }: BoardBookin
       >
         {booking.booking_number}
       </Link>
+      {booking.overdue && (
+        <Badge variant="destructive" className="w-fit">
+          Overdue
+        </Badge>
+      )}
       {booking.partner_name && (
         <span className="truncate text-muted-foreground">{booking.partner_name}</span>
       )}

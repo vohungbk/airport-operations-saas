@@ -91,6 +91,31 @@ describe("BookingWorkflowPage (CO-F08-S06)", () => {
     expect(html).toContain("Reserved");
   });
 
+  it("should show the deadline of the next step and flag it overdue to an internal role (CO-F08-S07 AC01)", async () => {
+    const html = await open();
+
+    expect(html).toContain("In progress due");
+    expect(html).toContain("Overdue");
+  });
+
+  it("should show the deadline without the Overdue flag while it is still ahead (CO-F08-S07 AC01)", async () => {
+    getBookingByIdMock.mockResolvedValue({ ...BOOKING, pickup_at: "2999-01-01T08:00:00Z" });
+
+    const html = await open();
+
+    expect(html).toContain("In progress due");
+    expect(html).not.toContain("Overdue");
+  });
+
+  it("should not show a deadline to a partner user (CO-F08-S07)", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ role: "partner_user" });
+
+    const html = await open();
+
+    expect(html).not.toMatch(/ due</);
+    expect(html).not.toContain("Overdue");
+  });
+
   it("should show the same not-found page for a booking that is missing or hidden by RLS (AC02)", async () => {
     getBookingByIdMock.mockResolvedValue(null);
 

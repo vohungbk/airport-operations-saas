@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { BookingStepHistory } from "@/features/bookings/components/booking-step-history";
 import { BookingStepSummary } from "@/features/bookings/components/booking-step-summary";
 import { BookingStepper } from "@/features/bookings/components/booking-stepper";
+import { buildStepDeadlineView } from "@/features/bookings/lib/booking-deadlines";
 import {
   buildStepHistory,
   formatStepDate,
@@ -40,8 +41,13 @@ export default async function BookingWorkflowPage({ params }: BookingWorkflowPag
 
   const timeZone = booking.airport?.timezone ?? "UTC";
   const history = buildStepHistory(events.items);
-  const minutes = minutesInStep(history, new Date());
+  const now = new Date();
+  const minutes = minutesInStep(history, now);
   const canOpenBoard = hasPermission(user.role, "dashboards:view");
+  // Deadlines are an operations measure: a partner user does not see them.
+  const deadline = canOpenBoard
+    ? buildStepDeadlineView(booking.status, booking.pickup_at, timeZone, now)
+    : null;
   const subtitle = [
     booking.partner?.name,
     booking.flight?.flight_number,
@@ -75,6 +81,7 @@ export default async function BookingWorkflowPage({ params }: BookingWorkflowPag
           status={booking.status}
           seatStatus={booking.seat?.status ?? null}
           timeInStep={minutes === null ? null : formatTimeInStep(minutes)}
+          deadline={deadline}
         />
         <BookingStepHistory rows={history} timeZone={timeZone} truncated={events.truncated} />
       </div>

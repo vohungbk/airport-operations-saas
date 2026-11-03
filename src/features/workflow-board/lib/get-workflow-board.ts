@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { BOOKING_STATUS_LABEL } from "@/features/bookings/lib/booking-status";
 import { formatBookingDateTime, zonedDayStartToUtcIso } from "@/features/bookings/lib/booking-time";
 import { getAirportTimezone } from "@/features/bookings/lib/get-airport-timezone";
+import { isBookingOverdue } from "@/features/bookings/lib/booking-deadlines";
 import type { BookingStatus } from "@/features/bookings/types";
 import type { SeatStatus } from "@/features/seats/types";
 import { escapeIlikeValue } from "@/features/seat-categories/lib/escape-ilike";
@@ -26,6 +27,8 @@ export interface BoardCardItem {
   seat_label: string | null;
   /** The pickup time in the timezone of the airport, with the airport code. */
   pickup_label: string;
+  /** The deadline of the next step has passed (CO-F08-S07). */
+  overdue: boolean;
 }
 
 export interface BoardColumn {
@@ -57,7 +60,7 @@ interface BoardRow {
 const BOARD_SELECT =
   "id, booking_number, status, pickup_at, partner:partners(name), airport:airports(code, timezone), seat:seats(serial_number, status), category:seat_categories(name), flight:flights(flight_number)";
 
-function toCard(row: BoardRow): BoardCardItem {
+function toCard(row: BoardRow, now: Date): BoardCardItem {
   const seatParts = [row.seat?.serial_number, row.category?.name].filter(Boolean);
 
   return {
@@ -72,6 +75,7 @@ function toCard(row: BoardRow): BoardCardItem {
     pickup_label: row.airport
       ? `${formatBookingDateTime(row.pickup_at, row.airport.timezone)} · ${row.airport.code}`
       : formatBookingDateTime(row.pickup_at, "UTC"),
+    overdue: isBookingOverdue(row.status, row.pickup_at, now),
   };
 }
 
@@ -100,6 +104,8 @@ export async function getWorkflowBoard(query: WorkflowBoardQuery): Promise<Workf
   const pickupFrom = query.date ? zonedDayStartToUtcIso(query.date, timeZone) : null;
   const pickupBefore = query.date ? zonedDayStartToUtcIso(query.date, timeZone, 1) : null;
 
+  const now = new Date();
+
   const columns = await Promise.all(
     BOOKING_BOARD_STEPS.map(async (status): Promise<BoardColumn> => {
       let request = supabase
@@ -127,7 +133,7 @@ export async function getWorkflowBoard(query: WorkflowBoardQuery): Promise<Workf
         status,
         label: BOOKING_STATUS_LABEL[status],
         total: count ?? 0,
-        cards: ((data ?? []) as unknown as BoardRow[]).map(toCard),
+        cards: ((data ?? []) as unknown as BoardRow[]).map((row) => toCard(row, now)),
       };
     }),
   );
