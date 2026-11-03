@@ -30,6 +30,9 @@ export const PARTNER_HOME_ROUTE = "/partner";
 /** The Workflow Board (CO-F08-S01); the menu item "Workflow Board" opens it. */
 export const WORKFLOW_BOARD_ROUTE = "/admin";
 
+/** The Workflow Board of a technician (CO-F08-T02): the bookings of their own jobs, by step. */
+export const TECHNICIAN_WORKFLOW_ROUTE = "/technician/workflow";
+
 /** The home of a technician: the jobs of the day. */
 export const TECHNICIAN_HOME_ROUTE = "/technician";
 

@@ -102,7 +102,7 @@ function toCard(row: BoardRow, now: Date, withDate: boolean): BoardCardItem {
 }
 
 /**
- * Server-only. One query per step (five, whatever the number of bookings), each with an exact count and
+ * Server-only. One query per step (thirteen, whatever the number of bookings), each with an exact count and
  * a card limit, so a column says how many bookings it holds without loading them all. RLS is the
  * access boundary; the filters here only narrow what the person asked for. `cancelled` and `no_show`
  * are not steps of the path, so they have no column.
