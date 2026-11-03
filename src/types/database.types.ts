@@ -2269,6 +2269,14 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_show"
+        | "preparation"
+        | "ready"
+        | "en_route"
+        | "installed"
+        | "family_ready"
+        | "returned"
+        | "cleaning"
+        | "inspection"
       flight_status:
         "scheduled" | "delayed" | "landed" | "cancelled" | "diverted"
       incident_severity: "low" | "medium" | "high" | "critical"
@@ -2430,6 +2438,14 @@ export const Constants = {
         "completed",
         "cancelled",
         "no_show",
+        "preparation",
+        "ready",
+        "en_route",
+        "installed",
+        "family_ready",
+        "returned",
+        "cleaning",
+        "inspection",
       ],
       flight_status: [
         "scheduled",

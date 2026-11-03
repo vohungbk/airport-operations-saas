@@ -1,4 +1,4 @@
-import { getNextStep } from "@/features/bookings/lib/booking-move";
+import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
 import { formatPickup } from "@/features/bookings/lib/booking-time";
 import { formatStepDate, formatTimeInStep } from "@/features/bookings/lib/booking-step-history";
 import type { BookingStatus } from "@/features/bookings/types";
@@ -9,7 +9,8 @@ import type { BookingStatus } from "@/features/bookings/types";
  * of its next step has passed. The database holds the same rule (`booking_step_deadline_offset()`,
  * `booking_is_overdue()`) and an integration test checks this table against it. Pure, no I/O.
  *
- * The hours are the proposal for open question Q3 of the spec. `pending` and `completed` have none.
+ * The hours are the proposal for open question Q3 of the spec. Only Allocated, Technician Assigned and
+ * Active Rental have a deadline; every other step has none.
  */
 export const STEP_DEADLINE_HOURS: Partial<Record<BookingStatus, number>> = {
   confirmed: 24,
@@ -31,13 +32,21 @@ export interface NextStepDeadline {
   deadline: Date;
 }
 
-/** The deadline of the step after `status`; `null` when there is none (last step, off the path). */
+/**
+ * The deadline of the first step after `status` that has one; `null` when there is none (no step with a
+ * deadline is left, or the booking is off the path). It is the earliest of the deadlines still to reach,
+ * so it is the only one to check.
+ */
 export function getNextStepDeadline(status: BookingStatus, pickupAt: string): NextStepDeadline | null {
-  const step = getNextStep(status);
-  if (!step) return null;
+  const index = (BOOKING_BOARD_STEPS as readonly BookingStatus[]).indexOf(status);
+  if (index === -1) return null;
 
-  const deadline = getStepDeadline(step, pickupAt);
-  return deadline ? { step, deadline } : null;
+  for (const step of BOOKING_BOARD_STEPS.slice(index + 1)) {
+    const deadline = getStepDeadline(step, pickupAt);
+    if (deadline) return { step, deadline };
+  }
+
+  return null;
 }
 
 /** The deadline itself is still on time; only after it has passed is the step missed. */

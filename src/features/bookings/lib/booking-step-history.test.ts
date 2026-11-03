@@ -41,7 +41,7 @@ describe("buildStepHistory (CO-F08-S06 AC02, AC04)", () => {
     expect(rows).toEqual([
       {
         id: "e2",
-        title: "Confirmed",
+        title: "Allocated",
         actor_name: "Lucas Meyer",
         notes: "Booking verified",
         created_at: "2026-10-24T08:10:00Z",

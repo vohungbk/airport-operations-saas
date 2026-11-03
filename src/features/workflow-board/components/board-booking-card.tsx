@@ -18,6 +18,8 @@ interface BoardBookingCardProps {
   selected: boolean;
   /** The role of the person looking: the Move button is shown only when the role may move to the next step. */
   role: Role;
+  /** Where the booking number goes; `null` shows it as plain text (a technician has no preview). Default: the preview of the admin board. */
+  previewHref?: string | null;
 }
 
 const PRIORITY_ICON: Record<BoardPriority, typeof EqualIcon> = {
@@ -40,9 +42,10 @@ function WarningLine({ children }: { children: string }) {
  * One booking on the board. The booking number is the link that opens the preview of the booking;
  * the button below it moves the booking to its next step (CO-F08-S03).
  */
-export function BoardBookingCard({ booking, query, selected, role }: BoardBookingCardProps) {
+export function BoardBookingCard({ booking, query, selected, role, previewHref }: BoardBookingCardProps) {
   const next = getNextStep(booking.status);
   const PriorityIcon = PRIORITY_ICON[booking.priority];
+  const href = previewHref === undefined ? buildWorkflowBoardHref({ ...query, booking: booking.id }) : previewHref;
 
   return (
     <div
@@ -53,12 +56,16 @@ export function BoardBookingCard({ booking, query, selected, role }: BoardBookin
         selected && "border-2 border-primary",
       )}
     >
-      <Link
-        href={buildWorkflowBoardHref({ ...query, booking: booking.id })}
-        className="truncate font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        {booking.booking_number}
-      </Link>
+      {href === null ? (
+        <span className="truncate font-medium text-primary">{booking.booking_number}</span>
+      ) : (
+        <Link
+          href={href}
+          className="truncate font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          {booking.booking_number}
+        </Link>
+      )}
       {booking.partner_name && (
         <span className="truncate text-muted-foreground">{booking.partner_name}</span>
       )}

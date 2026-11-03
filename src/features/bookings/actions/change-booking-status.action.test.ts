@@ -54,7 +54,7 @@ describe("changeBookingStatusAction", () => {
     });
   });
 
-  it.each(["assigned", "in_progress"] as const)(
+  it.each(["preparation", "ready", "assigned", "en_route", "installed", "family_ready", "in_progress"] as const)(
     "should call change_booking_status to cancel a booking that is %s",
     async (status) => {
       currentStatusIs(status);
@@ -113,15 +113,14 @@ describe("changeBookingStatusAction", () => {
   it("should reject a skipped step with a message that names the steps that come first", async () => {
     const result = await changeBookingStatusAction({
       booking_id: BOOKING_ID,
-      to_status: "completed",
+      to_status: "ready",
     });
 
     expect(result).toEqual({
       success: false,
       error: {
         code: "INVALID_TRANSITION",
-        message:
-          "Cannot move a booking from Pending to Completed. Confirmed, Assigned and In progress come first.",
+        message: "Cannot move a booking from New to Ready. Allocated and Preparation come first.",
       },
     });
     expect(rpcMock).not.toHaveBeenCalled();
@@ -132,19 +131,19 @@ describe("changeBookingStatusAction", () => {
 
     const result = await changeBookingStatusAction({
       booking_id: BOOKING_ID,
-      to_status: "assigned",
+      to_status: "preparation",
     });
 
     expect(result.error).toEqual({
       code: "INVALID_TRANSITION",
-      message: "Assigned is set by the operations workflow, not by hand.",
+      message: "Preparation is set by the operations workflow, not by hand.",
     });
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["in_progress", "assigned", "A booking cannot move back from In progress to Assigned."],
-    ["completed", "in_progress", "A booking cannot move back from Completed to In progress."],
+    ["in_progress", "assigned", "A booking cannot move back from Active Rental to Technician Assigned."],
+    ["completed", "in_progress", "A booking cannot move back from Available to Active Rental."],
   ] as const)(
     "should reject a step back from %s to %s and not call the RPC (CO-F08-S05 AC01)",
     async (from, to, message) => {
@@ -166,7 +165,7 @@ describe("changeBookingStatusAction", () => {
     });
 
     expect(result.error?.code).toBe("INVALID_TRANSITION");
-    expect(result.error?.message).toBe("A booking that is Cancelled cannot move to Confirmed.");
+    expect(result.error?.message).toBe("A booking that is Cancelled cannot move to Allocated.");
     expect(rpcMock).not.toHaveBeenCalled();
   });
 

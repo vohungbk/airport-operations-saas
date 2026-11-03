@@ -4,8 +4,8 @@ import {
   type WorkflowBoardQuery,
 } from "@/features/workflow-board/schemas/workflow-board-query.schema";
 
-/** The address of the board for the given filters; a field without a value is left out. Pure. */
-export function buildWorkflowBoardHref(query: WorkflowBoardQuery): string {
+/** The address of a board (the admin board unless `route` is given) for the filters; a field without a value is left out. Pure. */
+export function buildWorkflowBoardHref(query: WorkflowBoardQuery, route: string = WORKFLOW_BOARD_ROUTE): string {
   const params = new URLSearchParams();
 
   for (const field of WORKFLOW_BOARD_QUERY_FIELDS) {
@@ -14,5 +14,5 @@ export function buildWorkflowBoardHref(query: WorkflowBoardQuery): string {
   }
 
   const search = params.toString();
-  return search ? `${WORKFLOW_BOARD_ROUTE}?${search}` : WORKFLOW_BOARD_ROUTE;
+  return search ? `${route}?${search}` : route;
 }

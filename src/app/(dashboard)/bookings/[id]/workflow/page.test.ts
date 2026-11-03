@@ -84,7 +84,7 @@ describe("BookingWorkflowPage (CO-F08-S06)", () => {
 
     expect(html).toContain("BK-2026-000123");
     expect(html).toContain("Emirates Rent A Car · EK 203 · DXB · 24 Oct 2026");
-    expect(html).toContain("Step 3 of 5");
+    expect(html).toContain("Step 5 of 13");
     expect(html).toContain("Step history");
     expect(html).toContain("Priya Nair");
     expect(html).toContain("Seat reserved for this booking.");

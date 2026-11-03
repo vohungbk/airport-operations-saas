@@ -49,7 +49,7 @@ All 11 enums are created in
 | `user_role` | `admin`, `operations_manager`, `technician`, `partner_user` |
 | `partner_status` | `pending`, `active`, `suspended`, `inactive` |
 | `seat_status` | `available`, `reserved`, `in_use`, `cleaning`, `inspection`, `quarantine`, `retired` |
-| `booking_status` | `pending`, `confirmed`, `assigned`, `in_progress`, `completed`, `cancelled`, `no_show` |
+| `booking_status` | `pending`, `confirmed`, `assigned`, `in_progress`, `completed`, `cancelled`, `no_show`, `preparation`, `ready`, `en_route`, `installed`, `family_ready`, `returned`, `cleaning`, `inspection` (the path has 13 steps, see Step order) |
 | `technician_job_status` | `assigned`, `in_progress`, `completed`, `cancelled` |
 | `inspection_result` | `pass`, `conditional_pass`, `fail` |
 | `incident_status` | `open`, `investigating`, `resolved`, `closed` |
@@ -404,6 +404,27 @@ found (managers only). The function is `SECURITY DEFINER` (a technician has no
 row-level access to `bookings` or `seats`), so it follows `booking_step_order()`
 itself; the seat is changed by the internal `apply_booking_seat_status()`, which
 clients cannot call. Rollback SQL is in the migration.
+
+**13 steps (`20261125090000_booking_thirteen_steps_enum.sql`, `20261126090000_booking_thirteen_steps_functions.sql`).**
+The path of a booking has 13 steps, named as in the design: 1 `pending` (New), 2
+`confirmed` (Allocated), 3 `preparation` (Preparation), 4 `ready` (Ready), 5
+`assigned` (Technician Assigned), 6 `en_route` (En Route), 7 `installed`
+(Installed), 8 `family_ready` (Family Ready), 9 `in_progress` (Active Rental), 10
+`returned` (Returned), 11 `cleaning` (Cleaning), 12 `inspection` (Inspection), 13
+`completed` (Available). The five old ids keep their meaning for the finance,
+partner and cleaning functions; `completed` still means the rental is over.
+Eight values were added, so no row was changed. `booking_step_order()` and its
+inverse `booking_step_at()` hold the order. The seat follows at three steps
+only (`booking_seat_rule()`): `→ assigned` `available → reserved`, `→ in_progress`
+`reserved → in_use`, `→ returned` `in_use → available` (the seat is released there
+and the cleaning and inspection of the seat start from it; the steps Cleaning,
+Inspection and Available do not touch the seat). `booking_seat_held()` gives the
+seat status a cancellation releases. A booking can be cancelled from any step from
+`pending` to `in_progress`. The assigned technician moves only `en_route`,
+`installed` and `family_ready`; the office moves every step. A booking is overdue
+once the first later step that has a deadline (Allocated 24 h, Technician
+Assigned 4 h, Active Rental 1 h before pickup) has passed it. Every seat-overlap
+check now counts the steps from `pending` to `in_progress`.
 
 ### `booking_events` (immutable log)
 | column | type | notes |

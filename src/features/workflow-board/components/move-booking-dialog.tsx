@@ -89,7 +89,7 @@ export function MoveBookingDialog({
       >
         Move to {stepLabel}
       </DialogTrigger>
-      <DialogContent showCloseButton={false} className="gap-0 p-6 pb-10 sm:max-w-[520px]">
+      <DialogContent showCloseButton={false} className="gap-0 p-6 pb-10 max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:max-w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-2xl sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="text-xl leading-7 font-semibold text-foreground">
             Move {bookingNumber} to {stepLabel}

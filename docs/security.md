@@ -1363,8 +1363,8 @@ time at the airport and converted to UTC with `airports.timezone`.
   |---|---|---|---|
   | Available seats | `seats` | `status = available` | `/seats?status=available` |
   | Quarantined seats | `seats` | `status = quarantine` | `/seats?status=quarantine` |
-  | Pending bookings | `bookings` | `status = pending` | `/bookings?status=pending` |
-  | Bookings in progress | `bookings` | `status = in_progress` | `/bookings?status=in_progress` |
+  | New bookings | `bookings` | `status = pending` (New) | `/bookings?status=pending` |
+  | Active rentals | `bookings` | `status = in_progress` (Active Rental) | `/bookings?status=in_progress` |
   | Assigned jobs | `technician_jobs` | `status = assigned` | `/jobs?status=assigned` |
   | Jobs in progress | `technician_jobs` | `status = in_progress` | `/jobs?status=in_progress` |
   | Open incidents | `incidents` | `status = open` | `/incidents?status=open` |

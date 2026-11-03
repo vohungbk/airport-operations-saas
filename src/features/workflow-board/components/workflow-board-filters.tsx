@@ -43,6 +43,12 @@ interface WorkflowBoardFiltersProps {
   airports: WorkflowBoardOption[];
   /** Bookings in view, across all columns; `null` when the board could not be read. */
   total: number | null;
+  /** The board the filters change the address of; the admin board when not given. */
+  route?: string;
+  /** Leaves the partner filter out: a technician does not see partners (CO-F08-T02). */
+  hidePartner?: boolean;
+  /** The noun of the count: "7 bookings in view" for the office, "7 own bookings in view" for a technician. */
+  countNoun?: string;
 }
 
 function toValue(value: string | null): string {
@@ -50,13 +56,22 @@ function toValue(value: string | null): string {
 }
 
 /** The filter bar: the one Client Component of the board. The logic is in `useWorkflowBoardFilters`. */
-export function WorkflowBoardFilters({ query, partners, airports, total }: WorkflowBoardFiltersProps) {
+export function WorkflowBoardFilters({
+  query,
+  partners,
+  airports,
+  total,
+  route,
+  hidePartner = false,
+  countNoun = "booking",
+}: WorkflowBoardFiltersProps) {
   const { searchInput, setSearchInput, error, chips, navigate, submitSearch, clearFilters, removeFilter } =
-    useWorkflowBoardFilters(query, partners, airports);
+    useWorkflowBoardFilters(query, partners, airports, route);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
+        {!hidePartner && (
         <Select
           value={query.partner_id ?? ALL_VALUE}
           items={[{ value: ALL_VALUE, label: "All partners" }, ...partners]}
@@ -74,6 +89,7 @@ export function WorkflowBoardFilters({ query, partners, airports, total }: Workf
             ))}
           </SelectContent>
         </Select>
+        )}
 
         <Select
           value={query.airport_id ?? ALL_VALUE}
@@ -159,7 +175,7 @@ export function WorkflowBoardFilters({ query, partners, airports, total }: Workf
 
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-sm font-semibold text-foreground">
-          {total === null ? "—" : total} {total === 1 ? "booking" : "bookings"} in view
+          {total === null ? "—" : total} {total === 1 ? countNoun : `${countNoun}s`} in view
         </p>
         {chips.map((chip) => (
           <Button

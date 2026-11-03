@@ -49,6 +49,13 @@ vi.mock("@/features/dashboard/lib/get-dashboard-charts", () => ({
   getDashboardCharts: async () => [],
 }));
 
+vi.mock("@/features/workflow-board/lib/get-workflow-board-options", () => ({
+  getWorkflowBoardOptions: async () => ({ partners: [], airports: [] }),
+}));
+vi.mock("@/features/workflow-board/lib/load-workflow-board", () => ({
+  loadWorkflowBoard: async () => null,
+}));
+
 vi.mock("@/features/settlements/lib/get-settlements", () => ({
   getSettlements: async () => [],
 }));
@@ -73,7 +80,7 @@ import { hasAnyPermission } from "@/lib/auth/permissions";
 /** The entry (layout, or page where there is no layout) that guards each nav link. */
 const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
   "/dashboard": () => import("@/app/(dashboard)/dashboard/page"),
-  "/admin": () => import("@/app/(admin)/admin/layout"),
+  "/admin": () => import("@/app/(admin)/admin/page"),
   "/partners": () => import("@/app/(admin)/partners/layout"),
   "/airports": () => import("@/app/(admin)/airports/layout"),
   "/seat-categories": () => import("@/app/(admin)/seat-categories/layout"),

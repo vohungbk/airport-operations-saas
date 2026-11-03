@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ACTIVE_BOOKING_STATUSES } from "@/features/bookings/lib/booking-status";
+
 const calls = vi.hoisted(() => ({
   filters: [] as Array<[string, string, unknown]>,
   results: {} as Record<string, { data: unknown; error: unknown }>,
@@ -49,7 +51,7 @@ describe("getJobFormOptions", () => {
     expect(calls.filters).toContainEqual([
       "bookings",
       "status",
-      ["pending", "confirmed", "assigned", "in_progress"],
+      [...ACTIVE_BOOKING_STATUSES],
     ]);
     expect(options).toEqual({
       technicians: [{ value: "t-1", label: "Ahmed" }],

@@ -163,14 +163,14 @@ describe("AdminPage (Workflow Board)", () => {
 
     const html = await render({ airport_id: AIRPORT_ID, date: "2026-10-24" });
 
-    expect(html).toContain("5 workflow stages · DXB · 24 Oct 2026 · Asia/Dubai");
+    expect(html).toContain("13 workflow stages · DXB · 24 Oct 2026 · Asia/Dubai");
   });
 
   it("should show each booking in the column of its step", async () => {
     const html = await render();
 
     expect(html).toContain("Workflow Board");
-    expect(html).toContain("5 workflow stages · All airports");
+    expect(html).toContain("13 workflow stages · All airports");
     expect(html).toContain('data-status="pending"');
     expect(html).toContain("BK-2026-000123");
     expect(html).toContain("1 in view");

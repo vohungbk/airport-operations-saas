@@ -84,8 +84,8 @@ export const DASHBOARD_METRICS: readonly DashboardMetric[] = [
   {
     id: "bookings_pending",
     module: "bookings",
-    label: "Pending bookings",
-    formula: "Bookings whose status is pending",
+    label: "New bookings",
+    formula: "Bookings whose status is pending (New)",
     source: "bookings",
     filters: { status: "pending" },
     listPath: "/bookings",
@@ -94,8 +94,8 @@ export const DASHBOARD_METRICS: readonly DashboardMetric[] = [
   {
     id: "bookings_in_progress",
     module: "bookings",
-    label: "Bookings in progress",
-    formula: "Bookings whose status is in progress",
+    label: "Active rentals",
+    formula: "Bookings whose status is in progress (Active Rental)",
     source: "bookings",
     filters: { status: "in_progress" },
     listPath: "/bookings",

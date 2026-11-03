@@ -22,7 +22,20 @@ describe("getStepDeadline (CO-F08-S07 AC01)", () => {
     expect(getStepDeadline(step, PICKUP)?.toISOString()).toBe(expected);
   });
 
-  it.each(["pending", "completed", "cancelled", "no_show"] as const)(
+  it.each([
+    "pending",
+    "preparation",
+    "ready",
+    "en_route",
+    "installed",
+    "family_ready",
+    "returned",
+    "cleaning",
+    "inspection",
+    "completed",
+    "cancelled",
+    "no_show",
+  ] as const)(
     "should give no deadline to %s",
     (step) => {
       expect(getStepDeadline(step, PICKUP)).toBeNull();
@@ -43,9 +56,29 @@ describe("getNextStepDeadline", () => {
     expect(next?.deadline.toISOString()).toBe("2026-11-10T08:00:00.000Z");
   });
 
-  it.each(["completed", "cancelled", "no_show"] as const)("should give none for %s", (status) => {
-    expect(getNextStepDeadline(status, PICKUP)).toBeNull();
-  });
+  it.each(["preparation", "ready"] as const)(
+    "should skip the steps without a deadline and give the deadline of Technician Assigned from %s",
+    (status) => {
+      const next = getNextStepDeadline(status, PICKUP);
+
+      expect(next?.step).toBe("assigned");
+      expect(next?.deadline.toISOString()).toBe("2026-11-10T08:00:00.000Z");
+    },
+  );
+
+  it.each(["assigned", "en_route", "installed", "family_ready"] as const)(
+    "should give the deadline of Active Rental from %s",
+    (status) => {
+      expect(getNextStepDeadline(status, PICKUP)?.step).toBe("in_progress");
+    },
+  );
+
+  it.each(["in_progress", "returned", "cleaning", "inspection", "completed", "cancelled", "no_show"] as const)(
+    "should give none for %s, with no step with a deadline left",
+    (status) => {
+      expect(getNextStepDeadline(status, PICKUP)).toBeNull();
+    },
+  );
 });
 
 describe("isBookingOverdue (CO-F08-S07 AC01)", () => {
@@ -67,6 +100,11 @@ describe("isBookingOverdue (CO-F08-S07 AC01)", () => {
 
   it("should not mark a booking overdue after it reached the step, even past the pickup time", () => {
     expect(isBookingOverdue("completed", PICKUP, at("2026-11-12T00:00:00Z"))).toBe(false);
+  });
+
+  it("should mark a booking at Ready overdue once the deadline of Technician Assigned has passed", () => {
+    expect(isBookingOverdue("ready", PICKUP, at("2026-11-10T07:59:00Z"))).toBe(false);
+    expect(isBookingOverdue("ready", PICKUP, at("2026-11-10T08:01:00Z"))).toBe(true);
   });
 
   it.each(["cancelled", "no_show"] as const)("should never mark a %s booking overdue", (status) => {

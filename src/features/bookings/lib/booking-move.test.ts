@@ -14,9 +14,17 @@ import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
 describe("getNextStep", () => {
   it.each([
     ["pending", "confirmed"],
-    ["confirmed", "assigned"],
-    ["assigned", "in_progress"],
-    ["in_progress", "completed"],
+    ["confirmed", "preparation"],
+    ["preparation", "ready"],
+    ["ready", "assigned"],
+    ["assigned", "en_route"],
+    ["en_route", "installed"],
+    ["installed", "family_ready"],
+    ["family_ready", "in_progress"],
+    ["in_progress", "returned"],
+    ["returned", "cleaning"],
+    ["cleaning", "inspection"],
+    ["inspection", "completed"],
   ] as const)("should give %s the next step %s", (status, next) => {
     expect(getNextStep(status)).toBe(next);
   });
@@ -37,7 +45,7 @@ describe("mayRoleMoveTo (AC02)", () => {
     }
   });
 
-  it.each(["confirmed", "assigned", "in_progress", "completed"] as const)(
+  it.each(BOOKING_BOARD_STEPS.slice(1))(
     "should let admin and operations manager move to %s",
     (step) => {
       expect(mayRoleMoveTo("admin", step)).toBe(true);
@@ -45,12 +53,19 @@ describe("mayRoleMoveTo (AC02)", () => {
     },
   );
 
-  it("should let a technician move to the field steps only", () => {
-    expect(mayRoleMoveTo("technician", "in_progress")).toBe(true);
-    expect(mayRoleMoveTo("technician", "completed")).toBe(true);
-    expect(mayRoleMoveTo("technician", "confirmed")).toBe(false);
-    expect(mayRoleMoveTo("technician", "assigned")).toBe(false);
-  });
+  it.each(["en_route", "installed", "family_ready"] as const)(
+    "should let a technician move to the field step %s",
+    (step) => {
+      expect(mayRoleMoveTo("technician", step)).toBe(true);
+    },
+  );
+
+  it.each(["confirmed", "preparation", "ready", "assigned", "in_progress", "returned", "cleaning", "inspection", "completed"] as const)(
+    "should not let a technician move to %s, which the office moves",
+    (step) => {
+      expect(mayRoleMoveTo("technician", step)).toBe(false);
+    },
+  );
 
   it("should let a partner user move to no step", () => {
     for (const step of BOOKING_BOARD_STEPS) {
@@ -64,14 +79,17 @@ describe("mayRoleMoveTo (AC02)", () => {
 });
 
 describe("checkMoveReadiness (AC01)", () => {
-  it("should need no seat to confirm", () => {
-    expect(checkMoveReadiness("confirmed", null)).toEqual({ ok: true });
-  });
+  it.each(["confirmed", "preparation", "ready", "en_route", "installed", "family_ready", "cleaning", "inspection", "completed"] as const)(
+    "should need no seat to move to %s",
+    (step) => {
+      expect(checkMoveReadiness(step, null)).toEqual({ ok: true });
+    },
+  );
 
   it.each([
     ["assigned", "available"],
     ["in_progress", "reserved"],
-    ["completed", "in_use"],
+    ["returned", "in_use"],
   ] as const)("should be ready to move to %s when the seat is %s", (step, seat) => {
     expect(checkMoveReadiness(step, { status: seat })).toEqual({ ok: true });
   });
@@ -84,26 +102,26 @@ describe("checkMoveReadiness (AC01)", () => {
     expect(checkMoveReadiness("assigned", { status: "cleaning" })).toEqual({
       ok: false,
       code: "SEAT_NOT_READY",
-      message: "The seat must be Available before Assigned",
+      message: "The seat must be Available before Technician Assigned",
       seat_status: "cleaning",
     });
-    expect(seatNotReadyMessage("in_progress")).toBe("The seat must be Reserved before In progress");
+    expect(seatNotReadyMessage("in_progress")).toBe("The seat must be Reserved before Active Rental");
   });
 
   it("should hand the seat from one step to the next without a gap (CO-F08-S04 AC01)", () => {
     const withRule = BOOKING_BOARD_STEPS.filter((step) => SEAT_FOLLOWS[step]);
 
-    expect(withRule).toEqual(["assigned", "in_progress", "completed"]);
+    expect(withRule).toEqual(["assigned", "in_progress", "returned"]);
     for (let i = 1; i < withRule.length; i += 1) {
       expect(SEAT_FOLLOWS[withRule[i]!]?.from).toBe(SEAT_FOLLOWS[withRule[i - 1]!]?.to);
     }
   });
 
   it("should name the seat status that blocks the move (CO-F08-S04 AC02)", () => {
-    expect(checkMoveReadiness("completed", { status: "quarantine" })).toEqual({
+    expect(checkMoveReadiness("returned", { status: "quarantine" })).toEqual({
       ok: false,
       code: "SEAT_NOT_READY",
-      message: "The seat must be In use before Completed",
+      message: "The seat must be In use before Returned",
       seat_status: "quarantine",
     });
   });
@@ -111,6 +129,6 @@ describe("checkMoveReadiness (AC01)", () => {
   it("should make the seat follow along its own path: reserved, in use, then available again", () => {
     expect(SEAT_FOLLOWS.assigned).toEqual({ from: "available", to: "reserved" });
     expect(SEAT_FOLLOWS.in_progress).toEqual({ from: "reserved", to: "in_use" });
-    expect(SEAT_FOLLOWS.completed).toEqual({ from: "in_use", to: "available" });
+    expect(SEAT_FOLLOWS.returned).toEqual({ from: "in_use", to: "available" });
   });
 });

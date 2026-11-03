@@ -47,6 +47,7 @@ export function useWorkflowBoardFilters(
   query: WorkflowBoardQuery,
   partners: WorkflowBoardOption[],
   airports: WorkflowBoardOption[],
+  route: string = WORKFLOW_BOARD_ROUTE,
 ) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState(query.q ?? "");
@@ -69,7 +70,7 @@ export function useWorkflowBoardFilters(
     }
 
     setError(null);
-    router.push(buildWorkflowBoardHref(result.query));
+    router.push(buildWorkflowBoardHref(result.query, route));
   }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
@@ -80,7 +81,7 @@ export function useWorkflowBoardFilters(
   function clearFilters() {
     setError(null);
     setSearchInput("");
-    router.push(WORKFLOW_BOARD_ROUTE);
+    router.push(route);
   }
 
   function removeFilter(field: FilterField) {

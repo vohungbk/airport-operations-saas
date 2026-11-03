@@ -1,21 +1,43 @@
 import type { BookingStatus } from "@/features/bookings/types";
 
+/**
+ * Every status of a booking, in the order of the 13-step path (CO-F08), then the two that leave it.
+ * Five ids keep their old name and have the name the design gives them: `pending` is New,
+ * `confirmed` Allocated, `assigned` Technician Assigned, `in_progress` Active Rental and `completed`
+ * Available. The database holds the same ids (`booking_step_order()`).
+ */
 export const BOOKING_STATUSES = [
   "pending",
   "confirmed",
+  "preparation",
+  "ready",
   "assigned",
+  "en_route",
+  "installed",
+  "family_ready",
   "in_progress",
+  "returned",
+  "cleaning",
+  "inspection",
   "completed",
   "cancelled",
   "no_show",
 ] as const satisfies readonly BookingStatus[];
 
 export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
-  pending: "Pending",
-  confirmed: "Confirmed",
-  assigned: "Assigned",
-  in_progress: "In progress",
-  completed: "Completed",
+  pending: "New",
+  confirmed: "Allocated",
+  preparation: "Preparation",
+  ready: "Ready",
+  assigned: "Technician Assigned",
+  en_route: "En Route",
+  installed: "Installed",
+  family_ready: "Family Ready",
+  in_progress: "Active Rental",
+  returned: "Returned",
+  cleaning: "Cleaning",
+  inspection: "Inspection",
+  completed: "Available",
   cancelled: "Cancelled",
   no_show: "No-show",
 };
@@ -24,7 +46,12 @@ export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
 export const ACTIVE_BOOKING_STATUSES = [
   "pending",
   "confirmed",
+  "preparation",
+  "ready",
   "assigned",
+  "en_route",
+  "installed",
+  "family_ready",
   "in_progress",
 ] as const satisfies readonly BookingStatus[];
 
@@ -43,9 +70,9 @@ export const REASON_REQUIRED_STATUSES = [
 ] as const satisfies readonly ManualTargetStatus[];
 
 /**
- * Minimal manual (admin/ops) transition table. `assigned`, `in_progress`
- * and `completed` belong to later workflows, so they are never a manual
- * target; a booking at `assigned` or `in_progress` can only be cancelled,
+ * Minimal manual (admin/ops) transition table. Every step after `confirmed`
+ * belongs to the operations workflow, so it is never a manual target; a
+ * booking at any step from `preparation` to `in_progress` can only be cancelled,
  * which releases its seat (CO-F08-S08). Must stay in sync with
  * `public.change_booking_status()`, which is the enforcing authority.
  */
@@ -55,8 +82,16 @@ export const MANUAL_STATUS_TRANSITIONS: Record<
 > = {
   pending: ["confirmed", "cancelled"],
   confirmed: ["cancelled", "no_show"],
+  preparation: ["cancelled"],
+  ready: ["cancelled"],
   assigned: ["cancelled"],
+  en_route: ["cancelled"],
+  installed: ["cancelled"],
+  family_ready: ["cancelled"],
   in_progress: ["cancelled"],
+  returned: [],
+  cleaning: [],
+  inspection: [],
   completed: [],
   cancelled: [],
   no_show: [],

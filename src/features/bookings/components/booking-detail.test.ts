@@ -135,7 +135,7 @@ describe("BookingDetail tabs (UI-F06-S03)", () => {
     );
 
   it("should show the booking, its partner and its status under the title", () => {
-    expect(html()).toContain("BK-00001 · ERAC · Confirmed");
+    expect(html()).toContain("BK-00001 · ERAC · Allocated");
   });
 
   it("should offer the overview, the flight and the timeline as tabs", () => {

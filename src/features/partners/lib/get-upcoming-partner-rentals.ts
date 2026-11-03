@@ -38,7 +38,7 @@ export async function getUpcomingPartnerRentals(
       .from("bookings")
       .select(UPCOMING_RENTALS_SELECT)
       .gte("pickup_at", now.toISOString())
-      .in("status", ["pending", "confirmed", "assigned"])
+      .in("status", ["pending", "confirmed", "preparation", "ready", "assigned", "en_route", "installed", "family_ready"])
       .order("pickup_at", { ascending: true })
       .limit(UPCOMING_RENTALS_LIMIT);
 

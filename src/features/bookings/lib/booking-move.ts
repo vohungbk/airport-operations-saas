@@ -3,7 +3,7 @@ import type { BookingStatus } from "@/features/bookings/types";
 import { SEAT_STATUS_LABEL } from "@/features/seats/lib/seat-status";
 import type { SeatStatus } from "@/features/seats/types";
 import type { Role } from "@/lib/auth/roles";
-import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
+import { BOOKING_BOARD_STEPS, FIELD_STEPS } from "@/lib/workflow/board";
 
 /**
  * Moving a booking to its next step (CO-F08-S03). The database function `move_booking_to_next_step()`
@@ -19,15 +19,17 @@ export function getNextStep(status: BookingStatus): BookingStatus | null {
 
 /**
  * The roles that may move a booking to each step. Admin and operations manager move to every step.
- * The field steps may also be moved by the technician assigned to the booking; the database checks
+ * The field steps (En Route, Installed, Family Ready) may also be moved by the technician assigned to the booking; the database checks
  * the assignment, which this list cannot.
  */
-export const STEP_MOVER_ROLES: Partial<Record<BookingStatus, readonly Role[]>> = {
-  confirmed: ["admin", "operations_manager"],
-  assigned: ["admin", "operations_manager"],
-  in_progress: ["admin", "operations_manager", "technician"],
-  completed: ["admin", "operations_manager", "technician"],
-};
+export const STEP_MOVER_ROLES: Partial<Record<BookingStatus, readonly Role[]>> = Object.fromEntries(
+  BOOKING_BOARD_STEPS.slice(1).map((step): [BookingStatus, readonly Role[]] => [
+    step,
+    (FIELD_STEPS as readonly BookingStatus[]).includes(step)
+      ? ["admin", "operations_manager", "technician"]
+      : ["admin", "operations_manager"],
+  ]),
+);
 
 export function mayRoleMoveTo(role: Role, step: BookingStatus): boolean {
   return STEP_MOVER_ROLES[step]?.includes(role) ?? false;
@@ -37,7 +39,8 @@ export function mayRoleMoveTo(role: Role, step: BookingStatus): boolean {
 export const SEAT_FOLLOWS: Partial<Record<BookingStatus, { from: SeatStatus; to: SeatStatus }>> = {
   assigned: { from: "available", to: "reserved" },
   in_progress: { from: "reserved", to: "in_use" },
-  completed: { from: "in_use", to: "available" },
+  // The seat is released when the rental is returned; its cleaning and inspection start from there.
+  returned: { from: "in_use", to: "available" },
 };
 
 export const NO_SEAT_MESSAGE = "Assign a seat to this booking first.";

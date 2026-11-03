@@ -6,6 +6,7 @@ vi.mock("@/features/dashboard/components/dashboard-retry-button", () => ({
   DashboardRetryButton: () => "RETRY_BUTTON",
 }));
 
+import { BOOKING_STATUSES } from "@/features/bookings/lib/booking-status";
 import { DashboardChart } from "@/features/dashboard/components/dashboard-chart";
 import { DashboardMetricsGrid } from "@/features/dashboard/components/dashboard-metrics-grid";
 import { DASHBOARD_CHARTS } from "@/features/dashboard/lib/dashboard-charts";
@@ -43,7 +44,7 @@ describe("DashboardChart (VI-F01-S07, spec R7, R8)", () => {
   });
 
   it("should show a row for every status of bookings (AC02) and of jobs (AC03)", () => {
-    expect(render(resultOf("bookings_by_status", { pending: 2 })).match(/<li /g)).toHaveLength(7);
+    expect(render(resultOf("bookings_by_status", { pending: 2 })).match(/<li /g)).toHaveLength(BOOKING_STATUSES.length);
     expect(render(resultOf("jobs_by_status", { assigned: 2, in_progress: 1 })).match(/<li /g)).toHaveLength(4);
   });
 
@@ -141,7 +142,7 @@ describe("DashboardMetricsGrid with charts", () => {
     expect(html).toContain("Available seats");
     expect(html).toContain(">39<");
     expect(html.indexOf("Available seats")).toBeLessThan(html.indexOf("Seats by status"));
-    expect(html.indexOf("Seats by status")).toBeLessThan(html.indexOf("Pending bookings"));
+    expect(html.indexOf("Seats by status")).toBeLessThan(html.indexOf("New bookings"));
   });
 
   it("should show no chart for a group that has none, and still show its cards", () => {
@@ -149,7 +150,7 @@ describe("DashboardMetricsGrid with charts", () => {
       createElement(DashboardMetricsGrid, { results: [card("bookings_pending", 2)], charts: [] }),
     );
 
-    expect(html).toContain("Pending bookings");
+    expect(html).toContain("New bookings");
     expect(html).not.toContain("by status");
   });
 });
