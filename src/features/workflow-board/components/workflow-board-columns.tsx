@@ -60,7 +60,12 @@ export function WorkflowBoardColumns({ columns, query, role }: WorkflowBoardColu
                   +{more} more
                 </Link>
               ))}
-            <div className="flex flex-col gap-3">
+            <div className="flex max-h-[calc(100dvh-20rem)] min-h-24 flex-col gap-3 overflow-y-auto">
+              {column.cards.length === 0 && (
+                <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  No bookings in this step
+                </p>
+              )}
               {column.cards.map((card) => (
                 <BoardBookingCard
                   key={card.id}

@@ -1,4 +1,5 @@
-import { Badge } from "@/components/ui/badge";
+import { TriangleAlertIcon } from "lucide-react";
+
 import { SeatStatusBadge } from "@/features/seats/components/seat-status-badge";
 import { SEAT_STATUS_LABEL } from "@/features/seats/lib/seat-status";
 import type { SeatStatus } from "@/features/seats/types";
@@ -40,11 +41,6 @@ export function BookingStepSummary({ status, seatStatus, timeInStep, deadline }:
         Current step
       </h2>
       <p className="text-[28px] font-semibold text-foreground">{label}</p>
-      {deadline?.overdue && (
-        <div>
-          <Badge variant="destructive">Overdue</Badge>
-        </div>
-      )}
       {seatStatus && (
         <div>
           <SeatStatusBadge status={seatStatus} />
@@ -53,9 +49,15 @@ export function BookingStepSummary({ status, seatStatus, timeInStep, deadline }:
       <dl className="flex flex-col gap-4">
         <Row label="Current step">{label}</Row>
         <Row label="Time in step">{timeInStep ?? EMPTY}</Row>
-        {deadline && <Row label={`${deadline.stepLabel} due`}>{deadline.dueLabel}</Row>}
         <Row label="Seat status">{seatStatus ? SEAT_STATUS_LABEL[seatStatus] : EMPTY}</Row>
+        {deadline && <Row label="Deadline">{deadline.dueLabel}</Row>}
       </dl>
+      {deadline?.overdueLabel && (
+        <p className="flex items-center gap-2 text-sm font-semibold text-danger-fg">
+          <TriangleAlertIcon aria-hidden="true" className="size-4 shrink-0" />
+          {deadline.overdueLabel}
+        </p>
+      )}
     </section>
   );
 }

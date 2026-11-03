@@ -30,6 +30,13 @@ export function stepOf(status: BookingStatus): BoardStep | null {
 
 export type BoardPriority = "normal" | "high" | "urgent";
 
+/** The short wording of a priority, as the card of the Workflow Board shows it. */
+export const BOARD_PRIORITY_SHORT_LABEL: Record<BoardPriority, string> = {
+  normal: "Normal",
+  high: "High",
+  urgent: "Urgent",
+};
+
 export const BOARD_PRIORITY_LABEL: Record<BoardPriority, string> = {
   normal: "Normal priority",
   high: "High priority",

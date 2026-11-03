@@ -1,13 +1,19 @@
 import { createClient } from "@/lib/supabase/server";
 import { BOOKING_STATUS_LABEL } from "@/features/bookings/lib/booking-status";
-import { formatBookingDateTime, zonedDayStartToUtcIso } from "@/features/bookings/lib/booking-time";
+import { buildOverdueLabel } from "@/features/bookings/lib/booking-deadlines";
+import { formatPickup, zonedDayStartToUtcIso } from "@/features/bookings/lib/booking-time";
 import { getAirportTimezone } from "@/features/bookings/lib/get-airport-timezone";
-import { isBookingOverdue } from "@/features/bookings/lib/booking-deadlines";
 import type { BookingStatus } from "@/features/bookings/types";
 import type { SeatStatus } from "@/features/seats/types";
 import { escapeIlikeValue } from "@/features/seat-categories/lib/escape-ilike";
 import type { WorkflowBoardQuery } from "@/features/workflow-board/schemas/workflow-board-query.schema";
-import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
+import {
+  buildFlightAlertMark,
+  buildTimeInStepLabel,
+  type FlightAlertMark,
+} from "@/features/workflow-board/lib/board-card";
+import type { FlightTimes } from "@/lib/flights/flight-timing";
+import { BOOKING_BOARD_STEPS, type BoardPriority } from "@/lib/workflow/board";
 
 /** How many cards a column shows; the rest is counted as "+N more". */
 export const BOARD_COLUMN_CARD_LIMIT = 10;
@@ -27,8 +33,13 @@ export interface BoardCardItem {
   seat_label: string | null;
   /** The pickup time in the timezone of the airport, with the airport code. */
   pickup_label: string;
-  /** The deadline of the next step has passed (CO-F08-S07). */
-  overdue: boolean;
+  priority: BoardPriority;
+  /** Set only when the flight is early or delayed past the alert threshold. */
+  flight_alert: FlightAlertMark | null;
+  /** "Overdue by 20 min" once the deadline of the next step has passed (CO-F08-S07). */
+  overdue_label: string | null;
+  /** "In step 2 h 10 min"; `null` when no event says when the step began. */
+  time_in_step_label: string | null;
 }
 
 export interface BoardColumn {
@@ -43,6 +54,8 @@ export interface WorkflowBoard {
   columns: BoardColumn[];
   /** Bookings in view, across all columns. */
   total: number;
+  /** The timezone of the airport when the board is read for one day at one airport; else `null`. */
+  time_zone: string | null;
 }
 
 interface BoardRow {
@@ -54,13 +67,19 @@ interface BoardRow {
   airport: { code: string; timezone: string } | null;
   seat: { serial_number: string; status: SeatStatus } | null;
   category: { name: string } | null;
-  flight: { flight_number: string } | null;
+  flight: (FlightTimes & { flight_number: string }) | null;
+  /** Computed column `board_priority` (see 20261123090000_workflow_board_reads.sql). */
+  priority: string | null;
+  /** Computed column `board_step_since`. */
+  step_since: string | null;
 }
 
-const BOARD_SELECT =
-  "id, booking_number, status, pickup_at, partner:partners(name), airport:airports(code, timezone), seat:seats(serial_number, status), category:seat_categories(name), flight:flights(flight_number)";
+const PRIORITIES: readonly string[] = ["normal", "high", "urgent"];
 
-function toCard(row: BoardRow, now: Date): BoardCardItem {
+const BOARD_SELECT =
+  "id, booking_number, status, pickup_at, partner:partners(name), airport:airports(code, timezone), seat:seats(serial_number, status), category:seat_categories(name), flight:flights(flight_number, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes), priority:board_priority, step_since:board_step_since";
+
+function toCard(row: BoardRow, now: Date, withDate: boolean): BoardCardItem {
   const seatParts = [row.seat?.serial_number, row.category?.name].filter(Boolean);
 
   return {
@@ -73,9 +92,12 @@ function toCard(row: BoardRow, now: Date): BoardCardItem {
     flight_number: row.flight?.flight_number ?? null,
     seat_label: seatParts.length > 0 ? seatParts.join(" · ") : null,
     pickup_label: row.airport
-      ? `${formatBookingDateTime(row.pickup_at, row.airport.timezone)} · ${row.airport.code}`
-      : formatBookingDateTime(row.pickup_at, "UTC"),
-    overdue: isBookingOverdue(row.status, row.pickup_at, now),
+      ? `${formatPickup(row.pickup_at, row.airport.timezone, withDate)} · ${row.airport.code}`
+      : formatPickup(row.pickup_at, "UTC", withDate),
+    priority: PRIORITIES.includes(row.priority ?? "") ? (row.priority as BoardPriority) : "normal",
+    flight_alert: buildFlightAlertMark(row.flight),
+    overdue_label: buildOverdueLabel(row.status, row.pickup_at, now),
+    time_in_step_label: buildTimeInStepLabel(row.step_since, now),
   };
 }
 
@@ -115,6 +137,8 @@ export async function getWorkflowBoard(query: WorkflowBoardQuery): Promise<Workf
 
       if (query.partner_id) request = request.eq("partner_id", query.partner_id);
       if (query.airport_id) request = request.eq("airport_id", query.airport_id);
+      if (query.flight_alert) request = request.eq("board_flight_alert", query.flight_alert);
+      if (query.priority) request = request.eq("board_priority", query.priority);
       if (query.q) request = request.ilike("booking_number", `%${escapeIlikeValue(query.q)}%`);
       if (pickupFrom) request = request.gte("pickup_at", pickupFrom);
       if (pickupBefore) request = request.lt("pickup_at", pickupBefore);
@@ -133,10 +157,14 @@ export async function getWorkflowBoard(query: WorkflowBoardQuery): Promise<Workf
         status,
         label: BOOKING_STATUS_LABEL[status],
         total: count ?? 0,
-        cards: ((data ?? []) as unknown as BoardRow[]).map((row) => toCard(row, now)),
+        cards: ((data ?? []) as unknown as BoardRow[]).map((row) => toCard(row, now, !query.date)),
       };
     }),
   );
 
-  return { columns, total: columns.reduce((sum, column) => sum + column.total, 0) };
+  return {
+    columns,
+    total: columns.reduce((sum, column) => sum + column.total, 0),
+    time_zone: query.airport_id && query.date ? timeZone : null,
+  };
 }
