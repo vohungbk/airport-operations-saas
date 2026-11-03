@@ -10,7 +10,7 @@ describe("mapMoveError", () => {
   it("should say who moved the booking first and show the step it is at now (AC03)", () => {
     expect(mapMoveError(error("BK007", "assigned"), "assigned")).toEqual({
       code: "STEP_CHANGED",
-      message: "Another user moved this booking. It is now in Assigned.",
+      message: "Another user moved this booking. It is now in Technician Assigned.",
       current_step: "assigned",
     });
   });
@@ -26,7 +26,7 @@ describe("mapMoveError", () => {
   it("should say what the seat must be and give the seat status it has", () => {
     expect(mapMoveError(error("BK009", "cleaning"), "assigned")).toEqual({
       code: "SEAT_NOT_READY",
-      message: "The seat must be Available before Assigned",
+      message: "The seat must be Available before Technician Assigned",
       seat_status: "cleaning",
     });
   });
@@ -41,7 +41,7 @@ describe("mapMoveError", () => {
   it("should name the step in the message of a role that is not allowed (AC02)", () => {
     expect(mapMoveError(error("42501"), "assigned")).toEqual({
       code: "FORBIDDEN",
-      message: "Your role is not allowed to move this booking to Assigned.",
+      message: "Your role is not allowed to move this booking to Technician Assigned.",
     });
   });
 

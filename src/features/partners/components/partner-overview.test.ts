@@ -75,7 +75,7 @@ describe("Partner Overview (UI-F06-S04, R7)", () => {
 
     expect(out).toContain("BK-2026-000123");
     expect(out).toContain("SEAT-0001");
-    expect(out).toContain("Confirmed");
+    expect(out).toContain("Allocated");
     expect(out).toContain('data-stacked=""');
   });
 

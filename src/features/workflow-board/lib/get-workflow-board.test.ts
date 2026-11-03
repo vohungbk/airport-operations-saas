@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
+
 import {
   BOARD_COLUMN_CARD_LIMIT,
   getWorkflowBoard,
@@ -88,23 +90,15 @@ describe("getWorkflowBoard", () => {
   it("should read one column per step of the booking path with one query each", async () => {
     const board = await getWorkflowBoard({});
 
-    expect(board.columns.map((column) => column.status)).toEqual([
-      "pending",
-      "confirmed",
-      "assigned",
-      "in_progress",
-      "completed",
-    ]);
-    expect(tables).toEqual(["bookings", "bookings", "bookings", "bookings", "bookings"]);
-    expect(statusesQueried()).toEqual(["pending", "confirmed", "assigned", "in_progress", "completed"]);
+    expect(board.columns.map((column) => column.status)).toEqual(BOOKING_BOARD_STEPS);
+    expect(tables).toEqual(BOOKING_BOARD_STEPS.map(() => "bookings"));
+    expect(statusesQueried()).toEqual(BOOKING_BOARD_STEPS);
   });
 
   it("should put each booking in its step with its card and add up the bookings in view", async () => {
     results = [
       { data: [ROW], count: 1 },
-      { data: [], count: 0 },
-      { data: [], count: 0 },
-      { data: [], count: 0 },
+      ...BOOKING_BOARD_STEPS.slice(1, -1).map(() => ({ data: [], count: 0 })),
       { data: [{ ...ROW, id: "booking-2" }], count: 12 },
     ];
 
@@ -127,14 +121,14 @@ describe("getWorkflowBoard", () => {
         time_in_step_label: "In step 2 h 10 min",
       },
     ]);
-    expect(board.columns[4].total).toBe(12);
+    expect(board.columns.at(-1)?.total).toBe(12);
     expect(board.total).toBe(13);
   });
 
   it("should apply the partner, the search and the card limit to every column", async () => {
     await getWorkflowBoard({ partner_id: PARTNER_ID, q: "50%" });
 
-    expect(calls.filter((call) => call.method === "eq" && call.args[0] === "partner_id")).toHaveLength(5);
+    expect(calls.filter((call) => call.method === "eq" && call.args[0] === "partner_id")).toHaveLength(13);
     expect(
       calls.filter((call) => call.method === "ilike").every((call) => call.args[1] === "%50\\%%"),
     ).toBe(true);
@@ -159,7 +153,7 @@ describe("getWorkflowBoard", () => {
   it("should apply the flight alert and the priority to every column", async () => {
     await getWorkflowBoard({ flight_alert: "early", priority: "high" });
 
-    expect(calls.filter((call) => call.method === "eq" && call.args[0] === "board_flight_alert")).toHaveLength(5);
+    expect(calls.filter((call) => call.method === "eq" && call.args[0] === "board_flight_alert")).toHaveLength(13);
     expect(
       calls
         .filter((call) => call.method === "eq" && call.args[0] === "board_priority")

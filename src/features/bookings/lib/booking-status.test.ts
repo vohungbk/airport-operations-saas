@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   ACTIVE_BOOKING_STATUSES,
   BOOKING_STATUSES,
+  BOOKING_STATUS_LABEL,
   getAllowedManualTransitions,
   isBookingEditable,
   isPartnerBookingEditable,
   isReasonRequired,
 } from "@/features/bookings/lib/booking-status";
+import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
 
 describe("getAllowedManualTransitions", () => {
   it("should allow pending to become confirmed or cancelled", () => {
@@ -28,7 +30,7 @@ describe("getAllowedManualTransitions", () => {
     expect(getAllowedManualTransitions("pending")).not.toContain("no_show");
   });
 
-  it.each(["assigned", "in_progress"] as const)(
+  it.each(["preparation", "ready", "assigned", "en_route", "installed", "family_ready", "in_progress"] as const)(
     "should allow %s to be cancelled and nothing else",
     (status) => {
       expect(getAllowedManualTransitions(status)).toEqual(["cancelled"]);
@@ -36,7 +38,7 @@ describe("getAllowedManualTransitions", () => {
   );
 
   it("should offer no manual transition from terminal statuses", () => {
-    for (const status of ["completed", "cancelled", "no_show"] as const) {
+    for (const status of ["returned", "cleaning", "inspection", "completed", "cancelled", "no_show"] as const) {
       expect(getAllowedManualTransitions(status)).toEqual([]);
     }
   });
@@ -67,12 +69,35 @@ describe("isBookingEditable", () => {
 });
 
 describe("ACTIVE_BOOKING_STATUSES", () => {
-  it("should hold a seat for pending, confirmed, assigned and in_progress only", () => {
+  it("should hold a seat from New to Active Rental, and no longer once the rental is returned", () => {
     expect([...ACTIVE_BOOKING_STATUSES]).toEqual([
       "pending",
       "confirmed",
+      "preparation",
+      "ready",
       "assigned",
+      "en_route",
+      "installed",
+      "family_ready",
       "in_progress",
+    ]);
+  });
+
+  it("should name the 13 steps of the path, in order, with the names of the design", () => {
+    expect(BOOKING_BOARD_STEPS.map((status) => BOOKING_STATUS_LABEL[status])).toEqual([
+      "New",
+      "Allocated",
+      "Preparation",
+      "Ready",
+      "Technician Assigned",
+      "En Route",
+      "Installed",
+      "Family Ready",
+      "Active Rental",
+      "Returned",
+      "Cleaning",
+      "Inspection",
+      "Available",
     ]);
   });
 });

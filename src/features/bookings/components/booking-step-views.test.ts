@@ -10,7 +10,7 @@ import type { StepHistoryRow } from "@/features/bookings/lib/booking-step-histor
 const ROWS: StepHistoryRow[] = [
   {
     id: "e2",
-    title: "Assigned",
+    title: "Technician Assigned",
     actor_name: "Priya Nair",
     created_at: "2026-10-24T09:05:00Z",
     notes: "Seat reserved.",
@@ -22,17 +22,17 @@ describe("BookingStepper (CO-F08-S06 AC02)", () => {
   it("should show every step in order and say which one the booking is at", () => {
     const html = renderToStaticMarkup(createElement(BookingStepper, { status: "assigned" }));
 
-    expect(html).toContain("Step 3 of 5");
-    expect(html.indexOf("Pending")).toBeLessThan(html.indexOf("Confirmed"));
-    expect(html.indexOf("Confirmed")).toBeLessThan(html.indexOf("Assigned"));
-    expect(html.indexOf("In progress")).toBeLessThan(html.indexOf("Completed"));
+    expect(html).toContain("Step 5 of 13");
+    expect(html.indexOf("New")).toBeLessThan(html.indexOf("Allocated"));
+    expect(html.indexOf("Allocated")).toBeLessThan(html.indexOf("Technician Assigned"));
+    expect(html.indexOf("Active Rental")).toBeLessThan(html.indexOf("Available"));
     expect(html.match(/aria-current="step"/g)).toHaveLength(1);
   });
 
   it("should mark the steps behind the booking as done", () => {
     const html = renderToStaticMarkup(createElement(BookingStepper, { status: "in_progress" }));
 
-    expect(html.match(/\(done\)/g)).toHaveLength(3);
+    expect(html.match(/\(done\)/g)).toHaveLength(8);
   });
 
   it("should have no current step for a booking off the path", () => {
@@ -49,7 +49,7 @@ describe("BookingStepSummary (CO-F08-S06 AC01, AC02)", () => {
       createElement(BookingStepSummary, { status: "assigned", seatStatus: "reserved", timeInStep: "2 h 10 min" }),
     );
 
-    expect(html).toContain("Assigned");
+    expect(html).toContain("Technician Assigned");
     expect(html).toContain("Reserved");
     expect(html).toContain("2 h 10 min");
   });

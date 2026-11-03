@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { STEP_DEADLINE_HOURS, isBookingOverdue } from "@/features/bookings/lib/booking-deadlines";
+import { BOOKING_STATUSES } from "@/features/bookings/lib/booking-status";
 import { available, run } from "@/lib/finance/finance-test-support";
 
 /**
@@ -9,7 +10,7 @@ import { available, run } from "@/lib/finance/finance-test-support";
  * nothing for row-level security to hide. Skipped when the local stack is not running.
  */
 const PICKUP = "2030-01-10 12:00:00+00";
-const STEPS = ["pending", "confirmed", "assigned", "in_progress", "completed", "cancelled", "no_show"] as const;
+const STEPS = BOOKING_STATUSES;
 const NOW_VALUES = ["2030-01-08 12:00:00+00", "2030-01-09 12:00:00+00", "2030-01-09 12:00:01+00", "2030-01-10 07:00:00+00", "2030-01-10 08:00:01+00", "2030-01-10 11:30:00+00"];
 
 const result = (rows: string[][], name: string) => rows.find((row) => row[0] === name)?.[1];

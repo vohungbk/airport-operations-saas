@@ -14,7 +14,7 @@ import {
 } from "@/lib/finance/finance-test-support";
 
 /**
- * CO-F08-S03 (AC01, AC02, AC03): move_booking_to_next_step() moves a booking one step and its seat
+ * CO-F08-S03 (AC01, AC02, AC03), on the 13-step path: move_booking_to_next_step() moves a booking one step and its seat
  * follows; who may move to which step; a move on a stale view is refused. The function is SECURITY
  * DEFINER and reads the caller from the JWT claim, so each call sets `request.jwt.claim.sub` to a
  * demo user of the role. Every scenario runs in a transaction that is rolled back and makes its own
@@ -88,15 +88,32 @@ describe.skipIf(!available)("move a booking to the next step (CO-F08-S03)", () =
       ${seatIs("available")}
       ${move("confirm", OPS, 1, "pending", "'Checked'")}
       ${state("confirmed", 1)}
-      ${move("assign", OPS, 1, "confirmed")}
+      ${move("prepare", OPS, 1, "confirmed")}
+      ${move("ready", OPS, 1, "preparation")}
+      ${state("ready", 1)}
+      ${move("assign", OPS, 1, "ready")}
       ${state("assigned", 1)}
-      ${move("start", OPS, 1, "assigned")}
-      ${state("in-progress", 1)}`);
+      ${move("en-route", OPS, 1, "assigned")}
+      ${move("installed", OPS, 1, "en_route")}
+      ${move("family-ready", OPS, 1, "installed")}
+      ${state("family-ready", 1)}
+      ${move("start", OPS, 1, "family_ready")}
+      ${state("in-progress", 1)}
+      ${move("return", OPS, 1, "in_progress")}
+      ${state("returned", 1)}
+      ${move("clean", OPS, 1, "returned")}
+      ${move("inspect", OPS, 1, "cleaning")}
+      ${move("available", OPS, 1, "inspection")}
+      ${state("available", 1)}`);
 
     expect(get(rows, "confirm")).toEqual(["ok"]);
     expect(get(rows, "confirmed")).toEqual(["confirmed", "available"]);
+    expect(get(rows, "ready")).toEqual(["ready", "available"]);
     expect(get(rows, "assigned")).toEqual(["assigned", "reserved"]);
+    expect(get(rows, "family-ready")).toEqual(["family_ready", "reserved"]);
     expect(get(rows, "in-progress")).toEqual(["in_progress", "in_use"]);
+    expect(get(rows, "returned")).toEqual(["returned", "available"]);
+    expect(get(rows, "available")).toEqual(["completed", "available"]);
   });
 
   it("should refuse a move on a stale view, and show the step the booking is at now (AC03)", () => {
@@ -114,17 +131,23 @@ describe.skipIf(!available)("move a booking to the next step (CO-F08-S03)", () =
 
   it("should let the assigned technician move the field steps only (AC02)", () => {
     const rows = run(`
-      ${booking(3, "confirmed")}
+      ${booking(3, "ready")}
       ${seatIs("available")}
-      ${move("tech-assign", TECHNICIAN, 3, "confirmed")}
-      ${move("ops-assign", OPS, 3, "confirmed")}
-      ${move("tech-start", TECHNICIAN, 3, "assigned")}
+      ${move("tech-assign", TECHNICIAN, 3, "ready")}
+      ${move("ops-assign", OPS, 3, "ready")}
+      ${move("tech-en-route", TECHNICIAN, 3, "assigned")}
+      ${move("tech-installed", TECHNICIAN, 3, "en_route")}
+      ${move("tech-family-ready", TECHNICIAN, 3, "installed")}
+      ${move("tech-start", TECHNICIAN, 3, "family_ready")}
       ${state("after", 3)}`);
 
     expect(get(rows, "tech-assign")[0]).toBe("42501");
     expect(get(rows, "ops-assign")).toEqual(["ok"]);
-    expect(get(rows, "tech-start")).toEqual(["ok"]);
-    expect(get(rows, "after")).toEqual(["in_progress", "in_use"]);
+    expect(get(rows, "tech-en-route")).toEqual(["ok"]);
+    expect(get(rows, "tech-installed")).toEqual(["ok"]);
+    expect(get(rows, "tech-family-ready")).toEqual(["ok"]);
+    expect(get(rows, "tech-start")[0]).toBe("42501");
+    expect(get(rows, "after")).toEqual(["family_ready", "reserved"]);
   });
 
   it("should refuse a technician who is not assigned, a partner user and nobody signed in (AC02)", () => {
@@ -144,28 +167,29 @@ describe.skipIf(!available)("move a booking to the next step (CO-F08-S03)", () =
 
   it("should not move to the next step when the seat is not ready, and say what the seat is (AC01)", () => {
     const rows = run(`
-      ${booking(5, "confirmed")}
+      ${booking(5, "ready")}
       ${seatIs("cleaning")}
-      ${move("assign", OPS, 5, "confirmed")}
+      ${move("assign", OPS, 5, "ready")}
       ${state("after", 5)}`);
 
     expect(get(rows, "assign")).toEqual(["BK009", "cleaning"]);
-    expect(get(rows, "after")).toEqual(["confirmed", "cleaning"]);
+    expect(get(rows, "after")).toEqual(["ready", "cleaning"]);
   });
 
   it("should ask for a seat when the booking has none (AC01)", () => {
     const rows = run(`
-      ${booking(6, "confirmed", { seat: false })}
-      ${move("assign", OPS, 6, "confirmed")}`);
+      ${booking(6, "ready", { seat: false })}
+      ${move("assign", OPS, 6, "ready")}`);
 
     expect(get(rows, "assign")[0]).toBe("BK008");
   });
 
-  it("should release the seat when the booking is completed (CO-F08-S04 AC01)", () => {
+  it("should release the seat when the rental is returned, and let only the office move that step (CO-F08-S04 AC01)", () => {
     const rows = run(`
       ${booking(8, "in_progress")}
       ${seatIs("in_use")}
-      ${move("complete", TECHNICIAN, 8, "in_progress")}
+      ${move("tech-return", TECHNICIAN, 8, "in_progress")}
+      ${move("complete", OPS, 8, "in_progress")}
       ${state("after", 8)}
       do $$ declare v_to text; begin
         select h.to_status::text into v_to from public.seat_status_history h
@@ -173,12 +197,13 @@ describe.skipIf(!available)("move a booking to the next step (CO-F08-S03)", () =
         raise notice 'R|history|%', coalesce(v_to, 'none');
       end $$;`);
 
+    expect(get(rows, "tech-return")[0]).toBe("42501");
     expect(get(rows, "complete")).toEqual(["ok"]);
-    expect(get(rows, "after")).toEqual(["completed", "available"]);
+    expect(get(rows, "after")).toEqual(["returned", "available"]);
     expect(get(rows, "history")).toEqual(["available"]);
   });
 
-  it("should leave the seat in use and the booking in progress when the seat is not in use (CO-F08-S04 AC02)", () => {
+  it("should leave the seat and the booking where they are when the seat is not in use at return (CO-F08-S04 AC02)", () => {
     const rows = run(`
       ${booking(9, "in_progress")}
       ${seatIs("quarantine")}
@@ -226,20 +251,20 @@ describe.skipIf(!available)("move a booking to the next step (CO-F08-S03)", () =
     const rows = run(`
       ${booking(11, "assigned")}
       ${seatIs("reserved")}
-      ${move("ops-start", OPS, 11, "assigned")}
+      ${move("ops-en-route", OPS, 11, "assigned")}
       ${move("tech-stale", TECHNICIAN, 11, "assigned")}
       ${state("after", 11)}`);
 
-    expect(get(rows, "ops-start")).toEqual(["ok"]);
-    expect(get(rows, "tech-stale")).toEqual(["BK007", "in_progress"]);
-    expect(get(rows, "after")).toEqual(["in_progress", "in_use"]);
+    expect(get(rows, "ops-en-route")).toEqual(["ok"]);
+    expect(get(rows, "tech-stale")).toEqual(["BK007", "en_route"]);
+    expect(get(rows, "after")).toEqual(["en_route", "reserved"]);
   });
 
   it("should keep the step change with who made it, when, and the note, and refuse to change or delete it (CO-F08-S06 AC04)", () => {
     const rows = run(`
-      ${booking(12, "confirmed")}
+      ${booking(12, "ready")}
       ${seatIs("available")}
-      ${move("assign", OPS, 12, "confirmed", "'Seat reserved for the family'")}
+      ${move("assign", OPS, 12, "ready", "'Seat reserved for the family'")}
       do $$ declare e record; begin
         select user_id, notes, created_at, to_status into e from public.booking_events
          where booking_id = '${bookingId(12)}' and to_status = 'assigned';
@@ -258,6 +283,34 @@ describe.skipIf(!available)("move a booking to the next step (CO-F08-S03)", () =
     expect(get(rows, "event")).toEqual(["true", "Seat reserved for the family", "true"]);
     expect(get(rows, "update")).toEqual(["55000"]);
     expect(get(rows, "delete")).toEqual(["55000"]);
+  });
+
+  it("should release the reserved seat when a booking is cancelled at a field step (CO-F08-S08)", () => {
+    const rows = run(`
+      ${booking(13, "en_route")}
+      ${seatIs("reserved")}
+      select set_config('request.jwt.claim.sub', coalesce(${OPS}, ''), true);
+      do $$ begin
+        perform public.change_booking_status('${bookingId(13)}', 'cancelled', 'Flight cancelled');
+        raise notice 'R|cancel|ok';
+      exception when others then raise notice 'R|cancel|%', sqlstate; end $$;
+      ${state("after", 13)}`);
+
+    expect(get(rows, "cancel")).toEqual(["ok"]);
+    expect(get(rows, "after")).toEqual(["cancelled", "available"]);
+  });
+
+  it("should move a booking from Family Ready to Active Rental only for the office, and put the seat in use", () => {
+    const rows = run(`
+      ${booking(14, "family_ready")}
+      ${seatIs("reserved")}
+      ${move("tech-start", TECHNICIAN, 14, "family_ready")}
+      ${move("ops-start", OPS, 14, "family_ready")}
+      ${state("after", 14)}`);
+
+    expect(get(rows, "tech-start")[0]).toBe("42501");
+    expect(get(rows, "ops-start")).toEqual(["ok"]);
+    expect(get(rows, "after")).toEqual(["in_progress", "in_use"]);
   });
 
   it("should not move a booking at the last step or off the path", () => {

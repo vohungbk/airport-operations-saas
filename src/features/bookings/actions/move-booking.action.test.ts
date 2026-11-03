@@ -30,7 +30,7 @@ describe("moveBookingAction", () => {
       note: "  Seat checked  ",
     });
 
-    expect(result).toEqual({ success: true, moved_to: "assigned" });
+    expect(result).toEqual({ success: true, moved_to: "preparation" });
     expect(rpcMock).toHaveBeenCalledWith("move_booking_to_next_step", {
       p_booking_id: BOOKING_ID,
       p_expected_status: "confirmed",
@@ -85,7 +85,7 @@ describe("moveBookingAction", () => {
     expect(result.success).toBe(false);
     expect(result.error).toMatchObject({
       code: "STEP_CHANGED",
-      message: "Another user moved this booking. It is now in Assigned.",
+      message: "Another user moved this booking. It is now in Technician Assigned.",
       current_step: "assigned",
     });
   });
@@ -95,6 +95,6 @@ describe("moveBookingAction", () => {
 
     const result = await moveBookingAction({ booking_id: BOOKING_ID, expected_status: "confirmed" });
 
-    expect(result.error?.message).toBe("Your role is not allowed to move this booking to Assigned.");
+    expect(result.error?.message).toBe("Your role is not allowed to move this booking to Preparation.");
   });
 });
