@@ -94,8 +94,9 @@ describe("BookingWorkflowPage (CO-F08-S06)", () => {
   it("should show the deadline of the next step and flag it overdue to an internal role (CO-F08-S07 AC01)", async () => {
     const html = await open();
 
-    expect(html).toContain("In progress due");
-    expect(html).toContain("Overdue");
+    expect(html).toContain("Deadline");
+    expect(html).toContain("24 Oct 2026 · 11:00 GST");
+    expect(html).toContain("Overdue by");
   });
 
   it("should show the deadline without the Overdue flag while it is still ahead (CO-F08-S07 AC01)", async () => {
@@ -103,7 +104,7 @@ describe("BookingWorkflowPage (CO-F08-S06)", () => {
 
     const html = await open();
 
-    expect(html).toContain("In progress due");
+    expect(html).toContain("Deadline");
     expect(html).not.toContain("Overdue");
   });
 
@@ -112,8 +113,18 @@ describe("BookingWorkflowPage (CO-F08-S06)", () => {
 
     const html = await open();
 
-    expect(html).not.toMatch(/ due</);
+    expect(html).not.toContain("Deadline");
     expect(html).not.toContain("Overdue");
+  });
+
+  it("should show the tab bar with Workflow as the open tab and links to the other tabs", async () => {
+    const html = await open();
+
+    expect(html).toContain('aria-label="Booking sections"');
+    expect(html).toContain(`href="/bookings/${ID}"`);
+    expect(html).toContain(`href="/bookings/${ID}?tab=flight"`);
+    expect(html).toContain(`href="/bookings/${ID}?tab=timeline"`);
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
   });
 
   it("should show the same not-found page for a booking that is missing or hidden by RLS (AC02)", async () => {

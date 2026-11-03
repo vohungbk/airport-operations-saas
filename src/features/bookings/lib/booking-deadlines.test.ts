@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   STEP_DEADLINE_HOURS,
+  buildOverdueLabel,
   buildStepDeadlineView,
   getNextStepDeadline,
+  getOverdueMinutes,
   getStepDeadline,
   isBookingOverdue,
 } from "@/features/bookings/lib/booking-deadlines";
@@ -73,19 +75,53 @@ describe("isBookingOverdue (CO-F08-S07 AC01)", () => {
 });
 
 describe("buildStepDeadlineView", () => {
-  it("should name the next step and give its deadline in the airport timezone", () => {
+  it("should give the deadline of the next step in the airport timezone, with the day", () => {
     expect(buildStepDeadlineView("confirmed", PICKUP, "Asia/Dubai", at("2026-11-10T07:00:00Z"))).toEqual({
-      stepLabel: "Assigned",
-      dueLabel: "10 Nov 2026, 12:00",
-      overdue: false,
+      dueLabel: "10 Nov 2026 · 12:00 GST",
+      overdueLabel: null,
     });
   });
 
-  it("should flag the view overdue after the deadline", () => {
-    expect(buildStepDeadlineView("confirmed", PICKUP, "UTC", at("2026-11-10T09:00:00Z"))?.overdue).toBe(true);
+  it("should say how long the booking is overdue after the deadline", () => {
+    expect(buildStepDeadlineView("confirmed", PICKUP, "UTC", at("2026-11-10T08:20:00Z"))?.overdueLabel).toBe(
+      "Overdue by 20 min",
+    );
   });
 
   it("should give none when the booking has no next deadline", () => {
     expect(buildStepDeadlineView("completed", PICKUP, "UTC", at("2026-11-10T09:00:00Z"))).toBeNull();
+  });
+});
+
+describe("buildOverdueLabel", () => {
+  it("should say how long the next step is overdue", () => {
+    expect(buildOverdueLabel("confirmed", PICKUP, at("2026-11-10T08:20:00Z"))).toBe("Overdue by 20 min");
+  });
+
+  it("should say hours and minutes for a long delay", () => {
+    expect(buildOverdueLabel("confirmed", PICKUP, at("2026-11-10T10:10:00Z"))).toBe("Overdue by 2 h 10 min");
+  });
+
+  it("should give none for a booking that is on time", () => {
+    expect(buildOverdueLabel("confirmed", PICKUP, at("2026-11-10T07:00:00Z"))).toBeNull();
+  });
+});
+
+describe("getOverdueMinutes (CO-F08-T01 AC03)", () => {
+  it("should give the minutes past the deadline of the next step", () => {
+    expect(getOverdueMinutes("confirmed", PICKUP, at("2026-11-10T08:20:00Z"))).toBe(20);
+  });
+
+  it("should round up so a booking that is a few seconds late says at least 1 minute", () => {
+    expect(getOverdueMinutes("confirmed", PICKUP, at("2026-11-10T08:00:05Z"))).toBe(1);
+  });
+
+  it("should give none before or at the deadline", () => {
+    expect(getOverdueMinutes("confirmed", PICKUP, at("2026-11-10T08:00:00Z"))).toBeNull();
+    expect(getOverdueMinutes("confirmed", PICKUP, at("2026-11-10T07:00:00Z"))).toBeNull();
+  });
+
+  it.each(["completed", "cancelled", "no_show"] as const)("should give none for %s", (status) => {
+    expect(getOverdueMinutes(status, PICKUP, at("2026-11-12T00:00:00Z"))).toBeNull();
   });
 });

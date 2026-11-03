@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatPickup,
   isLocalDateTime,
   utcToZonedLocalInput,
   zonedDayStartToUtcIso,
@@ -70,5 +71,15 @@ describe("isLocalDateTime", () => {
     expect(isLocalDateTime("2026-09-01T24:00")).toBe(false);
     expect(isLocalDateTime("2026-09-01T08:60")).toBe(false);
     expect(isLocalDateTime("")).toBe(false);
+  });
+});
+
+describe("formatPickup (AC03)", () => {
+  it("should give the time in the timezone of the airport", () => {
+    expect(formatPickup("2026-10-24T11:15:00Z", "Asia/Dubai", false)).toBe("15:15 GST");
+  });
+
+  it("should put the day first when the board is not read for one day", () => {
+    expect(formatPickup("2026-10-24T11:15:00Z", "Asia/Dubai", true)).toBe("24 Oct, 15:15 GST");
   });
 });
