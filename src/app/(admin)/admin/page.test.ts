@@ -30,8 +30,12 @@ vi.mock("@/features/bookings/lib/get-booking-events", () => ({
 
 // The filter bar and the side panel use the router, which a server render does not have.
 vi.mock("@/features/workflow-board/components/workflow-board-filters", () => ({
-  WorkflowBoardFilters: ({ total }: { total: number }) =>
-    createElement("div", { "data-testid": "filters" }, `${total} in view`),
+  WorkflowBoardFilters: ({ total }: { total: number | null }) =>
+    createElement("div", { "data-testid": "filters" }, `${total ?? "—"} in view`),
+}));
+
+vi.mock("@/features/workflow-board/components/board-load-error", () => ({
+  BoardLoadError: () => createElement("div", { role: "alert" }, "The board could not be loaded. Retry"),
 }));
 
 vi.mock("@/features/workflow-board/components/move-booking-dialog", () => ({
@@ -80,7 +84,11 @@ const CARD = {
   partner_name: "Emirates Rent A Car",
   flight_number: "EK 203",
   seat_label: "SEAT-0001 · Convertible",
-  pickup_label: "24 Oct 2026, 15:15 · DXB",
+  pickup_label: "15:15 GST · DXB",
+  priority: "normal",
+  flight_alert: null,
+  overdue_label: null,
+  time_in_step_label: null,
 };
 
 const BOOKING = {
@@ -124,6 +132,40 @@ describe("AdminPage (Workflow Board)", () => {
     expect(getBoardMock).not.toHaveBeenCalled();
   });
 
+  it("should keep the title and the filters and show a retry when the board cannot be read (AC10)", async () => {
+    getBoardMock.mockRejectedValue({ code: "XX000" });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const html = await render();
+
+    expect(html).toContain("Workflow Board");
+    expect(html).toContain('data-testid="filters"');
+    expect(html).toContain("— in view");
+    expect(html).toContain("The board could not be loaded.");
+    expect(html).toContain("Retry");
+    expect(html).not.toContain("XX000");
+    errorSpy.mockRestore();
+  });
+
+  it("should offer Clear filters in the empty state only when a filter is set (AC09)", async () => {
+    getBoardMock.mockResolvedValue({ columns: COLUMNS, total: 0 });
+
+    const without = await render();
+    const withFilter = await render({ airport_id: AIRPORT_ID });
+
+    expect(without).toContain("No bookings to show");
+    expect(without).not.toContain("Clear filters");
+    expect(withFilter).toContain("Clear filters");
+  });
+
+  it("should name the stages, the airport, the day and the timezone in the subtitle", async () => {
+    getBoardMock.mockResolvedValue({ ...boardWith(CARD), time_zone: "Asia/Dubai" });
+
+    const html = await render({ airport_id: AIRPORT_ID, date: "2026-10-24" });
+
+    expect(html).toContain("5 workflow stages · DXB · 24 Oct 2026 · Asia/Dubai");
+  });
+
   it("should show each booking in the column of its step", async () => {
     const html = await render();
 
@@ -150,7 +192,7 @@ describe("AdminPage (Workflow Board)", () => {
   it("should show the empty state with a way to clear the filters when no booking is in view", async () => {
     getBoardMock.mockResolvedValue({ columns: COLUMNS, total: 0 });
 
-    const html = await render();
+    const html = await render({ q: "BK-9" });
 
     expect(html).toContain("No bookings to show");
     expect(html).toContain('href="/admin"');

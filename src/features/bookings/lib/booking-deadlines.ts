@@ -1,6 +1,6 @@
-import { BOOKING_STATUS_LABEL } from "@/features/bookings/lib/booking-status";
 import { getNextStep } from "@/features/bookings/lib/booking-move";
-import { formatBookingDateTime } from "@/features/bookings/lib/booking-time";
+import { formatPickup } from "@/features/bookings/lib/booking-time";
+import { formatStepDate, formatTimeInStep } from "@/features/bookings/lib/booking-step-history";
 import type { BookingStatus } from "@/features/bookings/types";
 
 /**
@@ -17,7 +17,8 @@ export const STEP_DEADLINE_HOURS: Partial<Record<BookingStatus, number>> = {
   in_progress: 1,
 };
 
-const HOUR_MS = 3_600_000;
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
 
 /** The time by which a booking has to reach `step`; `null` for a step without a deadline. */
 export function getStepDeadline(step: BookingStatus, pickupAt: string): Date | null {
@@ -48,11 +49,25 @@ export function isBookingOverdue(status: BookingStatus, pickupAt: string, now: D
   return next !== null && isMissed(next.deadline, now);
 }
 
+/** Whole minutes (rounded up, at least 1) past the deadline of the next step; `null` when it is not overdue. */
+export function getOverdueMinutes(status: BookingStatus, pickupAt: string, now: Date): number | null {
+  const next = getNextStepDeadline(status, pickupAt);
+  if (!next || !isMissed(next.deadline, now)) return null;
+
+  return Math.max(1, Math.ceil((now.getTime() - next.deadline.getTime()) / MINUTE_MS));
+}
+
+/** "Overdue by 20 min" when the deadline of the next step has passed; `null` otherwise. */
+export function buildOverdueLabel(status: BookingStatus, pickupAt: string, now: Date): string | null {
+  const minutes = getOverdueMinutes(status, pickupAt, now);
+  return minutes === null ? null : `Overdue by ${formatTimeInStep(minutes)}`;
+}
+
 export interface StepDeadlineView {
-  stepLabel: string;
-  /** The deadline in the timezone of the airport, for example "10 Nov 2026, 12:00". */
+  /** The deadline of the next step in the timezone of the airport, for example "24 Oct 2026 · 14:55 GST". */
   dueLabel: string;
-  overdue: boolean;
+  /** "Overdue by 20 min"; `null` while the deadline has not passed. */
+  overdueLabel: string | null;
 }
 
 /** What the booking screen shows about the next deadline; `null` when the next step has none. */
@@ -65,9 +80,9 @@ export function buildStepDeadlineView(
   const next = getNextStepDeadline(status, pickupAt);
   if (!next) return null;
 
+  const iso = next.deadline.toISOString();
   return {
-    stepLabel: BOOKING_STATUS_LABEL[next.step],
-    dueLabel: formatBookingDateTime(next.deadline.toISOString(), timeZone),
-    overdue: isMissed(next.deadline, now),
+    dueLabel: `${formatStepDate(iso, timeZone)} · ${formatPickup(iso, timeZone, false)}`,
+    overdueLabel: buildOverdueLabel(status, pickupAt, now),
   };
 }

@@ -67,35 +67,46 @@ describe("BookingStepSummary (CO-F08-S06 AC01, AC02)", () => {
 describe("BookingStepSummary deadline (CO-F08-S07 AC01)", () => {
   const base = { status: "confirmed" as const, seatStatus: null, timeInStep: null };
 
-  it("should show when the next step is due and flag it overdue", () => {
+  it("should show the deadline row and, when it is missed, how long the booking is overdue", () => {
     const html = renderToStaticMarkup(
       createElement(BookingStepSummary, {
         ...base,
-        deadline: { stepLabel: "Assigned", dueLabel: "10 Nov 2026, 12:00", overdue: true },
+        deadline: { dueLabel: "24 Oct 2026 · 14:55 GST", overdueLabel: "Overdue by 20 min" },
       }),
     );
 
-    expect(html).toContain("Assigned due");
-    expect(html).toContain("10 Nov 2026, 12:00");
-    expect(html).toContain("Overdue");
+    expect(html).toContain("Deadline");
+    expect(html).toContain("24 Oct 2026 · 14:55 GST");
+    expect(html).toContain("Overdue by 20 min");
+  });
+
+  it("should show the deadline after the seat status", () => {
+    const html = renderToStaticMarkup(
+      createElement(BookingStepSummary, {
+        ...base,
+        deadline: { dueLabel: "24 Oct 2026 · 14:55 GST", overdueLabel: null },
+      }),
+    );
+
+    expect(html.indexOf("Seat status")).toBeLessThan(html.indexOf("Deadline"));
   });
 
   it("should not flag a step that is on time", () => {
     const html = renderToStaticMarkup(
       createElement(BookingStepSummary, {
         ...base,
-        deadline: { stepLabel: "Assigned", dueLabel: "10 Nov 2026, 12:00", overdue: false },
+        deadline: { dueLabel: "24 Oct 2026 · 14:55 GST", overdueLabel: null },
       }),
     );
 
-    expect(html).toContain("Assigned due");
+    expect(html).toContain("Deadline");
     expect(html).not.toContain("Overdue");
   });
 
   it("should show no deadline row when there is none", () => {
     const html = renderToStaticMarkup(createElement(BookingStepSummary, base));
 
-    expect(html).not.toMatch(/ due</);
+    expect(html).not.toContain("Deadline");
     expect(html).not.toContain("Overdue");
   });
 });

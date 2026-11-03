@@ -31,8 +31,27 @@ describe("workflowBoardQuerySchema", () => {
     ["a date that does not exist", { date: "2026-02-31" }],
     ["a date in the wrong format", { date: "24/10/2026" }],
     ["a search longer than the limit", { q: "x".repeat(51) }],
+    ["a flight alert that is not listed", { flight_alert: "late" }],
+    ["a priority that is not listed", { priority: "critical" }],
   ])("should reject %s", (_name, input) => {
     expect(workflowBoardQuerySchema.safeParse(input).success).toBe(false);
+  });
+});
+
+describe("flight alert and priority filters (AC07)", () => {
+  it.each(["early", "delayed"])("should accept the flight alert %s", (flight_alert) => {
+    expect(workflowBoardQuerySchema.safeParse({ flight_alert }).success).toBe(true);
+  });
+
+  it.each(["normal", "high", "urgent"])("should accept the priority %s", (priority) => {
+    expect(workflowBoardQuerySchema.safeParse({ priority }).success).toBe(true);
+  });
+
+  it("should drop a flight alert or priority from the address that is not listed, and say so", () => {
+    const result = parseWorkflowBoardQuery({ flight_alert: "late", priority: "high" });
+
+    expect(result.query).toEqual({ priority: "high" });
+    expect(result.errors).toEqual([WORKFLOW_BOARD_FILTER_ERRORS.flight_alert]);
   });
 });
 

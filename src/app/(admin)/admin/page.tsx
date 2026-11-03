@@ -8,13 +8,21 @@ import { WORKFLOW_BOARD_ROUTE } from "@/lib/constants/routes";
 import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
 import { getBookingEvents } from "@/features/bookings/lib/get-booking-events";
 import { getBookingById } from "@/features/bookings/lib/get-booking-by-id";
+import { WORKFLOW_BOARD_QUERY_FIELDS } from "@/features/workflow-board/schemas/workflow-board-query.schema";
+import { BoardLoadError } from "@/features/workflow-board/components/board-load-error";
 import { BookingPreview } from "@/features/workflow-board/components/booking-preview";
 import { WorkflowBoardColumns } from "@/features/workflow-board/components/workflow-board-columns";
 import { WorkflowBoardFilters } from "@/features/workflow-board/components/workflow-board-filters";
 import { buildWorkflowBoardHref } from "@/features/workflow-board/lib/build-workflow-board-href";
-import { getWorkflowBoard } from "@/features/workflow-board/lib/get-workflow-board";
+import { loadWorkflowBoard } from "@/features/workflow-board/lib/load-workflow-board";
 import { getWorkflowBoardOptions } from "@/features/workflow-board/lib/get-workflow-board-options";
 import { resolveWorkflowBoardQuery } from "@/features/workflow-board/lib/resolve-workflow-board-query";
+
+function formatBoardDate(value: string): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "2-digit", month: "short", year: "numeric" }).format(
+    new Date(`${value}T00:00:00Z`),
+  );
+}
 
 interface AdminPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -34,13 +42,21 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   // The preview needs only the booking id, so the booking and its events are read with the board.
   const [board, booking, events] = await Promise.all([
-    getWorkflowBoard(query),
+    loadWorkflowBoard(query),
     query.booking ? getBookingById(query.booking) : null,
     query.booking ? getBookingEvents(query.booking) : null,
   ]);
 
   const airport = options.airports.find((option) => option.value === query.airport_id);
-  const subtitle = `${BOOKING_BOARD_STEPS.length} workflow stages · ${airport?.label ?? "All airports"}`;
+  const subtitle = [
+    `${BOOKING_BOARD_STEPS.length} workflow stages`,
+    airport?.label ?? "All airports",
+    query.date ? formatBoardDate(query.date) : null,
+    board?.time_zone,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const hasFilters = WORKFLOW_BOARD_QUERY_FIELDS.some((field) => field !== "booking" && query[field]);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -62,17 +78,21 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           query={query}
           partners={options.partners}
           airports={options.airports}
-          total={board.total}
+          total={board?.total ?? null}
         />
       </div>
 
-      {board.total === 0 ? (
+      {board === null ? (
+        <BoardLoadError />
+      ) : board.total === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-muted/40 p-8">
           <ClipboardListIcon aria-hidden="true" className="size-10 text-muted-foreground" />
           <p className="text-lg font-semibold text-foreground">No bookings to show</p>
-          <Link href={WORKFLOW_BOARD_ROUTE} className={buttonVariants({ className: "min-h-11 px-6" })}>
-            Clear filters
-          </Link>
+          {hasFilters && (
+            <Link href={WORKFLOW_BOARD_ROUTE} className={buttonVariants({ className: "min-h-11 px-6" })}>
+              Clear filters
+            </Link>
+          )}
         </div>
       ) : (
         <WorkflowBoardColumns columns={board.columns} query={query} role={user.role} />

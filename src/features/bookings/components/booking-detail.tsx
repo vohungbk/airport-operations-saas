@@ -14,6 +14,7 @@ import {
   isPartnerBookingEditable,
 } from "@/features/bookings/lib/booking-status";
 import { formatBookingDateTime } from "@/features/bookings/lib/booking-time";
+import type { BookingPageTab } from "@/features/bookings/lib/booking-tabs";
 import type { BookingEventsResult } from "@/features/bookings/lib/get-booking-events";
 import type { BookingDetailItem } from "@/features/bookings/lib/get-bookings";
 
@@ -26,6 +27,8 @@ interface BookingDetailProps {
   canEditOwn: boolean;
   /** `finance:view` or `finance:view_own_partner`: may open how the revenue was calculated. */
   canViewRevenue?: boolean;
+  /** The tab that is open when the page loads. */
+  defaultTab?: BookingPageTab;
 }
 
 /** The tab of the design: a box with its own surface and a 2 px line below; the open one is blue. */
@@ -60,6 +63,7 @@ export function BookingDetail({
   canManage,
   canEditOwn,
   canViewRevenue = false,
+  defaultTab = "overview",
 }: BookingDetailProps) {
   const timeZone = booking.airport?.timezone ?? "UTC";
   const allowedTransitions = getAllowedManualTransitions(booking.status);
@@ -122,7 +126,7 @@ export function BookingDetail({
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue={defaultTab}>
         <TabsList className="flex-wrap gap-3 overflow-visible border-b-0">
           <TabsTrigger value="overview" className={TAB_CLASS}>
             Overview

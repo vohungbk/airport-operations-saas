@@ -20,8 +20,11 @@ const CARD = {
   partner_name: "Emirates Rent A Car",
   flight_number: "EK 203",
   seat_label: "SEAT-0001 · Convertible",
-  pickup_label: "24 Oct 2026, 15:15 · DXB",
-  overdue: false,
+  pickup_label: "15:15 GST · DXB",
+  priority: "normal" as const,
+  flight_alert: null,
+  overdue_label: null,
+  time_in_step_label: null,
 };
 
 function column(status: BoardColumn["status"], total: number, cards = [] as BoardColumn["cards"]): BoardColumn {
@@ -49,15 +52,43 @@ describe("WorkflowBoardColumns", () => {
     expect(html).toContain("Emirates Rent A Car");
     expect(html).toContain("EK 203");
     expect(html).toContain("SEAT-0001 · Convertible");
-    expect(html).toContain("24 Oct 2026, 15:15 · DXB");
+    expect(html).toContain("15:15 GST · DXB");
     expect(html).toContain('href="/admin?date=2026-10-24&amp;booking=booking-1"');
   });
 
-  it("should flag a card whose next step is overdue and not one that is on time", () => {
-    const late = render([column("pending", 1, [{ ...CARD, overdue: true }])]);
+  it("should show the priority of a card by icon and text", () => {
+    const html = render([column("pending", 1, [{ ...CARD, priority: "high" }])]);
 
-    expect(late).toContain("Overdue");
-    expect(render([column("pending", 1, [CARD])])).not.toContain("Overdue");
+    expect(html).toContain('data-priority="high"');
+    expect(html).toContain("High");
+  });
+
+  it("should show the flight alert and the overdue time of a card, and not on a card that is on time", () => {
+    const late = render([
+      column("pending", 1, [
+        {
+          ...CARD,
+          flight_alert: { kind: "early" as const, minutes: 45, label: "Early 45 min" },
+          overdue_label: "Overdue by 20 min",
+          time_in_step_label: "In step 2 h 10 min",
+        },
+      ]),
+    ]);
+
+    expect(late).toContain("Early 45 min");
+    expect(late).toContain("Overdue by 20 min");
+    expect(late).toContain("In step 2 h 10 min");
+
+    const onTime = render([column("pending", 1, [CARD])]);
+    expect(onTime).not.toContain("Overdue");
+    expect(onTime).not.toContain("Early");
+    expect(onTime).not.toContain("In step");
+  });
+
+  it("should say so in a column with no booking", () => {
+    const html = render([column("pending", 1, [CARD]), column("confirmed", 0)]);
+
+    expect(html.match(/No bookings in this step/g)).toHaveLength(1);
   });
 
   it("should mark the card that is open in the preview", () => {

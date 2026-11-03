@@ -137,3 +137,18 @@ export function zonedDayStartToUtcIso(
 
   return zonedLocalToUtcIso(local, timeZone);
 }
+
+/**
+ * The pickup in the timezone of the airport: "15:15 GST". With `withDate` the day comes first
+ * ("24 Oct, 15:15 GST"), for a board that is not filtered to one day.
+ */
+export function formatPickup(iso: string, timeZone: string, withDate: boolean): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    ...(withDate ? { day: "2-digit", month: "short" } : {}),
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZoneName: "short",
+  }).format(new Date(iso));
+}

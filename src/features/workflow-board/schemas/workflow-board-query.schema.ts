@@ -6,6 +6,8 @@ export const WORKFLOW_BOARD_QUERY_FIELDS = [
   "airport_id",
   "date",
   "q",
+  "flight_alert",
+  "priority",
   "booking",
 ] as const;
 
@@ -26,11 +28,16 @@ const isoDate = z
  * (before it changes the address) and on the server (when the page reads it), so a value that is not
  * one of the listed options is refused in both places. `booking` is the booking open in the preview.
  */
+export const FLIGHT_ALERT_FILTERS = ["early", "delayed"] as const;
+export const PRIORITY_FILTERS = ["normal", "high", "urgent"] as const;
+
 export const workflowBoardQuerySchema = z.object({
   partner_id: z.guid().optional(),
   airport_id: z.guid().optional(),
   date: isoDate.optional(),
   q: z.string().trim().min(1).max(WORKFLOW_BOARD_SEARCH_MAX_LENGTH).optional(),
+  flight_alert: z.enum(FLIGHT_ALERT_FILTERS).optional(),
+  priority: z.enum(PRIORITY_FILTERS).optional(),
   booking: z.guid().optional(),
 });
 
@@ -42,6 +49,8 @@ export const WORKFLOW_BOARD_FILTER_ERRORS: Record<WorkflowBoardQueryField, strin
   airport_id: "Choose an airport from the list.",
   date: "Enter a valid date.",
   q: `Search with 1 to ${WORKFLOW_BOARD_SEARCH_MAX_LENGTH} characters.`,
+  flight_alert: "Choose a flight alert from the list.",
+  priority: "Choose a priority from the list.",
   booking: "The selected booking is not valid.",
 };
 

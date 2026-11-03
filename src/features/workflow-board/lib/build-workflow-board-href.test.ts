@@ -13,6 +13,12 @@ describe("buildWorkflowBoardHref", () => {
     expect(href).toBe("/admin?date=2026-10-24&q=BK-1&booking=id-1");
   });
 
+  it("should keep the flight alert and the priority", () => {
+    expect(buildWorkflowBoardHref({ flight_alert: "early", priority: "urgent" })).toBe(
+      "/admin?flight_alert=early&priority=urgent",
+    );
+  });
+
   it("should leave out a field that is undefined or empty", () => {
     expect(buildWorkflowBoardHref({ partner_id: undefined, q: "" })).toBe("/admin");
   });

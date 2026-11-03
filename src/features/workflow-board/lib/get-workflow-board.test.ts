@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   BOARD_COLUMN_CARD_LIMIT,
@@ -44,15 +44,32 @@ const ROW = {
   airport: { code: "DXB", timezone: "Asia/Dubai" },
   seat: { serial_number: "SEAT-0001", status: "available" },
   category: { name: "Convertible" },
-  flight: { flight_number: "EK 203" },
+  flight: {
+    flight_number: "EK 203",
+    scheduled_arrival_at: "2026-10-24T11:00:00Z",
+    estimated_arrival_at: "2026-10-24T11:50:00Z",
+    actual_arrival_at: null,
+    delay_minutes: null,
+  },
+  priority: "urgent",
+  step_since: "2026-10-23T09:50:00Z",
 };
+
+/** 45 minutes after the deadline of the next step (24 h before the pickup), 2 h 10 min after the step began. */
+const NOW = new Date("2026-10-23T12:00:00Z");
 
 describe("getWorkflowBoard", () => {
   let calls: Call[];
   let results: Result[];
   let tables: string[];
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
     calls = [];
     results = [];
     tables = [];
@@ -103,8 +120,11 @@ describe("getWorkflowBoard", () => {
         partner_name: "Emirates Rent A Car",
         flight_number: "EK 203",
         seat_label: "SEAT-0001 · Convertible",
-        pickup_label: "24 Oct 2026, 15:15 · DXB",
-        overdue: true,
+        pickup_label: "24 Oct, 15:15 GST · DXB",
+        priority: "urgent",
+        flight_alert: { kind: "delayed", minutes: 50, label: "Delayed 50 min" },
+        overdue_label: "Overdue by 45 min",
+        time_in_step_label: "In step 2 h 10 min",
       },
     ]);
     expect(board.columns[4].total).toBe(12);
@@ -119,6 +139,68 @@ describe("getWorkflowBoard", () => {
       calls.filter((call) => call.method === "ilike").every((call) => call.args[1] === "%50\\%%"),
     ).toBe(true);
     expect(calls.filter((call) => call.method === "limit").every((call) => call.args[0] === BOARD_COLUMN_CARD_LIMIT)).toBe(true);
+  });
+
+  it("should show only the time of the pickup when the board is read for one day", async () => {
+    results = [{ data: { timezone: "Asia/Dubai" } }, { data: [ROW], count: 1 }];
+
+    const board = await getWorkflowBoard({ airport_id: "a0000000-0000-0000-0000-000000000001", date: "2026-10-24" });
+
+    expect(board.columns[0].cards[0].pickup_label).toBe("15:15 GST · DXB");
+    expect(board.time_zone).toBe("Asia/Dubai");
+  });
+
+  it("should leave the timezone out when the board is not read for one day at one airport", async () => {
+    const board = await getWorkflowBoard({});
+
+    expect(board.time_zone).toBeNull();
+  });
+
+  it("should apply the flight alert and the priority to every column", async () => {
+    await getWorkflowBoard({ flight_alert: "early", priority: "high" });
+
+    expect(calls.filter((call) => call.method === "eq" && call.args[0] === "board_flight_alert")).toHaveLength(5);
+    expect(
+      calls
+        .filter((call) => call.method === "eq" && call.args[0] === "board_priority")
+        .every((call) => call.args[1] === "high"),
+    ).toBe(true);
+  });
+
+  it("should not filter by flight alert or priority when none is set", async () => {
+    await getWorkflowBoard({});
+
+    expect(calls.some((call) => call.method === "eq" && String(call.args[0]).startsWith("board_"))).toBe(false);
+  });
+
+  it("should treat a priority it does not know as normal and give no marks to a booking that is on time", async () => {
+    results = [
+      {
+        data: [
+          {
+            ...ROW,
+            priority: "unexpected",
+            step_since: null,
+            pickup_at: "2026-10-30T11:15:00Z",
+            flight: {
+              ...ROW.flight,
+              scheduled_arrival_at: "2026-10-30T11:00:00Z",
+              estimated_arrival_at: "2026-10-30T11:05:00Z",
+            },
+          },
+        ],
+        count: 1,
+      },
+    ];
+
+    const board = await getWorkflowBoard({});
+
+    expect(board.columns[0].cards[0]).toMatchObject({
+      priority: "normal",
+      flight_alert: null,
+      overdue_label: null,
+      time_in_step_label: null,
+    });
   });
 
   it("should read a day as a calendar day at the airport when an airport is selected", async () => {

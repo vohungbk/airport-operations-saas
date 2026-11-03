@@ -47,6 +47,30 @@ describe("BookingDetailPage", () => {
     ]);
   });
 
+  it.each([
+    ["flight", "flight"],
+    ["timeline", "timeline"],
+    ["workflow", "overview"],
+    ["nonsense", "overview"],
+  ])("should open the %s tab as %s (the tab bar of the workflow page links here)", async (tab, expected) => {
+    getBookingByIdMock.mockResolvedValue({ id: ID });
+
+    const element = await BookingDetailPage({
+      params: Promise.resolve({ id: ID }),
+      searchParams: Promise.resolve({ tab }),
+    });
+
+    expect((element as { props: { defaultTab: string } }).props.defaultTab).toBe(expected);
+  });
+
+  it("should open Overview when the address has no tab", async () => {
+    getBookingByIdMock.mockResolvedValue({ id: ID });
+
+    const element = await BookingDetailPage({ params: Promise.resolve({ id: ID }) });
+
+    expect((element as { props: { defaultTab: string } }).props.defaultTab).toBe("overview");
+  });
+
   it("should call notFound when the booking is missing or hidden by RLS", async () => {
     getBookingByIdMock.mockResolvedValue(null);
 

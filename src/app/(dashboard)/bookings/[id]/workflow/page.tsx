@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import { BookingStepHistory } from "@/features/bookings/components/booking-step-history";
 import { BookingStepSummary } from "@/features/bookings/components/booking-step-summary";
+import { BookingTabsNav } from "@/features/bookings/components/booking-tabs-nav";
 import { BookingStepper } from "@/features/bookings/components/booking-stepper";
 import { buildStepDeadlineView } from "@/features/bookings/lib/booking-deadlines";
 import {
@@ -73,6 +74,8 @@ export default async function BookingWorkflowPage({ params }: BookingWorkflowPag
           {canOpenBoard ? "Back to Workflow board" : "Back to booking"}
         </Link>
       </div>
+
+      <BookingTabsNav bookingId={booking.id} active="workflow" />
 
       <BookingStepper status={booking.status} />
 

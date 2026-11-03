@@ -12,20 +12,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useWorkflowBoardFilters } from "@/features/workflow-board/hooks/use-workflow-board-filters";
+import {
+  flightAlertFilterLabel,
+  priorityFilterLabel,
+  useWorkflowBoardFilters,
+} from "@/features/workflow-board/hooks/use-workflow-board-filters";
 import type { WorkflowBoardOption } from "@/features/workflow-board/lib/resolve-workflow-board-query";
-import type { WorkflowBoardQuery } from "@/features/workflow-board/schemas/workflow-board-query.schema";
+import {
+  FLIGHT_ALERT_FILTERS,
+  PRIORITY_FILTERS,
+  type WorkflowBoardQuery,
+} from "@/features/workflow-board/schemas/workflow-board-query.schema";
 
 const ALL_VALUE = "all";
 const SELECT_TRIGGER_CLASS =
   "h-11 w-full flex-row-reverse justify-end gap-2 bg-card px-4 font-medium data-[size=default]:h-11 sm:w-fit";
 
+const FLIGHT_ALERT_OPTIONS = FLIGHT_ALERT_FILTERS.map((value) => ({
+  value,
+  label: flightAlertFilterLabel(value),
+}));
+const PRIORITY_OPTIONS = PRIORITY_FILTERS.map((value) => ({
+  value,
+  label: priorityFilterLabel(value),
+}));
+
 interface WorkflowBoardFiltersProps {
   query: WorkflowBoardQuery;
   partners: WorkflowBoardOption[];
   airports: WorkflowBoardOption[];
-  /** Bookings in view, across all columns. */
-  total: number;
+  /** Bookings in view, across all columns; `null` when the board could not be read. */
+  total: number | null;
 }
 
 function toValue(value: string | null): string {
@@ -93,6 +110,42 @@ export function WorkflowBoardFilters({ query, partners, airports, total }: Workf
           />
         </form>
 
+        <Select
+          value={query.flight_alert ?? ALL_VALUE}
+          items={[{ value: ALL_VALUE, label: "Flight alert: All" }, ...FLIGHT_ALERT_OPTIONS]}
+          onValueChange={(value) => navigate({ flight_alert: toValue(value) })}
+        >
+          <SelectTrigger className={SELECT_TRIGGER_CLASS} aria-label="Filter by flight alert">
+            <SelectValue placeholder="Flight alert: All" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Flight alert: All</SelectItem>
+            {FLIGHT_ALERT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={query.priority ?? ALL_VALUE}
+          items={[{ value: ALL_VALUE, label: "Priority: All" }, ...PRIORITY_OPTIONS]}
+          onValueChange={(value) => navigate({ priority: toValue(value) })}
+        >
+          <SelectTrigger className={SELECT_TRIGGER_CLASS} aria-label="Filter by priority">
+            <SelectValue placeholder="Priority: All" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Priority: All</SelectItem>
+            {PRIORITY_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Button type="button" variant="outline" className="min-h-11 px-4" onClick={clearFilters}>
           Clear filters
         </Button>
@@ -106,7 +159,7 @@ export function WorkflowBoardFilters({ query, partners, airports, total }: Workf
 
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-sm font-semibold text-foreground">
-          {total} {total === 1 ? "booking" : "bookings"} in view
+          {total === null ? "—" : total} {total === 1 ? "booking" : "bookings"} in view
         </p>
         {chips.map((chip) => (
           <Button
