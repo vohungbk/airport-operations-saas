@@ -133,6 +133,15 @@ describe("BookingWorkflowPage (CO-F08-S06)", () => {
     await expect(open()).rejects.toThrow("NOT_FOUND");
   });
 
+  it("should show a partner user the not-found page, not the history, for another partner's booking (CO-F08-S09 AC02)", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ role: "partner_user" });
+    getBookingByIdMock.mockResolvedValue(null);
+    notFoundMock.mockClear();
+
+    await expect(open()).rejects.toThrow("NOT_FOUND");
+    expect(notFoundMock).toHaveBeenCalledTimes(1);
+  });
+
   it.each(["admin", "operations_manager"])("should lead %s back to the Workflow board (AC03)", async (role) => {
     requireAnyPermissionMock.mockResolvedValue({ role });
 
