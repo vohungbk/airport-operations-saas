@@ -54,6 +54,39 @@ describe("changeBookingStatusAction", () => {
     });
   });
 
+  it.each(["assigned", "in_progress"] as const)(
+    "should call change_booking_status to cancel a booking that is %s",
+    async (status) => {
+      currentStatusIs(status);
+
+      const result = await changeBookingStatusAction({
+        booking_id: BOOKING_ID,
+        to_status: "cancelled",
+        reason: "Flight cancelled",
+      });
+
+      expect(result).toEqual({ success: true });
+      expect(rpcMock).toHaveBeenCalledWith("change_booking_status", {
+        p_booking_id: BOOKING_ID,
+        p_to_status: "cancelled",
+        p_reason: "Flight cancelled",
+      });
+    },
+  );
+
+  it("should reject cancelling a booking that is already completed, without calling the RPC", async () => {
+    currentStatusIs("completed");
+
+    const result = await changeBookingStatusAction({
+      booking_id: BOOKING_ID,
+      to_status: "cancelled",
+      reason: "Too late",
+    });
+
+    expect(result.error?.code).toBe("INVALID_TRANSITION");
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
   it("should never update bookings directly (status changes go only through the RPC)", async () => {
     await changeBookingStatusAction({
       booking_id: BOOKING_ID,

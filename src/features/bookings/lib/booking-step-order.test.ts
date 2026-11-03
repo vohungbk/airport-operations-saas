@@ -12,6 +12,8 @@ describe("checkStatusTransition", () => {
   it.each([
     ["pending", "cancelled"],
     ["confirmed", "cancelled"],
+    ["assigned", "cancelled"],
+    ["in_progress", "cancelled"],
     ["confirmed", "no_show"],
   ] as const)("should allow leaving the path by hand: %s to %s", (from, to) => {
     expect(checkStatusTransition(from, to)).toEqual({ ok: true });
@@ -61,12 +63,12 @@ describe("checkStatusTransition", () => {
     },
   );
 
-  it("should reject leaving the path from a step after confirmed", () => {
-    expect(checkStatusTransition("assigned", "cancelled")).toEqual({
-      ok: false,
-      message: "A booking that is Assigned cannot move to Cancelled.",
-    });
-  });
+  it.each(["assigned", "in_progress"] as const)(
+    "should reject marking a booking that is %s as a no-show",
+    (from) => {
+      expect(checkStatusTransition(from, "no_show").ok).toBe(false);
+    },
+  );
 
   it("should only ever allow, by hand, a change that is the next step or leaves the path", () => {
     for (const from of BOOKING_STATUSES) {

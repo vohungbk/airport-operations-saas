@@ -28,14 +28,15 @@ describe("getAllowedManualTransitions", () => {
     expect(getAllowedManualTransitions("pending")).not.toContain("no_show");
   });
 
-  it("should offer no manual transition from terminal or workflow-owned statuses", () => {
-    for (const status of [
-      "assigned",
-      "in_progress",
-      "completed",
-      "cancelled",
-      "no_show",
-    ] as const) {
+  it.each(["assigned", "in_progress"] as const)(
+    "should allow %s to be cancelled and nothing else",
+    (status) => {
+      expect(getAllowedManualTransitions(status)).toEqual(["cancelled"]);
+    },
+  );
+
+  it("should offer no manual transition from terminal statuses", () => {
+    for (const status of ["completed", "cancelled", "no_show"] as const) {
       expect(getAllowedManualTransitions(status)).toEqual([]);
     }
   });

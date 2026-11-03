@@ -74,7 +74,7 @@ describe.skipIf(!available)("booking step order (CO-F08-S02)", () => {
     expect(result(rows, "confirmed-to-in-progress")).toBe("55000");
   });
 
-  it("should reject a step back and leaving the path from a step after confirmed (AC02)", () => {
+  it("should reject a step back, and let a booking be cancelled at a step after confirmed (AC02)", () => {
     const rows = run(`
       ${newPartner(4)}
       ${newBooking(4, 4, RETURN, "90", START)}
@@ -86,7 +86,21 @@ describe.skipIf(!available)("booking step order (CO-F08-S02)", () => {
 
     expect(result(rows, "assign")).toBe("ok");
     expect(result(rows, "back")).toBe("55000");
-    expect(result(rows, "cancel-assigned")).toBe("55000");
+    expect(result(rows, "cancel-assigned")).toBe("ok");
+  });
+
+  it("should let a booking be cancelled at in_progress as well (CO-F08-S08 AC01)", () => {
+    const rows = run(`
+      ${newPartner(8)}
+      ${newBooking(8, 8, RETURN, "90", START)}
+      ${AS_CLIENT}
+      ${attempt("confirm", 8, "confirmed")}
+      ${attempt("assign", 8, "assigned")}
+      ${attempt("start", 8, "in_progress")}
+      ${attempt("cancel-in-progress", 8, "cancelled")}`);
+
+    expect(result(rows, "start")).toBe("ok");
+    expect(result(rows, "cancel-in-progress")).toBe("ok");
   });
 
   it("should let a booking leave the path as the booking functions allow, and never come back (AC01, AC02)", () => {

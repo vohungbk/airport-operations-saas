@@ -71,6 +71,20 @@ describe("BookingDetail actions (VI-F03-S03)", () => {
     expect(html).toContain(">Workflow<");
   });
 
+  it.each(["assigned", "in_progress"])(
+    "should offer a manager the status dialog to cancel a %s booking (CO-F08-S08 AC01)",
+    (status) => {
+      expect(render(status, true, false)).toContain("STATUS_DIALOG");
+    },
+  );
+
+  it.each(["completed", "cancelled", "no_show"])(
+    "should offer a manager no status dialog for a %s booking",
+    (status) => {
+      expect(render(status, true, false)).not.toContain("STATUS_DIALOG");
+    },
+  );
+
   it("should keep a manager's Edit for a confirmed booking and the status dialog", () => {
     const html = render("confirmed", true, false);
 
