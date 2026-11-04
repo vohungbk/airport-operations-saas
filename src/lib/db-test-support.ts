@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -37,4 +37,28 @@ export function runSql(sql: string): { ok: boolean; output: string } | null {
     ok: result.status === 0,
     output: `${result.stdout}${result.stderr}`,
   };
+}
+
+/**
+ * The same as `runSql`, without waiting: for tests that need two sessions at the same time (each one
+ * its own transaction, so it sees what the other has committed, not what it is still doing).
+ */
+export function runSqlAsync(sql: string): Promise<{ ok: boolean; output: string } | null> {
+  const container = dbContainer();
+  if (!container) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const child = spawn(
+      "docker",
+      ["exec", "-i", container, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1"],
+      { timeout: 60_000 },
+    );
+    let output = "";
+
+    child.stdout.on("data", (chunk) => (output += chunk));
+    child.stderr.on("data", (chunk) => (output += chunk));
+    child.on("error", () => resolve(null));
+    child.on("close", (code) => resolve({ ok: code === 0, output }));
+    child.stdin.end(sql);
+  });
 }

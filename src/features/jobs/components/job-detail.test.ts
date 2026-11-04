@@ -7,6 +7,7 @@ import type { JobDetailItem } from "@/features/jobs/types";
 
 const JOB: JobDetailItem = {
   id: "j-1",
+  job_number: "JOB-2026-000123",
   status: "in_progress",
   job_type: "installation",
   assigned_at: "2026-10-16T08:00:00Z",

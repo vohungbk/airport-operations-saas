@@ -30,6 +30,19 @@ describe("buildJobsQueryFilters", () => {
     ).toBe("%50\\%\\_%");
   });
 
+  it("should search the job number when the search starts with job, in any case", () => {
+    for (const q of ["JOB-2026-000123", "job-2026", "Job"]) {
+      expect(buildJobsQueryFilters({ ...BASE_QUERY, q }).search_field, q).toBe("job_number");
+    }
+  });
+
+  it("should search the booking number for anything else, and by default", () => {
+    for (const q of ["BK-001", "000123", "2026", "xjob"]) {
+      expect(buildJobsQueryFilters({ ...BASE_QUERY, q }).search_field, q).toBe("booking_number");
+    }
+    expect(buildJobsQueryFilters(BASE_QUERY).search_field).toBe("booking_number");
+  });
+
   it("should pass status and technician filters through", () => {
     const result = buildJobsQueryFilters({
       ...BASE_QUERY,
