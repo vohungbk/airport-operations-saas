@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
+const requireAuthMock = vi.hoisted(() => vi.fn());
 const rpcMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
-  requireAnyPermission: requireAnyPermissionMock,
+  requireAuth: requireAuthMock,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -17,8 +17,8 @@ const BOOKING_ID = "f0000000-0000-4000-8000-000000000001";
 
 describe("moveBookingAction", () => {
   beforeEach(() => {
-    requireAnyPermissionMock.mockReset();
-    requireAnyPermissionMock.mockResolvedValue({ role: "operations_manager" });
+    requireAuthMock.mockReset();
+    requireAuthMock.mockResolvedValue({ role: "operations_manager" });
     rpcMock.mockReset();
     rpcMock.mockResolvedValue({ data: {}, error: null });
   });
@@ -48,14 +48,28 @@ describe("moveBookingAction", () => {
     });
   });
 
-  it("should check that the person may move bookings at all", async () => {
-    await moveBookingAction({ booking_id: BOOKING_ID, expected_status: "pending" });
+  it("should return FORBIDDEN, without calling the function, when the role lost the right to move bookings (AC02)", async () => {
+    requireAuthMock.mockResolvedValue({ role: "partner_user" });
 
-    expect(requireAnyPermissionMock).toHaveBeenCalledWith(["jobs:update_assigned", "technicians:manage"]);
+    const result = await moveBookingAction({ booking_id: BOOKING_ID, expected_status: "pending" });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "FORBIDDEN", message: "You do not have permission to do this." },
+    });
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 
-  it("should propagate the guard's redirect for a role that may not move bookings", async () => {
-    requireAnyPermissionMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
+  it("should let a technician reach the function", async () => {
+    requireAuthMock.mockResolvedValue({ role: "technician" });
+
+    await moveBookingAction({ booking_id: BOOKING_ID, expected_status: "assigned" });
+
+    expect(rpcMock).toHaveBeenCalled();
+  });
+
+  it("should propagate the guard's redirect when there is no session", async () => {
+    requireAuthMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
 
     await expect(
       moveBookingAction({ booking_id: BOOKING_ID, expected_status: "pending" }),
