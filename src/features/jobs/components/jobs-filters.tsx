@@ -55,7 +55,9 @@ export function JobsFilters({ query, technicians }: JobsFiltersProps) {
     );
   }
 
-  const hasFilters = Boolean(query.q || query.status || query.technician_id);
+  const hasFilters = Boolean(
+    query.q || query.status || query.technician_id || query.deadline,
+  );
 
   return (
     <div className="flex flex-col gap-2">

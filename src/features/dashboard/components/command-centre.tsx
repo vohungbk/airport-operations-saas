@@ -3,6 +3,7 @@ import { OperationalAttention } from "@/features/dashboard/components/operationa
 import { OverviewTile } from "@/features/dashboard/components/overview-tile";
 import { StatusChart } from "@/features/dashboard/components/status-chart";
 import { StockByCategory } from "@/features/dashboard/components/stock-by-category";
+import { OVERDUE_JOBS_HREF } from "@/features/dashboard/lib/get-overdue-jobs";
 import type { FlightAlertItem } from "@/features/dashboard/lib/get-flight-alerts";
 import type { DashboardChartResult } from "@/features/dashboard/lib/get-dashboard-charts";
 import type { BarItem } from "@/lib/charts/bar-data";
@@ -11,17 +12,20 @@ interface CommandCentreProps {
   charts: readonly DashboardChartResult[];
   flightAlerts: readonly FlightAlertItem[];
   stock: readonly BarItem[] | null;
+  /** Jobs past their deadline and not done; `null` when it could not be read (a dash). */
+  overdueTasks?: number | null;
 }
 
 /**
  * The Command Centre as the design draws it (UI-F06-S04): the tiles, the flight banners, the status charts
  * side by side, the incidents and the stock, and the queues. The tiles have a dash until their formulas are
- * built (another ticket). A chart shows only for a role that may see its figures.
+ * built (another ticket); Overdue tasks has its number, from the rule of the jobs list. A chart shows only for a role that may see its figures.
  */
 export function CommandCentre({
   charts,
   flightAlerts,
   stock,
+  overdueTasks = null,
 }: CommandCentreProps) {
   const chart = (id: string) => charts.find((result) => result.chart.id === id);
   const seats = chart("seats_by_status");
@@ -35,7 +39,11 @@ export function CommandCentre({
         <OverviewTile label="Arrivals today" />
         <OverviewTile label="Installations due" />
         <OverviewTile label="Active rentals" />
-        <OverviewTile label="Overdue tasks" />
+        <OverviewTile
+          label="Overdue tasks"
+          value={overdueTasks ?? undefined}
+          href={overdueTasks === null ? undefined : OVERDUE_JOBS_HREF}
+        />
       </div>
 
       <FlightBanners alerts={flightAlerts} />

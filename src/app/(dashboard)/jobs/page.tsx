@@ -9,6 +9,7 @@ import { PageEmpty } from "@/components/shared/page-state";
 import { getJobs } from "@/features/jobs/lib/get-jobs";
 import { getTechnicianOptions } from "@/features/jobs/lib/get-technician-options";
 import { parseJobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
+import { JobsDeadlineChips } from "@/features/jobs/components/jobs-deadline-chips";
 import { JobsFilters } from "@/features/jobs/components/jobs-filters";
 import { JobsPagination } from "@/features/jobs/components/jobs-pagination";
 import { JobsTable } from "@/features/jobs/components/jobs-table";
@@ -37,7 +38,9 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
     canManageJobs ? getTechnicianOptions() : Promise.resolve(null),
   ]);
 
-  const hasFilters = Boolean(query.q || query.status || query.technician_id);
+  const hasFilters = Boolean(
+    query.q || query.status || query.technician_id || query.deadline,
+  );
   const emptyMessage = hasFilters
     ? "No jobs match the search or filters."
     : canManageJobs
@@ -72,6 +75,8 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
         query={query}
         technicians={technicians}
       />
+
+      <JobsDeadlineChips query={query} />
 
       {search_error && (
         <Alert variant="destructive">

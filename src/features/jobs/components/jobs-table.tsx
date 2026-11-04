@@ -9,8 +9,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { JobDeadlineCell } from "@/features/jobs/components/job-deadline-cell";
 import { JobStatusBadge } from "@/features/jobs/components/job-status-badge";
 import { buildJobsHref } from "@/features/jobs/lib/build-jobs-href";
+import { buildJobDeadlineView } from "@/features/jobs/lib/job-deadline";
 import type { JobListItem } from "@/features/jobs/types";
 import type {
   JobsQuery,
@@ -20,6 +22,8 @@ import type {
 interface JobsTableProps {
   jobs: JobListItem[];
   query: JobsQuery;
+  /** Passed in so a test can fix the time; the page leaves it out. */
+  now?: Date;
 }
 
 const SORTABLE: Record<"status" | "assigned_at", string> = {
@@ -55,7 +59,7 @@ function SortHeader({
  * job with no script and the keyboard reaches it. Below 640 px the table is a list of cards (UI-F06-S04,
  * spec R10); from 640 px up it is the table it was.
  */
-export function JobsTable({ jobs, query }: JobsTableProps) {
+export function JobsTable({ jobs, query, now = new Date() }: JobsTableProps) {
   return (
     <div className="min-w-0 sm:overflow-hidden sm:rounded-lg sm:border sm:bg-card">
       <Table stacked>
@@ -64,6 +68,7 @@ export function JobsTable({ jobs, query }: JobsTableProps) {
             <TableHead>Job number</TableHead>
             <TableHead>Booking</TableHead>
             <TableHead>Technician</TableHead>
+            <TableHead>Deadline</TableHead>
             <SortHeader query={query} column="status" />
             <SortHeader query={query} column="assigned_at" />
             <TableHead>Vehicle bay</TableHead>
@@ -93,6 +98,15 @@ export function JobsTable({ jobs, query }: JobsTableProps) {
                 className="max-w-48 truncate max-sm:max-w-none"
               >
                 {job.technician?.full_name ?? "—"}
+              </TableCell>
+              <TableCell data-label="Deadline">
+                <JobDeadlineCell
+                  view={buildJobDeadlineView(
+                    job,
+                    job.booking?.airport?.timezone ?? "UTC",
+                    now,
+                  )}
+                />
               </TableCell>
               <TableCell data-label="Status">
                 <JobStatusBadge status={job.status} />
