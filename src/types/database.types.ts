@@ -237,6 +237,8 @@ export type Database = {
           daily_rate: number
           estimated_arrival_at: string | null
           external_booking_number: string | null
+          family_ready_at: string | null
+          family_ready_by: string | null
           flight_id: string | null
           gross_revenue: number | null
           id: string
@@ -275,6 +277,8 @@ export type Database = {
           daily_rate: number
           estimated_arrival_at?: string | null
           external_booking_number?: string | null
+          family_ready_at?: string | null
+          family_ready_by?: string | null
           flight_id?: string | null
           gross_revenue?: number | null
           id?: string
@@ -314,6 +318,8 @@ export type Database = {
           daily_rate?: number
           estimated_arrival_at?: string | null
           external_booking_number?: string | null
+          family_ready_at?: string | null
+          family_ready_by?: string | null
           flight_id?: string | null
           gross_revenue?: number | null
           id?: string
@@ -780,6 +786,65 @@ export type Database = {
           },
         ]
       }
+      installation_seat_scans: {
+        Row: {
+          assigned_seat_id: string
+          id: string
+          matched: boolean
+          scanned_at: string
+          scanned_by: string | null
+          scanned_seat_id: string | null
+          technician_job_id: string
+        }
+        Insert: {
+          assigned_seat_id: string
+          id?: string
+          matched: boolean
+          scanned_at?: string
+          scanned_by?: string | null
+          scanned_seat_id?: string | null
+          technician_job_id: string
+        }
+        Update: {
+          assigned_seat_id?: string
+          id?: string
+          matched?: boolean
+          scanned_at?: string
+          scanned_by?: string | null
+          scanned_seat_id?: string | null
+          technician_job_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installation_seat_scans_assigned_seat_id_fkey"
+            columns: ["assigned_seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_seat_scans_scanned_by_fkey"
+            columns: ["scanned_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_seat_scans_scanned_seat_id_fkey"
+            columns: ["scanned_seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_seat_scans_technician_job_id_fkey"
+            columns: ["technician_job_id"]
+            isOneToOne: false
+            referencedRelation: "technician_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       installations: {
         Row: {
           category_verified: boolean
@@ -791,6 +856,7 @@ export type Database = {
           notes: string | null
           photo_path: string | null
           seat_id: string | null
+          seat_match: boolean | null
           seat_verified: boolean
           technician_job_id: string
           vehicle_location: string | null
@@ -805,6 +871,7 @@ export type Database = {
           notes?: string | null
           photo_path?: string | null
           seat_id?: string | null
+          seat_match?: boolean | null
           seat_verified?: boolean
           technician_job_id: string
           vehicle_location?: string | null
@@ -819,6 +886,7 @@ export type Database = {
           notes?: string | null
           photo_path?: string | null
           seat_id?: string | null
+          seat_match?: boolean | null
           seat_verified?: boolean
           technician_job_id?: string
           vehicle_location?: string | null
@@ -1388,6 +1456,7 @@ export type Database = {
           booking_id: string
           completed_at: string | null
           created_at: string
+          deadline_at: string | null
           id: string
           installation_notes: string | null
           job_type: Database["public"]["Enums"]["technician_job_type"]
@@ -1402,6 +1471,7 @@ export type Database = {
           booking_id: string
           completed_at?: string | null
           created_at?: string
+          deadline_at?: string | null
           id?: string
           installation_notes?: string | null
           job_type?: Database["public"]["Enums"]["technician_job_type"]
@@ -1416,6 +1486,7 @@ export type Database = {
           booking_id?: string
           completed_at?: string | null
           created_at?: string
+          deadline_at?: string | null
           id?: string
           installation_notes?: string | null
           job_type?: Database["public"]["Enums"]["technician_job_type"]
@@ -1801,6 +1872,8 @@ export type Database = {
           daily_rate: number
           estimated_arrival_at: string | null
           external_booking_number: string | null
+          family_ready_at: string | null
+          family_ready_by: string | null
           flight_id: string | null
           gross_revenue: number | null
           id: string
@@ -1953,6 +2026,8 @@ export type Database = {
           daily_rate: number
           estimated_arrival_at: string | null
           external_booking_number: string | null
+          family_ready_at: string | null
+          family_ready_by: string | null
           flight_id: string | null
           gross_revenue: number | null
           id: string
@@ -2012,6 +2087,8 @@ export type Database = {
           daily_rate: number
           estimated_arrival_at: string | null
           external_booking_number: string | null
+          family_ready_at: string | null
+          family_ready_by: string | null
           flight_id: string | null
           gross_revenue: number | null
           id: string
@@ -2097,6 +2174,8 @@ export type Database = {
           daily_rate: number
           estimated_arrival_at: string | null
           external_booking_number: string | null
+          family_ready_at: string | null
+          family_ready_by: string | null
           flight_id: string | null
           gross_revenue: number | null
           id: string
@@ -2137,6 +2216,10 @@ export type Database = {
         }
         Returns: number
       }
+      record_installation_seat_scan: {
+        Args: { p_job_id: string; p_kind: string; p_value: string }
+        Returns: boolean
+      }
       update_booking: {
         Args: {
           p_assigned_seat_id?: string
@@ -2166,6 +2249,8 @@ export type Database = {
           daily_rate: number
           estimated_arrival_at: string | null
           external_booking_number: string | null
+          family_ready_at: string | null
+          family_ready_by: string | null
           flight_id: string | null
           gross_revenue: number | null
           id: string
@@ -2224,6 +2309,8 @@ export type Database = {
           daily_rate: number
           estimated_arrival_at: string | null
           external_booking_number: string | null
+          family_ready_at: string | null
+          family_ready_by: string | null
           flight_id: string | null
           gross_revenue: number | null
           id: string

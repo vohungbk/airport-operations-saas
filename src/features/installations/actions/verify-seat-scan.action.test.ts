@@ -165,11 +165,67 @@ describe("verifySeatScanAction", () => {
     });
   });
 
-  it("should grant nothing: a scan writes no row", async () => {
-    getByTokenMock.mockResolvedValue(scannedSeat());
+  describe("scan log (VI-F05-T01)", () => {
+    const rpcMock = vi.fn();
 
-    await verifySeatScanAction({ job_id: JOB_ID, code: TOKEN });
+    beforeEach(() => {
+      rpcMock.mockReset();
+      rpcMock.mockResolvedValue({ data: true, error: null });
+      createClientMock.mockResolvedValue({ rpc: rpcMock });
+    });
 
-    expect(createClientMock).not.toHaveBeenCalled();
+    it("should log a matching scan with the job and the code kind", async () => {
+      getByTokenMock.mockResolvedValue(scannedSeat());
+
+      await verifySeatScanAction({ job_id: JOB_ID, code: TOKEN });
+
+      expect(rpcMock).toHaveBeenCalledTimes(1);
+      expect(rpcMock).toHaveBeenCalledWith("record_installation_seat_scan", {
+        p_job_id: JOB_ID,
+        p_kind: "token",
+        p_value: TOKEN,
+      });
+    });
+
+    it("should log a mismatch too, and a typed serial as a serial", async () => {
+      getBySerialMock.mockResolvedValue(scannedSeat({ id: "s-5", serial_number: "SEAT-0005" }));
+
+      const result = await verifySeatScanAction({ job_id: JOB_ID, code: " SEAT-0005 " });
+
+      expect(result).toMatchObject({ success: true, scan: { match: false } });
+      expect(rpcMock).toHaveBeenCalledWith("record_installation_seat_scan", {
+        p_job_id: JOB_ID,
+        p_kind: "serial",
+        p_value: "SEAT-0005",
+      });
+    });
+
+    it("should still return the scan result when the log cannot be written", async () => {
+      getByTokenMock.mockResolvedValue(scannedSeat());
+
+      for (const failure of [
+        () => rpcMock.mockResolvedValue({ data: null, error: { code: "42501", message: "Not allowed" } }),
+        () => rpcMock.mockRejectedValue(new Error("network")),
+        () => createClientMock.mockRejectedValue(new Error("no client")),
+      ]) {
+        failure();
+        await expect(verifySeatScanAction({ job_id: JOB_ID, code: TOKEN })).resolves.toMatchObject({
+          success: true,
+          scan: { match: true },
+        });
+      }
+    });
+
+    it("should log nothing for a bad code, a job that is not found, or a booking with no seat", async () => {
+      await verifySeatScanAction({ job_id: JOB_ID, code: "  " });
+
+      getContextMock.mockResolvedValue(null);
+      await verifySeatScanAction({ job_id: JOB_ID, code: TOKEN });
+
+      getContextMock.mockResolvedValue(context(null));
+      await verifySeatScanAction({ job_id: JOB_ID, code: TOKEN });
+
+      expect(rpcMock).not.toHaveBeenCalled();
+    });
   });
 });
