@@ -22,6 +22,9 @@ function mockRequest(result: { data: unknown; error: unknown; count: number | nu
   const request = {
     ilike: vi.fn(() => request),
     eq: vi.fn(() => request),
+    in: vi.fn(() => request),
+    gte: vi.fn(() => request),
+    lt: vi.fn(() => request),
     order: vi.fn(() => request),
     range: vi.fn(() => request),
     then: (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve),
@@ -70,6 +73,39 @@ describe("getJobs", () => {
 
     expect(request.ilike).not.toHaveBeenCalled();
     expect(result).toEqual({ jobs: [{ id: "j-1" }], total: 1 });
+  });
+
+  it("should select the deadline and the time zone of the airport with the job", () => {
+    expect(JOB_LIST_SELECT.split(", ")).toContain("deadline_at");
+    expect(JOB_LIST_SELECT).toContain("airport:airports(timezone)");
+  });
+
+  it("should keep open jobs past their deadline for the Overdue filter", async () => {
+    const { request } = mockRequest({ data: [], error: null, count: 0 });
+    const now = new Date("2026-11-04T10:00:00Z");
+
+    await getJobs({ ...BASE_QUERY, deadline: "overdue" }, now);
+
+    expect(request.in).toHaveBeenCalledWith("status", ["assigned", "in_progress"]);
+    expect(request.lt).toHaveBeenCalledWith("deadline_at", now.toISOString());
+  });
+
+  it("should keep the jobs due inside the day for the Today filter", async () => {
+    const { request } = mockRequest({ data: [], error: null, count: 0 });
+
+    await getJobs({ ...BASE_QUERY, deadline: "today" }, new Date("2026-11-04T10:00:00Z"));
+
+    expect(request.gte).toHaveBeenCalledWith("deadline_at", "2026-11-04T00:00:00.000Z");
+    expect(request.lt).toHaveBeenCalledWith("deadline_at", "2026-11-05T00:00:00.000Z");
+  });
+
+  it("should add no deadline condition without a deadline filter", async () => {
+    const { request } = mockRequest({ data: [], error: null, count: 0 });
+
+    await getJobs(BASE_QUERY);
+
+    expect(request.gte).not.toHaveBeenCalled();
+    expect(request.lt).not.toHaveBeenCalled();
   });
 
   it("should throw the database error", async () => {

@@ -9,6 +9,22 @@ import { jobIdSchema, parseJobsQuery } from "@/features/jobs/schemas/jobs-query.
 
 const TECHNICIAN_ID = "d0000000-0000-0000-0000-000000000001";
 
+describe("parseJobsQuery deadline (UI-F06-T01)", () => {
+  it("should accept the Today and Overdue deadline filters", () => {
+    expect(parseJobsQuery({ deadline: "today" }).query.deadline).toBe("today");
+    expect(parseJobsQuery({ deadline: "overdue" }).query.deadline).toBe("overdue");
+  });
+
+  it("should drop a deadline filter it does not know instead of failing the page", () => {
+    expect(parseJobsQuery({ deadline: "yesterday" }).query.deadline).toBeUndefined();
+    expect(parseJobsQuery({ deadline: ["today", "overdue"] }).query.deadline).toBeUndefined();
+  });
+
+  it("should have no deadline filter by default", () => {
+    expect(parseJobsQuery({}).query.deadline).toBeUndefined();
+  });
+});
+
 describe("parseJobsQuery", () => {
   it("should apply defaults when no params are given", () => {
     const { query, search_error } = parseJobsQuery({});

@@ -30,6 +30,11 @@ describe("buildJobsHref", () => {
     expect(href).toContain("page=1");
   });
 
+  it("should keep the deadline filter and drop it for the All chip", () => {
+    expect(buildJobsHref({ ...QUERY, deadline: "overdue" })).toContain("deadline=overdue");
+    expect(buildJobsHref({ ...QUERY, deadline: "overdue" }, { deadline: undefined })).not.toContain("deadline=");
+  });
+
   it("should encode search text safely", () => {
     expect(buildJobsHref({ ...QUERY, q: "a&b=c" })).toContain("q=a%26b%3Dc");
   });
