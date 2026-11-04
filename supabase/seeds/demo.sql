@@ -379,6 +379,17 @@ begin
   update public.seats set created_at = c_base, updated_at = c_base where id::text like 'e0000000-%';
   update public.bookings set created_at = c_base, updated_at = c_base where id::text like 'f0000000-%';
   update public.technician_jobs set created_at = c_base, updated_at = c_base where id::text like '10000000-%';
+  -- The insert gave each job its number with the year of the run; the demo uses the year of c_base,
+  -- in the order of the ids, so the data does not change from one run to the next (the number
+  -- trigger is off here).
+  update public.technician_jobs j
+     set job_number = 'JOB-' || to_char(c_base at time zone 'UTC', 'YYYY') || '-' || lpad(r.n::text, 6, '0')
+    from (
+      select id, row_number() over (order by id) as n
+        from public.technician_jobs
+       where id::text like '10000000-%'
+    ) r
+   where j.id = r.id;
   update public.installations set created_at = c_base where id::text like '11000000-%';
   update public.cleaning_records set created_at = c_base where id::text like '12000000-%';
   update public.inspection_records set created_at = c_base where id::text like '13000000-%';

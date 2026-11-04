@@ -67,7 +67,7 @@ export function JobsFilters({ query, technicians }: JobsFiltersProps) {
           className="flex w-full items-center gap-2 sm:w-70"
         >
           <SearchInput
-            placeholder="Search booking number…"
+            placeholder="Search job or booking number…"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             className="h-11"

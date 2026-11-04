@@ -458,9 +458,19 @@ has no INSERT policy: rows are written only by `record_booking_event()`.
 | status | technician_job_status not null default 'assigned' | |
 | installation_notes | text | nullable |
 | job_type | technician_job_type not null default 'installation' | `installation`, `cleaning`, `inspection` |
+| job_number | text not null, unique | `JOB-YYYY-NNNNNN` (VI-F11-T01), made by the database |
 
 Indexes: `technician_id`, `status`, `booking_id`, unique
 `(booking_id, job_type)` where status is `assigned` or `in_progress`.
+
+Job number (VI-F11-T01): the year the job was created (UTC) and a six-digit counter from
+`job_number_seq`, one sequence for all years that never starts again, so a number is never given
+twice, not even after a rollback or a delete (gaps are harmless). The sequence stops at 999999. The
+trigger `set_technician_jobs_job_number` gives the number on insert and refuses one sent by the
+client (`55000`); `guard_technician_jobs_job_number` refuses any change of it (`55000`). The
+migration numbered the jobs that existed, oldest first (`created_at`, then `id`), with the year of
+their own `created_at`, and left `updated_at` as it was. The demo seed sets the numbers of its jobs
+in the order of their ids, with the year of its fixed base date, so two loads are the same.
 
 Insert guard trigger `guard_technician_jobs_insert`: the technician must be
 an active `technician` user (`JB001`) and the booking must be active
