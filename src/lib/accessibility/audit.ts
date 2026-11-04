@@ -8,9 +8,9 @@ import ts from "typescript";
  * records what only a person at a screen can tell.
  */
 
-/** A class that shows where the focus is. */
+/** A class that shows where the focus is; it may draw on a pseudo-element (`after:` or `before:`), like a card link's ring. */
 const FOCUS_CUE =
-  /(^|\s)(focus|focus-visible|data-highlighted|has-\[[^\]]*focus-visible[^\]]*\]):(ring|border|outline|shadow|bg)(?!-none|-hidden)/;
+  /(^|\s)(focus|focus-visible|data-highlighted|has-\[[^\]]*focus-visible[^\]]*\]):((after|before):)?(ring|border|outline|shadow|bg)(?!-none|-hidden)/;
 /** A class that takes the browser's own outline away. */
 const OUTLINE_OFF = /(^|\s)([a-z-]+:)?outline-(none|hidden)(\s|$)/;
 

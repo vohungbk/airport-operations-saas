@@ -1667,6 +1667,10 @@ export type Database = {
       }
       booking_partner_id: { Args: { p_booking_id: string }; Returns: string }
       invoice_partner_id: { Args: { p_invoice_id: string }; Returns: string }
+      mark_overdue_invoices: {
+        Args: { p_today?: string }
+        Returns: number
+      }
       move_settlement_status: {
         Args: {
           p_settlement_id: string

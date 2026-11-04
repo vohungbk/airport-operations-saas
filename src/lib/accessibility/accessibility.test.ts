@@ -93,6 +93,7 @@ describe("visible focus", () => {
     'className="rounded outline-none focus-visible:ring-3 focus-visible:ring-ring/50"',
     'className="outline-none focus-visible:border-ring"',
     'className="focus-visible:outline-none focus-visible:ring-3"',
+    'className="focus-visible:outline-none focus-visible:after:ring-3 focus-visible:after:ring-ring/50"',
   ])("should accept an outline that is replaced by a focus cue: %s", (source) => {
     expect(findHiddenFocus(source)).toEqual([]);
   });
