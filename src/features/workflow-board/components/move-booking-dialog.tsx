@@ -21,6 +21,7 @@ import { BOOKING_STATUS_LABEL } from "@/features/bookings/lib/booking-status";
 import type { BookingStatus } from "@/features/bookings/types";
 import { SEAT_STATUS_LABEL } from "@/features/seats/lib/seat-status";
 import type { SeatStatus } from "@/features/seats/types";
+import { getMoveDialogState } from "@/features/workflow-board/lib/move-dialog-state";
 
 interface MoveBookingDialogProps {
   bookingId: string;
@@ -33,9 +34,6 @@ interface MoveBookingDialogProps {
   seatLabel: string | null;
   seatStatus: SeatStatus | null;
 }
-
-/** Errors after which the same move cannot work until something else changes. */
-const BLOCKING_CODES = new Set(["INVALID_TRANSITION", "NO_SEAT", "SEAT_NOT_READY", "FORBIDDEN", "NOT_FOUND"]);
 
 /**
  * "Move to {step}": the button on a card and the dialog it opens, as in the Figma frames. The dialog says
@@ -63,12 +61,7 @@ export function MoveBookingDialog({
 
   const stepLabel = BOOKING_STATUS_LABEL[step];
   const seatFollows = SEAT_FOLLOWS[step];
-  const message = error?.message ?? (readiness.ok ? null : readiness.message);
-  const readinessSeatStatus = !readiness.ok && readiness.code === "SEAT_NOT_READY" ? readiness.seat_status : undefined;
-  const shownSeatStatus = error?.seat_status ?? readinessSeatStatus;
-  const conflict = error?.code === "STEP_CHANGED";
-  const forbidden = error?.code === "FORBIDDEN";
-  const blocked = !readiness.ok || (error !== undefined && BLOCKING_CODES.has(error.code));
+  const { message, seatStatus: shownSeatStatus, conflict, forbidden, blocked } = getMoveDialogState(readiness, error);
 
   return (
     <Dialog
