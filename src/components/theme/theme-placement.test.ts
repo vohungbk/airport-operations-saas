@@ -8,9 +8,9 @@ const APP_DIR = join(process.cwd(), "src", "app");
 /**
  * Pages that have no theme control on purpose. The spec puts the control in the top bar, the user
  * menu and the sign-in pages (NAV-1, NAV-2); these are state pages and a stub, and they follow
- * the theme through the tokens only.
+ * the theme through the tokens only. The sign in page has none either: its design has no control.
  */
-const WITHOUT_CONTROL = new Set(["page.tsx", join("forbidden", "page.tsx")]);
+const WITHOUT_CONTROL = new Set(["page.tsx", join("forbidden", "page.tsx"), join("(auth)", "login", "page.tsx")]);
 
 function pagesUnder(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -33,7 +33,7 @@ function layoutsAbove(page: string): string[] {
 
 /** Whether the layouts hand the page a theme control: through the shell, or directly. */
 export function hasThemeControl(layouts: string[], read: (file: string) => string): boolean {
-  return layouts.some((file) => /<AppShell\b|<ThemeControl\b/.test(read(file)));
+  return layouts.some((file) => /<AppShell\b|<ThemeControl\b|<AuthThemeControl\b/.test(read(file)));
 }
 
 describe("the theme control is above every page", () => {
@@ -52,13 +52,13 @@ describe("the theme control is above every page", () => {
   it("should give every page a layout with the control, except the listed state pages", () => {
     const missing = pages
       .filter((page) => !WITHOUT_CONTROL.has(relativePage(page)))
-      .filter((page) => !hasThemeControl(layoutsAbove(page), read))
+      .filter((page) => !hasThemeControl([...layoutsAbove(page), page], read))
       .map(relativePage);
 
     expect(missing).toEqual([]);
   });
 
-  it("should show the control on every sign-in page, which are signed-out pages", () => {
+  it("should show the control on every sign-in page but the sign in page, which are signed-out pages", () => {
     const signIn = pages.filter((page) => relativePage(page).startsWith("(auth)"));
 
     expect(signIn.map(relativePage).sort()).toEqual([
@@ -68,7 +68,8 @@ describe("the theme control is above every page", () => {
       join("(auth)", "signup", "page.tsx"),
     ]);
     for (const page of signIn) {
-      expect(read(join(APP_DIR, "(auth)", "layout.tsx"))).toContain("<ThemeControl />");
+      const hasControl = read(page).includes("<AuthThemeControl />");
+      expect(hasControl).toBe(relativePage(page) !== join("(auth)", "login", "page.tsx"));
       expect(layoutsAbove(page)).toContain(join(APP_DIR, "(auth)", "layout.tsx"));
     }
   });

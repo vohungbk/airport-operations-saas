@@ -1,3 +1,4 @@
+import { AuthThemeControl } from "@/components/theme/auth-theme-control";
 import {
   Card,
   CardContent,
@@ -14,32 +15,38 @@ export default async function ResetPasswordPage() {
 
   if (!user) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Link invalid or expired</CardTitle>
-          <CardDescription>
-            This password reset link is no longer valid. Request a new one to
-            continue.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TextLink href="/forgot-password" className="text-sm">
-            Request a new reset link
-          </TextLink>
-        </CardContent>
-      </Card>
+      <>
+        <AuthThemeControl />
+        <Card>
+          <CardHeader>
+            <CardTitle>Link invalid or expired</CardTitle>
+            <CardDescription>
+              This password reset link is no longer valid. Request a new one to
+              continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TextLink href="/forgot-password" className="text-sm">
+              Request a new reset link
+            </TextLink>
+          </CardContent>
+        </Card>
+      </>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Reset your password</CardTitle>
-        <CardDescription>Choose a new password for your account.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ResetPasswordForm />
-      </CardContent>
-    </Card>
+    <>
+      <AuthThemeControl />
+      <Card>
+        <CardHeader>
+          <CardTitle>Reset your password</CardTitle>
+          <CardDescription>Choose a new password for your account.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResetPasswordForm />
+        </CardContent>
+      </Card>
+    </>
   );
 }

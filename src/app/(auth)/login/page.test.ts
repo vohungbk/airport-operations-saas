@@ -1,4 +1,5 @@
 import { isValidElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/features/auth/components/login-form", () => ({
@@ -23,6 +24,37 @@ function nextOf(node: unknown): string | undefined | "none" {
 
 const render = async (searchParams: Record<string, string | string[] | undefined>) =>
   nextOf(await LoginPage({ searchParams: Promise.resolve(searchParams) }));
+
+/** The sign in frame of the design: the heading, the product name, the card and the footer line. */
+describe("LoginPage frame", () => {
+  const markup = async (params: Record<string, string | string[] | undefined> = {}) =>
+    renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve(params) }));
+
+  it("should show one main heading, Sign in, with the line about secure access under it", async () => {
+    const out = await markup();
+
+    expect(out.match(/<h1/g)).toHaveLength(1);
+    expect(out).toContain("Secure access to Airport Operations SaaS");
+  });
+
+  it("should show the product name with a plane icon that a screen reader skips", async () => {
+    const out = await markup();
+
+    expect(out).toContain("Airport Operations</p>");
+    expect(out).toMatch(/<svg[^>]*aria-hidden="true"/);
+  });
+
+  it("should show the protected workspace line under the card", async () => {
+    const out = await markup();
+
+    expect(out).toContain("Protected workspace · Tenant-scoped access · © 2026 Airport Operations");
+    expect(out.indexOf("Sign in</div>")).toBeLessThan(out.indexOf("Protected workspace"));
+  });
+
+  it("should not show the old line about signing in to the account", async () => {
+    expect(await markup()).not.toContain("Sign in to your Airport Operations account.");
+  });
+});
 
 /**
  * FO-F03-S11 (spec E11): the page to return to comes from the address, so only a safe

@@ -6,6 +6,13 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { TextLink } from "@/components/ui/text-link";
 import { useLoginForm } from "@/features/auth/hooks/use-login-form";
+import {
+  LOGIN_CONTROL_CLASS,
+  LOGIN_FIELD_CLASS,
+  LOGIN_LABEL_CLASS,
+  LOGIN_LINK_CLASS,
+  LOGIN_SUBMIT_CLASS,
+} from "@/features/auth/lib/login-form-styles";
 
 interface LoginFormProps {
   /** The page to return to after signing in, already checked by the page. */
@@ -20,7 +27,7 @@ export function LoginForm({ next }: LoginFormProps) {
   } = form;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
+    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
       {formError && (
         <Alert variant="destructive">
           <AlertTitle>Could not sign in</AlertTitle>
@@ -28,42 +35,54 @@ export function LoginForm({ next }: LoginFormProps) {
         </Alert>
       )}
 
-      <FieldGroup>
-        <Field data-invalid={!!errors.email}>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+      <FieldGroup className="gap-4">
+        <Field data-invalid={!!errors.email} className={LOGIN_FIELD_CLASS}>
+          <FieldLabel htmlFor="email" className={LOGIN_LABEL_CLASS}>
+            Email address <span aria-hidden="true">*</span>
+          </FieldLabel>
           <Input
             id="email"
             type="email"
             autoComplete="email"
+            aria-required="true"
             aria-invalid={!!errors.email}
             disabled={isPending}
+            className={LOGIN_CONTROL_CLASS}
             {...register("email")}
           />
           <FieldError errors={errors.email ? [errors.email] : undefined} />
         </Field>
 
-        <Field data-invalid={!!errors.password}>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
+        <Field data-invalid={!!errors.password} className={LOGIN_FIELD_CLASS}>
+          <FieldLabel htmlFor="password" className={LOGIN_LABEL_CLASS}>
+            Password <span aria-hidden="true">*</span>
+          </FieldLabel>
           <Input
             id="password"
             type="password"
             autoComplete="current-password"
+            aria-required="true"
             aria-invalid={!!errors.password}
             disabled={isPending}
+            className={LOGIN_CONTROL_CLASS}
             {...register("password")}
           />
           <FieldError errors={errors.password ? [errors.password] : undefined} />
         </Field>
       </FieldGroup>
 
-      <Button type="submit" disabled={isPending} className="w-full">
+      <Button type="submit" disabled={isPending} className={LOGIN_SUBMIT_CLASS}>
         {isPending ? "Signing in..." : "Sign in"}
       </Button>
 
-      <div className="flex flex-col items-center gap-1 text-sm text-muted-foreground">
-        <TextLink href="/forgot-password">Forgot your password?</TextLink>
-        <p>Don&apos;t have an account?</p>
-        <TextLink href="/signup">Sign up</TextLink>
+      <div className="flex flex-wrap items-center gap-x-3 text-body text-text-muted">
+        <TextLink href="/forgot-password" className={LOGIN_LINK_CLASS}>
+          Forgot password?
+        </TextLink>
+        <span aria-hidden="true">·</span>
+        <TextLink href="/signup" className={LOGIN_LINK_CLASS}>
+          Create an account
+        </TextLink>
       </div>
     </form>
   );

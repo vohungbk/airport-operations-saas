@@ -1,3 +1,4 @@
+import { AuthThemeControl } from "@/components/theme/auth-theme-control";
 import {
   Card,
   CardContent,
@@ -9,16 +10,19 @@ import { SignupForm } from "@/features/auth/components/signup-form";
 
 export default function SignupPage() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create an account</CardTitle>
-        <CardDescription>
-          Sign up to start managing your partner&apos;s bookings.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <SignupForm />
-      </CardContent>
-    </Card>
+    <>
+      <AuthThemeControl />
+      <Card>
+        <CardHeader>
+          <CardTitle>Create an account</CardTitle>
+          <CardDescription>
+            Sign up to start managing your partner&apos;s bookings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SignupForm />
+        </CardContent>
+      </Card>
+    </>
   );
 }
