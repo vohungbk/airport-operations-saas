@@ -1459,6 +1459,7 @@ export type Database = {
           deadline_at: string | null
           id: string
           installation_notes: string | null
+          job_number: string
           job_type: Database["public"]["Enums"]["technician_job_type"]
           started_at: string | null
           status: Database["public"]["Enums"]["technician_job_status"]
@@ -1474,6 +1475,7 @@ export type Database = {
           deadline_at?: string | null
           id?: string
           installation_notes?: string | null
+          job_number?: string
           job_type?: Database["public"]["Enums"]["technician_job_type"]
           started_at?: string | null
           status?: Database["public"]["Enums"]["technician_job_status"]
@@ -1489,6 +1491,7 @@ export type Database = {
           deadline_at?: string | null
           id?: string
           installation_notes?: string | null
+          job_number?: string
           job_type?: Database["public"]["Enums"]["technician_job_type"]
           started_at?: string | null
           status?: Database["public"]["Enums"]["technician_job_status"]
@@ -1981,6 +1984,7 @@ export type Database = {
           created_at: string
           id: string
           installation_notes: string | null
+          job_number: string
           job_type: Database["public"]["Enums"]["technician_job_type"]
           started_at: string | null
           status: Database["public"]["Enums"]["technician_job_status"]

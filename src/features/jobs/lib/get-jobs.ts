@@ -11,10 +11,12 @@ export interface GetJobsResult {
 /**
  * One nested select (job + booking + technician) — never a per-row
  * lookup. `booking` is `!inner` so the booking-number search can filter
- * the job rows themselves.
+ * the job rows themselves. A search that starts with "job" filters on the
+ * job number instead (PostgREST cannot OR a column of the job with one of
+ * the booking).
  */
 export const JOB_LIST_SELECT =
-  "id, status, assigned_at, started_at, completed_at, vehicle_bay, booking:bookings!inner(id, booking_number), technician:users!technician_id(id, full_name)";
+  "id, job_number, status, assigned_at, started_at, completed_at, vehicle_bay, booking:bookings!inner(id, booking_number), technician:users!technician_id(id, full_name)";
 
 /**
  * Server-only. RLS is the access boundary: admin/ops read every job, a
@@ -34,7 +36,10 @@ export async function getJobs(query: JobsQuery): Promise<GetJobsResult> {
     .range(filters.range.from, filters.range.to);
 
   if (filters.search_pattern) {
-    request = request.ilike("booking.booking_number", filters.search_pattern);
+    request = request.ilike(
+      filters.search_field === "job_number" ? "job_number" : "booking.booking_number",
+      filters.search_pattern,
+    );
   }
 
   if (filters.status) {

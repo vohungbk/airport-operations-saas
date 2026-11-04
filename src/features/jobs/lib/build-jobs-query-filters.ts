@@ -5,9 +5,16 @@ import type {
 } from "@/features/jobs/schemas/jobs-query.schema";
 import type { JobStatus } from "@/features/jobs/lib/job-status";
 
+/** What the search text is matched against. */
+export type JobsSearchField = "job_number" | "booking_number";
+
+/** A search that starts with "job" is a job number (`JOB-2026-000123`); anything else is a booking number. */
+const JOB_NUMBER_SEARCH = /^job/i;
+
 export interface JobsQueryFilters {
-  /** `ilike` pattern for `bookings.booking_number`, or `undefined`. */
+  /** `ilike` pattern for the field in `search_field`, or `undefined`. */
   search_pattern: string | undefined;
+  search_field: JobsSearchField;
   status: JobStatus | undefined;
   technician_id: string | undefined;
   sort: JobsSortColumn;
@@ -24,6 +31,7 @@ export function buildJobsQueryFilters(query: JobsQuery): JobsQueryFilters {
 
   return {
     search_pattern: q ? `%${escapeIlikeValue(q)}%` : undefined,
+    search_field: q && JOB_NUMBER_SEARCH.test(q) ? "job_number" : "booking_number",
     status,
     technician_id,
     sort,

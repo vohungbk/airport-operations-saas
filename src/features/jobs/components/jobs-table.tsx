@@ -51,7 +51,7 @@ function SortHeader({
 }
 
 /**
- * Server Component. The link on the booking number is stretched over the row, so the whole row opens the
+ * Server Component. The link on the job number is stretched over the row, so the whole row opens the
  * job with no script and the keyboard reaches it. Below 640 px the table is a list of cards (UI-F06-S04,
  * spec R10); from 640 px up it is the table it was.
  */
@@ -61,6 +61,7 @@ export function JobsTable({ jobs, query }: JobsTableProps) {
       <Table stacked>
         <TableHeader className="sm:bg-muted [&_th]:h-13 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_th_a]:text-[11px] [&_th_a]:font-semibold">
           <TableRow>
+            <TableHead>Job number</TableHead>
             <TableHead>Booking</TableHead>
             <TableHead>Technician</TableHead>
             <SortHeader query={query} column="status" />
@@ -74,14 +75,17 @@ export function JobsTable({ jobs, query }: JobsTableProps) {
               key={job.id}
               className="relative cursor-pointer focus-within:bg-muted/50 sm:h-13"
             >
-              <TableCell data-label="Booking" className="font-mono text-[13px]">
+              <TableCell data-label="Job number" className="font-semibold">
                 <Link
                   href={`/jobs/${job.id}`}
-                  aria-label={`View job ${job.booking?.booking_number ?? ""}`.trim()}
+                  aria-label={`View job ${job.job_number}`}
                   className="after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
-                  {job.booking?.booking_number ?? "View job"}
+                  {job.job_number}
                 </Link>
+              </TableCell>
+              <TableCell data-label="Booking" className="font-mono text-[13px]">
+                {job.booking?.booking_number ?? "—"}
               </TableCell>
               <TableCell
                 data-label="Technician"

@@ -38,6 +38,19 @@ describe("createJobAction", () => {
     fromMock.mockClear();
   });
 
+  it("should never pass a job number from the input to the insert", async () => {
+    singleMock.mockResolvedValue({ data: { id: "job-1" }, error: null });
+
+    await expect(
+      createJobAction({ ...VALID_INPUT, job_number: "JOB-2026-000001" }),
+    ).rejects.toThrow("REDIRECT:/jobs/job-1");
+
+    expect(insertMock).toHaveBeenCalledWith(VALID_INPUT);
+    expect(insertMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ job_number: expect.anything() }),
+    );
+  });
+
   it("should insert the job and redirect to /jobs/[id] on success", async () => {
     singleMock.mockResolvedValue({ data: { id: "job-1" }, error: null });
 

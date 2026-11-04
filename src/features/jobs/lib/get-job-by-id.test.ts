@@ -64,4 +64,8 @@ describe("getJobById", () => {
       expect(JOB_DETAIL_SELECT).not.toMatch(new RegExp(`\\b${column}\\b`));
     }
   });
+
+  it("should select the job number", () => {
+    expect(JOB_DETAIL_SELECT.split(", ")).toContain("job_number");
+  });
 });

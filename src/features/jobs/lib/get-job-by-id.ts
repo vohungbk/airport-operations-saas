@@ -11,6 +11,7 @@ import type { JobDetailItem } from "@/features/jobs/types";
  */
 export const JOB_DETAIL_SELECT = [
   "id",
+  "job_number",
   "status",
   "job_type",
   "assigned_at",

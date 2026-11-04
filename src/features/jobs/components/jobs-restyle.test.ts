@@ -28,6 +28,7 @@ const LONG_NAME = "Mohammed Abdulrahman Al Mansoori bin Khalifa ".repeat(3);
 
 const job = (technicianName: string | null = "Omar Haddad") => ({
   id: "j-1",
+  job_number: "JOB-2026-000123",
   status: "assigned",
   assigned_at: "2026-10-24T11:15:00Z",
   started_at: null,
@@ -55,7 +56,7 @@ describe("jobs table (UI-F06-S04, R5, R10)", () => {
     const cells = out.match(/<td /g)?.length ?? 0;
     const labelled = out.match(/<td [^>]*data-label="[^"]+"/g)?.length ?? 0;
 
-    expect(cells).toBe(5);
+    expect(cells).toBe(6);
     expect(labelled).toBe(cells);
   });
 
@@ -64,6 +65,16 @@ describe("jobs table (UI-F06-S04, R5, R10)", () => {
 
     expect(out).toContain('href="/jobs/j-1"');
     expect(out).toContain("after:absolute after:inset-0");
+  });
+
+  it("should show the job number first, as the link to the job, and the booking number as plain text", () => {
+    const out = table();
+
+    expect(out.indexOf("Job number")).toBeLessThan(out.indexOf("Booking"));
+    expect(out).toContain('aria-label="View job JOB-2026-000123"');
+    expect(out).toMatch(/<a [^>]*href="\/jobs\/j-1"[^>]*>JOB-2026-000123<\/a>/);
+    expect(out).not.toMatch(/<a [^>]*>BK-2026-000123<\/a>/);
+    expect(out).toContain("BK-2026-000123");
   });
 
   it("should keep a long technician name inside its cell and show it in full as a title", () => {
@@ -127,6 +138,7 @@ describe("jobs filters", () => {
 describe("job detail and history", () => {
   const detail: JobDetailItem = {
     id: "j-1",
+    job_number: "JOB-2026-000123",
     status: "in_progress",
     job_type: "cleaning",
     assigned_at: "2026-10-16T08:00:00Z",
@@ -151,6 +163,22 @@ describe("job detail and history", () => {
 
     expect(out).toContain('data-slot="card"');
     expect(out).not.toContain(">Booking</h2>");
+  });
+
+  it("should head the job detail with the job number and list it first in the Job card", () => {
+    const out = html(
+      createElement(JobDetail, {
+        job: detail,
+        events: [],
+        eventsTruncated: false,
+        allowedStatuses: [],
+        workRecordHref: null,
+      }),
+    );
+
+    expect(out).toMatch(/<h1[^>]*>JOB-2026-000123<\/h1>/);
+    expect(out.indexOf("Job number")).toBeGreaterThan(-1);
+    expect(out.indexOf("Job number")).toBeLessThan(out.indexOf("Job type"));
   });
 
   it("should draw the history with the shared timeline and say when it was cut short", () => {

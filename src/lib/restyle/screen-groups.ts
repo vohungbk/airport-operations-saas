@@ -141,7 +141,7 @@ export const RESTYLE_GROUPS: readonly RestyleGroup[] = [
     checks: { same_behavior: "done", both_themes: "done", phone_layout: "done", page_states: "done", design_check: "noted" },
     notes: [
       "The design frames for these screens (Jobs, Job detail, the cleaning states, Inspection record) are text wireframes, not drawn screens, so they set the heading, the actions and the order of the groups; the look comes from the base components and the bookings screens (spec E3). There is no frame for the installation form or the technician queue.",
-      "The jobs list keeps its columns (Booking, Technician, Status, Assigned, Vehicle bay). The design wireframe has Job, Booking, Technician, Deadline and Status; a job has no number of its own and no deadline column in the database, so those are not shown. The Deadline filter is not built for the same reason.",
+      "The jobs list has the Job number first (VI-F11-T01), then its columns Booking, Technician, Status, Assigned and Vehicle bay. The design wireframe also has a Deadline column, which is not shown yet, and the Deadline filter is not built (UI-F06-T01).",
       "The Return queue has a frame in the design (D-38) but no screen in the app, so it is not restyled here; it is a new screen, not a restyle.",
       "The technician queue, which was the placeholder of the project start, is Today's Jobs since UI-F07-S01, built from its own frame of the design: a new screen, not a restyle.",
       "The cleaning states of the design (quarantine, blocked by booking, failed) are not drawn as screens of their own: the app has the start panel, the complete form and the record, and shows the rest as page-state messages.",

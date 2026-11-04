@@ -61,7 +61,7 @@ export function JobDetail({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
           <h1 className="text-3xl font-semibold tracking-tight break-words text-foreground">
-            Job {booking?.booking_number ?? ""}
+            {job.job_number}
           </h1>
           <div>
             <JobStatusBadge status={job.status} />
@@ -99,7 +99,7 @@ export function JobDetail({
           {allowedStatuses.length > 0 && (
             <ChangeJobStatusDialog
               jobId={job.id}
-              jobLabel={booking?.booking_number ?? "job"}
+              jobLabel={job.job_number}
               currentStatus={job.status}
               allowedStatuses={allowedStatuses}
             />
@@ -122,6 +122,7 @@ export function JobDetail({
             Job
           </h2>
           <dl className="grid gap-4 sm:grid-cols-2">
+            <Detail label="Job number">{job.job_number}</Detail>
             <Detail label="Job type">{JOB_TYPE_LABEL[job.job_type]}</Detail>
             <Detail label="Technician">
               {job.technician?.full_name ?? "-"}
