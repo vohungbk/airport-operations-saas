@@ -45,7 +45,7 @@ export const VALIDATION_ERROR: BookingActionError = {
   message: "Check the form and try again.",
 };
 
-const FORBIDDEN_ERROR: BookingActionError = {
+export const FORBIDDEN_ERROR: BookingActionError = {
   code: "FORBIDDEN",
   message: "You do not have permission to do this.",
 };
