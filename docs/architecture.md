@@ -1095,8 +1095,8 @@ starts, to a Postgres schema/table group protected by RLS.
   status, from and to month, partner, sort column from an allowlist, page, page size 10, 25 or 50). The period
   of an invoice is the month of its settlement, filtered with an inner join only when a period is asked for;
   sorting by "Period" sorts by the issue date, because an invoice has no period column.
-- **Overdue.** "Overdue by N days" is shown for an invoice whose stored status is overdue; nothing here sets
-  that status from the due date.
+- **Overdue.** "Overdue by N days" is shown for an invoice whose stored status is overdue; the status is set from
+  the due date by a daily job (VI-F09-S09, below).
 - **Export CSV (VI-F09-S02).** `GET /api/invoices/export` downloads the list as CSV. It takes the filters and
   the sort of the list from the address and ignores the page: the file holds every invoice they match, read in
   batches of 1000 with the same filter code as the list (`filteredRequest` in `get-invoices.ts`). Signed-in,
@@ -1194,8 +1194,16 @@ starts, to a Postgres schema/table group protected by RLS.
   (the guards of S07). Who changed it, when and why is kept by finance history (the actor, the time, and the reason as
   `app.finance_reason`, or "Invoice status moved from X to Y"); no column was added. `guard_invoice_status_change`
   refuses a change of the status of an invoice that is not a draft outside the function (IV004). Known gap: a draft can
-  still be set to paid or void by a direct update; only issue_invoice() is meant to move a draft. Marking an invoice
-  overdue when its due date passes (spec R12) is another ticket.
+  still be set to paid or void by a direct update; only issue_invoice() is meant to move a draft.
+- **Mark overdue invoices (VI-F09-S09).** `mark_overdue_invoices(p_today)` (migration `20261129090000`) moves every
+  invoice that is issued and whose due date is before today (UTC) to overdue and returns how many it moved (spec R12).
+  An invoice is overdue from the day after its due date. Draft, paid, void and overdue invoices are not touched. It is
+  `SECURITY DEFINER` and for the system only: execute is revoked from public, anon and authenticated, so there is no
+  endpoint and no service-role client. When `pg_cron` is available the migration schedules it every day at 00:05 UTC
+  (job `mark-overdue-invoices`); without it the function can still be run by the database owner. It uses the same
+  `app.invoice_status_change` flag as S08, so the S07 guards still protect the amounts. Finance history keeps the
+  change with no actor (the database made it) and the reason "Invoice passed its due date". Nothing in the screens
+  changed: they read the stored status.
 - **Left out of the design on purpose.** Statement PDF and CSV of the F8 header (the statement is a CSV, S05), the invoice PDF
   preview page and its zoom, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
   ("Invoices"), not "Finance > Invoices > Invoice list".
