@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { applyJobDeadlineFilter } from "@/features/jobs/lib/job-deadline";
 import { buildJobsQueryFilters } from "@/features/jobs/lib/build-jobs-query-filters";
 import type { JobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
 import type { JobListItem } from "@/features/jobs/types";
@@ -16,14 +17,14 @@ export interface GetJobsResult {
  * the booking).
  */
 export const JOB_LIST_SELECT =
-  "id, job_number, status, assigned_at, started_at, completed_at, vehicle_bay, booking:bookings!inner(id, booking_number), technician:users!technician_id(id, full_name)";
+  "id, job_number, status, assigned_at, started_at, completed_at, vehicle_bay, deadline_at, booking:bookings!inner(id, booking_number, airport:airports(timezone)), technician:users!technician_id(id, full_name)";
 
 /**
  * Server-only. RLS is the access boundary: admin/ops read every job, a
  * technician reads only their own. The filters here are only for the
  * page's search/filter/sort/pagination UI.
  */
-export async function getJobs(query: JobsQuery): Promise<GetJobsResult> {
+export async function getJobs(query: JobsQuery, now: Date = new Date()): Promise<GetJobsResult> {
   const filters = buildJobsQueryFilters(query);
   const supabase = await createClient();
 
@@ -48,6 +49,10 @@ export async function getJobs(query: JobsQuery): Promise<GetJobsResult> {
 
   if (filters.technician_id) {
     request = request.eq("technician_id", filters.technician_id);
+  }
+
+  if (query.deadline) {
+    request = applyJobDeadlineFilter(request, query.deadline, now);
   }
 
   const { data, error, count } = await request;

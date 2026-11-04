@@ -928,11 +928,25 @@ starts, to a Postgres schema/table group protected by RLS.
   still not told by color alone. Without `solid` the charts keep their patterns. New reads: `getFlightAlerts` (early and late flights, for the banners), `getStockByCategory`
   (seats of each category in one nested select) and `getUpcomingPartnerRentals`. Each catches its own failure and
   gives no banner or `null`. The partner seats list is a stacked table.
-- **Not built.** The job deadline and number, incident photos, the Return queue, the technician job list, the
+- **Not built.** Incident photos, the Return queue, the technician job list, the
   Export report button, and the figures whose formulas are another ticket (the tiles, the revenue rows, the launch
   credit, the queues of Operational attention). Each is noted in `screen-groups.ts`. The design frames for the
   field and incident screens are text wireframes.
 
+
+#### UI-F06-T01 — Deadline parts of the jobs and flight screens
+
+- **One rule.** `src/features/jobs/lib/job-deadline.ts` decides what a deadline means: a job is overdue when it is
+  `assigned` or `in_progress` and its `deadline_at` has passed; a job with no deadline is never overdue. The jobs
+  list, its chips and the Overdue tasks tile use it, so the figure and the list it links to count the same jobs.
+- **Jobs list.** A Deadline column (`04 Nov 2026 14:30 GST`, in the zone of the airport; an Overdue badge and a red
+  line when overdue; `No deadline` when none is stored) and the chips All, Today and Overdue (`?deadline=today|overdue`,
+  checked with Zod). Today is the UTC day, as on the dashboard. The rest of the design frame (Type and Seat columns,
+  View button, Type, Airport and Date range filters, the chip Unassigned) is the job list redesign, another ticket.
+- **Command Centre.** The Overdue tasks tile counts the jobs of the Overdue chip in the viewer's RLS scope and opens
+  that list; a failed read is a dash, never 0. A delayed-flight banner says `DEADLINE MOVED` and `New deadline: <time>`
+  when an open installation job of the linked booking has a deadline.
+- **No new table or policy.** The deadline is read through the policies of `technician_jobs`.
 
 #### UI-F07-S01 — Today's Jobs on a phone
 

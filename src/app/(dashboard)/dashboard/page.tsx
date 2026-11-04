@@ -5,6 +5,7 @@ import { DASHBOARD_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { CommandCentre } from "@/features/dashboard/components/command-centre";
 import { getDashboardCharts } from "@/features/dashboard/lib/get-dashboard-charts";
 import { getFlightAlerts } from "@/features/dashboard/lib/get-flight-alerts";
+import { getOverdueJobsCount } from "@/features/dashboard/lib/get-overdue-jobs";
 import { getStockByCategory } from "@/features/dashboard/lib/get-stock-by-category";
 import { PARTNER_HOME_ROUTE } from "@/lib/constants/routes";
 
@@ -43,10 +44,11 @@ export default async function DashboardPage() {
     redirect(PARTNER_HOME_ROUTE);
   }
 
-  const [charts, flightAlerts, stock] = await Promise.all([
+  const [charts, flightAlerts, stock, overdueTasks] = await Promise.all([
     getDashboardCharts(user.role),
     getFlightAlerts(),
     getStockByCategory(),
+    getOverdueJobsCount(),
   ]);
 
   return (
@@ -56,6 +58,7 @@ export default async function DashboardPage() {
         charts={charts}
         flightAlerts={flightAlerts}
         stock={stock}
+        overdueTasks={overdueTasks}
       />
     </div>
   );

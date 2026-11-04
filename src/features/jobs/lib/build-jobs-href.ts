@@ -15,6 +15,7 @@ export function buildJobsHref(
   if (next.q) params.set("q", next.q);
   if (next.status) params.set("status", next.status);
   if (next.technician_id) params.set("technician_id", next.technician_id);
+  if (next.deadline) params.set("deadline", next.deadline);
   params.set("sort", next.sort);
   params.set("order", next.order);
   params.set("page", String(next.page));

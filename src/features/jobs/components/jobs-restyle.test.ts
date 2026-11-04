@@ -9,6 +9,7 @@ vi.mock("next/navigation", () => ({
 
 import { JobDetail } from "@/features/jobs/components/job-detail";
 import { JobEventsTimeline } from "@/features/jobs/components/job-events-timeline";
+import { JobsDeadlineChips } from "@/features/jobs/components/jobs-deadline-chips";
 import { JobsFilters } from "@/features/jobs/components/jobs-filters";
 import { JobsPagination } from "@/features/jobs/components/jobs-pagination";
 import { JobsTable } from "@/features/jobs/components/jobs-table";
@@ -34,15 +35,23 @@ const job = (technicianName: string | null = "Omar Haddad") => ({
   started_at: null,
   completed_at: null,
   vehicle_bay: null,
-  booking: { id: "b-1", booking_number: "BK-2026-000123" },
+  deadline_at: null as string | null,
+  booking: {
+    id: "b-1",
+    booking_number: "BK-2026-000123",
+    airport: { timezone: "Asia/Dubai" },
+  },
   technician: technicianName ? { id: "t-1", full_name: technicianName } : null,
 });
 
-const table = (technicianName?: string | null) =>
+const NOW = new Date("2026-11-04T10:00:00Z");
+
+const table = (technicianName?: string | null, deadlineAt: string | null = null) =>
   html(
     createElement(JobsTable, {
-      jobs: [job(technicianName)],
+      jobs: [{ ...job(technicianName), deadline_at: deadlineAt }],
       query,
+      now: NOW,
     } as never),
   );
 
@@ -56,7 +65,7 @@ describe("jobs table (UI-F06-S04, R5, R10)", () => {
     const cells = out.match(/<td /g)?.length ?? 0;
     const labelled = out.match(/<td [^>]*data-label="[^"]+"/g)?.length ?? 0;
 
-    expect(cells).toBe(6);
+    expect(cells).toBe(7);
     expect(labelled).toBe(cells);
   });
 
@@ -86,6 +95,70 @@ describe("jobs table (UI-F06-S04, R5, R10)", () => {
 
   it("should show a dash when the job has no technician", () => {
     expect(table(null)).toContain("—");
+  });
+});
+
+describe("jobs table Deadline column (UI-F06-T01, AC01, AC04, AC06)", () => {
+  it("should put the Deadline column after Technician and before Status", () => {
+    const out = table();
+
+    expect(out.indexOf("Technician")).toBeLessThan(out.indexOf(">Deadline<"));
+    expect(out.indexOf(">Deadline<")).toBeLessThan(out.indexOf(">Status<"));
+  });
+
+  it("should write the deadline in the time zone of the airport", () => {
+    expect(table("Omar Haddad", "2026-11-04T10:30:00Z")).toContain("04 Nov 2026 14:30 GST");
+  });
+
+  it("should show No deadline, and no Overdue mark, when the job has no deadline", () => {
+    const out = table();
+
+    expect(out).toContain("No deadline");
+    expect(out).not.toContain("Overdue");
+  });
+
+  it("should mark an open job past its deadline as overdue with an icon, the words and the date", () => {
+    const out = table("Priya Nair", "2026-11-04T05:00:00Z");
+
+    expect(out).toContain("Overdue</span>");
+    expect(out).toContain("Overdue: 04 Nov 2026 09:00 GST");
+    expect(out).toContain("bg-warning-bg");
+    expect(out).toContain("text-warning-fg");
+    expect(out).toContain("text-danger-fg");
+    expect(out).toContain('aria-hidden="true"');
+  });
+
+  it("should not mark a job as overdue while its deadline has not passed", () => {
+    expect(table("Omar Haddad", "2026-11-04T10:30:00Z")).not.toContain("Overdue");
+  });
+});
+
+describe("jobs deadline chips (UI-F06-T01, AC02)", () => {
+  const chips = (deadline?: "today" | "overdue") =>
+    html(createElement(JobsDeadlineChips, { query: { ...query, deadline } } as never));
+
+  it("should offer All, Today and Overdue as links that keep the rest of the filters", () => {
+    const out = chips();
+
+    for (const label of ["All", "Today", "Overdue"]) {
+      expect(out).toContain(`>${label}</a>`);
+    }
+    expect(out).toContain("deadline=today");
+    expect(out).toContain("deadline=overdue");
+    expect(out).toContain('aria-label="Deadline"');
+  });
+
+  it("should mark the chip in use and no other", () => {
+    expect(chips("overdue").match(/aria-current="page"/g)?.length).toBe(1);
+    expect(chips("overdue")).toMatch(/aria-current="page"[^>]*>Overdue</);
+    expect(chips()).toMatch(/aria-current="page"[^>]*>All</);
+  });
+
+  it("should send the All chip to a list with no deadline filter, back on page 1", () => {
+    const all = chips("overdue").match(/<a [^>]*href="([^"]+)"[^>]*>All</)?.[1] ?? "";
+
+    expect(all).not.toContain("deadline=");
+    expect(all).toContain("page=1");
   });
 });
 
@@ -124,6 +197,17 @@ describe("jobs filters", () => {
 
     expect(plain).not.toContain("Clear all");
     expect(filtered).toContain("Clear all");
+  });
+
+  it("should offer Clear all when only the deadline chip is set", () => {
+    const out = html(
+      createElement(JobsFilters, {
+        query: { ...query, deadline: "overdue" },
+        technicians: null,
+      } as never),
+    );
+
+    expect(out).toContain("Clear all");
   });
 
   it("should not show the technician filter to a technician", () => {

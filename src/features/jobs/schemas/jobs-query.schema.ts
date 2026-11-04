@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { JOB_DEADLINE_FILTERS } from "@/features/jobs/lib/job-deadline";
 import { JOB_STATUSES } from "@/features/jobs/lib/job-status";
 import {
   getJobSearchError,
@@ -40,6 +41,7 @@ export const jobsQuerySchema = z.object({
     .catch(undefined),
   status: z.enum(JOB_STATUSES).optional().catch(undefined),
   technician_id: z.guid().optional().catch(undefined),
+  deadline: z.enum(JOB_DEADLINE_FILTERS).optional().catch(undefined),
   sort: z.enum(JOBS_SORT_COLUMNS).catch(JOBS_DEFAULT_SORT),
   order: z.enum(["asc", "desc"]).catch("desc"),
   page: z.coerce.number().int().min(1).catch(1),

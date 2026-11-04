@@ -13,8 +13,9 @@ function unit(minutes: number): string {
 
 /**
  * The banners of the design (UI-F06-S04): blue for a flight that arrives early, amber for one that is late.
- * The line under the title has what is stored: the flight, its new arrival and a linked booking. The
- * installation deadline and the technicians notified are not stored, so they are not written.
+ * The line under the title has what is stored: the flight, its new arrival and a linked booking. When a
+ * delay moved the deadline of an installation job, the title says so and a line gives the new time (the
+ * words of the flight alert component). The technicians notified are not stored, so they are not written.
  */
 export function FlightBanners({ alerts }: FlightBannersProps) {
   if (alerts.length === 0) return null;
@@ -46,9 +47,14 @@ export function FlightBanners({ alerts }: FlightBannersProps) {
               <p className="font-semibold break-words">
                 {early
                   ? `ARRIVING ${alert.minutes} ${unit(alert.minutes)} EARLY`
-                  : `DELAYED ${alert.minutes} ${unit(alert.minutes)}`}
+                  : `DELAYED ${alert.minutes} ${unit(alert.minutes)}${alert.deadline_label ? ", DEADLINE MOVED" : ""}`}
               </p>
               <p className="break-words">{parts.join(" · ")}</p>
+              {alert.deadline_label && (
+                <p className="break-words">
+                  New deadline: {alert.deadline_label}
+                </p>
+              )}
             </div>
           </li>
         );

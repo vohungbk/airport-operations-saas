@@ -10,7 +10,13 @@ export interface JobListItem {
   started_at: string | null;
   completed_at: string | null;
   vehicle_bay: string | null;
-  booking: { id: string; booking_number: string } | null;
+  /** Set for installation jobs only; empty for the others and for jobs from before it was stored. */
+  deadline_at: string | null;
+  booking: {
+    id: string;
+    booking_number: string;
+    airport: { timezone: string } | null;
+  } | null;
   technician: { id: string; full_name: string } | null;
 }
 

@@ -67,6 +67,26 @@ describe("Command Centre tiles (UI-F06-S04, R7)", () => {
   });
 });
 
+describe("Command Centre Overdue tasks tile (UI-F06-T01, AC05)", () => {
+  it("should show the number and open the Overdue list", () => {
+    const out = render({ overdueTasks: 4 });
+
+    expect(out).toContain('href="/jobs?deadline=overdue"');
+    expect(out).toContain('aria-label="Overdue tasks: 4"');
+  });
+
+  it("should show 0 when no job is overdue, as a real count", () => {
+    expect(render({ overdueTasks: 0 })).toContain('aria-label="Overdue tasks: 0"');
+  });
+
+  it("should show a dash and no link when the figure could not be read", () => {
+    const out = render({ overdueTasks: null });
+
+    expect(out).not.toContain("/jobs?deadline=overdue");
+    expect(out).not.toContain("Overdue tasks: 0");
+  });
+});
+
 describe("Command Centre banners", () => {
   const alerts: FlightAlertItem[] = [
     {
@@ -76,6 +96,7 @@ describe("Command Centre banners", () => {
       minutes: 45,
       arrival_label: "15:45 GMT+4",
       booking_number: "BK-2026-000123",
+      deadline_label: null,
     },
     {
       id: "f-2",
@@ -84,6 +105,7 @@ describe("Command Centre banners", () => {
       minutes: 50,
       arrival_label: "19:20 GMT+4",
       booking_number: null,
+      deadline_label: "20:10 GMT+4",
     },
   ];
 
@@ -103,11 +125,25 @@ describe("Command Centre banners", () => {
     expect(out).toContain("EK 215 · Arrival 19:20 GMT+4");
   });
 
-  it("should not write a deadline that is not stored", () => {
+  it("should say the deadline moved and give the new time when a delay moved it (UI-F06-T01, AC03)", () => {
     const out = render({ flightAlerts: alerts });
 
+    expect(out).toContain("DELAYED 50 MINUTES, DEADLINE MOVED");
+    expect(out).toContain("New deadline: 20:10 GMT+4");
+  });
+
+  it("should not write a deadline for a flight whose deadline did not move", () => {
+    const out = render({ flightAlerts: [alerts[0]] });
+
     expect(out).not.toContain("DEADLINE MOVED");
-    expect(out).not.toContain("Installation deadline");
+    expect(out).not.toContain("New deadline");
+  });
+
+  it("should not write a deadline for a delayed flight with no deadline stored", () => {
+    const out = render({ flightAlerts: [{ ...alerts[1], deadline_label: null }] });
+
+    expect(out).toContain("DELAYED 50 MINUTES");
+    expect(out).not.toContain("DEADLINE MOVED");
   });
 
   it("should show no banner when no flight is early or late", () => {
