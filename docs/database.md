@@ -501,6 +501,29 @@ future (`22023`). It also sets `seat_id` and `created_by`.
 The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
 `TRUNCATE` are revoked from `anon` and `authenticated`.
 
+### KPI formula inputs (VI-F05-T01)
+Three KPI figures need inputs that were not stored. Every new column is nullable and
+nothing was back-filled: rows from before the change keep empty values.
+
+| where | column | set by |
+|---|---|---|
+| `technician_jobs` | `deadline_at timestamptz` | trigger on insert (installation jobs only), then moved by triggers on `flights` and `bookings` |
+| `bookings` | `family_ready_at timestamptz`, `family_ready_by uuid` (FK → users.id ON DELETE SET NULL) | trigger on the step to `family_ready`; other updates keep the stored values |
+| `installations` | `seat_match boolean` | trigger on insert, from the latest scan of the job against the installed seat |
+| `installation_seat_scans` (immutable log) | `technician_job_id`, `assigned_seat_id`, `scanned_seat_id` (empty when the code names no seat), `matched`, `scanned_by`, `scanned_at` | `record_installation_seat_scan()` only |
+
+Deadline of an installation job: `pickup_at - 60 minutes + delay`, where
+`delay = max(estimated_arrival_at - scheduled_arrival_at, 0)` of the linked flight (no flight, no
+estimate, on time or early: no delay). It is always counted from the pickup time, so a new
+estimate replaces the old one. It moves when the estimate or schedule of the flight changes, or the
+pickup time or flight of the booking changes. Only open jobs (`assigned`, `in_progress`) that
+already have a deadline move; closed jobs and jobs without a deadline are left as they are.
+Nobody sets `deadline_at`, `family_ready_*` or `seat_match` by hand: a value sent by a client is
+dropped.
+
+`seat_match`: `true` is a correct seat, `false` a mismatch, empty means no scan was made against the
+installed seat (and every installation from before this change). The latest scan decides.
+
 ### `cleaning_records` (immutable log)
 | column | type | notes |
 |---|---|---|

@@ -9,6 +9,7 @@ import {
 import { getInstallationContext } from "@/features/installations/lib/get-installation-context";
 import { getSeatLastChecks } from "@/features/installations/lib/get-seat-last-checks";
 import { SEAT_REQUIRED_ERROR } from "@/features/installations/lib/installation-errors";
+import { recordSeatScan } from "@/features/installations/lib/record-seat-scan";
 import { parseScannedCode } from "@/features/installations/lib/seat-scan";
 import type { VerifySeatScanResult } from "@/features/installations/lib/seat-scan-result";
 import { verifySeatScanSchema } from "@/features/installations/schemas/verify-seat-scan.schema";
@@ -16,9 +17,10 @@ import { getSeatBySerial } from "@/features/seats/lib/get-seat-by-serial";
 import { getSeatByPublicToken } from "@/features/seats/lib/get-seat-by-token";
 
 /**
- * UI-F07-S02 (spec R8): checks a scanned or typed code against the seat of the job. It only reads: a scan
- * grants nothing, and recording the installation checks the job, the seat and the technician again
- * (`recordInstallationAction`). The job is read through RLS, so another technician's job is "not found".
+ * UI-F07-S02 (spec R8): checks a scanned or typed code against the seat of the job. A scan grants nothing;
+ * its only write is one line in the scan log (VI-F05-T01), whose failure does not change the result.
+ * Recording the installation checks the job, the seat and the technician again (`recordInstallationAction`).
+ * The job is read through RLS, so another technician's job is "not found".
  * A code of a seat RLS hides from the technician is a mismatch, not an error: the screen must not tell
  * whether such a seat exists.
  */
@@ -53,6 +55,12 @@ export async function verifySeatScanAction(
       : await getSeatBySerial(code.serial);
   const match = scannedSeat?.id === assigned.id;
 
+  // The log write runs while the checks are read.
+  const [, checks] = await Promise.all([
+    recordSeatScan(parsed.data.job_id, code),
+    match ? getSeatLastChecks(assigned.id) : Promise.resolve(null),
+  ]);
+
   return {
     success: true,
     scan: {
@@ -69,7 +77,7 @@ export async function verifySeatScanAction(
         category_name: scannedSeat?.category?.name ?? null,
         status: scannedSeat?.status ?? null,
       },
-      checks: match ? await getSeatLastChecks(assigned.id) : null,
+      checks,
     },
   };
 }
