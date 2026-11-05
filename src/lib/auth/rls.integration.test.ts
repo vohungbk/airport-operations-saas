@@ -6248,6 +6248,42 @@ describe.skipIf(!config)("F05 RLS integration", () => {
     });
   });
 
+  describe("invoice_partner_id (VI-F09-S11, spec R15, E6)", () => {
+    const UNKNOWN_INVOICE = "00000000-0000-0000-0000-000000000000";
+    const ownerOf = async (client: typeof partnerAClient, invoiceId: string) => {
+      const { data, error } = await client.rpc("invoice_partner_id", { p_invoice_id: invoiceId });
+
+      expect(error).toBeNull();
+
+      return data;
+    };
+
+    it("should give a partner user the partner of an invoice of its own partner", async () => {
+      expect(await ownerOf(partnerAClient, fixtureIds.invoiceA)).toBe(PARTNER_A_ID);
+      expect(await ownerOf(partnerBClient, fixtureIds.invoiceB)).toBe(PARTNER_B_ID);
+    });
+
+    it("should give a partner user nothing for the invoice of another partner, the same as for an unknown invoice", async () => {
+      expect(await ownerOf(partnerAClient, fixtureIds.invoiceB)).toBeNull();
+      expect(await ownerOf(partnerBClient, fixtureIds.invoiceA)).toBeNull();
+      expect(await ownerOf(partnerAClient, UNKNOWN_INVOICE)).toBeNull();
+    });
+
+    it("should give a partner user with no partner and a technician nothing for any invoice", async () => {
+      for (const client of [partnerNullClient, technicianClient]) {
+        expect(await ownerOf(client, fixtureIds.invoiceA)).toBeNull();
+        expect(await ownerOf(client, fixtureIds.invoiceB)).toBeNull();
+      }
+    });
+
+    it("should give admin and operations_manager the partner of the invoice of every partner", async () => {
+      for (const client of [adminClient, opsClient]) {
+        expect(await ownerOf(client, fixtureIds.invoiceA)).toBe(PARTNER_A_ID);
+        expect(await ownerOf(client, fixtureIds.invoiceB)).toBe(PARTNER_B_ID);
+      }
+    });
+  });
+
   describe("finance_history (VI-F04-S16)", () => {
     it("admin and operations_manager can read the financial history, which the finance fixtures wrote", async () => {
       for (const client of [adminClient, opsClient]) {
