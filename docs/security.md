@@ -280,7 +280,8 @@ rows* a statement touches, not diff old-vs-new column values within an
 |---|---|---|---|
 | `users` | admin: all. operations_manager: all (read-only). technician/partner_user: own row only | INSERT: `id = auth.uid()` only. UPDATE: admin (all), or own row (`id = auth.uid()`, guarded by the trigger above) | No coworker visibility for `partner_user` (deliberately narrow) |
 | `partners` | admin/operations_manager: all. partner_user: own partner | admin/operations_manager only | |
-| `airports`, `seat_categories`, `flights` | any `authenticated` user (`USING (true)`) | admin/operations_manager only | Shared reference data, no partner/financial/personal fields — see the caution in `docs/database.md` about adding sensitive columns later |
+| `airports`, `seat_categories` | any `authenticated` user (`USING (true)`) | admin/operations_manager only | Shared reference data, no partner/financial/personal fields — see the caution in `docs/database.md` about adding sensitive columns later |
+| `flights` | admin/operations_manager: all. partner_user: flights of its own partner's bookings. technician: flights of bookings assigned to them or with a job of theirs (VI-F02-S13; no longer `USING (true)`) | admin/operations_manager only | A flight nobody may see gives no row, not an error |
 | `seats` | admin/operations_manager: all. technician: seat on a booking assigned to them. partner_user: seat on a booking of their partner | admin/operations_manager only | Technician status/rental_cycles writes are deferred to F16-F18 |
 | `seat_status_history` | admin/operations_manager only | admin/operations_manager only (INSERT scaffolding, no writer yet) | Append-only log |
 | `bookings` | admin/operations_manager: all. technician: assigned to them (via `assigned_technician_id` or `technician_jobs`). partner_user: own partner | admin/operations_manager only | Cancellation is an UPDATE (`status = 'cancelled'`), already covered |
@@ -311,7 +312,7 @@ of a matching policy means RLS denies every `DELETE` by default.
 
 **Anonymous access is denied by default everywhere.** No policy in this
 migration targets `anon`, including the `USING (true)` policies on
-`airports`/`seat_categories`/`flights` — those are explicitly scoped `to
+`airports`/`seat_categories` — those are explicitly scoped `to
 authenticated`. An unauthenticated request returns zero rows (not an
 error) on all 18 tables.
 
@@ -2161,6 +2162,22 @@ when a save fails or the permission is lost.
   route answers the standardized error and never the text of the source or the database.
 - **Set up.** Set `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` as server variables, and have a scheduler call
   the route every 5 minutes with the header above.
+
+## Flight access (VI-F02-S13)
+
+- **Rule (spec R15, E7).** Internal roles read every flight, a partner user only the flights of its own partner's
+  bookings, a technician only the flights of the bookings it is assigned to or has a job on. It is enforced by the
+  select policies of `flights` (migration `20261204090000_restrict_flight_select.sql`), not by the screens: the old
+  policy `flights_select_authenticated` (`using (true)`) let any signed-in user read every flight through the API.
+- **Not found, not forbidden.** A flight a user may not see gives no row and no error, so nothing about it is
+  revealed. The booking page of another partner's booking is already a not-found page.
+- **Writes are not widened.** Only admin and operations manager insert or update a flight; the refresh job writes
+  through `apply_flight_refresh()`. A partner user cannot link its booking to another partner's flight, because
+  only admin and operations manager write `bookings.flight_id`.
+- **Shared flight.** Two bookings of different partners on the same flight share one `flights` row; each sees that
+  row (the flight), and nothing of the other booking.
+- **Proof.** `flights-access.integration.test.ts` (each role, the other partner's flight by id and by number, the
+  writes) and `flights-access-policy.test.ts` (reads the migration; runs without a database).
 
 ## Storage
 
