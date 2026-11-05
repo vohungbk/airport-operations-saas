@@ -21,6 +21,7 @@ export function useSignupForm() {
       full_name: "",
       password: "",
       confirm_password: "",
+      accepted_terms: false,
     },
   });
   const [isPending, startTransition] = useTransition();

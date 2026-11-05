@@ -24,6 +24,7 @@ const VALID_INPUT = {
   full_name: "Jane Doe",
   password: "password123",
   confirm_password: "password123",
+  accepted_terms: true,
 };
 
 describe("signupAction", () => {

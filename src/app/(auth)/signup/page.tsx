@@ -1,28 +1,10 @@
-import { AuthThemeControl } from "@/components/theme/auth-theme-control";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AuthPageFrame } from "@/features/auth/components/auth-page-frame";
 import { SignupForm } from "@/features/auth/components/signup-form";
 
 export default function SignupPage() {
   return (
-    <>
-      <AuthThemeControl />
-      <Card>
-        <CardHeader>
-          <CardTitle>Create an account</CardTitle>
-          <CardDescription>
-            Sign up to start managing your partner&apos;s bookings.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SignupForm />
-        </CardContent>
-      </Card>
-    </>
+    <AuthPageFrame title="Sign up">
+      <SignupForm />
+    </AuthPageFrame>
   );
 }
