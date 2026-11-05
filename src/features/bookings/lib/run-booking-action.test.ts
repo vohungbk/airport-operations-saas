@@ -39,6 +39,7 @@ describe("runBookingAction", () => {
   it.each([
     ["redirect", "NEXT_REDIRECT;replace;/forbidden;307;"],
     ["not found", "NEXT_HTTP_ERROR_FALLBACK;404"],
+    ["forbidden", "NEXT_HTTP_ERROR_FALLBACK;403"],
   ])("should re-throw a Next %s so navigation still happens", async (_, digest) => {
     const signal = Object.assign(new Error("NEXT_SIGNAL"), { digest });
 

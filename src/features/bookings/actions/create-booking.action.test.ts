@@ -189,4 +189,27 @@ describe("createBookingAction", () => {
     expect(result.error?.code).toBe("INTERNAL_ERROR");
     expect(result.error?.message).not.toContain("secret");
   });
+
+  it("should not look the flight up when the permission was revoked while the form was open", async () => {
+    requirePermissionMock.mockRejectedValue(
+      Object.assign(new Error("NEXT_HTTP_ERROR_FALLBACK;403"), {
+        digest: "NEXT_HTTP_ERROR_FALLBACK;403",
+      }),
+    );
+
+    await expect(
+      createBookingAction({ ...VALID_INPUT, flight_number: "VN123" }),
+    ).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;403");
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(linkBookingFlightMock).not.toHaveBeenCalled();
+  });
+
+  it("should not look the flight up when the create is denied by the database", async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { code: "42501", message: "denied" } });
+
+    const result = await createBookingAction({ ...VALID_INPUT, flight_number: "VN123" });
+
+    expect(result.error?.code).toBe("FORBIDDEN");
+    expect(linkBookingFlightMock).not.toHaveBeenCalled();
+  });
 });
