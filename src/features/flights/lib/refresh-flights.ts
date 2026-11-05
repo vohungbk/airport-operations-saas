@@ -12,7 +12,7 @@ const CANDIDATE_SELECT =
   "id, flight_number, status, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, terminal, delay_minutes, last_synced_at, bookings!inner(id)";
 
 /** A booking in one of these statuses no longer needs its flight, so it does not keep the flight refreshed. */
-const ENDED_BOOKING_STATUSES = "(completed,cancelled,no_show)";
+export const ENDED_BOOKING_STATUSES = "(completed,cancelled,no_show)";
 
 /** How many flights are asked from the source at the same time. */
 const CONCURRENCY = 5;
