@@ -10,6 +10,7 @@ import {
 import { getBookingById } from "@/features/bookings/lib/get-booking-by-id";
 import { getBookingEvents } from "@/features/bookings/lib/get-booking-events";
 import { BookingDetail } from "@/features/bookings/components/booking-detail";
+import { getFlightUpdates } from "@/features/flights/lib/get-flight-updates";
 import { resolveBookingPageTab } from "@/features/bookings/lib/booking-tabs";
 
 interface BookingDetailPageProps {
@@ -36,12 +37,17 @@ export default async function BookingDetailPage({
     notFound();
   }
 
+  // The history needs the flight of the booking, so it is read once the booking is known. It never
+  // throws: a failure is shown inside its own card and the flight card stays (VI-F02-T01 AC05).
+  const flightHistory = await getFlightUpdates(booking.flight_id);
+
   const canManage = hasPermission(user.role, "bookings:manage");
 
   return (
     <BookingDetail
       booking={booking}
       events={events}
+      flightHistory={flightHistory}
       defaultTab={defaultTab}
       canManage={canManage}
       canEditOwn={!canManage && hasPermission(user.role, "bookings:manage_own_partner")}

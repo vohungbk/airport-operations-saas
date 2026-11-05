@@ -18,6 +18,7 @@ import type { BookingPageTab } from "@/features/bookings/lib/booking-tabs";
 import type { BookingEventsResult } from "@/features/bookings/lib/get-booking-events";
 import type { BookingDetailItem } from "@/features/bookings/lib/get-bookings";
 import { getInstallationDeadline } from "@/features/flights/lib/flight-panel";
+import type { FlightUpdatesResult } from "@/features/flights/lib/get-flight-updates";
 
 interface BookingDetailProps {
   booking: BookingDetailItem;
@@ -30,6 +31,8 @@ interface BookingDetailProps {
   canViewRevenue?: boolean;
   /** The tab that is open when the page loads. */
   defaultTab?: BookingPageTab;
+  /** The history of the booking's flight (VI-F02-T01); `null` when the booking has no linked flight. */
+  flightHistory?: FlightUpdatesResult | null;
 }
 
 function Detail({
@@ -61,6 +64,7 @@ export function BookingDetail({
   canEditOwn,
   canViewRevenue = false,
   defaultTab = "overview",
+  flightHistory = null,
 }: BookingDetailProps) {
   const timeZone = booking.airport?.timezone ?? "UTC";
   const allowedTransitions = getAllowedManualTransitions(booking.status);
@@ -180,6 +184,7 @@ export function BookingDetail({
           pickupAt={booking.pickup_at}
           flightNumber={booking.flight_number}
           lookupStatus={booking.flight_lookup_status}
+          history={flightHistory}
         />
       }
       timeline={
