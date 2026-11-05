@@ -15,6 +15,7 @@ const JOB: JobDetailItem = {
   completed_at: null,
   vehicle_bay: null,
   installation_notes: null,
+  deadline_at: null,
   technician: { id: "t-1", full_name: "Ahmed" },
   booking: null,
 };
@@ -67,5 +68,77 @@ describe("JobDetail", () => {
 
   it("should not show Record work when no workflow is offered", () => {
     expect(render(null)).not.toContain("Record work");
+  });
+
+  it("should show the flight of the booking with the deadline of the job (VI-F02-S02)", () => {
+    const html = renderToStaticMarkup(
+      createElement(JobDetail, {
+        job: {
+          ...JOB,
+          deadline_at: "2026-10-24T11:15:00.000Z",
+          booking: {
+            booking_number: "BK-1",
+            pickup_at: "2026-10-24T12:15:00.000Z",
+            return_at: "2026-10-27T12:15:00.000Z",
+            vehicle: null,
+            vehicle_bay: null,
+            child_age_band: null,
+            child_height: null,
+            flight_number: "EK203",
+            flight_lookup_status: "linked",
+            airport: { code: "DXB", name: "Dubai International", city: "Dubai", timezone: "Asia/Dubai" },
+            seat: null,
+            flight: {
+              flight_number: "EK203",
+              status: "scheduled",
+              terminal: "3",
+              scheduled_arrival_at: "2026-10-24T12:30:00.000Z",
+              estimated_arrival_at: "2026-10-24T11:45:00.000Z",
+              actual_arrival_at: null,
+              delay_minutes: null,
+              last_synced_at: "2026-10-24T10:02:00.000Z",
+            },
+          },
+        },
+        events: [],
+        eventsTruncated: false,
+        allowedStatuses: [],
+        workRecordHref: null,
+      }),
+    );
+
+    expect(html).toContain("EK203 · Dubai arrival");
+    expect(html).toContain("Installation deadline");
+    expect(html).toContain("15:15 GST");
+  });
+
+  it("should say no flight is linked when the booking has no flight number", () => {
+    const html = renderToStaticMarkup(
+      createElement(JobDetail, {
+        job: {
+          ...JOB,
+          booking: {
+            booking_number: "BK-1",
+            pickup_at: "2026-10-24T12:15:00.000Z",
+            return_at: "2026-10-27T12:15:00.000Z",
+            vehicle: null,
+            vehicle_bay: null,
+            child_age_band: null,
+            child_height: null,
+            flight_number: null,
+            flight_lookup_status: null,
+            airport: null,
+            seat: null,
+            flight: null,
+          },
+        },
+        events: [],
+        eventsTruncated: false,
+        allowedStatuses: [],
+        workRecordHref: null,
+      }),
+    );
+
+    expect(html).toContain("No flight is linked to this booking.");
   });
 });

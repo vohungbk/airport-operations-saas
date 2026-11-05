@@ -230,6 +230,7 @@ describe("job detail and history", () => {
     completed_at: null,
     vehicle_bay: null,
     installation_notes: null,
+    deadline_at: null,
     technician: { id: "t-1", full_name: "Ahmed" },
     booking: null,
   };
