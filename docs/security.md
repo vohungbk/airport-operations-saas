@@ -605,6 +605,14 @@ time at the airport and converted to UTC with `airports.timezone`.
 - The publishable key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) is safe to
   expose — it carries the same low privilege as the legacy anon key, and
   access is enforced by RLS, not by keeping the key secret.
+- Flight provider credentials (VI-F02-S10): `FLIGHT_PROVIDER_BASE_URL` and
+  `FLIGHT_PROVIDER_API_KEY` are server variables with no `NEXT_PUBLIC_` prefix. Only
+  `provider-config.ts` reads them; the live adapter sends the key in the `Authorization` header
+  of the provider call and nowhere else, and the Provider settings screen shows the source,
+  the last sync and the last error, never a credential or the provider address. Errors name
+  the variable, never its value. `credentials-no-leak.test.ts` fails when a second file reads the
+  key, a client component imports the provider code, a `NEXT_PUBLIC_` name mentions the
+  provider, or the flight code logs.
 
 ## Configuration check (CP-F01-S05)
 
