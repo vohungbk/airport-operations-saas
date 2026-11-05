@@ -197,7 +197,6 @@ describe("NAV_ITEMS", () => {
   it("should mark the items whose page is not built yet, so they are easy to find", () => {
     expect(NAV_ITEMS.filter((item) => item.planned).map((item) => item.label)).toEqual([
       "Return Queue",
-      "Flights",
       "Reports",
       "Import",
     ]);
