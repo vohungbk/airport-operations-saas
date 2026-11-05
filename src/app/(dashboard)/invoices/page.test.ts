@@ -64,6 +64,14 @@ describe("InvoicesPage (VI-F09-S01)", () => {
     expect(getInvoicesMock.mock.calls[0][1]).toBe(true);
   });
 
+  it("should offer the Invoice history to a partner user and to an operations user (VI-F09-S10, NAV-5)", async () => {
+    expect(await render()).toContain('href="/invoices/history"');
+
+    requireAnyPermissionMock.mockResolvedValue(user("admin"));
+
+    expect(await render()).toContain('href="/invoices/history"');
+  });
+
   it("should show an operations user the invoices of all partners, with the Partner filter", async () => {
     requireAnyPermissionMock.mockResolvedValue(user("operations_manager"));
 
