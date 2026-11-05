@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { forbidden } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth/current-user";
@@ -42,6 +43,11 @@ export async function generateInvoiceAction(input: unknown): Promise<GenerateInv
     p_partner_id: parsed.data.partner_id,
     p_month: monthToDate(parsed.data.month),
   });
+
+  // The role was checked above; the database says it changed since. That is the forbidden state, not a message inside the form (E9).
+  if (error?.code === "42501") {
+    forbidden();
+  }
 
   if (error || !data) {
     return { success: false, error: mapInvoiceError(error ?? { code: "" }) };

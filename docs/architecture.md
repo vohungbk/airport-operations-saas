@@ -1217,6 +1217,15 @@ starts, to a Postgres schema/table group protected by RLS.
   else (a technician, no session, a partner user with no active partner) gets 42501, and the screen is the 403 of the
   invoices. Empty, loading and error are the shared page states; the design has no copy of its own for them. The
   "Reissued" event of the design is not built: Void and reissue (Q4) is open.
+- **Invoice errors (VI-F09-S12).** Generate invoice, Issue invoice and Update status run their Server Action through
+  `runClientAction()`: a call that does not get through (network down) is a `NETWORK_ERROR` result, said in the form or the
+  dialog with the entries kept (E8). A user who lost the permission while the screen was open (E9) is stopped in two places,
+  both ending in the forbidden state of `/invoices` (`forbidden()`, shell kept): `requireRole(["admin"])` runs first in each
+  action and reads the role again on every call, and when the database function answers 42501 (the role changed after
+  that check) the action calls `forbidden()` too instead of returning a message. The signal is thrown again by
+  `runClientAction()`, so it is never shown as a network failure. `invoice-write-guard.test.ts` keeps this from being
+  undone (role before database, no `catch` in the hooks, no reset of the entries on a failure). The 42501 branches of the
+  error mappers in `invoice-errors.ts` are no longer reached by the actions.
 - **Left out of the design on purpose.** Statement PDF and CSV of the F8 header (the statement is a CSV, S05), the invoice PDF
   preview page and its zoom, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
   ("Invoices"), not "Finance > Invoices > Invoice list".
