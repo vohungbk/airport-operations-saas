@@ -139,7 +139,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/settings",
     permission: "dashboards:view",
     icon: Settings,
-    planned: true,
   },
 ];
 

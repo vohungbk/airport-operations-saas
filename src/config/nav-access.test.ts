@@ -91,6 +91,7 @@ const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
   "/incidents": () => import("@/app/(dashboard)/incidents/layout"),
   "/settlements": () => import("@/app/(dashboard)/settlements/page"),
   "/invoices": () => import("@/app/(dashboard)/invoices/page"),
+  "/settings": () => import("@/app/(admin)/settings/page"),
 };
 
 /**
@@ -137,6 +138,10 @@ async function opens(href: string, role: Role): Promise<boolean> {
     // The dashboard sends a partner user to their home: the link still opens
     // a module for them, it is just not the dashboard.
     if (error instanceof Error && error.message === "REDIRECT:/partner") {
+      return true;
+    }
+    // Settings sends everyone to the Provider settings, which does the admin check itself.
+    if (error instanceof Error && error.message === "REDIRECT:/settings/flight-provider") {
       return true;
     }
     throw error;
