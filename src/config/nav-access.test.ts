@@ -89,6 +89,7 @@ const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
   "/bookings": () => import("@/app/(dashboard)/bookings/layout"),
   "/jobs": () => import("@/app/(dashboard)/jobs/layout"),
   "/incidents": () => import("@/app/(dashboard)/incidents/layout"),
+  "/flights": () => import("@/app/(dashboard)/flights/layout"),
   "/settlements": () => import("@/app/(dashboard)/settlements/page"),
   "/invoices": () => import("@/app/(dashboard)/invoices/page"),
   "/settings": () => import("@/app/(admin)/settings/page"),
