@@ -65,7 +65,9 @@ export const PARTNER_INACTIVE_ROUTE = `${FORBIDDEN_ROUTE}?reason=partner_inactiv
  * proxy; the page itself sends a signed-out visitor to `/login` and a signed-in
  * user to the home of their role. `/api/auth/confirm` is the email
  * confirmation / recovery callback — it must be reachable while signed
- * out since that's exactly when it's used.
+ * out since that's exactly when it's used. `/api/flights/refresh` is called by a
+ * scheduler, not a person (VI-F02-S03): the proxy lets it through and the route
+ * itself refuses a request that has no valid `CRON_SECRET`.
  */
 export const PUBLIC_ROUTES = [
   "/",
@@ -74,6 +76,7 @@ export const PUBLIC_ROUTES = [
   "/forgot-password",
   "/reset-password",
   "/api/auth/confirm",
+  "/api/flights/refresh",
 ] as const;
 
 /**

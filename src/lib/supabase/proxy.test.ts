@@ -31,6 +31,15 @@ describe("updateSession", () => {
     expect(response.headers.get("location")).toBe("http://localhost:3000/login");
   });
 
+  it("should let the flight refresh of the scheduler through without a session (VI-F02-S03)", async () => {
+    getClaimsMock.mockResolvedValue({ data: { claims: null } });
+
+    const response = await updateSession(makeRequest("/api/flights/refresh"));
+
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.status).toBe(200);
+  });
+
   describe("sign in and come back (FO-F03-S11, spec E11)", () => {
     const locationOf = async (path: string) => {
       getClaimsMock.mockResolvedValue({ data: { claims: null } });

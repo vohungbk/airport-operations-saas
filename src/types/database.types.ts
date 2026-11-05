@@ -523,6 +523,38 @@ export type Database = {
           },
         ]
       }
+      flight_updates: {
+        Row: {
+          changes: Json
+          flight_id: string
+          id: string
+          occurred_at: string
+          source: string
+        }
+        Insert: {
+          changes: Json
+          flight_id: string
+          id?: string
+          occurred_at?: string
+          source: string
+        }
+        Update: {
+          changes?: Json
+          flight_id?: string
+          id?: string
+          occurred_at?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flight_updates_flight_id_fkey"
+            columns: ["flight_id"]
+            isOneToOne: false
+            referencedRelation: "flights"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flights: {
         Row: {
           actual_arrival_at: string | null
@@ -1575,6 +1607,16 @@ export type Database = {
           p_to_status: Database["public"]["Enums"]["seat_status"]
         }
         Returns: undefined
+      }
+      apply_flight_refresh: {
+        Args: {
+          p_changes: Json
+          p_expected_synced_at?: string
+          p_flight_id: string
+          p_source: string
+          p_values: Json
+        }
+        Returns: boolean
       }
       complete_cleaning: {
         Args: { p_job_id: string; p_notes?: string; p_passed: boolean }
