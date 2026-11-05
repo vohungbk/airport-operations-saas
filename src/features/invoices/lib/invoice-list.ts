@@ -20,7 +20,7 @@ export function visibleInvoiceStatuses(isPartner: boolean): readonly InvoiceStat
   return isPartner ? PARTNER_INVOICE_STATUSES : INVOICE_STATUSES;
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
 
 /** `2026-09-01` -> `Sep 2026`. */
 export function formatShortMonth(date: string): string {

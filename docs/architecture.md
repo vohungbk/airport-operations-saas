@@ -1204,6 +1204,19 @@ starts, to a Postgres schema/table group protected by RLS.
   `app.invoice_status_change` flag as S08, so the S07 guards still protect the amounts. Finance history keeps the
   change with no actor (the database made it) and the reason "Invoice passed its due date". Nothing in the screens
   changed: they read the stored status.
+- **Invoice history (VI-F09-S10).** `/invoices/history` (opened with the Invoice history button of the list, NAV-5) shows the
+  creation of every invoice and every change of its status, oldest first: what happened with the end of the invoice
+  number, the time (GST, UTC+4), the actor (System when the database made the change, for example the daily overdue
+  job) and the reason kept. It has the two fields of the design, Invoice number and Period (a year; this year when none is
+  given), both in the address (`invoice_id`, `year`, cleaned by Zod). The events come from `get_invoice_history()`
+  (migration `20261201090000`), `SECURITY DEFINER`, over `finance_history` (VI-F04-S16: append-only, with the actor and the
+  time; invoices are never deleted). It is needed because only an admin and an operations manager can read that table
+  and the names of the actors. An admin and an operations manager are given every invoice; a partner user only the
+  events that moved an invoice of its own partner to issued, paid or overdue, for an invoice that is now issued, paid
+  or overdue, so the creation of a draft and the moves to void are withheld by the database, not by the screen. Anyone
+  else (a technician, no session, a partner user with no active partner) gets 42501, and the screen is the 403 of the
+  invoices. Empty, loading and error are the shared page states; the design has no copy of its own for them. The
+  "Reissued" event of the design is not built: Void and reissue (Q4) is open.
 - **Left out of the design on purpose.** Statement PDF and CSV of the F8 header (the statement is a CSV, S05), the invoice PDF
   preview page and its zoom, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
   ("Invoices"), not "Finance > Invoices > Invoice list".
