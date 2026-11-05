@@ -10,7 +10,7 @@ const APP_DIR = join(process.cwd(), "src", "app");
  * menu and the sign-in pages (NAV-1, NAV-2); these are state pages and a stub, and they follow
  * the theme through the tokens only. The sign in and sign up pages have none either: their designs have no control.
  */
-const WITHOUT_CONTROL = new Set(["page.tsx", join("forbidden", "page.tsx"), join("(auth)", "login", "page.tsx"), join("(auth)", "signup", "page.tsx")]);
+const WITHOUT_CONTROL = new Set(["page.tsx", join("forbidden", "page.tsx"), join("(auth)", "login", "page.tsx"), join("(auth)", "signup", "page.tsx"), join("(auth)", "forgot-password", "page.tsx")]);
 
 function pagesUnder(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -58,7 +58,7 @@ describe("the theme control is above every page", () => {
     expect(missing).toEqual([]);
   });
 
-  it("should show the control on every sign-in page but the sign in and sign up pages, which are signed-out pages", () => {
+  it("should show the control on every sign-in page but the sign in, sign up and forgot password pages, which are signed-out pages", () => {
     const signIn = pages.filter((page) => relativePage(page).startsWith("(auth)"));
 
     expect(signIn.map(relativePage).sort()).toEqual([
