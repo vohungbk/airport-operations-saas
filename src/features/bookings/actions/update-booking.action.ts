@@ -8,6 +8,7 @@ import {
   bookingIdSchema,
   updateBookingSchema,
 } from "@/features/bookings/schemas/booking.schema";
+import { linkBookingFlight } from "@/features/flights/lib/link-booking-flight";
 import {
   resolveRpcArgs,
   toUpdateBookingRpcArgs,
@@ -42,7 +43,7 @@ export async function updateBookingAction(
 
   const { data, error: bookingError } = await supabase
     .from("bookings")
-    .select("id, airport_id, airport:airports(timezone)")
+    .select("id, airport_id, flight_number, flight_lookup_status, airport:airports(timezone)")
     .eq("id", parsedId.data)
     .maybeSingle();
 
@@ -57,6 +58,7 @@ export async function updateBookingAction(
   const booking = data as unknown as {
     airport: { timezone: string } | null;
   };
+  const previousFlightNumber = data.flight_number;
   const resolved = resolveRpcArgs(booking.airport?.timezone, (timeZone) =>
     toUpdateBookingRpcArgs(parsedId.data, parsed.data, timeZone),
   );
@@ -70,6 +72,17 @@ export async function updateBookingAction(
   if (error) {
     return { success: false, error: mapBookingError(error) };
   }
+
+  await linkBookingFlight(
+    supabase,
+    {
+      id: data.id,
+      airport_id: data.airport_id,
+      flight_number: previousFlightNumber,
+      flight_lookup_status: data.flight_lookup_status,
+    },
+    parsed.data.flight_number,
+  );
 
   redirect(`/bookings/${parsedId.data}`);
 }

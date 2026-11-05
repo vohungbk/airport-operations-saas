@@ -1060,3 +1060,9 @@ npx supabase gen types typescript --local > src/types/database.types.ts
 
 Regenerate and commit this file in the same change as any future
 migration — it must never drift from the schema.
+
+**Flight number of a booking (VI-F02-S01, migration `20261202090000_booking_flight_number.sql`).** `bookings` gets
+`flight_number` and `flight_lookup_status`, with checks on the format of the number, the two statuses, and that a
+status always belongs to a number. `flights` gets an index on (`flight_number`, `airport_id`, `scheduled_arrival_at`)
+for finding the flight a booking is saved with. No new policy: the policies of `bookings` and `flights` already
+cover the new columns, and the guard trigger does not protect them. Rollback SQL is at the top of the migration.

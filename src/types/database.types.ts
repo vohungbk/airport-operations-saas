@@ -240,6 +240,8 @@ export type Database = {
           family_ready_at: string | null
           family_ready_by: string | null
           flight_id: string | null
+          flight_lookup_status: string | null
+          flight_number: string | null
           gross_revenue: number | null
           id: string
           launch_credit: number
@@ -280,6 +282,8 @@ export type Database = {
           family_ready_at?: string | null
           family_ready_by?: string | null
           flight_id?: string | null
+          flight_lookup_status?: string | null
+          flight_number?: string | null
           gross_revenue?: number | null
           id?: string
           launch_credit?: number
@@ -321,6 +325,8 @@ export type Database = {
           family_ready_at?: string | null
           family_ready_by?: string | null
           flight_id?: string | null
+          flight_lookup_status?: string | null
+          flight_number?: string | null
           gross_revenue?: number | null
           id?: string
           launch_credit?: number
@@ -1882,6 +1888,8 @@ export type Database = {
           family_ready_at: string | null
           family_ready_by: string | null
           flight_id: string | null
+          flight_lookup_status: string | null
+          flight_number: string | null
           gross_revenue: number | null
           id: string
           launch_credit: number
@@ -2037,6 +2045,8 @@ export type Database = {
           family_ready_at: string | null
           family_ready_by: string | null
           flight_id: string | null
+          flight_lookup_status: string | null
+          flight_number: string | null
           gross_revenue: number | null
           id: string
           launch_credit: number
@@ -2098,6 +2108,8 @@ export type Database = {
           family_ready_at: string | null
           family_ready_by: string | null
           flight_id: string | null
+          flight_lookup_status: string | null
+          flight_number: string | null
           gross_revenue: number | null
           id: string
           launch_credit: number
@@ -2198,6 +2210,8 @@ export type Database = {
           family_ready_at: string | null
           family_ready_by: string | null
           flight_id: string | null
+          flight_lookup_status: string | null
+          flight_number: string | null
           gross_revenue: number | null
           id: string
           launch_credit: number
@@ -2273,6 +2287,8 @@ export type Database = {
           family_ready_at: string | null
           family_ready_by: string | null
           flight_id: string | null
+          flight_lookup_status: string | null
+          flight_number: string | null
           gross_revenue: number | null
           id: string
           launch_credit: number
@@ -2333,6 +2349,8 @@ export type Database = {
           family_ready_at: string | null
           family_ready_by: string | null
           flight_id: string | null
+          flight_lookup_status: string | null
+          flight_number: string | null
           gross_revenue: number | null
           id: string
           launch_credit: number
