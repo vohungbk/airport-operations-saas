@@ -599,9 +599,9 @@ time at the airport and converted to UTC with `airports.timezone`.
 - `SUPABASE_SERVICE_ROLE_KEY` / the newer secret key (`sb_secret_...`)
   must never be shipped to client-side code, imported into a Client
   Component, or exposed via a `NEXT_PUBLIC_` prefixed variable.
-- No service-role/secret-key client exists in the codebase yet. One is
+- One service-role client exists (VI-F02-S03, see "Flight refresh" below). It is
   introduced only when a specific feature has a concrete, reviewed need to
-  bypass RLS from trusted server code.
+  bypass RLS from trusted server code, and no other code may use it.
 - The publishable key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) is safe to
   expose — it carries the same low privilege as the legacy anon key, and
   access is enforced by RLS, not by keeping the key secret.
@@ -2133,6 +2133,34 @@ when a save fails or the permission is lost.
   message in place of the forbidden state. If the database refuses after the check (`42501`), the form shows the
   `FORBIDDEN` message of that form instead and keeps the entries.
 - **Proof.** `src/lib/actions/run-client-action.test.ts` and `src/features/settlements/lib/finance-access-guard.test.ts`.
+
+## Flight refresh (VI-F02-S03)
+
+- **Why a service-role client.** The refresh of flight data runs on a schedule with no signed-in user, and
+  `flights` can be written only by an admin or an operations manager (RLS). The reviewed need is this one
+  job; `pg_cron` cannot do it because it cannot call the flight provider over HTTP.
+- **Where it is.** `src/lib/supabase/service-role.ts` (`createServiceRoleClient()`) is the only place that
+  builds the client, and `src/lib/config/server-env.ts` is the only reader of `SUPABASE_SERVICE_ROLE_KEY` and
+  `CRON_SECRET`. Neither has a `NEXT_PUBLIC_` prefix. Only `POST /api/flights/refresh` imports the client.
+  `service-role-no-leak.test.ts` fails when a second file reads the key, another file imports the client, a
+  `NEXT_PUBLIC_` name carries it, or a client component touches it.
+- **What it can do.** The route reads the linked flights and writes through one function,
+  `apply_flight_refresh()`. That function is `SECURITY DEFINER`, its `EXECUTE` is revoked from `public`, `anon`
+  and `authenticated`, and it is granted to `service_role` only, so no signed-in user can call it.
+- **Access to the route.** There is no session, so the secret is the access check. The scheduler sends
+  `Authorization: Bearer <CRON_SECRET>`; the route compares it in constant time before it does anything, answers
+  401 on a wrong or missing secret, and also when `CRON_SECRET` is not set, so a caller learns nothing about the setup. The proxy lets the
+  path through without a session (`PUBLIC_ROUTES`); the route is what refuses.
+- **History.** `flight_updates` is append-only for every role (a trigger refuses update, delete and truncate),
+  has RLS with read policies only, and is read by who may see the flight: internal roles all, a partner user
+  its own partner's bookings' flights, a technician the flights of its assigned bookings (spec R15). The
+  cross-tenant denial is tested in `flight-updates.integration.test.ts`.
+- **Overlapping runs.** A write passes the sync time it read; if the flight was refreshed in between, the function
+  writes nothing and returns false, so two runs cannot write the same change twice.
+- **Errors.** A failing source or write keeps the last data of that flight and does not stop the others; the
+  route answers the standardized error and never the text of the source or the database.
+- **Set up.** Set `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` as server variables, and have a scheduler call
+  the route every 5 minutes with the header above.
 
 ## Storage
 
