@@ -6,6 +6,7 @@ const maybeSingleMock = vi.hoisted(() => vi.fn());
 const eqMock = vi.hoisted(() => vi.fn(() => ({ maybeSingle: maybeSingleMock })));
 const selectMock = vi.hoisted(() => vi.fn(() => ({ eq: eqMock })));
 const fromMock = vi.hoisted(() => vi.fn(() => ({ select: selectMock })));
+const linkBookingFlightMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
   requirePermission: requirePermissionMock,
@@ -13,6 +14,10 @@ vi.mock("@/lib/auth/current-user", () => ({
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({ rpc: rpcMock, from: fromMock })),
+}));
+
+vi.mock("@/features/flights/lib/link-booking-flight", () => ({
+  linkBookingFlight: linkBookingFlightMock,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -39,9 +44,45 @@ describe("updateBookingAction", () => {
     rpcMock.mockResolvedValue({ data: { id: BOOKING_ID }, error: null });
     maybeSingleMock.mockReset();
     maybeSingleMock.mockResolvedValue({
-      data: { id: BOOKING_ID, airport_id: "a1", airport: { timezone: "Asia/Dubai" } },
+      data: {
+        id: BOOKING_ID,
+        airport_id: "a1",
+        flight_number: "OLD1",
+        flight_lookup_status: "linked",
+        airport: { timezone: "Asia/Dubai" },
+      },
       error: null,
     });
+    linkBookingFlightMock.mockReset();
+    linkBookingFlightMock.mockResolvedValue("linked");
+  });
+
+  it("should link the new flight number after the update and pass the number the booking had", async () => {
+    await expect(
+      updateBookingAction(BOOKING_ID, { ...VALID_INPUT, flight_number: "vn123" }),
+    ).rejects.toThrow(`REDIRECT:/bookings/${BOOKING_ID}`);
+
+    expect(linkBookingFlightMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { id: BOOKING_ID, airport_id: "a1", flight_number: "OLD1", flight_lookup_status: "linked" },
+      "VN123",
+    );
+  });
+
+  it("should ask to clear the flight when the number is emptied", async () => {
+    await expect(
+      updateBookingAction(BOOKING_ID, { ...VALID_INPUT, flight_number: "" }),
+    ).rejects.toThrow("REDIRECT");
+
+    expect(linkBookingFlightMock).toHaveBeenCalledWith(expect.anything(), expect.anything(), "");
+  });
+
+  it("should not look anything up when the update is refused", async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { code: "XX000", message: "boom" } });
+
+    await updateBookingAction(BOOKING_ID, { ...VALID_INPUT, flight_number: "VN123" });
+
+    expect(linkBookingFlightMock).not.toHaveBeenCalled();
   });
 
   it("should call update_booking with expected_updated_at and redirect to the detail page", async () => {
