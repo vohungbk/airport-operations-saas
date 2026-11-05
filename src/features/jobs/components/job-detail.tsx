@@ -4,6 +4,8 @@ import { ScanLine } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { BookingFlightPanel } from "@/features/bookings/components/booking-flight-panel";
+import { getInstallationDeadline } from "@/features/flights/lib/flight-panel";
 import { ChangeJobStatusDialog } from "@/features/jobs/components/change-job-status-dialog";
 import { JobEventsTimeline } from "@/features/jobs/components/job-events-timeline";
 import { JobStatusBadge } from "@/features/jobs/components/job-status-badge";
@@ -182,6 +184,20 @@ export function JobDetail({
             </dl>
           </CardContent>
         </Card>
+      )}
+
+      {booking && (
+        <BookingFlightPanel
+          flight={booking.flight}
+          timeZone={booking.airport?.timezone ?? "UTC"}
+          city={booking.airport?.city}
+          deadlineAt={getInstallationDeadline([
+            { deadline_at: job.deadline_at, status: job.status, job_type: job.job_type },
+          ])}
+          pickupAt={booking.pickup_at}
+          flightNumber={booking.flight_number}
+          lookupStatus={booking.flight_lookup_status}
+        />
       )}
 
       <Card>

@@ -48,6 +48,15 @@ const SIMULATOR_FLIGHTS: readonly FlightSnapshot[] = [
     terminal: "T2",
     delay_minutes: 60,
   },
+  {
+    flight_number: "SIM003",
+    status: "landed",
+    scheduled_arrival_at: "2026-12-01T10:00:00Z",
+    estimated_arrival_at: "2026-12-01T09:45:00Z",
+    actual_arrival_at: "2026-12-01T09:40:00Z",
+    terminal: "T1",
+    delay_minutes: -20,
+  },
 ];
 
 export const createSandboxAdapter = () => createFixtureAdapter("sandbox", SANDBOX_FLIGHTS);

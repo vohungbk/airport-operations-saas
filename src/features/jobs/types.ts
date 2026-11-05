@@ -1,3 +1,4 @@
+import type { BookingFlight } from "@/features/bookings/lib/get-bookings";
 import type { JobStatus } from "@/features/jobs/lib/job-status";
 import type { JobType } from "@/features/jobs/lib/job-type";
 
@@ -40,6 +41,8 @@ export interface JobDetailItem {
   completed_at: string | null;
   vehicle_bay: string | null;
   installation_notes: string | null;
+  /** Set for installation jobs only (see `JobListItem`). */
+  deadline_at: string | null;
   technician: { id: string; full_name: string } | null;
   booking: {
     booking_number: string;
@@ -49,7 +52,12 @@ export interface JobDetailItem {
     vehicle_bay: string | null;
     child_age_band: string | null;
     child_height: number | null;
-    airport: { code: string; name: string } | null;
+    /** The number the booking was saved with and the result of looking it up (VI-F02-S01). */
+    flight_number: string | null;
+    flight_lookup_status: string | null;
+    airport: { code: string; name: string; city: string; timezone: string } | null;
+    /** The linked flight; null when none is linked. */
+    flight: BookingFlight | null;
     seat: {
       serial_number: string;
       category: { name: string } | null;

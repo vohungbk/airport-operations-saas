@@ -1262,3 +1262,19 @@ starts, to a Postgres schema/table group protected by RLS.
   the booking stays saved and keeps its number, and provider errors are VI-F02-S11).
 - **Who.** Only the operations form (create and edit) has the Flight number field. The partner forms and their
   database functions are unchanged.
+
+## Flight status panel (VI-F02-S02)
+
+- **Where.** The Flight tab of the booking page and a Flight card on the job page, both `BookingFlightPanel`, laid out
+  as the Figma frame `Booking detail · Flight`. The page heading names the tab (`BookingDetailTabs` keeps the open
+  tab in one client piece of state; the content of each tab is built on the server).
+- **States.** Empty (no number, not found, not linked yet) and Success are drawn by the panel. Loading, Error and
+  Permission Denied are the ones of the page (`loading.tsx`, `error.tsx`, `forbidden()`): a failed read throws, it is
+  never shown as empty. A booking or job RLS hides is `notFound()`.
+- **Deadline.** `getInstallationDeadline` (`src/features/flights/lib/flight-panel.ts`) reads the open installation job
+  of the booking (`jobs:technician_jobs` in the one select of `getBookingById`); the job page uses its own
+  `deadline_at`. The banner says `Installation deadline moved to <time>` only when the stored deadline is not the base
+  one (pickup minus 60 minutes). The database moves it for a delay today; an early flight is S05.
+- **Landed (spec E5).** The panel shows the actual arrival, no early or late banner and no "times may be wrong". The
+  refresh itself and its stop are VI-F02-S03; the actual arrival is stored by the snapshot of the source.
+- **Not built.** The flight update history of the frame (no table of changes, spec R13) and the notified line (S04).

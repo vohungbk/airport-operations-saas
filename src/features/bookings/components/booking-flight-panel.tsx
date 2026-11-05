@@ -3,8 +3,15 @@ import { CircleAlertIcon, InfoIcon } from "lucide-react";
 import { PageEmpty } from "@/components/shared/page-state";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { formatBookingDateTime } from "@/features/bookings/lib/booking-time";
 import type { BookingFlight } from "@/features/bookings/lib/get-bookings";
+import {
+  formatClock,
+  formatFlightDateTime,
+  getBannerDetail,
+  getSyncNote,
+  isFlightLanded,
+  shouldShowStatusBadge,
+} from "@/features/flights/lib/flight-panel";
 import {
   classifyFlight,
   formatAge,
@@ -17,8 +24,11 @@ interface BookingFlightPanelProps {
   flight: BookingFlight | null;
   /** The time zone of the booking's airport; every time is shown in it. */
   timeZone: string;
-  /** The name of that airport, for the heading of the flight. */
-  airportName?: string;
+  /** The city of that airport, for the heading of the flight. */
+  city?: string;
+  /** The deadline of the open installation job of the booking, and the pickup time it is counted from. */
+  deadlineAt?: string | null;
+  pickupAt?: string | null;
   /** The number the booking was saved with, and the result of looking it up (VI-F02-S01). */
   flightNumber?: string | null;
   lookupStatus?: string | null;
@@ -65,7 +75,9 @@ function Row({
 export function BookingFlightPanel({
   flight,
   timeZone,
-  airportName,
+  city,
+  deadlineAt = null,
+  pickupAt = null,
   flightNumber,
   lookupStatus,
 }: BookingFlightPanelProps) {
@@ -73,20 +85,22 @@ export function BookingFlightPanel({
     return <PageEmpty message={getUnlinkedMessage(flightNumber, lookupStatus)} />;
   }
 
-  const time = (iso: string | null) =>
-    iso ? formatBookingDateTime(iso, timeZone) : "-";
   const offset = getFlightOffsetMinutes(flight);
   const timing = classifyFlight(offset);
   const minutes = offset === null ? 0 : Math.abs(offset);
   const age = getDataAgeMinutes(flight.last_synced_at, new Date());
+  const landed = isFlightLanded(flight.status);
+  // A landed flight is final: no early or late banner, and its times are not "stale".
   const showTiming =
     flight.status !== "cancelled" && flight.status !== "diverted";
+  const showBanner = showTiming && !landed;
+  const hasTimingPill = showTiming && timing !== "unknown";
   const late = timing === "delayed";
   const unit = minutes === 1 ? "MINUTE" : "MINUTES";
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      {showTiming && (timing === "early" || late) && (
+      {showBanner && (timing === "early" || late) && (
         <div
           role="status"
           data-slot="flight-banner"
@@ -100,8 +114,13 @@ export function BookingFlightPanel({
                 : `ARRIVING ${minutes} ${unit} EARLY`}
             </p>
             <p className="break-words">
-              {flight.flight_number} · Estimated{" "}
-              {time(flight.estimated_arrival_at)}.
+              {getBannerDetail(
+                flight.flight_number,
+                flight.estimated_arrival_at,
+                deadlineAt,
+                pickupAt,
+                timeZone,
+              )}
             </p>
           </div>
         </div>
@@ -117,13 +136,15 @@ export function BookingFlightPanel({
           className="text-base font-semibold break-words text-foreground"
         >
           {flight.flight_number}
-          {airportName ? ` · ${airportName} arrival` : ""}
+          {city ? ` · ${city} arrival` : ""}
         </h2>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge domain="flight" value={flight.status} />
-            {showTiming && timing !== "unknown" && (
+            {shouldShowStatusBadge(flight.status, hasTimingPill) && (
+              <StatusBadge domain="flight" value={flight.status} />
+            )}
+            {hasTimingPill && (
               <Badge variant="info">
                 <InfoIcon aria-hidden="true" />
                 {timing === "on_time"
@@ -139,23 +160,26 @@ export function BookingFlightPanel({
 
         <dl className="flex flex-col gap-3">
           <Row label={`Scheduled · ${timeZone}`}>
-            {time(flight.scheduled_arrival_at)}
+            {formatFlightDateTime(flight.scheduled_arrival_at, timeZone)}
           </Row>
           <Row label={`Estimated · ${timeZone}`}>
-            {time(flight.estimated_arrival_at)}
+            {formatFlightDateTime(flight.estimated_arrival_at, timeZone)}
           </Row>
           {flight.actual_arrival_at && (
             <Row label={`Arrived · ${timeZone}`}>
-              {time(flight.actual_arrival_at)}
+              {formatFlightDateTime(flight.actual_arrival_at, timeZone)}
             </Row>
           )}
+          <Row label="Installation deadline">
+            {deadlineAt ? formatClock(deadlineAt, timeZone) : "-"}
+          </Row>
         </dl>
 
         <p className="text-sm break-words text-muted-foreground">
           {flight.last_synced_at
-            ? `Provider sync ${time(flight.last_synced_at)} · Updated ${formatAge(age)}`
+            ? `Provider sync ${formatClock(flight.last_synced_at, timeZone)} · Updated ${formatAge(age)}`
             : "Never updated"}
-          {isStale(age) && flight.last_synced_at ? ". Times may be wrong." : ""}
+          {getSyncNote(flight.status, Boolean(flight.last_synced_at), isStale(age))}
         </p>
       </section>
     </div>

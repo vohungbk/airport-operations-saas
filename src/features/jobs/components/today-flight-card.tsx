@@ -7,11 +7,8 @@ import {
   SectionCard,
   terminalLabel,
 } from "@/features/jobs/components/today-parts";
-import {
-  formatDate,
-  formatTime,
-  zoneLabel,
-} from "@/features/jobs/lib/job-time";
+import { formatFlightDateTime } from "@/features/flights/lib/flight-panel";
+import { formatTime, zoneLabel } from "@/features/jobs/lib/job-time";
 import type { TodayJob } from "@/features/jobs/lib/todays-jobs";
 import { formatAge, getDataAgeMinutes } from "@/lib/flights/flight-timing";
 
@@ -31,9 +28,6 @@ function timingLabel({ timing, offset_minutes }: Flight): string {
   return timing === "on_time" ? "On time" : "Status unknown";
 }
 
-/** `15:45 · 24 Oct 2026`, or a dash when the flight has no such time. */
-const dayAndTime = (iso: string | null, timeZone: string) =>
-  iso ? `${formatTime(iso, timeZone)} · ${formatDate(iso, timeZone)}` : NONE;
 
 /**
  * The flight of the job, as the design draws it (UI-F07-S01): its status, the terminal, the scheduled and the
@@ -65,10 +59,10 @@ export function TodayFlightCard({ job, now }: TodayFlightCardProps) {
         )}
       </div>
       <KeyValue label={`Scheduled · ${timeZone}`}>
-        {dayAndTime(flight.scheduled_at, timeZone)}
+        {formatFlightDateTime(flight.scheduled_at, timeZone, NONE)}
       </KeyValue>
       <KeyValue label={`Estimated · ${timeZone}`}>
-        {dayAndTime(flight.expected_at, timeZone)}
+        {formatFlightDateTime(flight.expected_at, timeZone, NONE)}
       </KeyValue>
       <KeyValue label="Installation deadline">{NONE}</KeyValue>
       {synced && <p className="text-sm text-muted-foreground">{synced}</p>}

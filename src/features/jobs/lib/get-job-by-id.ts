@@ -19,8 +19,9 @@ export const JOB_DETAIL_SELECT = [
   "completed_at",
   "vehicle_bay",
   "installation_notes",
+  "deadline_at",
   "technician:users!technician_id(id, full_name)",
-  "booking:bookings!inner(booking_number, pickup_at, return_at, vehicle, vehicle_bay, child_age_band, child_height, airport:airports(code, name), seat:seats!assigned_seat_id(serial_number, category:seat_categories(name)))",
+  "booking:bookings!inner(booking_number, pickup_at, return_at, vehicle, vehicle_bay, child_age_band, child_height, flight_number, flight_lookup_status, airport:airports(code, name, city, timezone), seat:seats!assigned_seat_id(serial_number, category:seat_categories(name)), flight:flights(flight_number, status, terminal, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes, last_synced_at))",
 ].join(", ");
 
 /**
