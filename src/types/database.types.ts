@@ -1618,6 +1618,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      apply_simulated_flight_change: {
+        Args: {
+          p_changes: Json
+          p_expected_synced_at?: string
+          p_flight_id: string
+          p_values: Json
+        }
+        Returns: boolean
+      }
       complete_cleaning: {
         Args: { p_job_id: string; p_notes?: string; p_passed: boolean }
         Returns: {

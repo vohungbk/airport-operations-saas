@@ -2179,6 +2179,25 @@ when a save fails or the permission is lost.
 - **Proof.** `flights-access.integration.test.ts` (each role, the other partner's flight by id and by number, the
   writes) and `flights-access-policy.test.ts` (reads the migration; runs without a database).
 
+## Flight simulator (VI-F02-S12)
+
+- **Who.** Only an admin (spec 2.1). The layout and the page of `/settings/flight-simulator` use
+  `requireRole(["admin"])`, and so does the Server Action; any other role gets a 403. The screen is reached from
+  the Provider settings screen, which is itself admin only.
+- **How it writes.** The action calls `apply_simulated_flight_change()` as the signed-in user. The function checks
+  the admin role inside (`current_user_role()`, so an inactive account is refused too) and then calls
+  `apply_flight_refresh()` with the source `system`. No service-role client is used or added: the one that exists
+  stays for `POST /api/flights/refresh`. `EXECUTE` is revoked from `public` and `anon`.
+- **Only on the simulator.** The action refuses with `SOURCE_NOT_SIMULATOR` when the active flight source is not
+  the simulator (spec R4); the screen shows Apply off. The source is read from server configuration, never from
+  the request.
+- **Input.** The flight number, the estimated arrival and the status are validated with Zod on the client and in
+  the action. The flight is found by number among flights of bookings that are not ended; RLS still decides which
+  rows are read. Errors are the stable codes of `flight-simulator-errors.ts`, never the text of the database.
+- **Proof.** `flight-simulator-apply.integration.test.ts` (an admin writes; an operations manager, a technician,
+  a partner user, a user with no profile and an inactive admin are refused and nothing changes) and
+  `apply-flight-simulation.action.test.ts`.
+
 ## Storage
 
 - Supabase Storage buckets are tenant-scoped. Access rules mirror the

@@ -1074,3 +1074,10 @@ migration — it must never drift from the schema.
 status always belongs to a number. `flights` gets an index on (`flight_number`, `airport_id`, `scheduled_arrival_at`)
 for finding the flight a booking is saved with. No new policy: the policies of `bookings` and `flights` already
 cover the new columns, and the guard trigger does not protect them. Rollback SQL is at the top of the migration.
+
+**Simulated flight change (VI-F02-S12, migration `20261206090000_apply_simulated_flight_change.sql`).** One new function,
+`apply_simulated_flight_change(p_flight_id, p_values, p_changes, p_expected_synced_at)`. It is `SECURITY DEFINER`, checks
+inside that the caller is an active admin (`42501` otherwise) and then calls `apply_flight_refresh()` with the source
+fixed to `system`, so a simulated change is stored like a provider update (the flight and one history row). `EXECUTE` is
+revoked from `public` and `anon` and granted to `authenticated`. No table, column or policy changes. Rollback SQL is at the
+top of the migration.
