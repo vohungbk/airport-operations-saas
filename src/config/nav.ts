@@ -106,7 +106,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/flights",
     permission: "dashboards:view",
     icon: Plane,
-    planned: true,
   },
   {
     label: "Finance",

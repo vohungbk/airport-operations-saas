@@ -642,7 +642,7 @@ starts, to a Postgres schema/table group protected by RLS.
   sidebar (file `2qiL4qrfp3rNIOuCxUOFt7`): one flat list, no section labels,
   because the design has none. The technician has no frame in the design; its
   menu follows the ticket.
-- **Items without a page.** Return Queue, Flights, Reports, Import,
+- **Items without a page.** Return Queue, Reports, Import,
   My History, KPI, ROI and Assistant are in the menu because the design has
   them; their pages belong to other features and answer 404 for now
   (`planned: true` in the config). The admin ones use `dashboards:view` until
@@ -1278,3 +1278,23 @@ starts, to a Postgres schema/table group protected by RLS.
 - **Landed (spec E5).** The panel shows the actual arrival, no early or late banner and no "times may be wrong". The
   refresh itself and its stop are VI-F02-S03; the actual arrival is stored by the snapshot of the source.
 - **Not built.** The flight update history of the frame (no table of changes, spec R13) and the notified line (S04).
+
+## Flight board (VI-F02-S08)
+
+- **Where.** `/flights`, the Flights item of the menu, laid out as the Figma frame `D6 Flight board`. The layout and the page
+  both call `requirePermission("dashboards:view")` (admin and operations manager); any other role gets the 403 of the shell.
+  Loading and Error are `loading.tsx` and `error.tsx`; a failed read throws, it is never shown as empty.
+- **One airport at a time.** The Airport select has no "All" choice (the frame has none): without `airport_id` the board
+  opens the first airport by code. Times, the day and the zone in the heading are those of that airport.
+- **Scope.** The flights of the airport from the start of today at the airport, oldest first, at most 100
+  (`FLIGHT_BOARD_LIMIT`); a line says so when the list is cut. One row for each booking linked to a flight
+  (`bookings!inner` in one select, so a flight with no booking is not listed and there is no N+1). RLS decides which
+  flights and bookings the viewer sees. The Status filter is `status` in the address, checked by `flightBoardQuerySchema`.
+- **Columns.** Change is early or late by the gap between the expected and the scheduled arrival (`classifyFlight`, 15
+  minutes), "Cancelled" or "Diverted" for those statuses. Priority is High only when the flight is 15 minutes or more early
+  (spec Q5). The installation deadline is the one of the open installation job (`getInstallationDeadline`). The `Stale · n min`
+  tag shows when the last sync is older than 30 minutes, never for a landed or cancelled flight.
+- **Banners.** The first early and the first late flight of the rows. The "notified" sentence of the frame is left out:
+  who was notified is not stored.
+- **Not from the frame.** The status badge is the shared `StatusBadge` (the frame draws "Delayed" in green).
+
