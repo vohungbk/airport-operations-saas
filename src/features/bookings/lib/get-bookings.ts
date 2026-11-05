@@ -56,7 +56,7 @@ const FLIGHT_SELECT =
 const BOOKING_RELATIONS_SELECT = `partner:partners(id, name, code), airport:airports(id, code, name, timezone), seat:seats(id, serial_number, status), category:seat_categories(id, name), ${FLIGHT_SELECT}`;
 
 const BOOKING_COLUMNS =
-  "id, booking_number, partner_id, airport_id, external_booking_number, pickup_at, return_at, flight_id, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, seat_category_id, child_age_band, child_height, vehicle, vehicle_bay, assigned_seat_id, assigned_technician_id, daily_rate, status, incident_status, notes, created_at, updated_at";
+  "id, booking_number, partner_id, airport_id, external_booking_number, pickup_at, return_at, flight_id, flight_number, flight_lookup_status, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, seat_category_id, child_age_band, child_height, vehicle, vehicle_bay, assigned_seat_id, assigned_technician_id, daily_rate, status, incident_status, notes, created_at, updated_at";
 
 /** One nested select — never a per-row lookup (no N+1). */
 export const BOOKING_WITH_RELATIONS_SELECT = `${BOOKING_COLUMNS}, ${BOOKING_RELATIONS_SELECT}, technician:users!assigned_technician_id(full_name)`;

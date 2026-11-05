@@ -29,6 +29,7 @@ export function useCreateBookingForm(airportTimezones: Record<string, string>) {
       child_height: "",
       vehicle: "",
       vehicle_bay: "",
+      flight_number: "",
       notes: "",
     },
   });

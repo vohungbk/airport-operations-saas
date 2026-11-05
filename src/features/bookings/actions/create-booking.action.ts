@@ -9,6 +9,7 @@ import {
   resolveRpcArgs,
   toCreateBookingRpcArgs,
 } from "@/features/bookings/lib/booking-rpc-args";
+import { linkBookingFlight } from "@/features/flights/lib/link-booking-flight";
 import { getAirportTimezone } from "@/features/bookings/lib/get-airport-timezone";
 import {
   VALIDATION_ERROR,
@@ -51,6 +52,8 @@ export async function createBookingAction(
   if (error) {
     return { success: false, error: mapBookingError(error) };
   }
+
+  await linkBookingFlight(supabase, data, parsed.data.flight_number);
 
   redirect(`/bookings/${data.id}`);
 }

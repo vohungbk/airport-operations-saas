@@ -323,6 +323,14 @@ function SharedFields<TFieldValues extends FieldValues>({
       />
       <TextField {...shell} name="vehicle" label="Vehicle" />
       <TextField {...shell} name="vehicle_bay" label="Vehicle bay" />
+      {availableSeats && (
+        <TextField
+          {...shell}
+          name="flight_number"
+          label="Flight number"
+          hint="Optional. For example VN123. The flight is looked up when the booking is saved."
+        />
+      )}
       <TextAreaField {...shell} name="notes" label="Notes" />
     </>
   );

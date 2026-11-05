@@ -195,6 +195,8 @@ export function BookingDetail({
             flight={booking.flight}
             timeZone={timeZone}
             airportName={booking.airport?.name}
+            flightNumber={booking.flight_number}
+            lookupStatus={booking.flight_lookup_status}
           />
         </TabsContent>
 

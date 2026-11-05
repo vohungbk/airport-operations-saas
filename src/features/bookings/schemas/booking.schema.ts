@@ -5,6 +5,7 @@ import {
   isReasonRequired,
 } from "@/features/bookings/lib/booking-status";
 import { isLocalDateTime } from "@/features/bookings/lib/booking-time";
+import { flightNumberField } from "@/features/flights/lib/flight-number";
 
 // z.guid(), not z.uuid(): seeded dev ids (e.g. f0000000-0000-0000-0000-...)
 // are not RFC-variant UUIDs and z.uuid() would reject them.
@@ -74,9 +75,14 @@ const bookingDetailFields = {
   notes: optionalText("Notes", 2000),
 };
 
+/**
+ * The fields operations edit: the details, the seat and the flight number (VI-F02-S01). A partner
+ * user has no flight number field.
+ */
 const sharedBookingFields = {
   ...bookingDetailFields,
   assigned_seat_id: seatIdField,
+  flight_number: flightNumberField,
 };
 
 /** `YYYY-MM-DDTHH:mm` strings compare correctly as plain strings. */

@@ -19,6 +19,25 @@ interface BookingFlightPanelProps {
   timeZone: string;
   /** The name of that airport, for the heading of the flight. */
   airportName?: string;
+  /** The number the booking was saved with, and the result of looking it up (VI-F02-S01). */
+  flightNumber?: string | null;
+  lookupStatus?: string | null;
+}
+
+/**
+ * What a booking with no linked flight says. No number: empty state (spec E1). The source did not
+ * know the number: not found, and operations can enter the arrival by hand (spec E2). A number
+ * whose lookup did not run is not linked yet.
+ */
+export function getUnlinkedMessage(
+  flightNumber: string | null | undefined,
+  lookupStatus: string | null | undefined,
+): string {
+  if (!flightNumber) return "No flight is linked to this booking.";
+  if (lookupStatus === "not_found") {
+    return `Flight ${flightNumber} was not found. Operations can enter the arrival by hand.`;
+  }
+  return `Flight ${flightNumber} is not linked yet.`;
 }
 
 function Row({
@@ -47,9 +66,11 @@ export function BookingFlightPanel({
   flight,
   timeZone,
   airportName,
+  flightNumber,
+  lookupStatus,
 }: BookingFlightPanelProps) {
   if (!flight) {
-    return <PageEmpty message="No flight is linked to this booking." />;
+    return <PageEmpty message={getUnlinkedMessage(flightNumber, lookupStatus)} />;
   }
 
   const time = (iso: string | null) =>

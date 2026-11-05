@@ -1246,3 +1246,19 @@ starts, to a Postgres schema/table group protected by RLS.
   `flights.last_synced_at`, RLS decides the rows) and the last error. Admin only (`requireRole(["admin"])` in the
   layout and the page). It has no menu item of its own (the menu is the Figma sidebar): the Settings item opens
   `/settings`, which redirects to it. Another role that clicks Settings gets the 403 there. The last error is always empty until VI-F02-S11 records provider errors.
+
+## Linking a flight to a booking (VI-F02-S01)
+
+- **Where the number lives.** `bookings.flight_number` (upper-case letters and digits, 2 to 8, checked by the database
+  and by `flightNumberField`) and `bookings.flight_lookup_status` (`linked`, `not_found` or null). `flight_id` keeps
+  pointing at the linked flight and is null when the flight is not found.
+- **When it runs.** `createBookingAction` and `updateBookingAction` save the booking through their database function
+  first, then call `linkBookingFlight()`. It asks the active source (`getFlightSource()`), finds or creates the
+  `flights` row (same number, airport and scheduled arrival), and writes the three booking columns as the signed-in
+  user, so RLS decides who may write. The save and the link are two steps: the guard trigger of `bookings` does not
+  protect these columns, the same as `flight_id`.
+- **Results.** `linked`; `not_found` (the Flight tab says so and that operations can enter the arrival by hand, which
+  is VI-F02-S07); `cleared` (no number: no lookup, no write, no alert); `unavailable` (the source or a write failed:
+  the booking stays saved and keeps its number, and provider errors are VI-F02-S11).
+- **Who.** Only the operations form (create and edit) has the Flight number field. The partner forms and their
+  database functions are unchanged.

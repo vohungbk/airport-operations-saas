@@ -95,6 +95,39 @@ describe("createBookingSchema", () => {
   });
 });
 
+describe("flight number of a booking", () => {
+  const parse = (flight_number: string) =>
+    createBookingSchema.safeParse({ ...VALID_CREATE, flight_number });
+
+  it("should accept a booking without a flight number", () => {
+    expect(createBookingSchema.safeParse(VALID_CREATE).success).toBe(true);
+    expect(parse("").success).toBe(true);
+  });
+
+  it("should normalize spaces and case", () => {
+    const result = parse(" vn 123 ");
+
+    expect(result.success && result.data.flight_number).toBe("VN123");
+  });
+
+  it.each(["@@", "V", "ABCDEFGHI", "VN-123"])("should reject the flight number %s", (value) => {
+    expect(parse(value).success).toBe(false);
+  });
+
+  it("should not take a flight number in the partner booking schemas", () => {
+    const result = createPartnerBookingSchema.safeParse({
+      airport_id: VALID_CREATE.airport_id,
+      seat_category_id: VALID_CREATE.seat_category_id,
+      daily_rate: "75",
+      pickup_at: VALID_CREATE.pickup_at,
+      return_at: VALID_CREATE.return_at,
+      flight_number: "VN123",
+    });
+
+    expect(result.success && "flight_number" in result.data).toBe(false);
+  });
+});
+
 describe("updateBookingSchema", () => {
   const VALID_UPDATE = {
     expected_updated_at: "2026-09-01T04:00:00.123456+00:00",

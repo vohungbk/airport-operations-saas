@@ -32,6 +32,7 @@ export function EditBookingForm({ booking, timeZone }: EditBookingFormProps) {
           booking.child_height === null ? "" : String(booking.child_height),
         vehicle: booking.vehicle ?? "",
         vehicle_bay: booking.vehicle_bay ?? "",
+        flight_number: booking.flight_number ?? "",
         notes: booking.notes ?? "",
       },
     });
