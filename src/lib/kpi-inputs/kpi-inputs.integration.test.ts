@@ -109,7 +109,7 @@ describe.skipIf(!available)("job deadline (VI-F05-T01, AC01, AC02, AC06)", () =>
     expect(result(rows, "updated")).toBe("01-10 11:00");
   });
 
-  it("should move the deadline by the delay of the flight, count it from the pickup time each time, and not move it earlier than the base", () => {
+  it("should move the deadline by the delay of the flight and count it from the pickup time each time", () => {
     const rows = run(`
       ${booking(2)}
       ${flight(2, "2030-01-10 11:45:00+00")}
@@ -119,14 +119,46 @@ describe.skipIf(!available)("job deadline (VI-F05-T01, AC01, AC02, AC06)", () =>
       ${estimate(2, "2030-01-10 12:15:00+00")}
       ${deadline("late-75", 3)}
       ${estimate(2, "2030-01-10 11:00:00+00")}
-      ${deadline("on-time", 3)}
-      ${estimate(2, "2030-01-10 10:30:00+00")}
-      ${deadline("early", 3)}`);
+      ${deadline("on-time", 3)}`);
 
     expect(result(rows, "late-45")).toBe("01-10 11:45");
     expect(result(rows, "late-75")).toBe("01-10 12:15");
     expect(result(rows, "on-time")).toBe("01-10 11:00");
-    expect(result(rows, "early")).toBe("01-10 11:00");
+  });
+
+  it("should move the deadline earlier by the same minutes when the flight is 15 minutes or more early, and back to the base when the estimate returns to the schedule (VI-F02-S04 AC01, AC04)", () => {
+    const rows = run(`
+      ${booking(2)}
+      ${flight(2, "2030-01-10 10:15:00+00")}
+      ${link(2, 2)}
+      ${job(3, 2)}
+      ${deadline("early-45", 3)}
+      ${estimate(2, "2030-01-10 10:45:00+00")}
+      ${deadline("early-15", 3)}
+      ${estimate(2, "2030-01-10 10:46:00+00")}
+      ${deadline("early-14", 3)}
+      ${estimate(2, "2030-01-10 10:15:00+00")}
+      ${deadline("early-again", 3)}
+      ${estimate(2, "2030-01-10 11:00:00+00")}
+      ${deadline("on-time", 3)}`);
+
+    expect(result(rows, "early-45")).toBe("01-10 10:15");
+    expect(result(rows, "early-15")).toBe("01-10 10:45");
+    expect(result(rows, "early-14")).toBe("01-10 11:00");
+    expect(result(rows, "early-again")).toBe("01-10 10:15");
+    expect(result(rows, "on-time")).toBe("01-10 11:00");
+  });
+
+  it("should move the deadline earlier from delay_minutes alone when it is negative and the flight has no estimate (VI-F02-S04 AC01)", () => {
+    const rows = run(`
+      ${booking(2)}
+      ${flight(2, "2030-01-10 11:00:00+00")}
+      update public.flights set estimated_arrival_at = null, delay_minutes = -30 where id = '${flightId(2)}';
+      ${link(2, 2)}
+      ${job(3, 2)}
+      ${deadline("early-minutes", 3)}`);
+
+    expect(result(rows, "early-minutes")).toBe("01-10 10:30");
   });
 
   it("should read the delay as the screens do: the actual arrival first, then the estimate, then delay_minutes alone", () => {
