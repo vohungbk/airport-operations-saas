@@ -19,6 +19,11 @@ export function resolveBookingPageTab(value: string | string[] | undefined): Boo
   return single === "flight" || single === "timeline" ? single : "overview";
 }
 
+/** The heading of the booking page: the design adds the tab to it on the Flight tab (`Booking detail · Flight`). */
+export function getBookingPageTitle(tab: BookingPageTab): string {
+  return tab === "flight" ? `Booking detail · ${BOOKING_TAB_LABEL.flight}` : "Booking detail";
+}
+
 /** The address of a tab of the booking. */
 export function buildBookingTabHref(bookingId: string, tab: BookingTab): string {
   if (tab === "overview") return `/bookings/${bookingId}`;

@@ -1,6 +1,12 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { getUnlinkedMessage } from "@/features/bookings/components/booking-flight-panel";
+import {
+  BookingFlightPanel,
+  getUnlinkedMessage,
+} from "@/features/bookings/components/booking-flight-panel";
+import type { BookingFlight } from "@/features/bookings/lib/get-bookings";
 
 describe("getUnlinkedMessage", () => {
   it("should show the empty state when the booking has no flight number", () => {
@@ -17,5 +23,82 @@ describe("getUnlinkedMessage", () => {
 
   it("should say the flight is not linked yet when the lookup did not run", () => {
     expect(getUnlinkedMessage("VN123", null)).toBe("Flight VN123 is not linked yet.");
+  });
+});
+
+const FLIGHT: BookingFlight = {
+  flight_number: "EK203",
+  status: "scheduled",
+  terminal: "3",
+  scheduled_arrival_at: "2026-10-24T12:30:00.000Z",
+  estimated_arrival_at: "2026-10-24T11:45:00.000Z",
+  actual_arrival_at: null,
+  delay_minutes: null,
+  last_synced_at: new Date().toISOString(),
+};
+
+const render = (props: Partial<Parameters<typeof BookingFlightPanel>[0]> = {}) =>
+  renderToStaticMarkup(
+    createElement(BookingFlightPanel, {
+      flight: FLIGHT,
+      timeZone: "Asia/Dubai",
+      city: "Dubai",
+      ...props,
+    }),
+  );
+
+describe("BookingFlightPanel (VI-F02-S02)", () => {
+  it("should show the early banner with the moved deadline, as the design draws it", () => {
+    const html = render({
+      deadlineAt: "2026-10-24T11:15:00.000Z",
+      pickupAt: "2026-10-24T12:45:00.000Z",
+    });
+
+    expect(html).toContain("ARRIVING 45 MINUTES EARLY");
+    expect(html).toContain("EK203 · Estimated 15:45 GST.");
+    expect(html).toContain("Installation deadline moved to 15:15 GST.");
+    expect(html).toContain("EK203 · Dubai arrival");
+    expect(html).toContain("16:30 · 24 Oct 2026");
+    expect(html).toContain("Early 45 min");
+  });
+
+  it("should not say the deadline moved when it is still the base deadline or there is none", () => {
+    const base = render({
+      deadlineAt: "2026-10-24T11:15:00.000Z",
+      pickupAt: "2026-10-24T12:15:00.000Z",
+    });
+    const none = render();
+
+    expect(base).toContain("15:15 GST");
+    expect(base).not.toContain("deadline moved");
+    expect(none).not.toContain("deadline moved");
+    expect(none).toContain("Installation deadline");
+  });
+
+  it("should show only the timing pill, not the status badge, for a flight that is early", () => {
+    expect(render()).not.toContain(">Scheduled<");
+  });
+
+  it("should show the arrival and stop calling the times stale when the flight has landed", () => {
+    const html = render({
+      flight: {
+        ...FLIGHT,
+        status: "landed",
+        actual_arrival_at: "2026-10-24T11:40:00.000Z",
+        last_synced_at: "2026-10-23T08:00:00.000Z",
+      },
+    });
+
+    expect(html).toContain("Arrived · Asia/Dubai");
+    expect(html).toContain("15:40 · 24 Oct 2026");
+    expect(html).toContain("Landed: this flight is no longer refreshed.");
+    expect(html).not.toContain("Times may be wrong");
+    expect(html).not.toContain("flight-banner");
+  });
+
+  it("should still say the times may be wrong for an old sync of a flight that has not landed", () => {
+    const html = render({ flight: { ...FLIGHT, last_synced_at: "2026-10-23T08:00:00.000Z" } });
+
+    expect(html).toContain("Times may be wrong");
   });
 });

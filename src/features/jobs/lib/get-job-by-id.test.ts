@@ -65,6 +65,12 @@ describe("getJobById", () => {
     }
   });
 
+  it("should select the flight of the booking, its airport time zone and the job deadline", () => {
+    expect(JOB_DETAIL_SELECT.split(", ")).toContain("deadline_at");
+    expect(JOB_DETAIL_SELECT).toContain("flight:flights(");
+    expect(JOB_DETAIL_SELECT).toContain("airport:airports(code, name, city, timezone)");
+  });
+
   it("should select the job number", () => {
     expect(JOB_DETAIL_SELECT.split(", ")).toContain("job_number");
   });

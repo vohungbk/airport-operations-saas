@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { BOOKING_TABS, buildBookingTabHref, resolveBookingPageTab } from "@/features/bookings/lib/booking-tabs";
+import {
+  BOOKING_TABS,
+  buildBookingTabHref,
+  getBookingPageTitle,
+  resolveBookingPageTab,
+} from "@/features/bookings/lib/booking-tabs";
 
 describe("BOOKING_TABS", () => {
   it("should list the tabs in the order of the design", () => {
@@ -33,5 +38,16 @@ describe("resolveBookingPageTab", () => {
 
   it("should read the first value when the tab is repeated", () => {
     expect(resolveBookingPageTab(["timeline", "flight"])).toBe("timeline");
+  });
+});
+
+describe("getBookingPageTitle", () => {
+  it("should name the Flight tab in the heading, as the design does", () => {
+    expect(getBookingPageTitle("flight")).toBe("Booking detail · Flight");
+  });
+
+  it("should keep the plain heading for the other tabs", () => {
+    expect(getBookingPageTitle("overview")).toBe("Booking detail");
+    expect(getBookingPageTitle("timeline")).toBe("Booking detail");
   });
 });

@@ -5,6 +5,9 @@ import {
 } from "@/features/bookings/lib/get-bookings";
 import { bookingIdSchema } from "@/features/bookings/schemas/booking.schema";
 
+/** The booking, its relations and its jobs, in one select (no N+1). RLS decides which jobs the viewer sees. */
+export const BOOKING_DETAIL_SELECT = `${BOOKING_WITH_RELATIONS_SELECT}, jobs:technician_jobs(deadline_at, status, job_type)`;
+
 /**
  * Server-only. Returns `null` for an unknown id, an id RLS hides, or a
  * malformed id — the caller turns that into `notFound()`.
@@ -19,7 +22,7 @@ export async function getBookingById(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("bookings")
-    .select(BOOKING_WITH_RELATIONS_SELECT)
+    .select(BOOKING_DETAIL_SELECT)
     .eq("id", id)
     .maybeSingle();
 

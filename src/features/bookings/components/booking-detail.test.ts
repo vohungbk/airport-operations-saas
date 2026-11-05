@@ -158,3 +158,27 @@ describe("BookingDetail tabs (UI-F06-S03)", () => {
     expect(out).not.toContain("flight-status-card");
   });
 });
+
+describe("BookingDetail heading (VI-F02-S02)", () => {
+  const renderTab = (defaultTab: "overview" | "flight") =>
+    renderToStaticMarkup(
+      createElement(BookingDetail, {
+        booking: booking("pending"),
+        events: { items: [], truncated: false },
+        canManage: false,
+        canEditOwn: true,
+        defaultTab,
+      }),
+    );
+
+  it("should name the Flight tab in the heading when it is open", () => {
+    expect(renderTab("flight")).toContain("Booking detail · Flight");
+  });
+
+  it("should keep the plain heading on the Overview tab", () => {
+    const html = renderTab("overview");
+
+    expect(html).toContain("Booking detail");
+    expect(html).not.toContain("Booking detail · Flight");
+  });
+});

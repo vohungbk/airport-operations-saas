@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const maybeSingleMock = vi.hoisted(() => vi.fn());
 const eqMock = vi.hoisted(() => vi.fn(() => ({ maybeSingle: maybeSingleMock })));
-const selectMock = vi.hoisted(() => vi.fn(() => ({ eq: eqMock })));
+const selectMock = vi.hoisted(() => vi.fn<(columns: string) => { eq: typeof eqMock }>(() => ({ eq: eqMock })));
 const fromMock = vi.hoisted(() => vi.fn(() => ({ select: selectMock })));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -31,6 +31,16 @@ describe("getBookingById", () => {
     expect(selectMock.mock.calls[0]).toEqual([
       expect.stringContaining("partner:partners"),
     ]);
+  });
+
+  it("should read the jobs of the booking in the same select, so the Flight tab can show the deadline", async () => {
+    maybeSingleMock.mockResolvedValue({ data: { id: ID }, error: null });
+
+    await getBookingById(ID);
+
+    expect(selectMock.mock.calls[0]?.[0]).toContain("jobs:technician_jobs(deadline_at, status, job_type)");
+    expect(selectMock.mock.calls[0]?.[0]).toContain("airport:airports(id, code, name, city, timezone)");
+    expect(fromMock).toHaveBeenCalledTimes(1);
   });
 
   it("should return null when the booking is missing or hidden by RLS", async () => {

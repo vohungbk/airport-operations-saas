@@ -39,6 +39,13 @@ describe("getFlightSource", () => {
     expect(flight?.flight_number).toBe("SIM002");
   });
 
+  it("should offer a landed flight with its actual arrival, so a demonstration can show it", async () => {
+    const flight = await getFlightSource({ FLIGHT_SOURCE: "simulator" }).fetchFlight("SIM003");
+
+    expect(flightSnapshotSchema.safeParse(flight).success).toBe(true);
+    expect(flight).toMatchObject({ status: "landed", actual_arrival_at: "2026-12-01T09:40:00Z" });
+  });
+
   it("should refuse to build an adapter from an invalid configuration", () => {
     expect(() => getFlightSource({ FLIGHT_SOURCE: "provider" })).toThrow(/FLIGHT_PROVIDER_BASE_URL/);
   });

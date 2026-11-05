@@ -78,6 +78,30 @@ describe("linkBookingFlight", () => {
     ]);
   });
 
+  it("should store the actual arrival when the source says the flight has landed", async () => {
+    const { client, writes } = fakeClient();
+    const landed: FlightSourceAdapter = {
+      source: "simulator",
+      fetchFlight: async (flight_number) => ({
+        flight_number,
+        status: "landed",
+        scheduled_arrival_at: "2026-10-24T12:30:00.000Z",
+        estimated_arrival_at: "2026-10-24T11:45:00.000Z",
+        actual_arrival_at: "2026-10-24T11:40:00.000Z",
+        terminal: "3",
+        delay_minutes: null,
+      }),
+    };
+
+    const result = await linkBookingFlight(client, BOOKING, "EK203", () => landed);
+
+    expect(result).toBe("linked");
+    expect(writes.find((write) => write.table === "flights")).toMatchObject({
+      op: "insert",
+      values: { status: "landed", actual_arrival_at: "2026-10-24T11:40:00.000Z" },
+    });
+  });
+
   it("should update the flight it already has instead of creating a second one", async () => {
     const { client, writes } = fakeClient({ existingFlightId: "flight-old" });
 
