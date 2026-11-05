@@ -24,6 +24,7 @@ describe("signupSchema", () => {
       full_name: "Jane Doe",
       password: "password123",
       confirm_password: "password123",
+      accepted_terms: true,
     });
 
     expect(result.success).toBe(true);
@@ -35,6 +36,7 @@ describe("signupSchema", () => {
       full_name: "Jane Doe",
       password: "password123",
       confirm_password: "password123",
+      accepted_terms: true,
     });
 
     expect(result.success).toBe(false);
@@ -51,6 +53,7 @@ describe("signupSchema", () => {
       full_name: "Jane Doe",
       password: "short1",
       confirm_password: "short1",
+      accepted_terms: true,
     });
 
     expect(result.success).toBe(false);
@@ -67,6 +70,7 @@ describe("signupSchema", () => {
       full_name: "Jane Doe",
       password: "password123",
       confirm_password: "different123",
+      accepted_terms: true,
     });
 
     expect(result.success).toBe(false);
@@ -79,6 +83,34 @@ describe("signupSchema", () => {
     }
   });
 
+  it("should reject when the Terms of Service and Privacy Policy are not agreed to", () => {
+    const result = signupSchema.safeParse({
+      email: "user@example.com",
+      full_name: "Jane Doe",
+      password: "dummy-pass-123",
+      confirm_password: "dummy-pass-123",
+      accepted_terms: false,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) => issue.path[0] === "accepted_terms"),
+      ).toBe(true);
+    }
+  });
+
+  it("should reject when the agree field is missing", () => {
+    const result = signupSchema.safeParse({
+      email: "user@example.com",
+      full_name: "Jane Doe",
+      password: "dummy-pass-123",
+      confirm_password: "dummy-pass-123",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("should strip an injected role/partner_id and never expose them on the parsed type", () => {
     // Malicious payload trying to self-assign a privileged role. Zod
     // objects strip unrecognized keys by default, so `role`/`partner_id`
@@ -89,6 +121,7 @@ describe("signupSchema", () => {
       full_name: "Attacker",
       password: "password123",
       confirm_password: "password123",
+      accepted_terms: true,
       role: "operator_admin",
       partner_id: "11111111-1111-1111-1111-111111111111",
     };
