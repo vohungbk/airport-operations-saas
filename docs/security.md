@@ -252,6 +252,7 @@ call these functions directly):
 | `is_internal_user()` | True for `admin`/`operations_manager`/`technician` — the three internal, non-partner roles. |
 | `is_admin_or_ops_manager()` | True for `admin`/`operations_manager` — the single most repeated gate in the migration (write access on `partners`/`airports`/`seat_categories`/`seats`/`flights`/`bookings`/`technician_jobs`, and broad SELECT-all on most other tables). |
 | `booking_partner_id(uuid)` | Not part of the ticket's original 4-function list. Returns a booking's `partner_id`, bypassing `bookings`' own RLS. Exists solely to break a real RLS recursion cycle discovered while testing this migration (see "RLS recursion" below) — `bookings`' technician-visibility policy queries `technician_jobs`, and without this function `technician_jobs`' `partner_user`-visibility policy would query `bookings` back, which Postgres detects as infinite policy recursion (`42P17`). |
+| `invoice_partner_id(uuid)` | Returns an invoice's `partner_id`, bypassing `invoices`' own RLS, for the `invoice_lines` policy (same reason as `booking_partner_id`). It is also callable as an RPC, so it answers only an admin, an operations manager or the partner user of the owning partner (VI-F09-S11); for anyone else it returns `null`, the same as for an unknown id, so another partner's invoice is not revealed. |
 
 **RLS recursion**: two tables whose policies query each other cause
 Postgres to error with `42P17 infinite recursion detected in policy`,
