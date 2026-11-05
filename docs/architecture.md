@@ -642,7 +642,7 @@ starts, to a Postgres schema/table group protected by RLS.
   sidebar (file `2qiL4qrfp3rNIOuCxUOFt7`): one flat list, no section labels,
   because the design has none. The technician has no frame in the design; its
   menu follows the ticket.
-- **Items without a page.** Return Queue, Flights, Reports, Import, Settings,
+- **Items without a page.** Return Queue, Flights, Reports, Import,
   My History, KPI, ROI and Assistant are in the menu because the design has
   them; their pages belong to other features and answer 404 for now
   (`planned: true` in the config). The admin ones use `dashboards:view` until
@@ -1229,3 +1229,20 @@ starts, to a Postgres schema/table group protected by RLS.
 - **Left out of the design on purpose.** Statement PDF and CSV of the F8 header (the statement is a CSV, S05), the invoice PDF
   preview page and its zoom, Recent activity and View full history of the invoice detail (other tickets). The breadcrumb is the one the shell builds from the menu
   ("Invoices"), not "Finance > Invoices > Invoice list".
+
+## Flight source adapter (VI-F02-S09)
+
+- **One interface, three sources.** `FlightSourceAdapter` (`src/features/flights/lib/provider/flight-source.ts`) is
+  the only way the app reads a flight. The live provider, the sandbox data and the simulator implement it, and
+  `getFlightSource()` picks one from configuration alone, so code that reads a flight never branches on the source.
+- **Configuration, not a build.** `FLIGHT_SOURCE` (`provider`, `sandbox` or `simulator`, default `simulator`),
+  `FLIGHT_PROVIDER_BASE_URL` and `FLIGHT_PROVIDER_API_KEY` are server variables with no `NEXT_PUBLIC_` prefix. Going to
+  production changes these values and restarts the server. An invalid value raises a `ConfigurationError` that names
+  the variables and never prints a value.
+- **Provider not chosen yet (spec Q1).** The live adapter speaks a plain HTTP contract
+  (`GET {base_url}/flights/{flight_number}`, bearer key, answer parsed by `flightSnapshotSchema`). Mapping a real
+  provider's answer belongs to the story that picks one.
+- **Provider settings screen.** `/settings/flight-provider` shows the active source, the last sync (latest
+  `flights.last_synced_at`, RLS decides the rows) and the last error. Admin only (`requireRole(["admin"])` in the
+  layout and the page). It has no menu item of its own (the menu is the Figma sidebar): the Settings item opens
+  `/settings`, which redirects to it. Another role that clicks Settings gets the 403 there. The last error is always empty until VI-F02-S11 records provider errors.
