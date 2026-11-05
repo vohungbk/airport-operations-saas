@@ -103,6 +103,38 @@ describe("BookingFlightPanel (VI-F02-S02)", () => {
   });
 });
 
+describe("BookingFlightPanel early arrival alert (VI-F02-S04)", () => {
+  it("should show the alert as soon as the flight is 15 minutes early (AC01, AC03)", () => {
+    const html = render({
+      flight: { ...FLIGHT, estimated_arrival_at: "2026-10-24T12:15:00.000Z" },
+    });
+
+    expect(html).toContain("ARRIVING 15 MINUTES EARLY");
+  });
+
+  it("should show no alert for an arrival less than 15 minutes early (AC01)", () => {
+    const html = render({
+      flight: { ...FLIGHT, estimated_arrival_at: "2026-10-24T12:16:00.000Z" },
+    });
+
+    expect(html).not.toContain("ARRIVING");
+    expect(html).not.toContain("flight-banner");
+    expect(html).toContain("On time");
+  });
+
+  it("should clear the alert and the moved deadline when the estimate moves back to the schedule (AC04)", () => {
+    const html = render({
+      flight: { ...FLIGHT, estimated_arrival_at: FLIGHT.scheduled_arrival_at },
+      deadlineAt: "2026-10-24T11:30:00.000Z",
+      pickupAt: "2026-10-24T12:30:00.000Z",
+    });
+
+    expect(html).not.toContain("ARRIVING");
+    expect(html).not.toContain("deadline moved");
+    expect(html).toContain("15:30 GST");
+  });
+});
+
 describe("BookingFlightPanel flight update history (VI-F02-T01)", () => {
   const HISTORY = {
     error: false,

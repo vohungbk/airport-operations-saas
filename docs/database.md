@@ -523,10 +523,13 @@ nothing was back-filled: rows from before the change keep empty values.
 | `installations` | `seat_match boolean` | trigger on insert, from the latest scan of the job against the installed seat |
 | `installation_seat_scans` (immutable log) | `technician_job_id`, `assigned_seat_id`, `scanned_seat_id` (empty when the code names no seat), `matched`, `scanned_by`, `scanned_at` | `record_installation_seat_scan()` only |
 
-Deadline of an installation job: `pickup_at - 60 minutes + delay`, where
-`delay = max(estimated_arrival_at - scheduled_arrival_at, 0)` of the linked flight (no flight, no
-estimate, on time or early: no delay). It is always counted from the pickup time, so a new
-estimate replaces the old one. It moves when the estimate or schedule of the flight changes, or the
+Deadline of an installation job: `pickup_at - 60 minutes + gap`, where `gap` is the actual or else
+the estimated arrival minus the scheduled arrival of the linked flight (`delay_minutes` alone when
+there is neither). A late flight adds its delay; a flight that is 15 minutes or more early moves the
+deadline earlier by the same minutes (VI-F02-S04, migration
+`20261205090000_early_arrival_priority_deadline.sql`); no flight, no estimate, on time, or early by
+less than 15 minutes: the deadline does not move. It is always counted from the pickup time, so a new
+estimate replaces the old one and an estimate back on the schedule restores the base deadline. It moves when the estimate or schedule of the flight changes, or the
 pickup time or flight of the booking changes. Only open jobs (`assigned`, `in_progress`) that
 already have a deadline move; closed jobs and jobs without a deadline are left as they are.
 Nobody sets `deadline_at`, `family_ready_*` or `seat_match` by hand: a value sent by a client is

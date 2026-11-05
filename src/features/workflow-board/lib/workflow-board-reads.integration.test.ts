@@ -38,17 +38,17 @@ const reads = (name: string, n: number) => `
 const result = (rows: string[][], name: string) => rows.find((row) => row[0] === name)?.slice(1).join("|");
 
 describe.skipIf(!available)("workflow board reads (CO-F08-T01)", () => {
-  it("should call a flight 50 minutes late delayed and the booking high priority (AC04, AC07)", () => {
+  it("should call a flight 50 minutes late delayed and keep the booking at normal priority (AC04; VI-F02-S04 Q5)", () => {
     const rows = run(`
       ${newPartner(1)}
       ${newBooking(1, 1, RETURN, "90", FUTURE)}
       ${withFlight(1, "2030-01-10 11:50:00+00")}
       ${reads("late", 1)}`);
 
-    expect(result(rows, "late")).toBe("delayed|high");
+    expect(result(rows, "late")).toBe("delayed|normal");
   });
 
-  it("should call a flight 45 minutes early early (AC04)", () => {
+  it("should call a flight 45 minutes early early and the booking high priority (AC04, AC07; VI-F02-S04 AC01)", () => {
     const rows = run(`
       ${newPartner(2)}
       ${newBooking(2, 2, RETURN, "90", FUTURE)}
@@ -56,6 +56,20 @@ describe.skipIf(!available)("workflow board reads (CO-F08-T01)", () => {
       ${reads("early", 2)}`);
 
     expect(result(rows, "early")).toBe("early|high");
+  });
+
+  it("should raise the priority to high at 15 minutes early and not at 14 (VI-F02-S04 AC01, Q5)", () => {
+    const rows = run(`
+      ${newPartner(9)}
+      ${newBooking(9, 9, RETURN, "90", FUTURE)}
+      ${withFlight(9, "2030-01-10 10:45:00+00")}
+      ${newBooking(10, 9, RETURN, "90", FUTURE)}
+      ${withFlight(10, "2030-01-10 10:46:00+00")}
+      ${reads("fifteen", 9)}
+      ${reads("fourteen", 10)}`);
+
+    expect(result(rows, "fifteen")).toBe("early|high");
+    expect(result(rows, "fourteen")).toBe("|normal");
   });
 
   it("should give no alert for a flight less than 15 minutes off or for a booking with no flight", () => {
@@ -78,7 +92,7 @@ describe.skipIf(!available)("workflow board reads (CO-F08-T01)", () => {
       ${withFlight(5, null, "30")}
       ${reads("stored", 5)}`);
 
-    expect(result(rows, "stored")).toBe("delayed|high");
+    expect(result(rows, "stored")).toBe("delayed|normal");
   });
 
   it("should give the time of the creation event as the time the booking reached its step (AC03)", () => {
