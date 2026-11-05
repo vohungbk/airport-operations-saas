@@ -2143,6 +2143,19 @@ export type Database = {
         Args: never
         Returns: string
       }
+      get_invoice_history: {
+        Args: { p_invoice_id?: string; p_year?: number }
+        Returns: {
+          actor_name: string | null
+          changed_at: string
+          from_status: string | null
+          id: string
+          invoice_id: string
+          invoice_number: string
+          reason: string
+          to_status: string
+        }[]
+      }
       get_available_seats: {
         Args: {
           p_airport_id: string

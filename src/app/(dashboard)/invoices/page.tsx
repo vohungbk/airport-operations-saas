@@ -70,6 +70,12 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
               Generate invoice
             </Link>
           )}
+          <Link
+            href="/invoices/history"
+            className={buttonVariants({ variant: "outline", className: "min-h-11 px-4" })}
+          >
+            Invoice history
+          </Link>
           <ExportCsvLink href={buildInvoicesExportHref(query)} />
         </div>
       </div>
