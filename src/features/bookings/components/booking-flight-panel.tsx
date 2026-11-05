@@ -4,6 +4,8 @@ import { PageEmpty } from "@/components/shared/page-state";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { BookingFlight } from "@/features/bookings/lib/get-bookings";
+import { FlightUpdateHistory } from "@/features/flights/components/flight-update-history";
+import type { FlightUpdatesResult } from "@/features/flights/lib/get-flight-updates";
 import {
   formatClock,
   formatFlightDateTime,
@@ -32,6 +34,8 @@ interface BookingFlightPanelProps {
   /** The number the booking was saved with, and the result of looking it up (VI-F02-S01). */
   flightNumber?: string | null;
   lookupStatus?: string | null;
+  /** The history of the flight (VI-F02-T01); `null` when there is none to show. It sits under the flight card. */
+  history?: FlightUpdatesResult | null;
 }
 
 /**
@@ -80,6 +84,7 @@ export function BookingFlightPanel({
   pickupAt = null,
   flightNumber,
   lookupStatus,
+  history = null,
 }: BookingFlightPanelProps) {
   if (!flight) {
     return <PageEmpty message={getUnlinkedMessage(flightNumber, lookupStatus)} />;
@@ -182,6 +187,8 @@ export function BookingFlightPanel({
           {getSyncNote(flight.status, Boolean(flight.last_synced_at), isStale(age))}
         </p>
       </section>
+
+      {history && <FlightUpdateHistory result={history} timeZone={timeZone} />}
     </div>
   );
 }
