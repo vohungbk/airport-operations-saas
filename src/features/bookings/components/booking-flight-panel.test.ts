@@ -102,3 +102,52 @@ describe("BookingFlightPanel (VI-F02-S02)", () => {
     expect(html).toContain("Times may be wrong");
   });
 });
+
+describe("BookingFlightPanel flight update history (VI-F02-T01)", () => {
+  const HISTORY = {
+    error: false,
+    items: [
+      {
+        id: "u-1",
+        source: "provider" as const,
+        occurred_at: "2026-10-24T10:02:00.000Z",
+        changes: [{ field: "estimated_arrival_at" as const, from: null, to: "2026-10-24T11:45:00Z" }],
+      },
+    ],
+  };
+
+  it("should show the history card under the flight card (AC01)", () => {
+    const html = render({ history: HISTORY });
+
+    expect(html).toContain("Flight update history");
+    expect(html.indexOf("booking-flight-card")).toBeLessThan(html.indexOf("flight-update-history"));
+    expect(html).toContain("14:02 · Provider — Estimated arrival updated to 15:45 GST");
+  });
+
+  it("should still show the flight card when the history cannot load (AC05)", () => {
+    const html = render({ history: { items: [], error: true } });
+
+    expect(html).toContain("EK203 · Dubai arrival");
+    expect(html).toContain("Flight update history");
+    expect(html).toContain('role="alert"');
+  });
+
+  it("should show an empty state in the history card when the flight has no history (AC04)", () => {
+    const html = render({ history: { items: [], error: false } });
+
+    expect(html).toContain("No flight updates yet.");
+    expect(html).not.toContain('role="alert"');
+  });
+
+  it("should not show a history card when none is given", () => {
+    expect(render()).not.toContain("Flight update history");
+  });
+
+  it("should not show a history card for a booking with no linked flight", () => {
+    const html = render({ flight: null, history: HISTORY });
+
+    expect(html).toContain("No flight is linked to this booking.");
+    expect(html).not.toContain("Flight update history");
+  });
+});
+
