@@ -3,10 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requireRoleMock = vi.hoisted(() => vi.fn());
 const rpcMock = vi.hoisted(() => vi.fn());
 const revalidatePathMock = vi.hoisted(() => vi.fn());
+/** What Next throws for `forbidden()`: an error whose digest starts with `NEXT_`. */
+const forbiddenMock = vi.hoisted(() =>
+  vi.fn(() => {
+    throw Object.assign(new Error("NEXT_HTTP_ERROR_FALLBACK;403"), { digest: "NEXT_HTTP_ERROR_FALLBACK;403" });
+  }),
+);
 
 vi.mock("@/lib/auth/current-user", () => ({ requireRole: requireRoleMock }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ rpc: rpcMock }) }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
+vi.mock("next/navigation", () => ({ forbidden: forbiddenMock }));
 
 import { updateInvoiceStatusAction } from "@/features/invoices/actions/update-invoice-status.action";
 
@@ -20,6 +27,7 @@ describe("updateInvoiceStatusAction (VI-F09-S08)", () => {
     rpcMock.mockReset();
     rpcMock.mockResolvedValue({ data: PAID, error: null });
     revalidatePathMock.mockClear();
+    forbiddenMock.mockClear();
   });
 
   it("should save the status through the database function and give the new status (AC03)", async () => {
@@ -68,7 +76,6 @@ describe("updateInvoiceStatusAction (VI-F09-S08)", () => {
     ["IV004", "CONFLICT"],
     ["IV005", "VALIDATION_ERROR"],
     ["P0002", "NOT_FOUND"],
-    ["42501", "FORBIDDEN"],
     ["22023", "VALIDATION_ERROR"],
     ["XX000", "INTERNAL_ERROR"],
   ])("should answer %s with the stable code %s, never with the raw error", async (code, expected) => {
@@ -88,5 +95,23 @@ describe("updateInvoiceStatusAction (VI-F09-S08)", () => {
       success: false,
       error: { message: "This status change is not allowed for the invoice as it is now. Reload the page to see it." },
     });
+  });
+
+  it("should send the user to the forbidden state, not a message in the form, when the database says the role is gone (E9)", async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { code: "42501", message: "connection to db.internal refused" } });
+
+    const error = await updateInvoiceStatusAction({ invoice_id: ID, status: "paid" }).catch((caught: unknown) => caught);
+
+    expect(forbiddenMock).toHaveBeenCalledTimes(1);
+    expect(error).toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;403" });
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("should not call forbidden for an error that is not a refusal of the role", async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { code: "XX000" } });
+
+    await updateInvoiceStatusAction({ invoice_id: ID, status: "paid" });
+
+    expect(forbiddenMock).not.toHaveBeenCalled();
   });
 });
