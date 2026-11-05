@@ -23,10 +23,11 @@ rationale this document summarizes.
 >   function). See `docs/security.md`'s F05 section for the full
 >   per-table access rules.
 > - Anonymous (`anon`) access is denied by default on every table,
->   including the three "shared reference data" tables (`airports`,
->   `seat_categories`, `flights`) whose `select` policy is `to
+>   including the two "shared reference data" tables (`airports`,
+>   `seat_categories`) whose `select` policy is `to
 >   authenticated using (true)` — that clause is scoped to `authenticated`
->   only, never `anon`.
+>   only, never `anon`. `flights` is no longer one of them (VI-F02-S13): its
+>   select policies follow the bookings the viewer may see.
 > - No service-role client exists in this codebase; nothing bypasses RLS
 >   from application code.
 >
@@ -175,7 +176,7 @@ immutable, makes `retired` terminal, and rejects status, `retired_at` and
 `quarantine_reason` changes made outside `change_seat_status()` (SQLSTATE
 `55000`). Rollback SQL is in a comment at the bottom of the migration file.
 
-### `flights` (mutable, shared reference data)
+### `flights` (mutable; readable by the bookings' viewers)
 | column | type | notes |
 |---|---|---|
 | flight_number | text not null | |
@@ -852,12 +853,16 @@ the `RESTRICT`-everywhere / soft-delete-via-`status` convention documented
 above. The absence of a matching policy means RLS denies every `DELETE`
 by default.
 
-**Caution**: `airports`, `seat_categories`, and `flights` have a
+**Caution**: `airports` and `seat_categories` have a
 `select ... to authenticated using (true)` policy — deliberate for shared
 reference data with no partner/financial/personal fields today. A future
 column added to one of these tables silently inherits that broad
 visibility; review this policy before adding anything sensitive to these
-three tables.
+two tables. `flights` had the same policy until VI-F02-S13 (migration
+`20261204090000_restrict_flight_select.sql`): it now has three select
+policies, admin/operations_manager (all), partner user (flights of its own
+partner's bookings) and technician (flights of bookings assigned to them or
+with a job of theirs). Rollback SQL is at the top of the migration.
 
 ## Seed strategy
 

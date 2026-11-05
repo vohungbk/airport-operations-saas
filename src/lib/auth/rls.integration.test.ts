@@ -6875,7 +6875,7 @@ describe.skipIf(!config)("F05 RLS integration", () => {
       },
     );
 
-    it("anonymous client specifically gets zero rows on the USING(true) reference tables (to authenticated actually gates anon)", async () => {
+    it("anonymous client specifically gets zero rows on the USING(true) reference tables and on flights (to authenticated actually gates anon)", async () => {
       const [airports, seatCategories, flights] = await Promise.all([
         anonClient.from("airports").select("id"),
         anonClient.from("seat_categories").select("id"),
