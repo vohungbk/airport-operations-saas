@@ -200,7 +200,6 @@ describe("NAV_ITEMS", () => {
       "Flights",
       "Reports",
       "Import",
-      "Settings",
     ]);
   });
 });
