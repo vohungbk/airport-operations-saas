@@ -55,3 +55,20 @@ export function formatAge(ageMinutes: number | null): string {
   const hours = Math.floor(ageMinutes / 60);
   return hours < 24 ? `${hours} h ago` : `${Math.floor(hours / 24)} d ago`;
 }
+
+export type FlightDisruption = "cancelled" | "diverted";
+
+/**
+ * The disruption of a flight, or null (VI-F02-S06, spec R10). Only the status says it: a cancelled or
+ * diverted flight may still hold an old estimate, and that estimate is not read as early or late.
+ */
+export function getFlightDisruption(status: string | null | undefined): FlightDisruption | null {
+  return status === "cancelled" || status === "diverted" ? status : null;
+}
+
+export function getDisruptionTitle(kind: FlightDisruption): string {
+  return kind === "cancelled" ? "FLIGHT CANCELLED" : "FLIGHT DIVERTED";
+}
+
+/** What operations do with the flagged booking. */
+export const DISRUPTION_ACTION = "Operations: replan this booking.";

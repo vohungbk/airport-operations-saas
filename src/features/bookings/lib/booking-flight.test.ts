@@ -36,3 +36,22 @@ describe("formatBookingFlight", () => {
     expect(formatBookingFlight(flight({ delay_minutes: 20 }))).toBe("EK 203 · +20m");
   });
 });
+
+describe("formatBookingFlight cancelled or diverted (VI-F02-S06)", () => {
+  const base = {
+    flight_number: "EK 203",
+    scheduled_arrival_at: "2026-10-24T11:00:00Z",
+    estimated_arrival_at: "2026-10-24T10:15:00Z",
+    actual_arrival_at: null,
+    delay_minutes: null,
+  };
+
+  it("should say cancelled or diverted instead of an offset", () => {
+    expect(formatBookingFlight({ ...base, status: "cancelled" })).toBe("EK 203 · cancelled");
+    expect(formatBookingFlight({ ...base, status: "diverted" })).toBe("EK 203 · diverted");
+  });
+
+  it("should keep the offset for a scheduled flight", () => {
+    expect(formatBookingFlight({ ...base, status: "scheduled" })).toBe("EK 203 · −45m");
+  });
+});

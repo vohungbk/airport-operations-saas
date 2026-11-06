@@ -109,6 +109,19 @@ describe("Command Centre banners", () => {
     },
   ];
 
+  it("should flag a cancelled flight with the action for operations, in text and not in color alone (VI-F02-S06)", () => {
+    const out = render({
+      flightAlerts: [
+        { id: "f-3", flight_number: "EK 9", kind: "cancelled", minutes: 0, arrival_label: "10:00 GMT+4", booking_number: "BK-9", deadline_label: null },
+      ],
+    });
+
+    expect(out).toContain("FLIGHT CANCELLED");
+    expect(out).toContain("EK 9 · BK-9");
+    expect(out).toContain("Operations: replan this booking.");
+    expect(out).toContain('data-kind="cancelled"');
+  });
+
   it("should show a blue banner for an early flight and an amber one for a late flight, as the design does", () => {
     const out = render({ flightAlerts: alerts });
 

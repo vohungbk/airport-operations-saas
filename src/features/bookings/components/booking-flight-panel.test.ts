@@ -183,3 +183,22 @@ describe("BookingFlightPanel flight update history (VI-F02-T01)", () => {
   });
 });
 
+
+describe("BookingFlightPanel cancelled or diverted (VI-F02-S06)", () => {
+  it("should show the cancelled banner with the action for operations and no early banner", () => {
+    const html = render({ flight: { ...FLIGHT, status: "cancelled" } });
+
+    expect(html).toContain("FLIGHT CANCELLED");
+    expect(html).toContain("Operations: replan this booking.");
+    expect(html).toContain('data-kind="cancelled"');
+    expect(html).not.toContain("ARRIVING");
+  });
+
+  it("should show the diverted banner", () => {
+    expect(render({ flight: { ...FLIGHT, status: "diverted" } })).toContain("FLIGHT DIVERTED");
+  });
+
+  it("should show no flag for a flight that is on schedule", () => {
+    expect(render({ flight: { ...FLIGHT, status: "scheduled" } })).not.toContain("replan");
+  });
+});

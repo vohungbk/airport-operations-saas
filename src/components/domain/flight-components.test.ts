@@ -99,9 +99,17 @@ describe("FlightStatusCard", () => {
     expect(card(flight())).not.toContain('data-slot="flight-alert"');
   });
 
-  it("should show no early or late alert for a cancelled flight", () => {
+  it("should show no early or late alert for a cancelled flight, only the cancelled one (VI-F02-S06)", () => {
     const out = card(flight({ status: "cancelled", estimated_arrival_at: "2026-11-24T11:30:00Z" }));
-    expect(out).not.toContain('data-slot="flight-alert"');
+    expect(out).toContain('data-kind="cancelled"');
+    expect(out).toContain("FLIGHT CANCELLED");
+    expect(out).not.toContain("EARLY");
+    expect(out).not.toContain("DELAYED");
+  });
+
+  it("should flag a diverted flight and no flag for a scheduled flight", () => {
+    expect(card(flight({ status: "diverted" }))).toContain("FLIGHT DIVERTED");
+    expect(card(flight())).not.toContain("FLIGHT ");
   });
 
   it("should show a dash, not a made-up value, for an absent estimate or terminal", () => {

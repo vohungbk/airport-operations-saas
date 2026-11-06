@@ -22,9 +22,9 @@ const PARTNER_USER = USER("partner_user");
 const flightId = (n: number) => `d5300000-0000-0000-0000-${String(n).padStart(12, "0")}`;
 
 /** A flight due at 11:00 with the given estimate, linked to booking `n` (set as the owner). */
-const withFlight = (n: number, estimated: string | null, delay = "null") => `
-  insert into public.flights (id, flight_number, airport_id, scheduled_arrival_at, estimated_arrival_at, delay_minutes)
-  values ('${flightId(n)}', 'TT ${n}', '${AIRPORT}', '2030-01-10 11:00:00+00', ${estimated ? `'${estimated}'` : "null"}, ${delay});
+const withFlight = (n: number, estimated: string | null, delay = "null", status = "scheduled") => `
+  insert into public.flights (id, flight_number, airport_id, scheduled_arrival_at, estimated_arrival_at, delay_minutes, status)
+  values ('${flightId(n)}', 'TT ${n}', '${AIRPORT}', '2030-01-10 11:00:00+00', ${estimated ? `'${estimated}'` : "null"}, ${delay}, '${status}');
   update public.bookings set flight_id = '${flightId(n)}' where id = '${bookingId(n)}';`;
 
 /** Reports the three computed columns of booking `n` as `R|name|alert|priority`. */
@@ -70,6 +70,30 @@ describe.skipIf(!available)("workflow board reads (CO-F08-T01)", () => {
 
     expect(result(rows, "fifteen")).toBe("early|high");
     expect(result(rows, "fourteen")).toBe("|normal");
+  });
+
+  it("should flag a cancelled or diverted flight and keep the priority normal (VI-F02-S06 AC01, Q5)", () => {
+    const rows = run(`
+      ${newPartner(11)}
+      ${newBooking(11, 11, RETURN, "90", FUTURE)}
+      ${withFlight(11, null, "null", "cancelled")}
+      ${newBooking(12, 11, RETURN, "90", FUTURE)}
+      ${withFlight(12, null, "null", "diverted")}
+      ${reads("cancelled", 11)}
+      ${reads("diverted", 12)}`);
+
+    expect(result(rows, "cancelled")).toBe("cancelled|normal");
+    expect(result(rows, "diverted")).toBe("diverted|normal");
+  });
+
+  it("should flag a cancelled flight by its status and not read its old 45 minute early estimate (VI-F02-S06)", () => {
+    const rows = run(`
+      ${newPartner(13)}
+      ${newBooking(13, 13, RETURN, "90", FUTURE)}
+      ${withFlight(13, "2030-01-10 10:15:00+00", "null", "cancelled")}
+      ${reads("stale", 13)}`);
+
+    expect(result(rows, "stale")).toBe("cancelled|normal");
   });
 
   it("should give no alert for a flight less than 15 minutes off or for a booking with no flight", () => {

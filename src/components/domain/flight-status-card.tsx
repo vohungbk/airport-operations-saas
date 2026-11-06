@@ -10,6 +10,7 @@ import {
   classifyFlight,
   formatAge,
   getDataAgeMinutes,
+  getFlightDisruption,
   getFlightOffsetMinutes,
   isStale,
 } from "@/lib/flights/flight-timing"
@@ -52,7 +53,8 @@ function FlightStatusCard({
   const timing = classifyFlight(offset, alertThresholdMinutes)
   const age = getDataAgeMinutes(flight.last_synced_at, now)
   const stale = isStale(age, staleAfterMinutes)
-  const showAlert = flight.status !== "cancelled" && flight.status !== "diverted"
+  const disruption = getFlightDisruption(flight.status)
+  const showTimingAlert = disruption === null
 
   return (
     <Card data-slot="flight-status-card" data-stale={stale || undefined} className={cn("min-w-0", className)}>
@@ -65,7 +67,8 @@ function FlightStatusCard({
         </div>
       </CardHeader>
       <CardContent className="flex min-w-0 flex-col gap-3 text-sm">
-        {showAlert && (timing === "early" || timing === "delayed") && offset !== null && (
+        {disruption && <FlightAlert kind={disruption} />}
+        {showTimingAlert && (timing === "early" || timing === "delayed") && offset !== null && (
           <FlightAlert
             kind={timing}
             minutes={Math.abs(offset)}

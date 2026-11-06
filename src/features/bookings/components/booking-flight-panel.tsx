@@ -14,10 +14,12 @@ import {
   isFlightLanded,
   shouldShowStatusBadge,
 } from "@/features/flights/lib/flight-panel";
+import { FlightAlert } from "@/components/domain/flight-alert";
 import {
   classifyFlight,
   formatAge,
   getDataAgeMinutes,
+  getFlightDisruption,
   getFlightOffsetMinutes,
   isStale,
 } from "@/lib/flights/flight-timing";
@@ -96,8 +98,8 @@ export function BookingFlightPanel({
   const age = getDataAgeMinutes(flight.last_synced_at, new Date());
   const landed = isFlightLanded(flight.status);
   // A landed flight is final: no early or late banner, and its times are not "stale".
-  const showTiming =
-    flight.status !== "cancelled" && flight.status !== "diverted";
+  const disruption = getFlightDisruption(flight.status);
+  const showTiming = disruption === null;
   const showBanner = showTiming && !landed;
   const hasTimingPill = showTiming && timing !== "unknown";
   const late = timing === "delayed";
@@ -105,6 +107,8 @@ export function BookingFlightPanel({
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
+      {disruption && <FlightAlert kind={disruption} />}
+
       {showBanner && (timing === "early" || late) && (
         <div
           role="status"

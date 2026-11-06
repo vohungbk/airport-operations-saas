@@ -1,4 +1,4 @@
-import { getFlightOffsetMinutes } from "@/lib/flights/flight-timing";
+import { getFlightDisruption, getFlightOffsetMinutes } from "@/lib/flights/flight-timing";
 import type { BookingFlight } from "@/features/bookings/lib/get-bookings";
 
 /**
@@ -7,16 +7,18 @@ import type { BookingFlight } from "@/features/bookings/lib/get-bookings";
  * is unknown gives its number alone.
  */
 export function formatBookingFlight(
-  flight: Pick<
+  flight: (Pick<
     BookingFlight,
     | "flight_number"
     | "scheduled_arrival_at"
     | "estimated_arrival_at"
     | "actual_arrival_at"
     | "delay_minutes"
-  > | null,
+  > &
+    Partial<Pick<BookingFlight, "status">>) | null,
 ): string {
   if (!flight) return "-";
+  if (getFlightDisruption(flight.status)) return `${flight.flight_number} · ${flight.status}`;
 
   const offset = getFlightOffsetMinutes(flight);
 

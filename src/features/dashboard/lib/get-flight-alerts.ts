@@ -1,18 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
+import { ACTIVE_BOOKING_STATUSES } from "@/features/bookings/lib/booking-status";
 import { OPEN_JOB_STATUSES } from "@/features/jobs/lib/job-deadline";
 import type { JobStatus } from "@/features/jobs/lib/job-status";
 import {
   classifyFlight,
+  getFlightDisruption,
   getFlightOffsetMinutes,
+  type FlightDisruption,
 } from "@/lib/flights/flight-timing";
 
 export interface FlightAlertItem {
   id: string;
   flight_number: string;
-  kind: "early" | "delayed";
-  /** Always positive. */
+  kind: "early" | "delayed" | FlightDisruption;
+  /** Always positive; 0 for a cancelled or diverted flight. */
   minutes: number;
-  /** The expected arrival, in the time zone of the airport (for example `15:45 GMT+4`). */
+  /** The expected arrival (the scheduled one for a cancelled or diverted flight), in the time zone of the airport (for example `15:45 GMT+4`). */
   arrival_label: string;
   /** A booking linked to the flight, or null when none is. */
   booking_number: string | null;
@@ -32,12 +35,13 @@ interface FlightJobRow {
 interface FlightRow {
   id: string;
   flight_number: string;
+  status: string;
   scheduled_arrival_at: string;
   estimated_arrival_at: string | null;
   actual_arrival_at: string | null;
   delay_minutes: number | null;
   airport: { timezone: string } | null;
-  bookings: { booking_number: string; technician_jobs: FlightJobRow[] | null }[] | null;
+  bookings: { booking_number: string; status: string; technician_jobs: FlightJobRow[] | null }[] | null;
 }
 
 const HOUR_MS = 3_600_000;
@@ -45,7 +49,7 @@ const MINUTE_MS = 60_000;
 
 /** The select is a runtime string, like the bookings list, so the nested relations are cast below. */
 const FLIGHTS_SELECT =
-  "id, flight_number, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes, airport:airports(timezone), bookings(booking_number, technician_jobs(deadline_at, status, job_type))";
+  "id, flight_number, status, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes, airport:airports(timezone), bookings(booking_number, status, technician_jobs(deadline_at, status, job_type))";
 
 function formatClock(iso: string, flight: FlightRow): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -115,6 +119,29 @@ export async function getFlightAlerts(
     const alerts: FlightAlertItem[] = [];
 
     for (const flight of data as unknown as FlightRow[]) {
+      const disruption = getFlightDisruption(flight.status);
+
+      // A cancelled or diverted flight is flagged by its status; its old estimate is not read (VI-F02-S06).
+      // The flag is for a booking that is still to be replanned: a finished or cancelled booking raises none.
+      if (disruption) {
+        const openBooking = flight.bookings?.find((booking) =>
+          (ACTIVE_BOOKING_STATUSES as readonly string[]).includes(booking.status),
+        );
+
+        if (openBooking && !alerts.some((alert) => alert.kind === disruption)) {
+          alerts.push({
+            id: flight.id,
+            flight_number: flight.flight_number,
+            kind: disruption,
+            minutes: 0,
+            arrival_label: formatClock(flight.scheduled_arrival_at, flight),
+            booking_number: openBooking.booking_number,
+            deadline_label: null,
+          });
+        }
+        continue;
+      }
+
       const offset = getFlightOffsetMinutes(flight);
       const timing = classifyFlight(offset);
 
@@ -134,7 +161,9 @@ export async function getFlightAlerts(
       });
     }
 
-    return alerts;
+    // The flags for operations come first: a booking to replan matters more than a time that moved.
+    const flagged = (alert: FlightAlertItem) => getFlightDisruption(alert.kind) !== null;
+    return [...alerts.filter(flagged), ...alerts.filter((alert) => !flagged(alert))];
   } catch {
     return [];
   }

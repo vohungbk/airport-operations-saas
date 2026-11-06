@@ -1,5 +1,5 @@
 import { formatTimeInStep } from "@/features/bookings/lib/booking-step-history";
-import { classifyFlight, getFlightOffsetMinutes, type FlightTimes } from "@/lib/flights/flight-timing";
+import { classifyFlight, getFlightDisruption, getFlightOffsetMinutes, type FlightDisruption, type FlightTimes } from "@/lib/flights/flight-timing";
 
 /**
  * What a card of the Workflow Board says, worked out from the values the board reads (CO-F08-T01,
@@ -7,16 +7,20 @@ import { classifyFlight, getFlightOffsetMinutes, type FlightTimes } from "@/lib/
  */
 
 export interface FlightAlertMark {
-  kind: "early" | "delayed";
-  /** Always positive. */
+  kind: "early" | "delayed" | FlightDisruption;
+  /** Always positive; 0 for a cancelled or diverted flight. */
   minutes: number;
-  /** "Early 45 min" or "Delayed 50 min". */
+  /** "Early 45 min", "Delayed 50 min", "Flight cancelled" or "Flight diverted". */
   label: string;
 }
 
-/** The mark of a flight that is early or delayed past the alert threshold; `null` otherwise or with no flight. */
-export function buildFlightAlertMark(flight: FlightTimes | null): FlightAlertMark | null {
+/** The mark of a flight that is cancelled, diverted, or early or delayed past the alert threshold; `null` otherwise or with no flight. */
+export function buildFlightAlertMark(flight: (FlightTimes & { status?: string }) | null): FlightAlertMark | null {
   if (!flight) return null;
+
+  // Cancelled or diverted (VI-F02-S06): the status flags the booking; an old estimate is not read.
+  const disruption = getFlightDisruption(flight.status);
+  if (disruption) return { kind: disruption, minutes: 0, label: `Flight ${disruption}` };
 
   const offset = getFlightOffsetMinutes(flight);
   const timing = classifyFlight(offset);
