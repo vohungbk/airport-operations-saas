@@ -20,6 +20,8 @@ export interface FlightSimulatorError {
 
 export interface FlightSimulatorResult {
   success: boolean;
+  /** On success: the Flight status panel of the booking the change is on (VI-F02-T02, AC06). */
+  href?: string;
   error?: FlightSimulatorError;
 }
 

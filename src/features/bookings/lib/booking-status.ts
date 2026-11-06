@@ -50,6 +50,9 @@ export const ENDED_BOOKING_STATUS_LIST = [
   "no_show",
 ] as const satisfies readonly BookingStatus[];
 
+/** The same list as a filter value for a query: `(completed,cancelled,no_show)`. */
+export const ENDED_BOOKING_STATUS_FILTER = `(${ENDED_BOOKING_STATUS_LIST.join(",")})`;
+
 export const ACTIVE_BOOKING_STATUSES = [
   "pending",
   "confirmed",

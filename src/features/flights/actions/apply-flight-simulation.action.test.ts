@@ -15,12 +15,6 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/features/flights/lib/provider/provider-config", () => ({
   getFlightSourceConfig: getFlightSourceConfigMock,
 }));
-vi.mock("next/navigation", () => ({
-  redirect: vi.fn((url: string) => {
-    throw new Error(`REDIRECT:${url}`);
-  }),
-}));
-
 import { applyFlightSimulationAction } from "@/features/flights/actions/apply-flight-simulation.action";
 
 const FLIGHT_ID = "d5400000-0000-0000-0000-0000000000a1";
@@ -60,9 +54,9 @@ describe("applyFlightSimulationAction", () => {
   });
 
   it("should store the change through the admin function and open the Flight tab of the first booking", async () => {
-    await expect(applyFlightSimulationAction(VALID_INPUT)).rejects.toThrow(
-      `REDIRECT:/bookings/${BOOKING_ID}?tab=flight`,
-    );
+    const result = await applyFlightSimulationAction(VALID_INPUT);
+
+    expect(result).toEqual({ success: true, href: `/bookings/${BOOKING_ID}?tab=flight` });
 
     expect(requireRoleMock).toHaveBeenCalledWith(["admin"]);
     expect(eqMock).toHaveBeenCalledWith("flight_number", "VN123");
@@ -85,7 +79,7 @@ describe("applyFlightSimulationAction", () => {
   it("should not send the expected sync time when the flight was never synced", async () => {
     notMock.mockResolvedValue({ data: [{ ...FLIGHT, last_synced_at: null }], error: null });
 
-    await expect(applyFlightSimulationAction(VALID_INPUT)).rejects.toThrow("REDIRECT");
+    await applyFlightSimulationAction(VALID_INPUT);
 
     expect(rpcMock.mock.calls[0][1]).not.toHaveProperty("p_expected_synced_at");
   });
