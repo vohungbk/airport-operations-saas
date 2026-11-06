@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { EqualIcon, TriangleAlertIcon } from "lucide-react";
+import { EqualIcon, PlaneIcon, TriangleAlertIcon } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { getNextStep, mayRoleMoveTo } from "@/features/bookings/lib/booking-move";
 import { MoveBookingDialog } from "@/features/workflow-board/components/move-booking-dialog";
 import { buildWorkflowBoardHref } from "@/features/workflow-board/lib/build-workflow-board-href";
+import { getCardMoveNote } from "@/features/workflow-board/lib/card-move-note";
 import type { BoardCardItem } from "@/features/workflow-board/lib/get-workflow-board";
 import type { WorkflowBoardQuery } from "@/features/workflow-board/schemas/workflow-board-query.schema";
 import type { Role } from "@/lib/auth/roles";
@@ -39,58 +39,61 @@ function WarningLine({ children }: { children: string }) {
 }
 
 /**
- * One booking on the board. The booking number is the link that opens the preview of the booking;
- * the button below it moves the booking to its next step (CO-F08-S03).
+ * One booking on the board, as the Figma frame D4 draws it. The booking number is the link that opens the preview
+ * of the booking; the button below moves the booking to its next step (CO-F08-S03). A booking whose seat is not
+ * ready keeps the button, quiet, with the reason under it; the dialog says the same.
  */
 export function BoardBookingCard({ booking, query, selected, role, previewHref }: BoardBookingCardProps) {
   const next = getNextStep(booking.status);
   const PriorityIcon = PRIORITY_ICON[booking.priority];
   const href = previewHref === undefined ? buildWorkflowBoardHref({ ...query, booking: booking.id }) : previewHref;
+  const canMove = next !== null && mayRoleMoveTo(role, next);
+  const note = canMove ? getCardMoveNote(next, booking.seat_status) : null;
 
   return (
     <div
       aria-current={selected ? "true" : undefined}
       data-slot="board-booking-card"
       className={cn(
-        "flex min-w-0 flex-col gap-1.5 rounded-lg border bg-card p-4 text-sm shadow-xs",
+        "flex min-w-0 flex-col gap-1 rounded-md border border-border bg-card p-3.5 text-[13px] leading-[19px] text-foreground",
         selected && "border-2 border-primary",
       )}
     >
       {href === null ? (
-        <span className="truncate font-medium text-primary">{booking.booking_number}</span>
+        <span className="truncate text-body font-semibold text-primary">{booking.booking_number}</span>
       ) : (
         <Link
           href={href}
-          className="truncate font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="truncate text-body font-semibold text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           {booking.booking_number}
         </Link>
       )}
-      {booking.partner_name && (
-        <span className="truncate text-muted-foreground">{booking.partner_name}</span>
-      )}
+      {booking.partner_name && <span className="truncate">{booking.partner_name}</span>}
       {booking.flight_number && (
-        <Badge variant="muted" className="w-fit">
-          {booking.flight_number}
-        </Badge>
+        <span
+          data-slot="board-flight-chip"
+          className="inline-flex h-[26px] w-fit max-w-full items-center gap-1.5 rounded-sm bg-primary-subtle px-1.5 font-semibold"
+        >
+          <PlaneIcon aria-hidden="true" className="size-3 shrink-0" />
+          <span className="truncate">{booking.flight_number}</span>
+        </span>
       )}
-      {booking.seat_label && <span className="truncate text-foreground">{booking.seat_label}</span>}
-      <span className="truncate text-foreground">{booking.pickup_label}</span>
+      {booking.seat_label && <span className="truncate">{booking.seat_label}</span>}
+      <span className="truncate">{booking.pickup_label}</span>
       <span
         data-slot="board-priority"
         data-priority={booking.priority}
-        className="flex items-center gap-2 font-semibold text-foreground"
+        className="flex h-[26px] items-center gap-2 font-semibold"
       >
         <PriorityIcon aria-hidden="true" className="size-3.5 shrink-0" />
         {BOARD_PRIORITY_SHORT_LABEL[booking.priority]}
       </span>
       {booking.flight_alert && <WarningLine>{booking.flight_alert.label}</WarningLine>}
       {booking.overdue_label && <WarningLine>{booking.overdue_label}</WarningLine>}
-      {booking.time_in_step_label && (
-        <span className="text-muted-foreground">{booking.time_in_step_label}</span>
-      )}
-      {next && mayRoleMoveTo(role, next) && (
-        <div className="mt-2">
+      {booking.time_in_step_label && <span className="text-muted-foreground">{booking.time_in_step_label}</span>}
+      {canMove && next && (
+        <div className="mt-2 flex flex-col gap-3">
           <MoveBookingDialog
             bookingId={booking.id}
             bookingNumber={booking.booking_number}
@@ -100,6 +103,11 @@ export function BoardBookingCard({ booking, query, selected, role, previewHref }
             seatLabel={booking.seat_label}
             seatStatus={booking.seat_status}
           />
+          {note && (
+            <span data-slot="board-move-note" className="text-danger-fg">
+              {note}
+            </span>
+          )}
         </div>
       )}
     </div>
