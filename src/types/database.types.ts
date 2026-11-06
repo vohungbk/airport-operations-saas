@@ -523,6 +523,24 @@ export type Database = {
           },
         ]
       }
+      flight_provider_status: {
+        Row: {
+          last_error_at: string
+          last_error_kind: string
+          source: string
+        }
+        Insert: {
+          last_error_at?: string
+          last_error_kind: string
+          source: string
+        }
+        Update: {
+          last_error_at?: string
+          last_error_kind?: string
+          source?: string
+        }
+        Relationships: []
+      }
       flight_updates: {
         Row: {
           changes: Json
@@ -1600,6 +1618,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      record_flight_provider_error: {
+        Args: { p_kind: string; p_source: string }
+        Returns: undefined
+      }
       apply_cleaning_seat_status: {
         Args: {
           p_reason: string
