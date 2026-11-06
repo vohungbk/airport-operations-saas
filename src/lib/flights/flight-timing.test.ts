@@ -4,6 +4,8 @@ import {
   classifyFlight,
   formatAge,
   getDataAgeMinutes,
+  getDisruptionTitle,
+  getFlightDisruption,
   getFlightOffsetMinutes,
   isStale,
   type FlightTimes,
@@ -109,5 +111,25 @@ describe("data age", () => {
     [3000, "2 d ago"],
   ])("should write an age of %s as %s", (age, text) => {
     expect(formatAge(age)).toBe(text);
+  });
+});
+
+describe("getFlightDisruption (VI-F02-S06)", () => {
+  it("should name a cancelled and a diverted flight", () => {
+    expect(getFlightDisruption("cancelled")).toBe("cancelled");
+    expect(getFlightDisruption("diverted")).toBe("diverted");
+  });
+
+  it("should give null for any other status or for no status", () => {
+    expect(getFlightDisruption("scheduled")).toBeNull();
+    expect(getFlightDisruption("delayed")).toBeNull();
+    expect(getFlightDisruption("landed")).toBeNull();
+    expect(getFlightDisruption(null)).toBeNull();
+    expect(getFlightDisruption(undefined)).toBeNull();
+  });
+
+  it("should write the title in capitals", () => {
+    expect(getDisruptionTitle("cancelled")).toBe("FLIGHT CANCELLED");
+    expect(getDisruptionTitle("diverted")).toBe("FLIGHT DIVERTED");
   });
 });

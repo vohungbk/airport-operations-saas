@@ -58,3 +58,24 @@ describe("buildTimeInStepLabel (AC03)", () => {
     expect(buildTimeInStepLabel(null, NOW)).toBeNull();
   });
 });
+
+describe("buildFlightAlertMark cancelled or diverted (VI-F02-S06)", () => {
+  it("should flag a cancelled flight and a diverted flight by name", () => {
+    expect(buildFlightAlertMark({ ...flight(null), status: "cancelled" })).toEqual({
+      kind: "cancelled",
+      minutes: 0,
+      label: "Flight cancelled",
+    });
+    expect(buildFlightAlertMark({ ...flight(null), status: "diverted" })?.label).toBe("Flight diverted");
+  });
+
+  it("should not read the old estimate of a cancelled flight as early", () => {
+    const mark = buildFlightAlertMark({ ...flight("2026-10-24T10:15:00Z"), status: "cancelled" });
+
+    expect(mark?.kind).toBe("cancelled");
+  });
+
+  it("should keep the early mark for a flight that is not cancelled or diverted", () => {
+    expect(buildFlightAlertMark({ ...flight("2026-10-24T10:15:00Z"), status: "scheduled" })?.kind).toBe("early");
+  });
+});

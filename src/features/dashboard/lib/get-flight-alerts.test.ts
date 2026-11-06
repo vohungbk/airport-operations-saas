@@ -24,6 +24,7 @@ function mockFlights(data: unknown[], error: unknown = null) {
 const flight = (overrides: Record<string, unknown> = {}) => ({
   id: "f-1",
   flight_number: "EK 215",
+  status: "delayed",
   scheduled_arrival_at: "2026-11-04T12:00:00Z",
   estimated_arrival_at: "2026-11-04T12:50:00Z",
   actual_arrival_at: null,
@@ -32,6 +33,7 @@ const flight = (overrides: Record<string, unknown> = {}) => ({
   bookings: [
     {
       booking_number: "BK-2026-000123",
+      status: "confirmed",
       technician_jobs: [
         { deadline_at: "2026-11-04T12:55:00Z", status: "assigned", job_type: "installation" },
       ],
@@ -104,5 +106,68 @@ describe("getFlightAlerts deadline (UI-F06-T01, AC03)", () => {
 
     expect(alert.kind).toBe("early");
     expect(alert.deadline_label).toBeNull();
+  });
+});
+
+describe("getFlightAlerts cancelled or diverted (VI-F02-S06)", () => {
+  beforeEach(() => {
+    createClientMock.mockReset();
+  });
+
+  it("should ask for the status of the flight in the same select", async () => {
+    const { select } = mockFlights([]);
+
+    await getFlightAlerts(NOW);
+
+    expect(select.mock.calls[0][0]).toContain("flight_number, status,");
+  });
+
+  it("should flag a cancelled flight with its booking and not read its old estimate", async () => {
+    mockFlights([flight({ status: "cancelled", estimated_arrival_at: "2026-11-04T11:10:00Z" })]);
+
+    expect(await getFlightAlerts(NOW)).toEqual([
+      expect.objectContaining({ kind: "cancelled", minutes: 0, booking_number: "BK-2026-000123", deadline_label: null }),
+    ]);
+  });
+
+  it("should put the cancelled and diverted flags before the early and delayed banners", async () => {
+    mockFlights([
+      flight({ id: "f-1", status: "scheduled" }),
+      flight({ id: "f-2", status: "diverted" }),
+      flight({ id: "f-3", status: "cancelled" }),
+    ]);
+
+    expect((await getFlightAlerts(NOW)).map((alert) => alert.kind)).toEqual(["diverted", "cancelled", "delayed"]);
+  });
+
+  it("should give no flag when the booking of the cancelled flight is already finished or cancelled", async () => {
+    const closed = (status: string) => ({ booking_number: "BK-1", status, technician_jobs: [] });
+    mockFlights([
+      flight({ id: "f-1", status: "cancelled", bookings: [closed("completed")] }),
+      flight({ id: "f-2", status: "diverted", bookings: [closed("cancelled")] }),
+      flight({ id: "f-3", status: "cancelled", bookings: [] }),
+    ]);
+
+    expect(await getFlightAlerts(NOW)).toEqual([]);
+  });
+
+  it("should name the open booking when the flight also has a closed one", async () => {
+    mockFlights([
+      flight({
+        status: "cancelled",
+        bookings: [
+          { booking_number: "BK-OLD", status: "completed", technician_jobs: [] },
+          { booking_number: "BK-OPEN", status: "ready", technician_jobs: [] },
+        ],
+      }),
+    ]);
+
+    expect((await getFlightAlerts(NOW))[0].booking_number).toBe("BK-OPEN");
+  });
+
+  it("should give no flag for a flight that is scheduled, delayed or landed on time", async () => {
+    mockFlights([flight({ status: "landed", estimated_arrival_at: "2026-11-04T12:00:00Z" })]);
+
+    expect(await getFlightAlerts(NOW)).toEqual([]);
   });
 });

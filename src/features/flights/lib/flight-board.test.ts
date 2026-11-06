@@ -197,11 +197,36 @@ describe("buildFlightBoardAlerts", () => {
     expect(alerts[0].detail).not.toMatch(/notified/i);
   });
 
-  it("should make no banner for on time, cancelled or an empty list", () => {
-    const rows = buildFlightBoardRows([at("2026-10-24T12:30:00Z"), flight({ id: "f3", status: "cancelled" })], ZONE, NOW);
+  it("should make no banner for an on time flight or an empty list", () => {
+    const rows = buildFlightBoardRows([at("2026-10-24T12:30:00Z")], ZONE, NOW);
 
     expect(buildFlightBoardAlerts(rows, ZONE)).toEqual([]);
     expect(buildFlightBoardAlerts([], ZONE)).toEqual([]);
+  });
+
+  it("should flag a cancelled flight and a diverted flight with the booking to replan (VI-F02-S06 AC01)", () => {
+    const rows = buildFlightBoardRows(
+      [flight({ id: "f3", status: "cancelled" }), flight({ id: "f4", flight_number: "EK 9", status: "diverted" })],
+      ZONE,
+      NOW,
+    );
+
+    expect(buildFlightBoardAlerts(rows, ZONE)).toEqual([
+      { key: "f3:b1", kind: "cancelled", title: "FLIGHT CANCELLED", detail: "EK 203 · BK-2026-000123 · Operations: replan this booking." },
+      { key: "f4:b1", kind: "diverted", title: "FLIGHT DIVERTED", detail: "EK 9 · BK-2026-000123 · Operations: replan this booking." },
+    ]);
+  });
+
+  it("should not read the old estimate of a cancelled flight as an early banner", () => {
+    const rows = buildFlightBoardRows([flight({ status: "cancelled" })], ZONE, NOW);
+
+    expect(buildFlightBoardAlerts(rows, ZONE).map((alert) => alert.kind)).toEqual(["cancelled"]);
+  });
+
+  it("should make no flag for a flight with no booking", () => {
+    const rows = buildFlightBoardRows([flight({ status: "cancelled", bookings: [] })], ZONE, NOW);
+
+    expect(buildFlightBoardAlerts(rows, ZONE)).toEqual([]);
   });
 });
 
