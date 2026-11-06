@@ -14,18 +14,25 @@ interface CommandCentreProps {
   stock: readonly BarItem[] | null;
   /** Jobs past their deadline and not done; `null` when it could not be read (a dash). */
   overdueTasks?: number | null;
+  /** Bookings not cancelled that arrive today at their airport; `null` when it could not be read. */
+  arrivalsToday?: number | null;
+  /** Bookings with pickup today that have no installation record; `null` when it could not be read. */
+  installationsDue?: number | null;
 }
 
 /**
  * The Command Centre as the design draws it (UI-F06-S04): the tiles, the flight banners, the status charts
- * side by side, the incidents and the stock, and the queues. The tiles have a dash until their formulas are
- * built (another ticket); Overdue tasks has its number, from the rule of the jobs list. A chart shows only for a role that may see its figures.
+ * side by side, the incidents and the stock, and the queues. Arrivals today and Installations due have their
+ * numbers from the KPI figures (VI-F05-T02) and Overdue tasks from the rule of the jobs list; a figure that
+ * could not be read, and Active rentals, show a dash. A chart shows only for a role that may see its figures.
  */
 export function CommandCentre({
   charts,
   flightAlerts,
   stock,
   overdueTasks = null,
+  arrivalsToday = null,
+  installationsDue = null,
 }: CommandCentreProps) {
   const chart = (id: string) => charts.find((result) => result.chart.id === id);
   const seats = chart("seats_by_status");
@@ -36,8 +43,8 @@ export function CommandCentre({
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <OverviewTile label="Arrivals today" />
-        <OverviewTile label="Installations due" />
+        <OverviewTile label="Arrivals today" value={arrivalsToday ?? undefined} />
+        <OverviewTile label="Installations due" value={installationsDue ?? undefined} />
         <OverviewTile label="Active rentals" />
         <OverviewTile
           label="Overdue tasks"

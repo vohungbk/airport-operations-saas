@@ -1390,6 +1390,16 @@ time at the airport and converted to UTC with `airports.timezone`.
 - **Same rule as the list (spec E3).** The filter pairs of a figure are also the
   query string of its link, so the count and the list use one rule. The
   integration tests check each figure against the total of the list select.
+- **KPI figures (VI-F05-T02).** Arrivals today, Installations due, Correct-seat
+  fulfilment and On-time readiness come from three SQL functions
+  (`kpi_today_figures`, `kpi_correct_seat_figures`,
+  `kpi_on_time_readiness_figures`), read by `src/lib/kpi/get-kpi-figures.ts`.
+  They are `SECURITY INVOKER`, so RLS decides which rows are counted (a partner
+  user counts only its own partner), and they change no data. Overdue tasks
+  keeps the rule of the jobs list. A rate is never shown as 0% for nothing to
+  count ("No data") or for nothing stored to compare ("Not available"); a row
+  whose input is not stored is left out of the rate, not counted as a failure.
+  The rules are written in `supabase/migrations/20261211090000_kpi_figures.sql`.
 - **Charts (VI-F01-S07).** Under the cards of each group there is a chart of the
   same data as horizontal bars: seats, bookings and jobs by status, and open
   incidents by severity (Critical first, with an icon and a heavier label, red

@@ -2349,6 +2349,29 @@ export type Database = {
         Args: { p_job_id: string; p_kind: string; p_value: string }
         Returns: boolean
       }
+      kpi_today_figures: {
+        Args: { p_now?: string }
+        Returns: {
+          arrivals_today: number
+          installations_due: number
+        }[]
+      }
+      kpi_correct_seat_figures: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          completed_bookings: number
+          matched: number
+          with_result: number
+        }[]
+      }
+      kpi_on_time_readiness_figures: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          family_ready_bookings: number
+          on_time: number
+          with_deadline: number
+        }[]
+      }
       update_booking: {
         Args: {
           p_assigned_seat_id?: string

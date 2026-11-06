@@ -5,6 +5,11 @@ const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const getChartsMock = vi.hoisted(() => vi.fn());
 const getFlightAlertsMock = vi.hoisted(() => vi.fn());
 const getStockMock = vi.hoisted(() => vi.fn());
+const getTodayFiguresMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/kpi/get-kpi-figures", () => ({
+  getTodayFigures: getTodayFiguresMock,
+}));
 
 vi.mock("@/lib/auth/current-user", () => ({
   requireAnyPermission: requireAnyPermissionMock,
@@ -48,6 +53,17 @@ describe("DashboardPage", () => {
     getFlightAlertsMock.mockResolvedValue([]);
     getStockMock.mockReset();
     getStockMock.mockResolvedValue([]);
+    getTodayFiguresMock.mockReset();
+    getTodayFiguresMock.mockResolvedValue({ arrivals_today: null, installations_due: null });
+  });
+
+  it("should show the Arrivals today and Installations due numbers (VI-F05-T02, AC01, AC02)", async () => {
+    getTodayFiguresMock.mockResolvedValue({ arrivals_today: 12, installations_due: 5 });
+
+    const html = await render();
+
+    expect(html).toMatch(/Arrivals today<\/p><p[^>]*>12</);
+    expect(html).toMatch(/Installations due<\/p><p[^>]*>5</);
   });
 
   it("should guard the page with the dashboard access permissions", async () => {
