@@ -1,7 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
-
 import { requireRole } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import { zonedLocalToUtcIso } from "@/features/bookings/lib/booking-time";
@@ -29,8 +27,8 @@ const FLIGHT_SELECT =
   "id, status, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, terminal, delay_minutes, last_synced_at, bookings!inner(id, created_at), airport:airports(timezone)";
 
 /**
- * VI-F02-S12 (spec R4): stores a simulated flight change like a provider update and opens the Flight status
- * panel of the booking. Only an admin; the role is checked here and again by the database function that writes.
+ * VI-F02-S12 (spec R4): stores a simulated flight change like a provider update and returns the address of the Flight status
+ * panel of the booking, which the form opens after it shows the success message. Only an admin; the role is checked here and again by the database function that writes.
  * It works only when the active source is the simulator. The write is `apply_simulated_flight_change()`, so no
  * service-role client is used.
  */
@@ -107,5 +105,5 @@ export async function applyFlightSimulationAction(input: unknown): Promise<Fligh
     return { success: false, error: STALE_DATA_ERROR };
   }
 
-  redirect(buildBookingTabHref(bookingId, "flight"));
+  return { success: true, href: buildBookingTabHref(bookingId, "flight") };
 }

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database, Tables } from "@/types/database.types";
 
-import { ENDED_BOOKING_STATUS_LIST } from "@/features/bookings/lib/booking-status";
+import { ENDED_BOOKING_STATUS_FILTER } from "@/features/bookings/lib/booking-status";
 import { diffFlight, toHistorySource } from "./flight-diff";
 import { getFlightSource } from "./provider/get-flight-source";
 import type { FlightSnapshot, FlightSource, FlightSourceAdapter } from "./provider/flight-source";
@@ -14,7 +14,7 @@ const CANDIDATE_SELECT =
   "id, flight_number, status, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, terminal, delay_minutes, last_synced_at, bookings!inner(id)";
 
 /** A booking in one of these statuses no longer needs its flight, so it does not keep the flight refreshed. */
-export const ENDED_BOOKING_STATUSES = `(${ENDED_BOOKING_STATUS_LIST.join(",")})`;
+export const ENDED_BOOKING_STATUSES = ENDED_BOOKING_STATUS_FILTER;
 
 /** How many flights are asked from the source at the same time. */
 const CONCURRENCY = 5;
