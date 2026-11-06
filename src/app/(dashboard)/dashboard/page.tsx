@@ -8,6 +8,7 @@ import { getFlightAlerts } from "@/features/dashboard/lib/get-flight-alerts";
 import { getOverdueJobsCount } from "@/features/dashboard/lib/get-overdue-jobs";
 import { getStockByCategory } from "@/features/dashboard/lib/get-stock-by-category";
 import { PARTNER_HOME_ROUTE } from "@/lib/constants/routes";
+import { getTodayFigures } from "@/lib/kpi/get-kpi-figures";
 
 function formatToday(): string {
   return new Date().toLocaleDateString("en-GB", {
@@ -44,11 +45,12 @@ export default async function DashboardPage() {
     redirect(PARTNER_HOME_ROUTE);
   }
 
-  const [charts, flightAlerts, stock, overdueTasks] = await Promise.all([
+  const [charts, flightAlerts, stock, overdueTasks, today] = await Promise.all([
     getDashboardCharts(user.role),
     getFlightAlerts(),
     getStockByCategory(),
     getOverdueJobsCount(),
+    getTodayFigures(),
   ]);
 
   return (
@@ -59,6 +61,8 @@ export default async function DashboardPage() {
         flightAlerts={flightAlerts}
         stock={stock}
         overdueTasks={overdueTasks}
+        arrivalsToday={today.arrivals_today}
+        installationsDue={today.installations_due}
       />
     </div>
   );
