@@ -50,10 +50,53 @@ describe("createProviderAdapter", () => {
     expect((error as Error).message).toBe("Flight provider answered with status 503");
   });
 
-  it("should reject an answer that is not a flight", async () => {
+  it("should reject an answer that is not a flight as an invalid response", async () => {
     const { adapter } = adapterWith(Response.json({ flight_number: "VN123", status: "flying" }));
 
-    await expect(adapter.fetchFlight("VN123")).rejects.toThrow();
+    await expect(adapter.fetchFlight("VN123")).rejects.toMatchObject({ kind: "invalid_response" });
+  });
+
+  it("should reject an answer that is not JSON as an invalid response", async () => {
+    const { adapter } = adapterWith(new Response("<html>", { status: 200 }));
+
+    await expect(adapter.fetchFlight("VN123")).rejects.toMatchObject({ kind: "invalid_response" });
+  });
+
+  it("should raise a timeout error when the timeout hits while the body is read", async () => {
+    const response = { status: 200, ok: true, json: () => Promise.reject(new DOMException("timed out", "TimeoutError")) };
+    const adapter = createProviderAdapter({
+      base_url: "https://api.example.com",
+      provider_key: "k",
+      fetchImpl: vi.fn().mockResolvedValue(response),
+    });
+
+    await expect(adapter.fetchFlight("VN123")).rejects.toMatchObject({ kind: "timeout" });
+  });
+
+  it("should raise a rate limited error when the provider answers 429 (VI-F02-S11-AC01)", async () => {
+    const { adapter } = adapterWith(new Response(null, { status: 429 }));
+
+    await expect(adapter.fetchFlight("VN123")).rejects.toMatchObject({ kind: "rate_limited" });
+  });
+
+  it("should raise an unavailable error when the provider answers 503 (VI-F02-S11-AC01)", async () => {
+    const { adapter } = adapterWith(new Response(null, { status: 503 }));
+
+    await expect(adapter.fetchFlight("VN123")).rejects.toMatchObject({ kind: "unavailable" });
+  });
+
+  it("should raise a timeout error when the provider does not answer in time (VI-F02-S11-AC01)", async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError"));
+    const adapter = createProviderAdapter({ base_url: "https://api.example.com", provider_key: "k", fetchImpl });
+
+    await expect(adapter.fetchFlight("VN123")).rejects.toMatchObject({ kind: "timeout" });
+  });
+
+  it("should raise an unavailable error when the connection fails", async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+    const adapter = createProviderAdapter({ base_url: "https://api.example.com", provider_key: "k", fetchImpl });
+
+    await expect(adapter.fetchFlight("VN123")).rejects.toMatchObject({ kind: "unavailable" });
   });
 
   it("should send the key only in the Authorization header, never in the address or elsewhere", async () => {

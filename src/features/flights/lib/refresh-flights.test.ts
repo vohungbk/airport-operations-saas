@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Database } from "@/types/database.types";
 
 import type { FlightSnapshot, FlightSourceAdapter } from "./provider/flight-source";
+import { ProviderError } from "./provider/provider-error";
 import { refreshFlights } from "./refresh-flights";
 
 const NOW = new Date("2026-10-24T10:00:00.000Z");
@@ -55,9 +56,10 @@ interface RpcCall {
 /** A fake client: the select answers `rows` (or fails), `rpc` records its calls and fails for `failRpcFor`. */
 function fakeClient(
   rows: unknown[],
-  options: { selectError?: boolean; failRpcFor?: string[]; skipRpcFor?: string[] } = {},
+  options: { selectError?: boolean; failRpcFor?: string[]; skipRpcFor?: string[]; failRecord?: boolean } = {},
 ) {
   const calls: RpcCall[] = [];
+  const recorded: { p_source: string; p_kind: string }[] = [];
 
   const client = {
     from: () => ({
@@ -71,6 +73,11 @@ function fakeClient(
       },
     }),
     rpc: async (fn: string, args: RpcCall["args"]) => {
+      if (fn === "record_flight_provider_error") {
+        recorded.push(args as unknown as { p_source: string; p_kind: string });
+        if (options.failRecord) throw new Error("db");
+        return { data: null, error: null };
+      }
       calls.push({ fn, args });
       return {
         data: !options.skipRpcFor?.includes(args.p_flight_id),
@@ -79,7 +86,7 @@ function fakeClient(
     },
   };
 
-  return { client: client as unknown as SupabaseClient<Database>, calls };
+  return { client: client as unknown as SupabaseClient<Database>, calls, recorded };
 }
 
 const adapterOf = (
@@ -95,7 +102,7 @@ describe("refreshFlights", () => {
 
     const summary = await refreshFlights(client, { now: NOW, source: adapterOf(fetchFlight) });
 
-    expect(summary).toEqual({ checked: 1, refreshed: 1, changed: 1, skipped: 0, not_found: 0, failed: 0 });
+    expect(summary).toEqual({ checked: 1, refreshed: 1, changed: 1, skipped: 0, not_found: 0, failed: 0, last_error_kind: null });
     expect(fetchFlight).toHaveBeenCalledWith("EK1");
     expect(calls).toHaveLength(1);
     expect(calls[0].fn).toBe("apply_flight_refresh");
@@ -157,7 +164,15 @@ describe("refreshFlights", () => {
 
     const summary = await refreshFlights(client, { now: NOW, source: adapterOf(fetchFlight) });
 
-    expect(summary).toEqual({ checked: 2, refreshed: 1, changed: 1, skipped: 0, not_found: 0, failed: 1 });
+    expect(summary).toEqual({
+      checked: 2,
+      refreshed: 1,
+      changed: 1,
+      skipped: 0,
+      not_found: 0,
+      failed: 1,
+      last_error_kind: "unavailable",
+    });
     expect(calls.map((call) => call.args.p_flight_id)).toEqual(["2"]);
   });
 
@@ -230,12 +245,101 @@ describe("refreshFlights", () => {
 
     const summary = await refreshFlights(client, { now: NOW, source: adapterOf(vi.fn()) });
 
-    expect(summary).toEqual({ checked: 0, refreshed: 0, changed: 0, skipped: 0, not_found: 0, failed: 0 });
+    expect(summary).toEqual({
+      checked: 0,
+      refreshed: 0,
+      changed: 0,
+      skipped: 0,
+      not_found: 0,
+      failed: 0,
+      last_error_kind: null,
+    });
   });
 
   it("should throw when the flights cannot be read, so the job reports the failure", async () => {
     const { client } = fakeClient([], { selectError: true });
 
     await expect(refreshFlights(client, { now: NOW, source: adapterOf(vi.fn()) })).rejects.toThrow();
+  });
+
+  describe("when the provider fails (VI-F02-S11-AC01, spec R12)", () => {
+    it.each([
+      ["a timeout", new ProviderError("timeout", "t"), "timeout"],
+      ["a failure", new ProviderError("unavailable", "u"), "unavailable"],
+      ["an error it does not know", new Error("boom"), "unavailable"],
+    ])("should write nothing to the flight and record %s", async (_case, failure, kind) => {
+      const { client, calls, recorded } = fakeClient([row("1")]);
+
+      const summary = await refreshFlights(client, {
+        now: NOW,
+        source: adapterOf(async () => {
+          throw failure;
+        }),
+      });
+
+      expect(calls).toEqual([]);
+      expect(summary).toMatchObject({ checked: 1, refreshed: 0, failed: 1, last_error_kind: kind });
+      expect(recorded).toEqual([{ p_source: "provider", p_kind: kind }]);
+    });
+
+    it("should stop asking the next flights when the provider is rate limited and keep their data", async () => {
+      const rows = Array.from({ length: 12 }, (_, index) => row(String(index + 1)));
+      const { client, calls, recorded } = fakeClient(rows);
+      const fetchFlight = vi.fn(async () => {
+        throw new ProviderError("rate_limited", "limit");
+      });
+
+      const summary = await refreshFlights(client, { now: NOW, source: adapterOf(fetchFlight) });
+
+      expect(fetchFlight).toHaveBeenCalledTimes(5);
+      expect(calls).toEqual([]);
+      expect(summary).toMatchObject({ checked: 12, refreshed: 0, failed: 12, last_error_kind: "rate_limited" });
+      expect(recorded).toEqual([{ p_source: "provider", p_kind: "rate_limited" }]);
+    });
+
+    it("should record the most serious kind when several flights fail in different ways", async () => {
+      const { client, recorded } = fakeClient([row("1"), row("2")]);
+      const fetchFlight = async (number: string) => {
+        throw new ProviderError(number === "EK1" ? "unavailable" : "timeout", "x");
+      };
+
+      const summary = await refreshFlights(client, { now: NOW, source: adapterOf(fetchFlight) });
+
+      expect(summary.last_error_kind).toBe("timeout");
+      expect(recorded).toHaveLength(1);
+    });
+
+    it("should still return the summary when the error cannot be recorded", async () => {
+      const { client } = fakeClient([row("1")], { failRecord: true });
+
+      const summary = await refreshFlights(client, {
+        now: NOW,
+        source: adapterOf(async () => {
+          throw new ProviderError("timeout", "t");
+        }),
+      });
+
+      expect(summary).toMatchObject({ failed: 1, last_error_kind: "timeout" });
+    });
+
+    it("should not record a provider error when only the write failed", async () => {
+      const { client, recorded } = fakeClient([row("1")], { failRpcFor: ["1"] });
+
+      const summary = await refreshFlights(client, {
+        now: NOW,
+        source: adapterOf(async (number) => snapshot(number, { terminal: "2" })),
+      });
+
+      expect(summary).toMatchObject({ failed: 1, last_error_kind: null });
+      expect(recorded).toEqual([]);
+    });
+
+    it("should not record an error when the provider does not know the flight", async () => {
+      const { client, recorded } = fakeClient([row("1")]);
+
+      await refreshFlights(client, { now: NOW, source: adapterOf(async () => null) });
+
+      expect(recorded).toEqual([]);
+    });
   });
 });

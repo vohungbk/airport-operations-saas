@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FLIGHT_SOURCE_LABELS, formatLastSync } from "./provider-status-labels";
+import { FLIGHT_SOURCE_LABELS, formatLastError, formatLastSync } from "./provider-status-labels";
 
 describe("formatLastSync", () => {
   it("should show the time in UTC", () => {
@@ -19,5 +19,15 @@ describe("formatLastSync", () => {
 describe("FLIGHT_SOURCE_LABELS", () => {
   it("should have a label for each of the three sources", () => {
     expect(Object.keys(FLIGHT_SOURCE_LABELS).sort()).toEqual(["provider", "sandbox", "simulator"]);
+  });
+});
+
+describe("formatLastError", () => {
+  it("should show the kind and the time in UTC", () => {
+    expect(formatLastError("rate_limited", "2026-12-01T10:05:30Z")).toBe("Rate limited · 2026-12-01 10:05 UTC");
+  });
+
+  it("should not break on a kind it does not know", () => {
+    expect(formatLastError("meteor", "2026-12-01T10:05:30Z")).toBe("Unknown error · 2026-12-01 10:05 UTC");
   });
 });
