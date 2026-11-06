@@ -34,7 +34,7 @@ export interface BoardCardItem {
   /** The pickup time in the timezone of the airport, with the airport code. */
   pickup_label: string;
   priority: BoardPriority;
-  /** Set only when the flight is early or delayed past the alert threshold. */
+  /** Set only when the flight is cancelled, diverted, or early or delayed past the alert threshold. */
   flight_alert: FlightAlertMark | null;
   /** "Overdue by 20 min" once the deadline of the next step has passed (CO-F08-S07). */
   overdue_label: string | null;
@@ -67,7 +67,7 @@ interface BoardRow {
   airport: { code: string; timezone: string } | null;
   seat: { serial_number: string; status: SeatStatus } | null;
   category: { name: string } | null;
-  flight: (FlightTimes & { flight_number: string }) | null;
+  flight: (FlightTimes & { flight_number: string; status: string }) | null;
   /** Computed column `board_priority` (see 20261123090000_workflow_board_reads.sql). */
   priority: string | null;
   /** Computed column `board_step_since`. */
@@ -77,7 +77,7 @@ interface BoardRow {
 const PRIORITIES: readonly string[] = ["normal", "high", "urgent"];
 
 const BOARD_SELECT =
-  "id, booking_number, status, pickup_at, partner:partners(name), airport:airports(code, timezone), seat:seats(serial_number, status), category:seat_categories(name), flight:flights(flight_number, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes), priority:board_priority, step_since:board_step_since";
+  "id, booking_number, status, pickup_at, partner:partners(name), airport:airports(code, timezone), seat:seats(serial_number, status), category:seat_categories(name), flight:flights(flight_number, status, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes), priority:board_priority, step_since:board_step_since";
 
 function toCard(row: BoardRow, now: Date, withDate: boolean): BoardCardItem {
   const seatParts = [row.seat?.serial_number, row.category?.name].filter(Boolean);

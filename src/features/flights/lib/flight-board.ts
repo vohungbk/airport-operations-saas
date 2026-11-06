@@ -1,7 +1,9 @@
 import {
+  DISRUPTION_ACTION,
   classifyFlight,
   formatAge,
   getDataAgeMinutes,
+  getDisruptionTitle,
   getFlightOffsetMinutes,
   isStale,
 } from "@/lib/flights/flight-timing";
@@ -77,7 +79,7 @@ export interface FlightBoardRow {
 
 export interface FlightBoardAlert {
   key: string;
-  kind: "early" | "delayed";
+  kind: "early" | "delayed" | "cancelled" | "diverted";
   title: string;
   detail: string;
 }
@@ -174,15 +176,30 @@ function toAlert(row: FlightBoardRow, kind: "early" | "delayed", timeZone: strin
   return { key: row.key, kind, title, detail: `${parts.join(" · ")}.` };
 }
 
+function toDisruptionAlert(row: FlightBoardRow, kind: "cancelled" | "diverted"): FlightBoardAlert {
+  return {
+    key: row.key,
+    kind,
+    title: getDisruptionTitle(kind),
+    detail: `${row.flight_number} · ${row.booking_number} · ${DISRUPTION_ACTION}`,
+  };
+}
+
 /**
- * The banners above the table: the first early flight and the first late flight of the rows. Only
+ * The banners above the table: a flag for each cancelled and diverted flight (the first of each, VI-F02-S06),
+ * then the first early flight and the first late flight of the rows. Only
  * what is stored is written (who was notified is not stored, so it is not said).
  */
 export function buildFlightBoardAlerts(rows: readonly FlightBoardRow[], timeZone: string): FlightBoardAlert[] {
   const early = rows.find((row) => row.change.kind === "early");
   const delayed = rows.find((row) => row.change.kind === "delayed");
 
+  const cancelled = rows.find((row) => row.change.kind === "cancelled");
+  const diverted = rows.find((row) => row.change.kind === "diverted");
+
   return [
+    ...(cancelled ? [toDisruptionAlert(cancelled, "cancelled")] : []),
+    ...(diverted ? [toDisruptionAlert(diverted, "diverted")] : []),
     ...(early ? [toAlert(early, "early", timeZone)] : []),
     ...(delayed ? [toAlert(delayed, "delayed", timeZone)] : []),
   ];

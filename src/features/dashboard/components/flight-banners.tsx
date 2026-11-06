@@ -1,6 +1,7 @@
-import { CircleAlertIcon, ClockIcon } from "lucide-react";
+import { CircleAlertIcon, ClockIcon, TriangleAlertIcon } from "lucide-react";
 
 import type { FlightAlertItem } from "@/features/dashboard/lib/get-flight-alerts";
+import { DISRUPTION_ACTION, getDisruptionTitle, getFlightDisruption } from "@/lib/flights/flight-timing";
 import { cn } from "@/lib/utils";
 
 interface FlightBannersProps {
@@ -23,6 +24,27 @@ export function FlightBanners({ alerts }: FlightBannersProps) {
   return (
     <ul aria-label="Flight alerts" className="flex flex-col gap-3">
       {alerts.map((alert) => {
+        const disruption = getFlightDisruption(alert.kind);
+
+        if (disruption) {
+          return (
+            <li
+              key={alert.id}
+              data-kind={alert.kind}
+              className="flex min-w-0 items-start gap-3 rounded-lg bg-danger-bg p-4 text-sm text-danger-fg"
+            >
+              <TriangleAlertIcon aria-hidden="true" className="size-5 shrink-0" />
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="font-semibold break-words">{getDisruptionTitle(disruption)}</p>
+                <p className="break-words">
+                  {[alert.flight_number, alert.booking_number].filter(Boolean).join(" · ")}
+                </p>
+                <p className="break-words">{DISRUPTION_ACTION}</p>
+              </div>
+            </li>
+          );
+        }
+
         const early = alert.kind === "early";
         const Icon = early ? CircleAlertIcon : ClockIcon;
         const parts = [
