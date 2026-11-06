@@ -112,7 +112,7 @@ describe("WorkflowBoardColumns", () => {
   });
 
   it("should not show a more link when every booking of the step is shown", () => {
-    expect(render([column("pending", 1, [CARD])])).not.toContain("more");
+    expect(render([column("pending", 1, [CARD])])).not.toMatch(/\+\d+ more/);
   });
 
   it("should offer the move to the next step to a role that may move to it", () => {
@@ -140,5 +140,50 @@ describe("WorkflowBoardColumns", () => {
 
     expect(html).not.toContain("EK 203");
     expect(html).not.toContain("SEAT-0001");
+  });
+
+  it("should draw the column as the design does: 280 wide, the step, the count and the scroll hint", () => {
+    const html = render([column("pending", 3, [CARD])]);
+
+    expect(html).toContain("w-70");
+    expect(html).toContain('data-slot="board-column-count"');
+    expect(html).toContain("Scroll for more");
+    expect(html).toContain('data-slot="board-scroll-fade"');
+  });
+
+  it("should show the flight of a card as a chip and the seat, pickup and priority lines", () => {
+    const html = render([column("pending", 1, [CARD])]);
+
+    expect(html).toContain('data-slot="board-flight-chip"');
+    expect(html).toContain("Normal");
+  });
+
+  it("should keep the Move button and say why under it when the seat is not ready", () => {
+    // Moving to Technician Assigned needs the seat to be Available; this one is in use.
+    const html = render([
+      column("ready", 1, [{ ...CARD, status: "ready" as const, seat_status: "in_use" as const }]),
+    ]);
+
+    expect(html).toContain('data-testid="move"');
+    expect(html).toContain('data-slot="board-move-note"');
+    expect(html).toContain("Seat must be Available");
+  });
+
+  it("should say nothing under the Move button when the seat is ready or the step needs no seat", () => {
+    const needsSeat = render([column("ready", 1, [{ ...CARD, status: "ready" as const, seat_status: "available" as const }])]);
+    const noSeatRule = render([column("pending", 1, [CARD])]);
+
+    expect(needsSeat).not.toContain("board-move-note");
+    expect(noSeatRule).not.toContain("board-move-note");
+  });
+
+  it("should not say anything about the seat to a role that may not move the booking", () => {
+    const html = render(
+      [column("ready", 1, [{ ...CARD, status: "ready" as const, seat_status: "in_use" as const }])],
+      {},
+      "partner_user",
+    );
+
+    expect(html).not.toContain("Seat must be");
   });
 });

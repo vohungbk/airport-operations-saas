@@ -14,4 +14,12 @@ describe("BoardLoadError (AC10)", () => {
     expect(html).toContain("The board could not be loaded.");
     expect(html).toContain("Retry");
   });
+
+  it("should draw the message in a box of the design and the Retry button under it", () => {
+    const html = renderToStaticMarkup(createElement(BoardLoadError));
+
+    expect(html).toContain("w-[500px]");
+    expect(html).toContain("w-60");
+    expect(html.indexOf("The board could not be loaded.")).toBeLessThan(html.indexOf("Retry"));
+  });
 });

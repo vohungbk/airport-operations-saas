@@ -82,7 +82,7 @@ describe("TechnicianBoardColumns (CO-F08-T02 AC03, AC05, AC07)", () => {
 
   it("should show the partner name only when the card has one", () => {
     expect(html).toContain("Emirates Rent A Car");
-    expect(html.match(/text-muted-foreground">Emirates/g)).toHaveLength(1);
+    expect(html.match(/truncate">Emirates/g)).toHaveLength(1);
   });
 });
 

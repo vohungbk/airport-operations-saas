@@ -60,32 +60,31 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex flex-col gap-4 p-8 pb-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Workflow Board</h1>
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
-        </div>
-
-        {errors.length > 0 && (
-          <Alert variant="destructive">
-            <AlertDescription>{errors.join(" ")}</AlertDescription>
-          </Alert>
-        )}
-
-        <WorkflowBoardFilters
-          // The search box keeps what was typed; a new search (or Clear filters) starts it again from the address.
-          key={query.q ?? ""}
-          query={query}
-          partners={options.partners}
-          airports={options.airports}
-          total={board?.total ?? null}
-        />
+      <div className="flex flex-col gap-1 border-b border-border bg-card px-6 py-3">
+        <h1 className="text-h2 font-semibold text-foreground">Workflow Board</h1>
+        <p className="text-body text-muted-foreground">{subtitle}</p>
       </div>
+
+      {errors.length > 0 && (
+        <Alert variant="destructive" className="mx-6 mt-4 w-auto">
+          <AlertDescription>{errors.join(" ")}</AlertDescription>
+        </Alert>
+      )}
+
+      <WorkflowBoardFilters
+        // The search box keeps what was typed; a new search (or Clear filters) starts it again from the address.
+        key={query.q ?? ""}
+        query={query}
+        partners={options.partners}
+        airports={options.airports}
+        total={board?.total ?? null}
+        bar
+      />
 
       {board === null ? (
         <BoardLoadError />
       ) : board.total === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-muted/40 p-8">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-background p-8">
           <ClipboardListIcon aria-hidden="true" className="size-10 text-muted-foreground" />
           <p className="text-lg font-semibold text-foreground">No bookings to show</p>
           {hasFilters && (

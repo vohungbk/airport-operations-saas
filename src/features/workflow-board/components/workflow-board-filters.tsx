@@ -17,6 +17,7 @@ import {
   priorityFilterLabel,
   useWorkflowBoardFilters,
 } from "@/features/workflow-board/hooks/use-workflow-board-filters";
+import { cn } from "@/lib/utils";
 import type { WorkflowBoardOption } from "@/features/workflow-board/lib/resolve-workflow-board-query";
 import {
   FLIGHT_ALERT_FILTERS,
@@ -27,6 +28,9 @@ import {
 const ALL_VALUE = "all";
 const SELECT_TRIGGER_CLASS =
   "h-11 w-full flex-row-reverse justify-end gap-2 bg-card px-4 font-medium data-[size=default]:h-11 sm:w-fit";
+// The filter bar of the design (CO-F08-T01, Figma D4): fixed widths, text on the left and the arrow on the right.
+const BAR_SELECT_TRIGGER_CLASS =
+  "h-11 w-full justify-between rounded-md bg-card px-3 data-[size=default]:h-11 sm:w-36";
 
 const FLIGHT_ALERT_OPTIONS = FLIGHT_ALERT_FILTERS.map((value) => ({
   value,
@@ -49,6 +53,8 @@ interface WorkflowBoardFiltersProps {
   hidePartner?: boolean;
   /** The noun of the count: "7 bookings in view" for the office, "7 own bookings in view" for a technician. */
   countNoun?: string;
+  /** The filter bar of the Workflow Board design: one row on a white band, the labels "All alerts" and "All priority". */
+  bar?: boolean;
 }
 
 function toValue(value: string | null): string {
@@ -64,12 +70,21 @@ export function WorkflowBoardFilters({
   route,
   hidePartner = false,
   countNoun = "booking",
+  bar = false,
 }: WorkflowBoardFiltersProps) {
   const { searchInput, setSearchInput, error, chips, navigate, submitSearch, clearFilters, removeFilter } =
     useWorkflowBoardFilters(query, partners, airports, route);
 
+  const triggerClass = bar ? BAR_SELECT_TRIGGER_CLASS : SELECT_TRIGGER_CLASS;
+  const alertAll = bar ? "All alerts" : "Flight alert: All";
+  const priorityAll = bar ? "All priority" : "Priority: All";
+  const hasFilters = chips.length > 0;
+
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      className={bar ? "flex flex-col gap-2 border-b border-border bg-card px-4 py-2" : "flex flex-col gap-3"}
+      data-slot={bar ? "board-filter-bar" : undefined}
+    >
       <div className="flex flex-wrap items-center gap-2">
         {!hidePartner && (
         <Select
@@ -77,7 +92,7 @@ export function WorkflowBoardFilters({
           items={[{ value: ALL_VALUE, label: "All partners" }, ...partners]}
           onValueChange={(value) => navigate({ partner_id: toValue(value) })}
         >
-          <SelectTrigger className={SELECT_TRIGGER_CLASS} aria-label="Filter by partner">
+          <SelectTrigger className={triggerClass} aria-label="Filter by partner">
             <SelectValue placeholder="All partners" />
           </SelectTrigger>
           <SelectContent>
@@ -96,7 +111,7 @@ export function WorkflowBoardFilters({
           items={[{ value: ALL_VALUE, label: "All airports" }, ...airports]}
           onValueChange={(value) => navigate({ airport_id: toValue(value) })}
         >
-          <SelectTrigger className={SELECT_TRIGGER_CLASS} aria-label="Filter by airport">
+          <SelectTrigger className={triggerClass} aria-label="Filter by airport">
             <SelectValue placeholder="All airports" />
           </SelectTrigger>
           <SelectContent>
@@ -113,29 +128,29 @@ export function WorkflowBoardFilters({
           value={query.date}
           onValueChange={(value) => navigate({ date: value })}
           placeholder="Pickup date"
-          className="h-11 w-full bg-card px-4 sm:w-44"
+          className={bar ? "h-11 w-full rounded-md bg-card px-3 sm:w-41" : "h-11 w-full bg-card px-4 sm:w-44"}
         />
 
-        <form onSubmit={submitSearch} role="search" className="flex w-full items-center sm:w-56">
+        <form onSubmit={submitSearch} role="search" className={bar ? "flex w-full items-center sm:w-51" : "flex w-full items-center sm:w-56"}>
           <SearchInput
-            placeholder="Booking search"
+            placeholder={bar ? "Booking number" : "Booking search"}
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            className="h-11"
+            className={bar ? "h-11 rounded-md" : "h-11"}
             aria-label="Search bookings"
           />
         </form>
 
         <Select
           value={query.flight_alert ?? ALL_VALUE}
-          items={[{ value: ALL_VALUE, label: "Flight alert: All" }, ...FLIGHT_ALERT_OPTIONS]}
+          items={[{ value: ALL_VALUE, label: alertAll }, ...FLIGHT_ALERT_OPTIONS]}
           onValueChange={(value) => navigate({ flight_alert: toValue(value) })}
         >
-          <SelectTrigger className={SELECT_TRIGGER_CLASS} aria-label="Filter by flight alert">
-            <SelectValue placeholder="Flight alert: All" />
+          <SelectTrigger className={triggerClass} aria-label="Filter by flight alert">
+            <SelectValue placeholder={alertAll} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL_VALUE}>Flight alert: All</SelectItem>
+            <SelectItem value={ALL_VALUE}>{alertAll}</SelectItem>
             {FLIGHT_ALERT_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
@@ -146,14 +161,14 @@ export function WorkflowBoardFilters({
 
         <Select
           value={query.priority ?? ALL_VALUE}
-          items={[{ value: ALL_VALUE, label: "Priority: All" }, ...PRIORITY_OPTIONS]}
+          items={[{ value: ALL_VALUE, label: priorityAll }, ...PRIORITY_OPTIONS]}
           onValueChange={(value) => navigate({ priority: toValue(value) })}
         >
-          <SelectTrigger className={SELECT_TRIGGER_CLASS} aria-label="Filter by priority">
-            <SelectValue placeholder="Priority: All" />
+          <SelectTrigger className={triggerClass} aria-label="Filter by priority">
+            <SelectValue placeholder={priorityAll} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL_VALUE}>Priority: All</SelectItem>
+            <SelectItem value={ALL_VALUE}>{priorityAll}</SelectItem>
             {PRIORITY_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
@@ -162,7 +177,14 @@ export function WorkflowBoardFilters({
           </SelectContent>
         </Select>
 
-        <Button type="button" variant="outline" className="min-h-11 px-4" onClick={clearFilters}>
+        <Button
+          type="button"
+          variant="outline"
+          // The design draws Clear filters grey while no filter is set; it is still a button that works.
+          data-idle={bar && !hasFilters ? "true" : undefined}
+          className={cn("min-h-11 px-4", bar && "w-47 rounded-md font-semibold", bar && !hasFilters && "bg-muted")}
+          onClick={clearFilters}
+        >
           Clear filters
         </Button>
       </div>

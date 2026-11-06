@@ -11,12 +11,12 @@ export function BoardLoadError() {
   const router = useRouter();
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-muted/40 p-8">
-      <Alert role="alert" className="max-w-xl bg-info-bg text-info-fg">
+    <div className="flex flex-1 flex-col items-center justify-center gap-5 bg-background p-8">
+      <Alert role="alert" className="min-h-[104px] w-[500px] max-w-full rounded-md border-border bg-primary-subtle px-4 py-3 text-foreground">
         <TriangleAlertIcon aria-hidden="true" />
         <AlertTitle className="font-semibold">The board could not be loaded.</AlertTitle>
       </Alert>
-      <Button type="button" variant="outline" className="min-h-11 px-8 font-semibold" onClick={() => router.refresh()}>
+      <Button type="button" variant="outline" className="min-h-11 w-60 rounded-md font-semibold" onClick={() => router.refresh()}>
         Retry
       </Button>
     </div>
