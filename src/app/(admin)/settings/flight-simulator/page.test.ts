@@ -3,10 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireRoleMock = vi.hoisted(() => vi.fn());
 const getProviderStatusMock = vi.hoisted(() => vi.fn());
+const getAirportMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({ requireRole: requireRoleMock }));
 vi.mock("@/features/flights/lib/get-provider-status", () => ({
   getProviderStatus: getProviderStatusMock,
+}));
+vi.mock("@/features/flights/lib/simulator-lookup", () => ({
+  getDefaultSimulatorAirport: getAirportMock,
 }));
 vi.mock("@/features/flights/components/flight-simulator-form", () => ({
   FlightSimulatorForm: () => null,
@@ -14,10 +18,18 @@ vi.mock("@/features/flights/components/flight-simulator-form", () => ({
 
 import FlightSimulatorPage from "@/app/(admin)/settings/flight-simulator/page";
 
-/** The `enabled` prop the page gives the form. */
-function enabledOf(page: ReactElement<{ children: ReactElement[] }>): unknown {
-  const wrapper = page.props.children[1] as ReactElement<{ children: ReactElement<{ enabled: boolean }> }>;
-  return wrapper.props.children.props.enabled;
+type FormProps = { enabled: boolean; airport: { code: string; name: string; timezone: string } | null };
+type PageTree = ReactElement<{ children: [ReactElement<{ children: [unknown, ReactElement<{ children: string }> | false] }>, ReactElement<FormProps>] }>;
+
+/** The props the page gives the form. */
+function formPropsOf(page: PageTree): FormProps {
+  return page.props.children[1].props;
+}
+
+/** The airport line under the title. */
+function lineOf(page: PageTree): string | undefined {
+  const line = page.props.children[0].props.children[1];
+  return line ? line.props.children : undefined;
 }
 
 describe("FlightSimulatorPage", () => {
@@ -26,6 +38,8 @@ describe("FlightSimulatorPage", () => {
     requireRoleMock.mockResolvedValue({ role: "admin" });
     getProviderStatusMock.mockReset();
     getProviderStatusMock.mockResolvedValue({ source: "simulator", last_synced_at: null, last_error: null });
+    getAirportMock.mockReset();
+    getAirportMock.mockResolvedValue({ code: "DXB", name: "Dubai International Airport", timezone: "Asia/Dubai" });
   });
 
   it("should guard the page for admin only and turn the form on when the source is the simulator", async () => {
@@ -33,7 +47,23 @@ describe("FlightSimulatorPage", () => {
 
     expect(requireRoleMock).toHaveBeenCalledWith(["admin"]);
     expect(isValidElement(page)).toBe(true);
-    expect(enabledOf(page as ReactElement<{ children: ReactElement[] }>)).toBe(true);
+    expect(formPropsOf(page as PageTree).enabled).toBe(true);
+  });
+
+  it("should give the form the default airport and show its code, name, date and time zone under the title", async () => {
+    const page = (await FlightSimulatorPage()) as PageTree;
+
+    expect(formPropsOf(page).airport).toEqual({ code: "DXB", name: "Dubai International Airport", timezone: "Asia/Dubai" });
+    expect(lineOf(page)).toMatch(/^DXB · Dubai International Airport · \d{1,2} \w{3} \d{4} · Asia\/Dubai \(GST, UTC\+4\)$/);
+  });
+
+  it("should show no airport line when the viewer sees no airport", async () => {
+    getAirportMock.mockResolvedValue(null);
+
+    const page = (await FlightSimulatorPage()) as PageTree;
+
+    expect(lineOf(page)).toBeUndefined();
+    expect(formPropsOf(page).airport).toBeNull();
   });
 
   it("should turn the form off when the active source is not the simulator", async () => {
@@ -41,7 +71,7 @@ describe("FlightSimulatorPage", () => {
 
     const page = await FlightSimulatorPage();
 
-    expect(enabledOf(page as ReactElement<{ children: ReactElement[] }>)).toBe(false);
+    expect(formPropsOf(page as PageTree).enabled).toBe(false);
   });
 
   it("should propagate the guard's forbidden and not read the status", async () => {
