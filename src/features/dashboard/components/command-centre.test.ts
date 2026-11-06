@@ -87,6 +87,29 @@ describe("Command Centre Overdue tasks tile (UI-F06-T01, AC05)", () => {
   });
 });
 
+describe("Command Centre Arrivals today and Installations due tiles (VI-F05-T02, AC01, AC02)", () => {
+  it("should show the two numbers", () => {
+    const out = render({ arrivalsToday: 12, installationsDue: 5 });
+
+    expect(out).toMatch(/Arrivals today<\/p><p[^>]*>12</);
+    expect(out).toMatch(/Installations due<\/p><p[^>]*>5</);
+  });
+
+  it("should show 0 when nothing arrives or is due, as a real count", () => {
+    const out = render({ arrivalsToday: 0, installationsDue: 0 });
+
+    expect(out).toMatch(/Arrivals today<\/p><p[^>]*>0</);
+    expect(out).toMatch(/Installations due<\/p><p[^>]*>0</);
+  });
+
+  it("should show a dash when a figure could not be read", () => {
+    const out = render({ arrivalsToday: null, installationsDue: null });
+
+    expect(out).toMatch(/Arrivals today<\/p><p[^>]*>—</);
+    expect(out).toMatch(/Installations due<\/p><p[^>]*>—</);
+  });
+});
+
 describe("Command Centre banners", () => {
   const alerts: FlightAlertItem[] = [
     {
