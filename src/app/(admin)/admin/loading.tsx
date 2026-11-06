@@ -1,5 +1,5 @@
-import { PageLoading } from "@/components/shared/page-state";
+import { WorkflowBoardLoading } from "@/features/workflow-board/components/workflow-board-loading";
 
-export default function WorkflowBoardLoading() {
-  return <PageLoading />;
+export default function WorkflowBoardPageLoading() {
+  return <WorkflowBoardLoading />;
 }
