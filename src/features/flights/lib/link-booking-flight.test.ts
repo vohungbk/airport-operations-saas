@@ -113,6 +113,17 @@ describe("linkBookingFlight", () => {
     expect(bookingWrite(writes)[0].values).toMatchObject({ flight_id: "flight-old" });
   });
 
+  it("should clear the Manual mark of the flight it updates, because the source has answered (VI-F02-S07)", async () => {
+    const { client, writes } = fakeClient({ existingFlightId: "flight-old" });
+
+    await linkBookingFlight(client, BOOKING, "SIM002", createSimulatorAdapter);
+
+    expect(writes.filter((write) => write.table === "flights")[0].values).toMatchObject({
+      manual_entered_at: null,
+      manual_reason: null,
+    });
+  });
+
   it("should normalize the number before it asks the source", async () => {
     const { client, writes } = fakeClient();
 

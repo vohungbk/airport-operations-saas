@@ -43,6 +43,13 @@ export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
 };
 
 /** Statuses that hold a seat for their period (seat overlap check). */
+/** A booking in one of these statuses has ended: it needs no flight refresh and no replanning. */
+export const ENDED_BOOKING_STATUS_LIST = [
+  "completed",
+  "cancelled",
+  "no_show",
+] as const satisfies readonly BookingStatus[];
+
 export const ACTIVE_BOOKING_STATUSES = [
   "pending",
   "confirmed",

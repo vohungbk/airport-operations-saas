@@ -16,6 +16,9 @@ export interface BookingFlight {
   actual_arrival_at: string | null;
   delay_minutes: number | null;
   last_synced_at: string | null;
+  /** Set while the arrival is the one operations entered by hand (VI-F02-S07). */
+  manual_entered_at?: string | null;
+  manual_reason?: string | null;
 }
 
 interface BookingRelations {
@@ -55,7 +58,7 @@ export interface GetBookingsResult {
 }
 
 const FLIGHT_SELECT =
-  "flight:flights(flight_number, status, terminal, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes, last_synced_at)";
+  "flight:flights(flight_number, status, terminal, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes, last_synced_at, manual_entered_at, manual_reason)";
 
 const BOOKING_RELATIONS_SELECT = `partner:partners(id, name, code), airport:airports(id, code, name, city, timezone), seat:seats(id, serial_number, status), category:seat_categories(id, name), ${FLIGHT_SELECT}`;
 

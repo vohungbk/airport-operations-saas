@@ -9,6 +9,7 @@ import { BookingFlightPanel } from "@/features/bookings/components/booking-fligh
 import { ChangeBookingStatusDialog } from "@/features/bookings/components/change-booking-status-dialog";
 import {
   BOOKING_STATUS_LABEL,
+  ENDED_BOOKING_STATUS_LIST,
   getAllowedManualTransitions,
   isBookingEditable,
   isPartnerBookingEditable,
@@ -33,6 +34,8 @@ interface BookingDetailProps {
   defaultTab?: BookingPageTab;
   /** The history of the booking's flight (VI-F02-T01); `null` when the booking has no linked flight. */
   flightHistory?: FlightUpdatesResult | null;
+  /** An admin or an operations manager may enter an arrival by hand (VI-F02-S07, Q4). */
+  canEnterArrival?: boolean;
 }
 
 function Detail({
@@ -65,6 +68,7 @@ export function BookingDetail({
   canViewRevenue = false,
   defaultTab = "overview",
   flightHistory = null,
+  canEnterArrival = false,
 }: BookingDetailProps) {
   const timeZone = booking.airport?.timezone ?? "UTC";
   const allowedTransitions = getAllowedManualTransitions(booking.status);
@@ -185,6 +189,11 @@ export function BookingDetail({
           flightNumber={booking.flight_number}
           lookupStatus={booking.flight_lookup_status}
           history={flightHistory}
+          manualEntry={
+            canEnterArrival && !(ENDED_BOOKING_STATUS_LIST as readonly string[]).includes(booking.status)
+              ? { bookingId: booking.id }
+              : undefined
+          }
         />
       }
       timeline={

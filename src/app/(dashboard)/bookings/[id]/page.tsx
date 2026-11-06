@@ -50,6 +50,7 @@ export default async function BookingDetailPage({
       flightHistory={flightHistory}
       defaultTab={defaultTab}
       canManage={canManage}
+      canEnterArrival={user.role === "admin" || user.role === "operations_manager"}
       canEditOwn={!canManage && hasPermission(user.role, "bookings:manage_own_partner")}
       canViewRevenue={hasAnyPermission(user.role, FINANCE_ACCESS_PERMISSIONS)}
     />
