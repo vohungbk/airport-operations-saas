@@ -194,9 +194,9 @@ describe.skipIf(!available)("flight update history (VI-F02-S03)", () => {
       const rows = run(`${SETUP}
         do $$ begin
           raise notice 'R|grants|%|%|%',
-            has_function_privilege('authenticated', 'public.apply_flight_refresh(uuid, jsonb, jsonb, text, timestamptz)', 'execute'),
-            has_function_privilege('anon', 'public.apply_flight_refresh(uuid, jsonb, jsonb, text, timestamptz)', 'execute'),
-            has_function_privilege('service_role', 'public.apply_flight_refresh(uuid, jsonb, jsonb, text, timestamptz)', 'execute');
+            has_function_privilege('authenticated', 'public.apply_flight_refresh(uuid, jsonb, jsonb, text, timestamptz, text)', 'execute'),
+            has_function_privilege('anon', 'public.apply_flight_refresh(uuid, jsonb, jsonb, text, timestamptz, text)', 'execute'),
+            has_function_privilege('service_role', 'public.apply_flight_refresh(uuid, jsonb, jsonb, text, timestamptz, text)', 'execute');
         end $$;`);
 
       expect(get(rows, "grants")).toEqual(["false", "false", "true"]);

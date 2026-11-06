@@ -1,6 +1,9 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The manual arrival form refreshes the page after a save; there is no router in a static render.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 import {
   BookingFlightPanel,
@@ -200,5 +203,52 @@ describe("BookingFlightPanel cancelled or diverted (VI-F02-S06)", () => {
 
   it("should show no flag for a flight that is on schedule", () => {
     expect(render({ flight: { ...FLIGHT, status: "scheduled" } })).not.toContain("replan");
+  });
+});
+
+describe("BookingFlightPanel manual arrival (VI-F02-S07)", () => {
+  const MANUAL: BookingFlight = {
+    ...FLIGHT,
+    manual_entered_at: "2026-10-24T10:00:00.000Z",
+    manual_reason: "Passenger called the desk",
+  };
+
+  it("should mark the arrival as Manual with the time and the reason it was entered", () => {
+    const html = render({ flight: MANUAL });
+
+    expect(html).toContain('data-slot="flight-manual-badge"');
+    expect(html).toContain("Manual");
+    expect(html).toContain("Entered by hand");
+    expect(html).toContain("Passenger called the desk");
+    expect(html).toContain("Manual entry");
+    expect(html).not.toContain("Provider sync");
+  });
+
+  it("should show no Manual mark for data from the provider", () => {
+    const html = render();
+
+    expect(html).not.toContain("flight-manual-badge");
+    expect(html).not.toContain("Entered by hand");
+    expect(html).toContain("Provider sync");
+  });
+
+  it("should show the button to enter an arrival only to a person who may enter it", () => {
+    expect(render({ manualEntry: { bookingId: "b-1" } })).toContain("Enter arrival by hand");
+    expect(render()).not.toContain("Enter arrival by hand");
+  });
+
+  it("should offer the button when the provider did not know the number, and not when the booking has no number", () => {
+    const unknown = render({ flight: null, flightNumber: "NOPE1", lookupStatus: "not_found", manualEntry: { bookingId: "b-1" } });
+    const none = render({ flight: null, flightNumber: null, lookupStatus: null, manualEntry: { bookingId: "b-1" } });
+
+    expect(unknown).toContain("Enter arrival by hand");
+    expect(none).not.toContain("Enter arrival by hand");
+  });
+
+  it("should not offer the button to a person who may not, even when the provider did not know the number", () => {
+    const html = render({ flight: null, flightNumber: "NOPE1", lookupStatus: "not_found" });
+
+    expect(html).toContain("Operations can enter the arrival by hand");
+    expect(html).not.toContain("Enter arrival by hand");
   });
 });
