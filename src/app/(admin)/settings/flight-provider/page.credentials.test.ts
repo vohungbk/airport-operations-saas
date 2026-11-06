@@ -13,6 +13,8 @@ vi.mock("@/lib/supabase/server", () => {
     not: () => query,
     order: () => query,
     limit: limitMock,
+    eq: () => query,
+    maybeSingle: async () => ({ data: null, error: null }),
   };
 
   return { createClient: async () => ({ from: () => query }) };

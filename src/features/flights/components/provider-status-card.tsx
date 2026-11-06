@@ -28,7 +28,7 @@ export function ProviderStatusCard({ status }: ProviderStatusCardProps) {
     <dl className="grid max-w-xl gap-4 rounded-lg border border-border p-4">
       <StatusRow label="Active source" value={FLIGHT_SOURCE_LABELS[status.source]} />
       <StatusRow label="Last sync" value={formatLastSync(status.last_synced_at)} />
-      <StatusRow label="Last error" value={status.last_error ?? "Not recorded yet"} />
+      <StatusRow label="Last error" value={status.last_error ?? "None"} />
     </dl>
   );
 }
