@@ -1,14 +1,11 @@
-import Link from "next/link";
-import { ClipboardListIcon } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import { requirePermission } from "@/lib/auth/current-user";
-import { WORKFLOW_BOARD_ROUTE } from "@/lib/constants/routes";
 import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
 import { getBookingEvents } from "@/features/bookings/lib/get-booking-events";
 import { getBookingById } from "@/features/bookings/lib/get-booking-by-id";
 import { WORKFLOW_BOARD_QUERY_FIELDS } from "@/features/workflow-board/schemas/workflow-board-query.schema";
+import { BoardEmptyState } from "@/features/workflow-board/components/board-empty-state";
 import { BoardLoadError } from "@/features/workflow-board/components/board-load-error";
 import { BookingPreview } from "@/features/workflow-board/components/booking-preview";
 import { WorkflowBoardColumns } from "@/features/workflow-board/components/workflow-board-columns";
@@ -84,15 +81,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       {board === null ? (
         <BoardLoadError />
       ) : board.total === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-background p-8">
-          <ClipboardListIcon aria-hidden="true" className="size-10 text-muted-foreground" />
-          <p className="text-lg font-semibold text-foreground">No bookings to show</p>
-          {hasFilters && (
-            <Link href={WORKFLOW_BOARD_ROUTE} className={buttonVariants({ className: "min-h-11 px-6" })}>
-              Clear filters
-            </Link>
-          )}
-        </div>
+        <BoardEmptyState hasFilters={hasFilters} />
       ) : (
         <WorkflowBoardColumns columns={board.columns} query={query} role={user.role} />
       )}
