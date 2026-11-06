@@ -547,6 +547,7 @@ export type Database = {
           flight_id: string
           id: string
           occurred_at: string
+          reason: string | null
           source: string
         }
         Insert: {
@@ -554,6 +555,7 @@ export type Database = {
           flight_id: string
           id?: string
           occurred_at?: string
+          reason?: string | null
           source: string
         }
         Update: {
@@ -561,6 +563,7 @@ export type Database = {
           flight_id?: string
           id?: string
           occurred_at?: string
+          reason?: string | null
           source?: string
         }
         Relationships: [
@@ -583,6 +586,8 @@ export type Database = {
           flight_number: string
           id: string
           last_synced_at: string | null
+          manual_entered_at: string | null
+          manual_reason: string | null
           provider: string | null
           scheduled_arrival_at: string
           status: Database["public"]["Enums"]["flight_status"]
@@ -598,6 +603,8 @@ export type Database = {
           flight_number: string
           id?: string
           last_synced_at?: string | null
+          manual_entered_at?: string | null
+          manual_reason?: string | null
           provider?: string | null
           scheduled_arrival_at: string
           status?: Database["public"]["Enums"]["flight_status"]
@@ -613,6 +620,8 @@ export type Database = {
           flight_number?: string
           id?: string
           last_synced_at?: string | null
+          manual_entered_at?: string | null
+          manual_reason?: string | null
           provider?: string | null
           scheduled_arrival_at?: string
           status?: Database["public"]["Enums"]["flight_status"]
@@ -1635,6 +1644,7 @@ export type Database = {
           p_changes: Json
           p_expected_synced_at?: string
           p_flight_id: string
+          p_reason?: string
           p_source: string
           p_values: Json
         }
@@ -1648,6 +1658,17 @@ export type Database = {
           p_values: Json
         }
         Returns: boolean
+      }
+      enter_manual_arrival: {
+        Args: {
+          p_booking_id: string
+          p_changes: Json
+          p_expected_synced_at?: string
+          p_reason: string
+          p_scheduled_arrival_at?: string
+          p_values: Json
+        }
+        Returns: string
       }
       complete_cleaning: {
         Args: { p_job_id: string; p_notes?: string; p_passed: boolean }

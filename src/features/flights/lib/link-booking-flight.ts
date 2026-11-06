@@ -39,6 +39,9 @@ async function saveFlight(
     delay_minutes: snapshot.delay_minutes,
     provider: source,
     last_synced_at: new Date().toISOString(),
+    // The source has answered: its data wins over an arrival entered by hand (VI-F02-S07, Q4).
+    manual_entered_at: null,
+    manual_reason: null,
   };
 
   const existing = await supabase

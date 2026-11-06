@@ -4,6 +4,7 @@ import { PageEmpty } from "@/components/shared/page-state";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { BookingFlight } from "@/features/bookings/lib/get-bookings";
+import { ManualArrivalDialog } from "@/features/flights/components/manual-arrival-dialog";
 import { FlightUpdateHistory } from "@/features/flights/components/flight-update-history";
 import type { FlightUpdatesResult } from "@/features/flights/lib/get-flight-updates";
 import {
@@ -38,6 +39,11 @@ interface BookingFlightPanelProps {
   lookupStatus?: string | null;
   /** The history of the flight (VI-F02-T01); `null` when there is none to show. It sits under the flight card. */
   history?: FlightUpdatesResult | null;
+  /**
+   * Set only for a person who may enter an arrival by hand (VI-F02-S07, Q4): the booking the entry is for.
+   * Without it the panel has no button.
+   */
+  manualEntry?: { bookingId: string };
 }
 
 /**
@@ -87,10 +93,26 @@ export function BookingFlightPanel({
   flightNumber,
   lookupStatus,
   history = null,
+  manualEntry,
 }: BookingFlightPanelProps) {
   if (!flight) {
-    return <PageEmpty message={getUnlinkedMessage(flightNumber, lookupStatus)} />;
+    return (
+      <div className="flex min-w-0 flex-col gap-4">
+        <PageEmpty message={getUnlinkedMessage(flightNumber, lookupStatus)} />
+        {/* The provider did not know the number: operations can enter the arrival by hand (spec E2). */}
+        {manualEntry && flightNumber && lookupStatus === "not_found" && (
+          <ManualArrivalDialog
+            bookingId={manualEntry.bookingId}
+            flightNumber={flightNumber}
+            timeZone={timeZone}
+            requireScheduled
+          />
+        )}
+      </div>
+    );
   }
+
+  const manual = Boolean(flight.manual_entered_at);
 
   const offset = getFlightOffsetMinutes(flight);
   const timing = classifyFlight(offset);
@@ -153,6 +175,12 @@ export function BookingFlightPanel({
             {shouldShowStatusBadge(flight.status, hasTimingPill) && (
               <StatusBadge domain="flight" value={flight.status} />
             )}
+            {manual && (
+              <Badge variant="warning" data-slot="flight-manual-badge">
+                <InfoIcon aria-hidden="true" />
+                Manual
+              </Badge>
+            )}
             {hasTimingPill && (
               <Badge variant="info">
                 <InfoIcon aria-hidden="true" />
@@ -179,6 +207,13 @@ export function BookingFlightPanel({
               {formatFlightDateTime(flight.actual_arrival_at, timeZone)}
             </Row>
           )}
+          {manual && flight.manual_entered_at && (
+            <Row label="Entered by hand">
+              <span data-slot="flight-manual-reason">
+                {`${formatClock(flight.manual_entered_at, timeZone)} · ${flight.manual_reason ?? "-"}`}
+              </span>
+            </Row>
+          )}
           <Row label="Installation deadline">
             {deadlineAt ? formatClock(deadlineAt, timeZone) : "-"}
           </Row>
@@ -186,11 +221,20 @@ export function BookingFlightPanel({
 
         <p className="text-sm break-words text-muted-foreground">
           {flight.last_synced_at
-            ? `Provider sync ${formatClock(flight.last_synced_at, timeZone)} · Updated ${formatAge(age)}`
+            ? `${manual ? "Manual entry" : "Provider sync"} ${formatClock(flight.last_synced_at, timeZone)} · Updated ${formatAge(age)}`
             : "Never updated"}
           {getSyncNote(flight.status, Boolean(flight.last_synced_at), isStale(age))}
         </p>
       </section>
+
+      {manualEntry && (
+        <ManualArrivalDialog
+          bookingId={manualEntry.bookingId}
+          flightNumber={flight.flight_number}
+          timeZone={timeZone}
+          requireScheduled={false}
+        />
+      )}
 
       {history && <FlightUpdateHistory result={history} timeZone={timeZone} />}
     </div>
