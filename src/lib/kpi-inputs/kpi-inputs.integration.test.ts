@@ -126,6 +126,53 @@ describe.skipIf(!available)("job deadline (VI-F05-T01, AC01, AC02, AC06)", () =>
     expect(result(rows, "on-time")).toBe("01-10 11:00");
   });
 
+  it("should move the deadline by the delay only when the flight is 15 minutes or more late, and back to the base when the estimate returns under 15 (VI-F02-S05 AC01)", () => {
+    const rows = run(`
+      ${booking(2)}
+      ${flight(2, "2030-01-10 11:14:00+00")}
+      ${link(2, 2)}
+      ${job(3, 2)}
+      ${deadline("late-14", 3)}
+      ${estimate(2, "2030-01-10 11:15:00+00")}
+      ${deadline("late-15", 3)}
+      ${estimate(2, "2030-01-10 11:16:00+00")}
+      ${deadline("late-16", 3)}
+      ${estimate(2, "2030-01-10 11:14:30+00")}
+      ${deadline("late-14-30", 3)}
+      ${estimate(2, "2030-01-10 11:14:29+00")}
+      ${deadline("late-14-29", 3)}
+      ${estimate(2, "2030-01-10 11:45:00+00")}
+      ${deadline("late-45", 3)}
+      ${estimate(2, "2030-01-10 11:05:00+00")}
+      ${deadline("late-5-again", 3)}`);
+
+    expect(result(rows, "late-14")).toBe("01-10 11:00");
+    expect(result(rows, "late-15")).toBe("01-10 11:15");
+    expect(result(rows, "late-16")).toBe("01-10 11:16");
+    expect(result(rows, "late-14-30")).toBe("01-10 11:15");
+    expect(result(rows, "late-14-29")).toBe("01-10 11:00");
+    expect(result(rows, "late-45")).toBe("01-10 11:45");
+    expect(result(rows, "late-5-again")).toBe("01-10 11:00");
+  });
+
+  it("should apply the 15 minute rule to the actual arrival and to delay_minutes alone, not only to the estimate (VI-F02-S05 AC01)", () => {
+    const rows = run(`
+      ${booking(15)}
+      ${flight(15, "2030-01-10 11:00:00+00")}
+      ${link(15, 15)}
+      ${job(15, 15)}
+      update public.flights set actual_arrival_at = '2030-01-10 11:10:00+00' where id = '${flightId(15)}';
+      ${deadline("actual-10", 15)}
+      update public.flights set actual_arrival_at = null, estimated_arrival_at = null, delay_minutes = 10 where id = '${flightId(15)}';
+      ${deadline("minutes-10", 15)}
+      update public.flights set delay_minutes = 15 where id = '${flightId(15)}';
+      ${deadline("minutes-15", 15)}`);
+
+    expect(result(rows, "actual-10")).toBe("01-10 11:00");
+    expect(result(rows, "minutes-10")).toBe("01-10 11:00");
+    expect(result(rows, "minutes-15")).toBe("01-10 11:15");
+  });
+
   it("should move the deadline earlier by the same minutes when the flight is 15 minutes or more early, and back to the base when the estimate returns to the schedule (VI-F02-S04 AC01, AC04)", () => {
     const rows = run(`
       ${booking(2)}
