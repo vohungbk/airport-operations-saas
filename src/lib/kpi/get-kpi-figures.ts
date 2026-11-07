@@ -32,7 +32,7 @@ export type RateFiguresResult =
   | { ok: false; reason: "unavailable" };
 
 /** The count columns of a function row as numbers; PostgREST may send a bigint as a string. */
-function counts<K extends string>(row: Record<K, number | string>): Record<K, number> {
+export function counts<K extends string>(row: Record<K, number | string>): Record<K, number> {
   const entries = Object.entries<number | string>(row).map(([key, value]) => [key, Number(value)]);
 
   return Object.fromEntries(entries) as Record<K, number>;

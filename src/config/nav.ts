@@ -120,6 +120,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FileText,
   },
   {
+    label: "KPI",
+    href: "/kpi",
+    permission: "dashboards:view",
+    icon: BarChart3,
+  },
+  {
     label: "Reports",
     href: "/reports",
     permission: "dashboards:view",
@@ -147,7 +153,7 @@ export const NAV_ITEMS: NavItem[] = [
  * above. A menu is only a look: the page behind an item is guarded on the server (spec R9), and a
  * role can still open a page it holds the permission for even when the page is not in its menu.
  *
- * Scan opens the scan of the seat of the first job of the day (UI-F07-S02). My History, KPI, ROI and Assistant have no page yet. The layout of their area already guards
+ * Scan opens the scan of the seat of the first job of the day (UI-F07-S02). My History, ROI and Assistant have no page yet. The layout of their area already guards
  * them, so another role gets a 403 and the right role gets a 404 until the page exists.
  */
 export const ROLE_MENUS: Partial<Record<Role, NavItem[]>> = {
@@ -214,7 +220,6 @@ export const ROLE_MENUS: Partial<Record<Role, NavItem[]>> = {
       href: "/partner/kpi",
       permission: "bookings:view_own_partner",
       icon: BarChart3,
-      planned: true,
     },
     {
       label: "ROI",
