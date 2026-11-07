@@ -92,13 +92,14 @@ const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
   "/flights": () => import("@/app/(dashboard)/flights/layout"),
   "/settlements": () => import("@/app/(dashboard)/settlements/page"),
   "/invoices": () => import("@/app/(dashboard)/invoices/page"),
+  "/kpi": () => import("@/app/(dashboard)/kpi/layout"),
   "/settings": () => import("@/app/(admin)/settings/page"),
 };
 
 /**
  * Pages of a role menu that are not a link of the full menu. The layout of the technician area
  * and the layout of the partner portal guard the pages below them, so `/partner/seats` and the
- * pages not built yet (My History, KPI, ROI, Assistant) are guarded by them: another role gets a
+ * pages not built yet (My History, ROI, Assistant) are guarded by them: another role gets a
  * 403 now, and the right role gets a 404 until the page exists.
  */
 const EXTRA_GUARDS: Record<string, () => Promise<{ default: unknown }>> = {

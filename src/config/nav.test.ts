@@ -51,6 +51,7 @@ const FIGMA_ADMIN_MENU = [
   ["Flights", Plane],
   ["Finance", CreditCard],
   ["Invoices", FileText],
+  ["KPI", BarChart3],
   ["Reports", BarChart3],
   ["Import", Upload],
   ["Settings", Settings],

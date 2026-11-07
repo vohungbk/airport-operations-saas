@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  COMMERCIAL_MISSING_INPUT,
   CORRECT_SEAT_MISSING_INPUT,
+  commercialFigure,
+  incidentsFigure,
+  traceabilityFigure,
   NOT_AVAILABLE_TEXT,
   NO_DATA_TEXT,
   ON_TIME_READINESS_MISSING_INPUT,
@@ -60,5 +64,58 @@ describe("a rate with nothing to show (VI-F05-T02, AC06, AC07)", () => {
 
   it("should prefer No data over Not available when there is no booking at all", () => {
     expect(rateFigure({ total: 0, with_input: 0, matched: 0 }, "reason")).toEqual({ state: "no_data" });
+  });
+});
+
+describe("cleaning / inspection traceability (VI-F05-S01, AC03)", () => {
+  it("should be the completed bookings that have both records, and count a missing record as a gap", () => {
+    expect(traceabilityFigure({ completed_bookings: 240, traced_bookings: 240 })).toMatchObject({
+      state: "value",
+      percent: 100,
+      numerator: 240,
+      denominator: 240,
+      excluded: 0,
+    });
+    expect(traceabilityFigure({ completed_bookings: 4, traced_bookings: 3 })).toMatchObject({ percent: 75 });
+  });
+
+  it("should say No data when there is no completed booking", () => {
+    expect(traceabilityFigure({ completed_bookings: 0, traced_bookings: 0 })).toEqual({ state: "no_data" });
+  });
+});
+
+describe("operational incidents (VI-F05-S01, AC03)", () => {
+  it("should give the incidents and their share of the completed bookings to two decimals", () => {
+    expect(incidentsFigure({ completed_bookings: 240, incidents: 3 })).toEqual({
+      state: "value",
+      incidents: 3,
+      completed_bookings: 240,
+      percent: 1.25,
+    });
+  });
+
+  it("should keep a real 0 when there are completed bookings and no incident", () => {
+    expect(incidentsFigure({ completed_bookings: 10, incidents: 0 })).toMatchObject({ state: "value", incidents: 0, percent: 0 });
+  });
+
+  it("should say No data when there is no completed booking", () => {
+    expect(incidentsFigure({ completed_bookings: 0, incidents: 0 })).toEqual({ state: "no_data" });
+  });
+});
+
+describe("commercial performance (VI-F05-S01, AC03)", () => {
+  it("should give the partner revenue share of the completed bookings", () => {
+    expect(commercialFigure({ completed_bookings: 240, with_revenue: 240, partner_revenue: 6000 })).toEqual({
+      state: "value",
+      amount: 6000,
+    });
+  });
+
+  it("should say No data with no completed booking, and Not available when no share is calculated", () => {
+    expect(commercialFigure({ completed_bookings: 0, with_revenue: 0, partner_revenue: 0 })).toEqual({ state: "no_data" });
+    expect(commercialFigure({ completed_bookings: 5, with_revenue: 0, partner_revenue: 0 })).toEqual({
+      state: "not_available",
+      reason: COMMERCIAL_MISSING_INPUT,
+    });
   });
 });
