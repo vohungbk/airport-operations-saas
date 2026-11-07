@@ -275,4 +275,20 @@ describe("KpiDashboard (VI-F05-S01)", () => {
     expect(html).not.toContain("Core programme KPIs");
     expect(html).not.toContain("Seat utilisation");
   });
+
+  it("should give every tile a button that opens its formula (VI-F05-S03, AC01)", async () => {
+    const html = await render({ period: "2026-10" });
+
+    expect(html.match(/aria-label="How [^"]+ is calculated"/g)).toHaveLength(14);
+    expect(html).toContain('aria-label="How Correct-seat fulfilment is calculated"');
+    expect(html).toContain('aria-label="How Seat utilisation is calculated"');
+  });
+
+  it("should open the formula of a KPI that has no data, and keep the buttons of the tiles the search leaves", async () => {
+    getCoreKpisMock.mockResolvedValue({ ok: true, kpis: { ...KPIS, incidents: { state: "no_data" } } });
+
+    const html = await render({ q: "incident" });
+
+    expect(html.match(/aria-label="How [^"]+ is calculated"/g)).toEqual(['aria-label="How Operational incidents is calculated"']);
+  });
 });
