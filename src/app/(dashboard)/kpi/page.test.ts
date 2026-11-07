@@ -37,7 +37,7 @@ describe("the KPI dashboard of the internal team (VI-F05-S01, AC02)", () => {
       props: { scope_label: string; period?: string };
     };
 
-    expect(element.props).toEqual({ scope_label: "All partners", period: "ytd" });
+    expect(element.props).toEqual({ scope_label: "All partners", roi_href: "/roi", period: "ytd" });
   });
 
   it("should hand the comparison choice to the dashboard", async () => {

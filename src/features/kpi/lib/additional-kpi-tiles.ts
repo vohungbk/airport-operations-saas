@@ -14,7 +14,7 @@ export const NO_READY_BOOKINGS_CAPTION = "No booking reached Ready in this perio
 export const NO_INSTALLATIONS_CAPTION = "No installation was completed in this period";
 export const NO_SEATS_CAPTION = "No seat is in service";
 
-const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+export const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
 /** `5.2 d`, or `5 d` when the number is whole. */
 const days = (value: number) => `${value} d`;
