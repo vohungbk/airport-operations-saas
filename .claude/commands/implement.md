@@ -23,7 +23,6 @@ The ticket already has acceptance criteria (AC). Do not rewrite stories or ACs.
      - `<type>`: `feat` for a Story/Feature, `fix` for a Bug, `chore` for a Task. Use the allowed types in `.claude/rules/git-workflow.md`.
      - `<slug>`: short kebab-case from the ticket title, without the ticket code prefix.
    - If it is another unrelated branch, stop and ask the user which branch to use.
-6. Check each AC is testable. If an AC is vague or missing, ask the user. Do not guess.
 
 ## Phase 2: Explore and plan
 1. Explore the repo for the code each AC touches. Follow `.claude/rules/frontend.md`, `.claude/rules/backend.md` and `CLAUDE.md`.
@@ -46,16 +45,9 @@ Stop after the plan. Ask: "Approve this plan?"
 1. Work task by task, following the approved plan. If the plan must change, stop and ask.
 2. Write tests with Vitest. Test names are meaningful, for example "should return error when email is invalid". Every new or changed RLS policy needs a cross-tenant denial test. Only write the tests here. Do not run them: tests run once, in step 6.
 3. Keep business logic out of React components. Use Zod for input validation and the existing Supabase server client. Do not add dependencies.
-4. Run `/code-review` on the changes. Fix the findings that are real, or say why you skip one.
-5. Run `/simplify` and apply the fixes.
-6. Run `/verify --build` at the end and show the exit codes. This is the only place tests run, and it runs only the changed test files. Run it after steps 4 and 5, because they change the code.
-7. Right after step 6 is green, start the dev server for the user to review. Do not ask first.
-   - Run it in the background from the repo root: `npm run dev` (runs `next dev` on port 3000).
-   - Check that port 3000 is free first (`lsof -i :3000`). Check that the server answers HTTP 200 on `http://localhost:3000`.
-   - If the feature needs a logged-in user, use a seeded test user from the project's seed files. Do not hardcode credentials or commit temporary helpers.
-   - Give the user the URL, the pages and states to check, and anything known to be missing (for example a page that 404s because another feature owns it).
-   - Tell the user how to stop it: `pkill -f "next dev"`. Keep it running until the user is done. Stop it before `npm run build`.
-8. Do not commit or push unless the user asks. Wait for the user's review first, unless they already asked to commit and open the PR. Commit format follows `.claude/rules/git-commit.md`: `feat(<scope>): <subject>`, tests in a separate `test(<scope>)` commit.
+4. Run `/simplify` and apply the fixes.
+5. Run `/verify --build` at the end and show the exit codes. This is the only place tests run, and it runs only the changed test files. Run it after steps 4 and 5, because they change the code.
+6. Do not commit or push unless the user asks. Wait for the user's review first, unless they already asked to commit and open the PR. Commit format follows `.claude/rules/git-commit.md`: `feat(<scope>): <subject>`, tests in a separate `test(<scope>)` commit.
 
 ## Output
 - Report each AC with a status: Pass / Fail / Block / Not run, and the evidence.
