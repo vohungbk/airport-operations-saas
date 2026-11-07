@@ -1,4 +1,5 @@
 import type { KpiFigure } from "@/lib/kpi/kpi-figures";
+import { getKpiDefinition } from "@/lib/kpi/kpi-definitions";
 import { NOT_AVAILABLE_TEXT, NO_DATA_TEXT } from "@/lib/kpi/kpi-figures";
 
 /**
@@ -8,10 +9,11 @@ import { NOT_AVAILABLE_TEXT, NO_DATA_TEXT } from "@/lib/kpi/kpi-figures";
  * still to settle (spec Q1). Pure, no I/O.
  */
 
-export const CORRECT_SEAT_FORMULA_TITLE = "Formula help · Correct-seat fulfilment";
-export const CORRECT_SEAT_FORMULA = "Allocated seat installed ÷ completed bookings × 100";
-export const CORRECT_SEAT_FORMULA_NOTE =
-  "Excludes cancelled bookings and no-shows. Based on verified scan and installation records.";
+const definition = getKpiDefinition("correct_seat");
+
+export const CORRECT_SEAT_FORMULA_TITLE = `Formula help · ${definition.label}`;
+export const CORRECT_SEAT_FORMULA = definition.formula;
+export const CORRECT_SEAT_FORMULA_NOTE = definition.note;
 
 export interface CorrectSeatFormulaHelp {
   title: string;
