@@ -1,4 +1,8 @@
+import Link from "next/link";
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { PageEmpty } from "@/components/shared/page-state";
 import { CorrectSeatFormulaHelpCard } from "@/features/kpi/components/correct-seat-formula-help-card";
 import { KpiPeriodPicker } from "@/features/kpi/components/kpi-period-picker";
@@ -24,6 +28,8 @@ interface KpiDashboardProps {
   compare?: string;
   /** The `q` of the address: the words the tiles are narrowed to; it is validated here, not trusted. */
   q?: string;
+  /** Where Open ROI goes (VI-F05-S04, NAV-1): the ROI dashboard of the same scope. */
+  roi_href: string;
 }
 
 /**
@@ -33,7 +39,7 @@ interface KpiDashboardProps {
  * period before are only for the change lines of the tiles: if they cannot be read, the tiles show no
  * change and the page still shows the figures of the period.
  */
-export async function KpiDashboard({ scope_label, period, compare, q }: KpiDashboardProps) {
+export async function KpiDashboard({ scope_label, period, compare, q, roi_href }: KpiDashboardProps) {
   const now = new Date();
   const resolved = resolveKpiPeriod(period, now);
 
@@ -55,12 +61,17 @@ export async function KpiDashboard({ scope_label, period, compare, q }: KpiDashb
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">KPI dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          {scope_label}
-          {resolved.ok ? ` · ${resolved.period.label}` : ""}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">KPI dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            {scope_label}
+            {resolved.ok ? ` · ${resolved.period.label}` : ""}
+          </p>
+        </div>
+        <Link href={roi_href} className={cn(buttonVariants({ variant: "outline" }), "min-h-11 px-4")}>
+          Open ROI
+        </Link>
       </div>
 
       <KpiPeriodPicker

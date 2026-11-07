@@ -19,6 +19,7 @@ export default async function PartnerKpiPage({ searchParams }: PartnerKpiPagePro
   return (
     <KpiDashboard
       scope_label={summary?.name ?? "Your partner"}
+      roi_href="/partner/roi"
       period={Array.isArray(period) ? period[0] : period}
       compare={Array.isArray(compare) ? compare[0] : compare}
       q={Array.isArray(q) ? q[0] : q}
