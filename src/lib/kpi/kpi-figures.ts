@@ -77,3 +77,48 @@ export function onTimeReadinessFigure(counts: { family_ready_bookings: number; w
     ON_TIME_READINESS_MISSING_INPUT,
   );
 }
+
+const roundTwoDecimals = (value: number) => Math.round(value * 100) / 100;
+
+/** Operational incidents: the incidents of the completed bookings, and how many per completed booking. */
+export type IncidentsFigure =
+  | { state: "value"; incidents: number; completed_bookings: number; percent: number }
+  | { state: "no_data" };
+
+export function incidentsFigure(counts: { completed_bookings: number; incidents: number }): IncidentsFigure {
+  if (counts.completed_bookings === 0) return { state: "no_data" };
+
+  return {
+    state: "value",
+    incidents: counts.incidents,
+    completed_bookings: counts.completed_bookings,
+    percent: roundTwoDecimals((counts.incidents / counts.completed_bookings) * 100),
+  };
+}
+
+/** Commercial performance: the partner revenue share of the completed bookings, in USD. */
+export type AmountFigure =
+  | { state: "value"; amount: number }
+  | { state: "no_data" }
+  | { state: "not_available"; reason: string };
+
+export const COMMERCIAL_MISSING_INPUT = "No partner share is calculated for these bookings";
+
+export function commercialFigure(counts: {
+  completed_bookings: number;
+  with_revenue: number;
+  partner_revenue: number;
+}): AmountFigure {
+  if (counts.completed_bookings === 0) return { state: "no_data" };
+  if (counts.with_revenue === 0) return { state: "not_available", reason: COMMERCIAL_MISSING_INPUT };
+
+  return { state: "value", amount: counts.partner_revenue };
+}
+
+/** Cleaning / inspection traceability: completed bookings with both records. A missing record is a gap, not an unknown. */
+export function traceabilityFigure(counts: { completed_bookings: number; traced_bookings: number }): KpiFigure {
+  return rateFigure(
+    { total: counts.completed_bookings, with_input: counts.completed_bookings, matched: counts.traced_bookings },
+    "",
+  );
+}

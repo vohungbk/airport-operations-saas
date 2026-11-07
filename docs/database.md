@@ -1012,6 +1012,23 @@ that are already there. `demo:reset` wipes it: run it again after.
   nothing is changed. A seeded row that was changed or deleted since is **not**
   put back by a rerun: only `npm run demo:reset` (a reset) does that.
 
+**KPI demo data (VI-F05-S01).** `supabase/seeds/kpi-demo.sql` adds 31 rentals that are
+over (BK-00101 to BK-00131), with their seats, installations, cleaning and inspection
+records and incidents, for the two demo partners in September, October and November
+2026, so every state of the KPI dashboard can be looked at (values with a change against
+the month before, No data, Not available, and the Empty state in July). It is **not** in
+`[db.seed]`, so `db reset` does not load it. Load it by hand after `seed.sql` and
+`demo.sql`:
+
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/seeds/kpi-demo.sql
+```
+
+It is one statement (all or nothing), refuses to run next to real accounts or before
+`demo.sql`, and does nothing when loaded again. It prints what the KPI functions give
+for each month; the file header says what each period shows. System timestamps are the
+time of the load, so it is not a deterministic seed.
+
 **Proof that two loads are the same.**
 
 ```bash

@@ -2349,6 +2349,28 @@ export type Database = {
         Args: { p_job_id: string; p_kind: string; p_value: string }
         Returns: boolean
       }
+      kpi_traceability_figures: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          completed_bookings: number
+          traced_bookings: number
+        }[]
+      }
+      kpi_incident_figures: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          completed_bookings: number
+          incidents: number
+        }[]
+      }
+      kpi_commercial_figures: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          completed_bookings: number
+          partner_revenue: number
+          with_revenue: number
+        }[]
+      }
       kpi_today_figures: {
         Args: { p_now?: string }
         Returns: {

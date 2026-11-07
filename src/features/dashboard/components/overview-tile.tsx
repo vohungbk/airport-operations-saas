@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface OverviewTileProps {
   label: string;
@@ -10,12 +11,14 @@ interface OverviewTileProps {
   caption?: string;
   /** The list the figure counts; the whole tile opens it. */
   href?: string;
+  /** Extra classes for the card, for a screen whose design draws the tile a little differently. */
+  className?: string;
 }
 
 /** A metric tile of the design (UI-F06-S04): the label and the value in 30 px. */
-export function OverviewTile({ label, value = "—", caption, href }: OverviewTileProps) {
+export function OverviewTile({ label, value = "—", caption, href, className }: OverviewTileProps) {
   return (
-    <Card className="relative h-full min-h-31">
+    <Card className={cn("relative h-full min-h-31", className)}>
       <CardContent className="flex flex-col gap-2">
         <p className="text-sm break-words text-muted-foreground">{label}</p>
         <p className="text-3xl font-semibold tracking-tight text-foreground">

@@ -1400,6 +1400,17 @@ time at the airport and converted to UTC with `airports.timezone`.
   count ("No data") or for nothing stored to compare ("Not available"); a row
   whose input is not stored is left out of the rate, not counted as a failure.
   The rules are written in `supabase/migrations/20261211090000_kpi_figures.sql`.
+- **KPI dashboard (VI-F05-S01).** `/partner/kpi` (partner user, guarded by
+  `bookings:view_own_partner`) and `/kpi` (admin and operations manager,
+  guarded by `dashboards:view` in its layout) show the five core KPIs for a
+  period through `src/lib/kpi/get-core-kpis.ts`. Besides the two rates above,
+  three functions (`kpi_traceability_figures`, `kpi_incident_figures`,
+  `kpi_commercial_figures`, in `20261212090000_kpi_core_figures.sql`) are
+  `SECURITY INVOKER` too, so a partner user counts only its own partner and
+  the internal roles count every partner. The period (`current`, `ytd` or
+  `YYYY-MM`, UTC calendar months) is the only input; it is validated with
+  Zod by the same function in the browser and on the server, and a month in
+  the future is refused in both. The scope is never taken from the request.
 - **Charts (VI-F01-S07).** Under the cards of each group there is a chart of the
   same data as horizontal bars: seats, bookings and jobs by status, and open
   incidents by severity (Critical first, with an icon and a heavier label, red
