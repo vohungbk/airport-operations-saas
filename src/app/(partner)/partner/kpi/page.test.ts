@@ -46,7 +46,7 @@ describe("PartnerKpiPage (VI-F05-S01, AC02)", () => {
   it("should hand the partner name and the period to the dashboard", async () => {
     const element = (await render("2026-10")) as { props: { scope_label: string; period?: string } };
 
-    expect(element.props).toEqual({ scope_label: "Emirates Rent A Car", period: "2026-10" });
+    expect(element.props).toEqual({ scope_label: "Emirates Rent A Car", roi_href: "/partner/roi", period: "2026-10" });
   });
 
   it("should hand the comparison choice to the dashboard", async () => {

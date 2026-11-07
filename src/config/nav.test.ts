@@ -52,6 +52,7 @@ const FIGMA_ADMIN_MENU = [
   ["Finance", CreditCard],
   ["Invoices", FileText],
   ["KPI", BarChart3],
+  ["ROI", TrendingUp],
   ["Reports", BarChart3],
   ["Import", Upload],
   ["Settings", Settings],

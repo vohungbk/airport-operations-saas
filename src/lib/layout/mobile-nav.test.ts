@@ -35,6 +35,7 @@ describe("splitMobileNav", () => {
       "/settlements",
       "/invoices",
       "/kpi",
+      "/roi",
       "/reports",
       "/import",
       "/settings",

@@ -54,8 +54,8 @@ const EMPTY: CoreKpis = {
   commercial: { state: "no_data" },
 };
 
-const render = async (props: { scope_label?: string; period?: string; compare?: string; q?: string } = {}) =>
-  renderToStaticMarkup(await KpiDashboard({ scope_label: "Emirates Rent A Car", ...props }));
+const render = async (props: { scope_label?: string; roi_href?: string; period?: string; compare?: string; q?: string } = {}) =>
+  renderToStaticMarkup(await KpiDashboard({ scope_label: "Emirates Rent A Car", roi_href: "/partner/roi", ...props }));
 
 describe("KpiDashboard (VI-F05-S01)", () => {
   beforeEach(() => {
@@ -63,6 +63,12 @@ describe("KpiDashboard (VI-F05-S01)", () => {
     getCoreKpisMock.mockResolvedValue({ ok: true, kpis: KPIS });
     getAdditionalKpisMock.mockReset();
     getAdditionalKpisMock.mockResolvedValue({ ok: true, kpis: ADDITIONAL });
+  });
+
+  it("should offer Open ROI, going to the ROI dashboard of the same scope (NAV-1)", async () => {
+    const html = await render({ roi_href: "/roi" });
+
+    expect(html).toMatch(/<a[^>]*href="\/roi"[^>]*>Open ROI<\/a>/);
   });
 
   it("should show the heading, the scope, the period and the five core KPIs (success)", async () => {
