@@ -6,14 +6,13 @@ allowed-tools: Bash(npm audit:*), Bash(git diff:*), Bash(git status), Bash(git l
 Run a security scan on the current branch. Follow `.claude/rules/web-security.md` and `docs/security.md`.
 
 ## Steps
-1. Dependencies: `npm audit --omit=dev; echo "exit=$?"`
-2. Secrets in the diff (committed on this branch, vs `main`, plus uncommitted):
+1. Secrets in the diff (committed on this branch, vs `main`, plus uncommitted):
    ```bash
    git diff main...HEAD | grep -nEi "(api[_-]?key|secret|password|token)\s*[:=]\s*['\"][^'\"]{16,}" || true
    git diff HEAD | grep -nEi "(api[_-]?key|secret|password|token)\s*[:=]\s*['\"][^'\"]{16,}" || true
    ```
-3. Files that must not be in the diff: `.env`, `.env.*` (except `.env.example`), `.next`, `node_modules`, `tsconfig.tsbuildinfo`. Check with `git diff main...HEAD --name-only` and `git status --short`.
-4. Review the changed code against the checklist:
+2. Files that must not be in the diff: `.env`, `.env.*` (except `.env.example`), `.next`, `node_modules`, `tsconfig.tsbuildinfo`. Check with `git diff main...HEAD --name-only` and `git status --short`.
+3. Review the changed code against the checklist:
    - [ ] No hardcoded secrets
    - [ ] No service-role key imported in client code or Client Components
    - [ ] No tokens, passwords or PII in logs

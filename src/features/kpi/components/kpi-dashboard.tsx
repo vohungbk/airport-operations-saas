@@ -3,6 +3,7 @@ import { PageEmpty } from "@/components/shared/page-state";
 import { CorrectSeatFormulaHelpCard } from "@/features/kpi/components/correct-seat-formula-help-card";
 import { KpiPeriodPicker } from "@/features/kpi/components/kpi-period-picker";
 import { KpiTileGrid } from "@/features/kpi/components/kpi-tile-grid";
+import { buildKpiFormulaHelps } from "@/features/kpi/lib/kpi-formula-help";
 import { buildAdditionalKpiTiles } from "@/features/kpi/lib/additional-kpi-tiles";
 import { buildCoreKpiTiles, isEmptyPeriod } from "@/features/kpi/lib/core-kpi-tiles";
 import { buildCorrectSeatFormulaHelp } from "@/features/kpi/lib/correct-seat-formula-help";
@@ -104,17 +105,23 @@ function KpiFigures({ kpis, additional, previous, period_label, query }: KpiFigu
 
   const coreTiles = filterBySearch(buildCoreKpiTiles(kpis, previous), query);
   const additionalTiles = filterBySearch(buildAdditionalKpiTiles(additional, kpis.commercial, period_label), query);
+  const helps = buildKpiFormulaHelps(kpis, period_label);
 
   if (coreTiles.length === 0 && additionalTiles.length === 0) return <PageEmpty message={`No KPI matches "${query}".`} />;
 
   return (
     <>
-      {coreTiles.length > 0 && <KpiTileGrid heading_id="core-kpis-heading" heading="Core programme KPIs" tiles={coreTiles} />}
+      {coreTiles.length > 0 && <KpiTileGrid heading_id="core-kpis-heading" heading="Core programme KPIs" tiles={coreTiles} helps={helps} />}
       {coreTiles.some((tile) => tile.id === "correct_seat") && (
         <CorrectSeatFormulaHelpCard help={buildCorrectSeatFormulaHelp(kpis.correct_seat, period_label)} />
       )}
       {additionalTiles.length > 0 && (
-        <KpiTileGrid heading_id="additional-kpis-heading" heading="Additional operational KPIs" tiles={additionalTiles} />
+        <KpiTileGrid
+          heading_id="additional-kpis-heading"
+          heading="Additional operational KPIs"
+          tiles={additionalTiles}
+          helps={helps}
+        />
       )}
     </>
   );

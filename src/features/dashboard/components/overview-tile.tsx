@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,10 +14,12 @@ interface OverviewTileProps {
   href?: string;
   /** Extra classes for the card, for a screen whose design draws the tile a little differently. */
   className?: string;
+  /** Something that sits over the whole tile, such as the button of a popover (VI-F05-S03). */
+  overlay?: ReactNode;
 }
 
 /** A metric tile of the design (UI-F06-S04): the label and the value in 30 px. */
-export function OverviewTile({ label, value = "—", caption, href, className }: OverviewTileProps) {
+export function OverviewTile({ label, value = "—", caption, href, className, overlay }: OverviewTileProps) {
   return (
     <Card className={cn("relative h-full min-h-31", className)}>
       <CardContent className="flex flex-col gap-2">
@@ -36,6 +39,7 @@ export function OverviewTile({ label, value = "—", caption, href, className }:
         </p>
         {caption && <p className="text-xs break-words text-muted-foreground">{caption}</p>}
       </CardContent>
+      {overlay}
     </Card>
   );
 }
