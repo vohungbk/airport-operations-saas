@@ -1,4 +1,5 @@
 import { formatKpiFigure, type AmountFigure, type IncidentsFigure, type KpiFigure, NOT_AVAILABLE_TEXT, NO_DATA_TEXT } from "@/lib/kpi/kpi-figures";
+import type { KpiTile } from "@/features/kpi/lib/kpi-tile";
 import type { CoreKpis } from "@/lib/kpi/get-core-kpis";
 
 /**
@@ -7,11 +8,8 @@ import type { CoreKpis } from "@/lib/kpi/get-core-kpis";
  * Pure, no I/O.
  */
 
-export interface CoreKpiTile {
+export interface CoreKpiTile extends KpiTile {
   id: keyof CoreKpis;
-  label: string;
-  value: string;
-  caption: string;
 }
 
 export const NO_COMPLETED_RENTALS_CAPTION = "No completed rentals in this period";
@@ -33,7 +31,7 @@ function rateChange(current: KpiFigure, previous: KpiFigure | undefined): string
   return changeText(roundOneDecimal(current.percent - previous.percent), "pp");
 }
 
-const usd = (amount: number) => {
+export const usd = (amount: number) => {
   const whole = Math.round(amount * 100) % 100 === 0;
 
   return new Intl.NumberFormat("en-US", {

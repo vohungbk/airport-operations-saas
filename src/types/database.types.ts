@@ -2371,6 +2371,32 @@ export type Database = {
           with_revenue: number
         }[]
       }
+      kpi_additional_figures: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          completed_bookings: number
+          installation_jobs: number
+          installation_minutes: number
+          installation_timed: number
+          paid_days: number
+          preparation_minutes: number
+          preparation_timed: number
+          prepared_bookings: number
+          refund_amount: number
+          refunded_bookings: number
+          rented_days: number
+          replacements: number
+        }[]
+      }
+      kpi_seat_inventory_figures: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          airport_codes: string
+          available_seat_days: number
+          available_seats: number
+          seats_in_service: number
+        }[]
+      }
       kpi_today_figures: {
         Args: { p_now?: string }
         Returns: {

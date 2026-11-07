@@ -2,8 +2,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getCoreKpisMock = vi.hoisted(() => vi.fn());
+const getAdditionalKpisMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/kpi/get-core-kpis", () => ({ getCoreKpis: getCoreKpisMock }));
+vi.mock("@/lib/kpi/get-additional-kpis", () => ({ getAdditionalKpis: getAdditionalKpisMock }));
 vi.mock("@/features/kpi/components/kpi-period-picker", () => ({
   KpiPeriodPicker: ({
     selected,
@@ -22,7 +24,19 @@ vi.mock("@/features/kpi/components/kpi-period-picker", () => ({
 
 import { EMPTY_PERIOD_MESSAGE, KpiDashboard } from "@/features/kpi/components/kpi-dashboard";
 import { FUTURE_MONTH_MESSAGE } from "@/lib/kpi/kpi-period";
+import type { AdditionalKpis } from "@/lib/kpi/get-additional-kpis";
 import type { CoreKpis } from "@/lib/kpi/get-core-kpis";
+
+const ADDITIONAL: AdditionalKpis = {
+  seat_utilisation: { state: "value", value: 68 },
+  average_rental_duration: { state: "value", value: 5.2 },
+  inventory_buffer: { state: "value", seats: 16, airports: "DXB" },
+  replacement_rate: { state: "value", percent: 0.8, replacements: 2, rentals: 240 },
+  average_preparation: { state: "value", value: 24 },
+  installation_time: { state: "value", value: 12 },
+  refunds: { state: "value", amount: 150, refunded_bookings: 3 },
+  complaints: { state: "not_available", reason: "No complaint record exists yet" },
+};
 
 const KPIS: CoreKpis = {
   correct_seat: { state: "value", percent: 99.2, numerator: 238, denominator: 240, excluded: 0 },
@@ -47,6 +61,8 @@ describe("KpiDashboard (VI-F05-S01)", () => {
   beforeEach(() => {
     getCoreKpisMock.mockReset();
     getCoreKpisMock.mockResolvedValue({ ok: true, kpis: KPIS });
+    getAdditionalKpisMock.mockReset();
+    getAdditionalKpisMock.mockResolvedValue({ ok: true, kpis: ADDITIONAL });
   });
 
   it("should show the heading, the scope, the period and the five core KPIs (success)", async () => {
@@ -192,5 +208,71 @@ describe("KpiDashboard (VI-F05-S01)", () => {
     getCoreKpisMock.mockResolvedValue({ ok: true, kpis: EMPTY });
 
     expect(await render()).not.toContain("Formula help");
+  });
+
+  it("should show the nine additional KPIs under their own heading (VI-F05-S02, AC01)", async () => {
+    const html = await render({ period: "2026-10" });
+
+    expect(html).toContain("Additional operational KPIs");
+    for (const label of [
+      "Seat utilisation",
+      "Average rental duration",
+      "Inventory buffer",
+      "Replacement rate",
+      "Average preparation",
+      "Installation time",
+      "Refunds",
+      "Complaints",
+      "Monthly partner revenue",
+    ]) {
+      expect(html).toContain(label);
+    }
+    expect(html).toContain("Available seats at DXB");
+    expect(html).toContain("USD · October 2026");
+  });
+
+  it("should read the additional KPIs for the same period as the core KPIs", async () => {
+    await render({ period: "2026-01" });
+
+    expect(getAdditionalKpisMock).toHaveBeenCalledWith({ from: "2026-01-01T00:00:00.000Z", to: "2026-02-01T00:00:00.000Z" });
+  });
+
+  it("should show the same value on Monthly partner revenue as on Commercial performance (E6)", async () => {
+    const html = await render();
+
+    expect(html.match(/\$6,000/g)).toHaveLength(2);
+  });
+
+  it("should say Not available on Complaints, never a number", async () => {
+    const html = await render();
+
+    expect(html).toContain("No complaint record exists yet");
+  });
+
+  it("should throw to the error boundary when the additional KPIs cannot be read", async () => {
+    getAdditionalKpisMock.mockResolvedValue({ ok: false, reason: "unavailable" });
+
+    await expect(render()).rejects.toThrow("Could not load the KPIs");
+  });
+
+  it("should read nothing for a period that cannot be shown", async () => {
+    await render({ period: "2999-01" });
+
+    expect(getAdditionalKpisMock).not.toHaveBeenCalled();
+  });
+
+  it("should show no additional KPI when the period is empty", async () => {
+    getCoreKpisMock.mockResolvedValue({ ok: true, kpis: EMPTY });
+
+    expect(await render()).not.toContain("Additional operational KPIs");
+  });
+
+  it("should narrow the additional tiles to the search and drop the core group when nothing in it matches", async () => {
+    const html = await render({ q: "refunds" });
+
+    expect(html).toContain("Additional operational KPIs");
+    expect(html).toContain("Refunds");
+    expect(html).not.toContain("Core programme KPIs");
+    expect(html).not.toContain("Seat utilisation");
   });
 });

@@ -1411,6 +1411,18 @@ time at the airport and converted to UTC with `airports.timezone`.
   `YYYY-MM`, UTC calendar months) is the only input; it is validated with
   Zod by the same function in the browser and on the server, and a month in
   the future is refused in both. The scope is never taken from the request.
+- **Additional KPIs (VI-F05-S02).** The same two pages show nine more tiles
+  (spec R2). `kpi_additional_figures` (`20261213090000_kpi_additional_figures.sql`)
+  is `SECURITY INVOKER`, so a partner user counts only its own partner's
+  bookings, seat changes, refunds and jobs. `kpi_seat_inventory_figures` is the
+  one `SECURITY DEFINER` function of the dashboard: the stock of seats is not
+  owned by a partner (a partner user can read only the seats on its own
+  bookings), yet the design shows the seats available at the airport. It
+  returns four aggregates and the airport codes, never a seat row, and refuses
+  (`42501`) any caller who is not an active admin, operations manager or partner
+  user. It takes no tenant input and has an empty `search_path`. Monthly
+  partner revenue is the figure of Commercial performance, and Complaints is
+  always "Not available" because no complaint record exists (spec Q3).
 - **Charts (VI-F01-S07).** Under the cards of each group there is a chart of the
   same data as horizontal bars: seats, bookings and jobs by status, and open
   incidents by severity (Critical first, with an icon and a heavier label, red

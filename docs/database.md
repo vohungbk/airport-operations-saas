@@ -512,6 +512,28 @@ future (`22023`). It also sets `seat_id` and `created_by`.
 The log is immutable: no UPDATE/DELETE policy, and `UPDATE`, `DELETE` and
 `TRUNCATE` are revoked from `anon` and `authenticated`.
 
+### KPI additional figures (VI-F05-S02)
+Migration `20261213090000_kpi_additional_figures.sql` adds two read-only functions for the nine
+additional KPIs of the KPI dashboard. The completed bookings are the ones of the core KPIs (returned,
+cleaning, inspection or completed, return time in `[from, to)`).
+
+| Tile | Formula | Source |
+|---|---|---|
+| Seat utilisation | rented seat-days / available seat-days | `bookings` (days of the rental inside the period), `seats` (in service from the purchase date until `retired_at`, up to now) |
+| Average rental duration | paid days / completed rentals | `bookings.paid_days` |
+| Inventory buffer | seats with status `available` now, with the airport codes | `seats`, `airports` |
+| Replacement rate | seat changes that had a seat before / completed rentals | `booking_events` (`seat_changed` with a `from_seat_id`) |
+| Average preparation | first move to `preparation` to first move to `ready` | `booking_events` |
+| Installation time | `started_at` to `completed_at` of completed installation jobs | `technician_jobs` |
+| Refunds | sum of `partial_refund` and `full_refund`, and the refunded bookings | `booking_adjustments` |
+| Complaints | not available: no complaint record exists (spec Q3) | none |
+| Monthly partner revenue | the figure of Commercial performance | `bookings.partner_share` |
+
+`kpi_additional_figures` is `SECURITY INVOKER` (RLS is the scope). `kpi_seat_inventory_figures` is
+`SECURITY DEFINER` and returns aggregates only, for admin, operations manager and partner user (see
+`docs/security.md`). A job without a start time, or a booking without a Preparation step, is left out
+of its average and is not counted as 0. Rollback SQL is at the bottom of the migration.
+
 ### KPI formula inputs (VI-F05-T01)
 Three KPI figures need inputs that were not stored. Every new column is nullable and
 nothing was back-filled: rows from before the change keep empty values.
