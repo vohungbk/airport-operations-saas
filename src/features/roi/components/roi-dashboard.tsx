@@ -8,11 +8,12 @@ import { OverviewTile } from "@/features/dashboard/components/overview-tile";
 import { EstimatedBusinessValue } from "@/features/roi/components/estimated-business-value";
 import { KpiPeriodPicker } from "@/features/kpi/components/kpi-period-picker";
 import { EDIT_BASELINE_LABEL } from "@/features/roi/lib/baseline-inputs";
-import { buildEstimateCards } from "@/features/roi/lib/estimated-value";
+import type { BaselineValues } from "@/features/roi/lib/baseline-inputs";
+import { buildBaselineEstimate } from "@/features/roi/lib/estimated-value";
 import { VERIFIED_RESULTS_NOTE, buildVerifiedResults, isEmptyRoiPeriod } from "@/features/roi/lib/verified-results";
 import { getAdditionalKpis, type AdditionalKpis } from "@/lib/kpi/get-additional-kpis";
 import { getCoreKpis, type CoreKpis } from "@/lib/kpi/get-core-kpis";
-import { kpiPeriodOptions, previousKpiPeriod, resolveKpiPeriod } from "@/lib/kpi/kpi-period";
+import { kpiPeriodOptions, monthsInPeriod, previousKpiPeriod, resolveKpiPeriod } from "@/lib/kpi/kpi-period";
 import { filterBySearch, parseKpiSearch } from "@/lib/kpi/kpi-search";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,11 @@ interface RoiDashboardProps {
   q?: string;
   /** Where Edit baseline inputs goes (VI-F05-S05, NAV-2). Only the partner page passes it, so the internal team has no button. */
   edit_baseline_href?: string;
+  /**
+   * The saved baseline of the partner (VI-F05-S06). Only the partner page passes it. Without one, the estimated
+   * values say Not available and the frame stays whole (E2); the internal team has none.
+   */
+  baseline?: BaselineValues | null;
 }
 
 /**
@@ -40,7 +46,7 @@ interface RoiDashboardProps {
  * scope and period, so they match the KPI dashboard (E6). A period in the future gets its message and no
  * figures, and a failed read is thrown to the error boundary, never shown as an empty screen.
  */
-export async function RoiDashboard({ scope_label, scope_note, period, compare, q, edit_baseline_href }: RoiDashboardProps) {
+export async function RoiDashboard({ scope_label, scope_note, period, compare, q, edit_baseline_href, baseline }: RoiDashboardProps) {
   const now = new Date();
   const resolved = resolveKpiPeriod(period, now);
 
@@ -90,7 +96,14 @@ export async function RoiDashboard({ scope_label, scope_note, period, compare, q
       )}
 
       {core?.ok && additional?.ok && resolved.ok && (
-        <RoiFigures core={core.kpis} additional={additional.kpis} period_label={resolved.period.label} query={query} />
+        <RoiFigures
+          core={core.kpis}
+          additional={additional.kpis}
+          period_label={resolved.period.label}
+          months={monthsInPeriod(resolved.period.param, now)}
+          baseline={baseline}
+          query={query}
+        />
       )}
     </div>
   );
@@ -100,14 +113,17 @@ interface RoiFiguresProps {
   core: CoreKpis;
   additional: AdditionalKpis;
   period_label: string;
+  months: number;
+  baseline?: BaselineValues | null;
   query: string;
 }
 
-function RoiFigures({ core, additional, period_label, query }: RoiFiguresProps) {
+function RoiFigures({ core, additional, period_label, months, baseline, query }: RoiFiguresProps) {
   if (isEmptyRoiPeriod(core)) return <PageEmpty message={EMPTY_ROI_PERIOD_MESSAGE} />;
 
   const verified = buildVerifiedResults(core, additional);
-  const cards = filterBySearch([verified.summary, ...buildEstimateCards(period_label)], query);
+  const estimate = buildBaselineEstimate(baseline, core, { period_label, months, verified_revenue_text: verified.summary.value });
+  const cards = filterBySearch([verified.summary, ...estimate.cards], query);
   const rows = filterBySearch(verified.rows, query);
 
   if (cards.length === 0 && rows.length === 0) return <PageEmpty message={`No result matches "${query}".`} />;
@@ -140,7 +156,7 @@ function RoiFigures({ core, additional, period_label, query }: RoiFiguresProps) 
             </CardContent>
           </Card>
         )}
-        <EstimatedBusinessValue verified_revenue={verified.summary.value} />
+        <EstimatedBusinessValue view={estimate} />
       </div>
     </>
   );
