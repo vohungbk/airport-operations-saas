@@ -218,3 +218,91 @@ describe.skipIf(!available)("the baseline inputs of a partner (VI-F05-S05)", () 
     expect(get("anon_save")).toEqual(["42501"]);
   });
 });
+
+/** Reports how many versions of the partner the signed-in user sees, and the owned seats of each, oldest first. */
+const versions = (label: string, partner: string) => `
+  do $$ declare n integer; seats text; begin
+    select count(*), string_agg(owned_seats::text, ',' order by id) into n, seats
+      from public.partner_baseline_input_versions where partner_id = '${partner}';
+    raise notice 'R|${label}|%|%', n, coalesce(seats, '-');
+  end $$;`;
+
+describe.skipIf(!available)("the baseline history of a partner (VI-F05-S08)", () => {
+  const rows = available
+    ? run(`
+        ${USER_OF("owner", "partner_user", PARTNER)}
+        ${USER_OF("other", "partner_user", OTHER_PARTNER)}
+        ${USER_OF("tech", "technician", null)}
+        ${USER_OF("admin", "admin", null)}
+        ${USER_OF("ops", "operations_manager", null)}
+        set local role authenticated;
+
+        ${signedInAs("owner")}
+        ${versions("before", PARTNER)}
+        ${save("first_save")}
+        ${save("second_save", { owned_seats: "50" })}
+        ${save("refused_save", { monthly_staff_cost: "-1", owned_seats: "60" })}
+        ${versions("owner_versions", PARTNER)}
+        do $$ begin
+          raise notice 'R|saved_by|%', (select bool_and(saved_by = current_setting('t.owner')::uuid and saved_at is not null)
+            from public.partner_baseline_input_versions where partner_id = '${PARTNER}');
+        end $$;
+        ${tryWrite("direct_insert", `insert into public.partner_baseline_input_versions (partner_id, monthly_staff_cost, handling_cost_per_rental,
+             monthly_inventory_cost, programme_inventory_cost, owned_seats, average_handling_minutes, hourly_staff_cost,
+             expected_programme_handling_minutes, average_daily_price, average_paid_days, baseline_conversion_percent,
+             programme_conversion_percent, qualified_enquiries, average_contribution_per_rental, saved_at)
+           values ('${PARTNER}', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, now());`)}
+        ${tryWrite("direct_update", `update public.partner_baseline_input_versions set owned_seats = 1 where partner_id = '${PARTNER}';`)}
+        ${tryWrite("direct_delete", `delete from public.partner_baseline_input_versions where partner_id = '${PARTNER}';`)}
+
+        ${signedInAs("other")}
+        ${versions("other_reads_owner", PARTNER)}
+        ${save("other_save")}
+        ${versions("other_reads_own", OTHER_PARTNER)}
+
+        ${signedInAs("tech")}
+        ${versions("tech_read", PARTNER)}
+
+        ${signedInAs("admin")}
+        ${versions("admin_reads_owner", PARTNER)}
+        ${versions("admin_reads_other", OTHER_PARTNER)}
+
+        ${signedInAs("ops")}
+        ${versions("ops_reads_owner", PARTNER)}`)
+    : [];
+
+  const get = (name: string) => rows.find((r) => r[0] === name)?.slice(1);
+
+  it("should have no version before the first save", () => {
+    expect(get("before")).toEqual(["0", "-"]);
+  });
+
+  it("should keep every saved baseline as a version, oldest first, and not the refused save (AC01)", () => {
+    expect(get("owner_versions")).toEqual(["2", "40,50"]);
+  });
+
+  it("should keep the time and the user who saved each version (AC01)", () => {
+    expect(get("saved_by")).toEqual(["true"]);
+  });
+
+  it("should refuse every direct write to the versions, for a partner user too", () => {
+    expect(get("direct_insert")).toEqual(["42501"]);
+    expect(get("direct_update")).toEqual(["42501"]);
+    expect(get("direct_delete")).toEqual(["42501"]);
+  });
+
+  it("should show a partner user of another partner none of these versions (cross-tenant denial)", () => {
+    expect(get("other_reads_owner")).toEqual(["0", "-"]);
+    expect(get("other_reads_own")).toEqual(["1", "40"]);
+  });
+
+  it("should show a technician none of the versions", () => {
+    expect(get("tech_read")).toEqual(["0", "-"]);
+  });
+
+  it("should let an admin and an operations manager read the versions of every partner", () => {
+    expect(get("admin_reads_owner")).toEqual(["2", "40,50"]);
+    expect(get("admin_reads_other")).toEqual(["1", "40"]);
+    expect(get("ops_reads_owner")).toEqual(["2", "40,50"]);
+  });
+});
