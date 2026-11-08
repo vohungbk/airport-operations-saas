@@ -1,5 +1,5 @@
 import { plural } from "@/features/kpi/lib/additional-kpi-tiles";
-import { NO_COMPLETED_RENTALS_CAPTION, usd } from "@/features/kpi/lib/core-kpi-tiles";
+import { NO_COMPLETED_RENTALS_CAPTION, commercialGapNote, joinCaption, usd } from "@/features/kpi/lib/core-kpi-tiles";
 import type { KpiTile } from "@/features/kpi/lib/kpi-tile";
 import type { AdditionalKpis } from "@/lib/kpi/get-additional-kpis";
 import type { CoreKpis } from "@/lib/kpi/get-core-kpis";
@@ -51,7 +51,7 @@ function revenueCaption(core: CoreKpis): string {
 
   const rentals = completedRentals(core);
 
-  return rentals === null ? NO_COMPLETED_RENTALS_CAPTION : plural(rentals, "completed rental");
+  return rentals === null ? NO_COMPLETED_RENTALS_CAPTION : joinCaption(plural(rentals, "completed rental"), commercialGapNote(commercial));
 }
 
 /** A refund is taken off the revenue, so it is written with a minus; no refund is a plain 0. */

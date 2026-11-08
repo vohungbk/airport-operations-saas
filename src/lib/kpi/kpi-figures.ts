@@ -98,7 +98,12 @@ export function incidentsFigure(counts: { completed_bookings: number; incidents:
 
 /** Commercial performance: the partner revenue share of the completed bookings, in USD. */
 export type AmountFigure =
-  | { state: "value"; amount: number }
+  | {
+      state: "value";
+      amount: number;
+      /** Completed bookings with no partner share; they are not in the amount. None or absent means nothing is left out. */
+      excluded?: number;
+    }
   | { state: "no_data" }
   | { state: "not_available"; reason: string };
 
@@ -112,7 +117,7 @@ export function commercialFigure(counts: {
   if (counts.completed_bookings === 0) return { state: "no_data" };
   if (counts.with_revenue === 0) return { state: "not_available", reason: COMMERCIAL_MISSING_INPUT };
 
-  return { state: "value", amount: counts.partner_revenue };
+  return { state: "value", amount: counts.partner_revenue, excluded: counts.completed_bookings - counts.with_revenue };
 }
 
 /** Cleaning / inspection traceability: completed bookings with both records. A missing record is a gap, not an unknown. */

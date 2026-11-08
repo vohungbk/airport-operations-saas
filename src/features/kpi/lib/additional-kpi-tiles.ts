@@ -1,4 +1,4 @@
-import { NO_COMPLETED_RENTALS_CAPTION, usd } from "@/features/kpi/lib/core-kpi-tiles";
+import { NO_COMPLETED_RENTALS_CAPTION, commercialGapNote, joinCaption, usd } from "@/features/kpi/lib/core-kpi-tiles";
 import type { KpiTile } from "@/features/kpi/lib/kpi-tile";
 import type { MeasureFigure } from "@/lib/kpi/additional-kpi-figures";
 import type { AdditionalKpis } from "@/lib/kpi/get-additional-kpis";
@@ -50,7 +50,7 @@ function revenueTile(figure: AmountFigure, period_label: string): KpiTile {
   if (figure.state === "no_data") return { id, label, value: NO_DATA_TEXT, caption: NO_COMPLETED_RENTALS_CAPTION };
   if (figure.state === "not_available") return { id, label, value: NOT_AVAILABLE_TEXT, caption: figure.reason };
 
-  return { id, label, value: usd(figure.amount), caption: `USD · ${period_label}` };
+  return { id, label, value: usd(figure.amount), caption: joinCaption(`USD · ${period_label}`, commercialGapNote(figure)) };
 }
 
 /**
