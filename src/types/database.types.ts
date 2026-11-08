@@ -1081,6 +1081,84 @@ export type Database = {
           },
         ]
       }
+      partner_baseline_inputs: {
+        Row: {
+          average_contribution_per_rental: number
+          average_daily_price: number
+          average_handling_minutes: number
+          average_paid_days: number
+          baseline_conversion_percent: number
+          created_at: string
+          expected_programme_handling_minutes: number
+          handling_cost_per_rental: number
+          hourly_staff_cost: number
+          monthly_inventory_cost: number
+          monthly_staff_cost: number
+          owned_seats: number
+          partner_id: string
+          programme_conversion_percent: number
+          programme_inventory_cost: number
+          qualified_enquiries: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          average_contribution_per_rental: number
+          average_daily_price: number
+          average_handling_minutes: number
+          average_paid_days: number
+          baseline_conversion_percent: number
+          created_at?: string
+          expected_programme_handling_minutes: number
+          handling_cost_per_rental: number
+          hourly_staff_cost: number
+          monthly_inventory_cost: number
+          monthly_staff_cost: number
+          owned_seats: number
+          partner_id: string
+          programme_conversion_percent: number
+          programme_inventory_cost: number
+          qualified_enquiries: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          average_contribution_per_rental?: number
+          average_daily_price?: number
+          average_handling_minutes?: number
+          average_paid_days?: number
+          baseline_conversion_percent?: number
+          created_at?: string
+          expected_programme_handling_minutes?: number
+          handling_cost_per_rental?: number
+          hourly_staff_cost?: number
+          monthly_inventory_cost?: number
+          monthly_staff_cost?: number
+          owned_seats?: number
+          partner_id?: string
+          programme_conversion_percent?: number
+          programme_inventory_cost?: number
+          qualified_enquiries?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_baseline_inputs_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: true
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_baseline_inputs_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_commercial_terms: {
         Row: {
           annual_fee: number
@@ -1689,6 +1767,50 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "cleaning_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      save_partner_baseline_inputs: {
+        Args: {
+          p_average_contribution_per_rental: number
+          p_average_daily_price: number
+          p_average_handling_minutes: number
+          p_average_paid_days: number
+          p_baseline_conversion_percent: number
+          p_expected_programme_handling_minutes: number
+          p_handling_cost_per_rental: number
+          p_hourly_staff_cost: number
+          p_monthly_inventory_cost: number
+          p_monthly_staff_cost: number
+          p_owned_seats: number
+          p_programme_conversion_percent: number
+          p_programme_inventory_cost: number
+          p_qualified_enquiries: number
+        }
+        Returns: {
+          average_contribution_per_rental: number
+          average_daily_price: number
+          average_handling_minutes: number
+          average_paid_days: number
+          baseline_conversion_percent: number
+          created_at: string
+          expected_programme_handling_minutes: number
+          handling_cost_per_rental: number
+          hourly_staff_cost: number
+          monthly_inventory_cost: number
+          monthly_staff_cost: number
+          owned_seats: number
+          partner_id: string
+          programme_conversion_percent: number
+          programme_inventory_cost: number
+          qualified_enquiries: number
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "partner_baseline_inputs"
           isOneToOne: true
           isSetofReturn: false
         }
