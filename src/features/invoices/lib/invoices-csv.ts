@@ -7,7 +7,7 @@ import {
 export const CSV_BOM = "﻿";
 
 /** A line of a CSV file ends with CRLF (RFC 4180). */
-const EOL = "\r\n";
+export const EOL = "\r\n";
 
 /**
  * A text cell. A cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return would be taken for a
