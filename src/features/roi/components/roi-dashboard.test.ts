@@ -12,6 +12,7 @@ vi.mock("@/features/kpi/components/kpi-period-picker", () => ({
 
 import { EMPTY_ROI_PERIOD_MESSAGE, RoiDashboard } from "@/features/roi/components/roi-dashboard";
 import { FUTURE_MONTH_MESSAGE } from "@/lib/kpi/kpi-period";
+import type { BaselineValues } from "@/features/roi/lib/baseline-inputs";
 import type { AdditionalKpis } from "@/lib/kpi/get-additional-kpis";
 import type { CoreKpis } from "@/lib/kpi/get-core-kpis";
 
@@ -42,7 +43,24 @@ const EMPTY_CORE: CoreKpis = {
   commercial: { state: "no_data" },
 };
 
-const render = async (props: { period?: string; q?: string; scope_note?: string; edit_baseline_href?: string } = {}) =>
+const BASELINE: BaselineValues = {
+  monthly_staff_cost: 2400,
+  handling_cost_per_rental: 5,
+  monthly_inventory_cost: 1500,
+  programme_inventory_cost: 700,
+  owned_seats: 40,
+  average_handling_minutes: 20,
+  hourly_staff_cost: 15,
+  expected_programme_handling_minutes: 10,
+  average_daily_price: 20,
+  average_paid_days: 5,
+  baseline_conversion_percent: 12,
+  programme_conversion_percent: 15,
+  qualified_enquiries: 1000,
+  average_contribution_per_rental: 50,
+};
+
+const render = async (props: { period?: string; q?: string; scope_note?: string; edit_baseline_href?: string; baseline?: BaselineValues | null } = {}) =>
   renderToStaticMarkup(await RoiDashboard({ scope_label: "Emirates Rent A Car", ...props }));
 
 describe("RoiDashboard (VI-F05-S04)", () => {
@@ -74,13 +92,75 @@ describe("RoiDashboard (VI-F05-S04)", () => {
     expect(getAdditionalKpisMock).toHaveBeenCalledWith(range);
   });
 
-  it("should mark the estimated business value as an estimate and show no estimated number", async () => {
-    const html = await render();
+  it("should keep the whole Estimated business value frame, saying Not available, when no baseline is saved (VI-F05-S06, AC03, E2)", async () => {
+    for (const baseline of [null, undefined]) {
+      const html = await render({ baseline });
+
+      expect(html).toContain("Verified results");
+      expect(html).toContain("USD 6,000");
+      expect(html).toContain("Estimated business value");
+      expect(html).toContain("Estimated avoided costs");
+      expect(html).toContain("Total partner value created");
+      expect(html).toContain("Estimate · No baseline saved yet");
+      expect(html).toContain("Not available · Estimate");
+      expect(html).not.toMatch(/USD 9,500|USD 3,500|USD 1,500|USD 1,200/);
+    }
+  });
+
+  it("should show the estimate with the total partner value, marked Estimate, when a baseline is saved (VI-F05-S06, AC01)", async () => {
+    const html = await render({ baseline: BASELINE, period: "2026-10" });
 
     expect(html).toContain("Estimated business value");
     expect(html).toContain("Estimated avoided costs");
-    expect(html).toContain("Estimate · No baseline saved yet");
-    expect(html).not.toMatch(/USD 3,500|USD 1,500|USD 9,500/);
+    expect(html).toContain("Total partner value created");
+    expect(html).toContain("USD 9,500");
+    expect(html).toContain("Estimate · October 2026");
+    expect(html).toContain("USD 1,200 · Estimate");
+    expect(html).toContain("USD 800 · Estimate");
+  });
+
+  it("should keep the verified results as they are when an estimate is shown, never mixing the estimate in (VI-F05-S06, AC02)", async () => {
+    const withEstimate = await render({ baseline: BASELINE });
+    const verified = withEstimate.slice(withEstimate.indexOf('id="verified-results-heading"'), withEstimate.indexOf('id="estimated-value-heading"'));
+
+    expect(verified).toContain("USD 6,000");
+    expect(verified).toContain("240");
+    expect(verified).not.toMatch(/USD 9,500|USD 3,500|USD 1,500|USD 1,200|Estimate/);
+  });
+
+  it("should read the figures of one month for a month and of the months so far for year to date (VI-F05-S06, AC01)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-15T10:00:00Z"));
+
+    try {
+      expect(await render({ baseline: BASELINE, period: "2026-10" })).toContain("USD 9,500");
+      // Ten months of inventory savings (8,000) and of conversion value (15,000), and 240 rentals of handling (1,200).
+      const html = await render({ baseline: BASELINE, period: "ytd" });
+
+      expect(html).toContain("USD 30,200");
+      expect(html).toContain("USD 9,200");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("should say Not available on the total, not 0, when the verified revenue is not available (VI-F05-S06, R13)", async () => {
+    getCoreKpisMock.mockResolvedValue({ ok: true, kpis: { ...CORE, commercial: { state: "not_available", reason: "No share is calculated" } } });
+
+    const html = await render({ baseline: BASELINE });
+
+    expect(html).toContain("Total partner value created");
+    expect(html).toMatch(/Total partner value created[\s\S]*Not available/);
+    expect(html).not.toContain("USD 3,500");
+  });
+
+  it("should draw no estimate on an empty period even when a baseline is saved (E1)", async () => {
+    getCoreKpisMock.mockResolvedValue({ ok: true, kpis: EMPTY_CORE });
+
+    const html = await render({ baseline: BASELINE });
+
+    expect(html).toContain(EMPTY_ROI_PERIOD_MESSAGE);
+    expect(html).not.toContain("Estimated business value");
   });
 
   it("should show the empty state, with no figure of zero, when no rental is completed (empty, E1)", async () => {
