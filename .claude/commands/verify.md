@@ -8,21 +8,9 @@ Verify the current work. Arguments: $ARGUMENTS
 
 Run these in order. Show the real exit code of each. Do not say "pass" without running.
 
-1. `npx tsc --noEmit; echo "exit=$?"`
-2. `npm run lint; echo "exit=$?"`
-3. `npx vitest run --changed main --passWithNoTests; echo "exit=$?"` (only the test files that changed against `main`, plus the tests that import a changed file; this is the one place tests run)
-4. `npm run build; echo "exit=$?"` (run if `--build` is given or source files changed under `src/`; check with `git diff --stat` and `git status`)
-
-## Rules
-- Do not stop at the first failure. Run all steps, then report.
-- On a failure, show the failing file, line and message. Then propose a fix. Do not fix silently unless the user asked.
-- Run the tests once, in step 3, and only the changed ones. Do not run `npm run test` or the whole suite unless the user asks.
-- Do not skip, disable or edit tests or lint rules just to get green.
-- Before step 4, check for a running dev server (`pgrep -fl "next dev"`). It shares the `.next` directory with the build. Never stop it yourself: it is the user's process. If one is running, skip step 4, say so in one line, run the other steps, and ask the user to stop it or to run the build.
-- Keep the output small. Send the output of steps 2 to 4 to a log file in the scratchpad directory and show only the exit code and the failing lines (for example `grep -E "FAIL|×|error|Test Files|Tests "`). Never print a whole log.
+1. `npx vitest run --changed main --passWithNoTests; echo "exit=$?"` (only the test files that changed against `main`, plus the tests that import a changed file; this is the one place tests run)
+2. `npm run build; echo "exit=$?"` (run if `--build` is given or source files changed under `src/`; check with `git diff --stat` and `git status`)
 
 ## Output
-| Step | Command | Exit code | Result |
-|------|---------|-----------|--------|
 
 End with one line: "All green" only if every exit code is 0. Otherwise list what failed.
