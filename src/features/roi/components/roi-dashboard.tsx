@@ -6,14 +6,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageEmpty } from "@/components/shared/page-state";
 import { OverviewTile } from "@/features/dashboard/components/overview-tile";
 import { EstimatedBusinessValue } from "@/features/roi/components/estimated-business-value";
+import { ExportReportButton } from "@/features/kpi/components/export-report-button";
+import { buildReportHref } from "@/features/kpi/lib/download-report";
 import { KpiPeriodPicker } from "@/features/kpi/components/kpi-period-picker";
 import { EDIT_BASELINE_LABEL } from "@/features/roi/lib/baseline-inputs";
 import type { BaselineValues } from "@/features/roi/lib/baseline-inputs";
 import { buildBaselineEstimate, type TrendMonthFigures } from "@/features/roi/lib/estimated-value";
+import { readTrendMonths } from "@/features/roi/lib/read-trend-months";
 import { VERIFIED_RESULTS_NOTE, buildVerifiedResults, isEmptyRoiPeriod } from "@/features/roi/lib/verified-results";
 import { getAdditionalKpis, type AdditionalKpis } from "@/lib/kpi/get-additional-kpis";
 import { getCoreKpis, type CoreKpis } from "@/lib/kpi/get-core-kpis";
-import { kpiPeriodOptions, monthsInPeriod, previousKpiPeriod, resolveKpiPeriod, trendMonths, type ResolvedKpiPeriod } from "@/lib/kpi/kpi-period";
+import { kpiPeriodOptions, monthsInPeriod, previousKpiPeriod, resolveKpiPeriod } from "@/lib/kpi/kpi-period";
 import { filterBySearch, parseKpiSearch } from "@/lib/kpi/kpi-search";
 import { cn } from "@/lib/utils";
 
@@ -75,11 +78,16 @@ export async function RoiDashboard({ scope_label, scope_note, period, compare, q
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">ROI dashboard</h1>
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        {edit_baseline_href && (
-          <Link href={edit_baseline_href} className={cn(buttonVariants({ variant: "outline" }), "min-h-11 px-4")}>
-            {EDIT_BASELINE_LABEL}
-          </Link>
-        )}
+        <div className="flex flex-wrap items-start gap-2">
+          {resolved.ok && (
+            <ExportReportButton href={buildReportHref("/api/reports/roi", { period: selected, compare_on: true, query })} />
+          )}
+          {edit_baseline_href && (
+            <Link href={edit_baseline_href} className={cn(buttonVariants({ variant: "outline" }), "min-h-11 px-4")}>
+              {EDIT_BASELINE_LABEL}
+            </Link>
+          )}
+        </div>
       </div>
 
       <KpiPeriodPicker
@@ -109,20 +117,6 @@ export async function RoiDashboard({ scope_label, scope_note, period, compare, q
         />
       )}
     </div>
-  );
-}
-
-/**
- * The months of the trend (VI-F05-S07), read for the signed-in user like every figure of the page. A month that
- * cannot be read has no figures, so its total says Not available instead of failing the whole dashboard.
- */
-async function readTrendMonths(period: ResolvedKpiPeriod): Promise<TrendMonthFigures[]> {
-  return Promise.all(
-    trendMonths(period).map(async ({ label, from, to }) => {
-      const result = await getCoreKpis({ from, to });
-
-      return { label, core: result.ok ? result.kpis : null };
-    }),
   );
 }
 

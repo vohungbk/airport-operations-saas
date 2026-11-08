@@ -4,6 +4,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PageEmpty } from "@/components/shared/page-state";
+import { ExportReportButton } from "@/features/kpi/components/export-report-button";
+import { buildReportHref } from "@/features/kpi/lib/download-report";
 import { CorrectSeatFormulaHelpCard } from "@/features/kpi/components/correct-seat-formula-help-card";
 import { KpiPeriodPicker } from "@/features/kpi/components/kpi-period-picker";
 import { KpiTileGrid } from "@/features/kpi/components/kpi-tile-grid";
@@ -69,9 +71,14 @@ export async function KpiDashboard({ scope_label, period, compare, q, roi_href }
             {resolved.ok ? ` · ${resolved.period.label}` : ""}
           </p>
         </div>
-        <Link href={roi_href} className={cn(buttonVariants({ variant: "outline" }), "min-h-11 px-4")}>
-          Open ROI
-        </Link>
+        <div className="flex flex-wrap items-start gap-2">
+          {resolved.ok && (
+            <ExportReportButton href={buildReportHref("/api/reports/kpi", { period: selected, compare_on: compareOn, query })} />
+          )}
+          <Link href={roi_href} className={cn(buttonVariants({ variant: "outline" }), "min-h-11 px-4")}>
+            Open ROI
+          </Link>
+        </div>
       </div>
 
       <KpiPeriodPicker
