@@ -42,7 +42,7 @@ const EMPTY_CORE: CoreKpis = {
   commercial: { state: "no_data" },
 };
 
-const render = async (props: { period?: string; q?: string; scope_note?: string } = {}) =>
+const render = async (props: { period?: string; q?: string; scope_note?: string; edit_baseline_href?: string } = {}) =>
   renderToStaticMarkup(await RoiDashboard({ scope_label: "Emirates Rent A Car", ...props }));
 
 describe("RoiDashboard (VI-F05-S04)", () => {
@@ -113,5 +113,21 @@ describe("RoiDashboard (VI-F05-S04)", () => {
     expect(html).not.toContain("Verified completed rentals");
 
     expect(await render({ q: "zzz" })).toContain('No result matches &quot;zzz&quot;.');
+  });
+
+  it("should draw the Edit baseline inputs button when the partner page gives it a place to go (VI-F05-S05, AC07)", async () => {
+    const html = await render({ edit_baseline_href: "/partner/roi/baseline" });
+
+    expect(html).toMatch(/<a[^>]*href="\/partner\/roi\/baseline"[^>]*>Edit baseline inputs<\/a>/);
+  });
+
+  it("should draw no Edit baseline inputs button for the internal team, which gets no place to go (VI-F05-S05, AC07)", async () => {
+    expect(await render()).not.toContain("Edit baseline inputs");
+  });
+
+  it("should still draw the Edit baseline inputs button on an empty period, so the baseline can be entered first (VI-F05-S05, AC07)", async () => {
+    getCoreKpisMock.mockResolvedValue({ ok: true, kpis: EMPTY_CORE });
+
+    expect(await render({ edit_baseline_href: "/partner/roi/baseline" })).toContain("Edit baseline inputs");
   });
 });

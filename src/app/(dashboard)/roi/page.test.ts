@@ -40,6 +40,12 @@ describe("the ROI dashboard of the internal team (VI-F05-S04, AC01)", () => {
     expect(element.props).toEqual({ scope_label: "All partners", period: "ytd" });
   });
 
+  it("should give the internal team no way to edit a baseline (VI-F05-S05, AC07)", async () => {
+    const element = (await RoiPage({ searchParams: Promise.resolve({}) })) as { props: { edit_baseline_href?: string } };
+
+    expect(element.props.edit_baseline_href).toBeUndefined();
+  });
+
   it("should hand the comparison choice to the dashboard", async () => {
     const element = (await RoiPage({ searchParams: Promise.resolve({ compare: "off" }) })) as {
       props: { compare?: string };

@@ -1,5 +1,6 @@
 import { requirePartnerScope } from "@/lib/auth/current-user";
 import { RoiDashboard } from "@/features/roi/components/roi-dashboard";
+import { PARTNER_BASELINE_ROUTE } from "@/lib/constants/routes";
 import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
 
 interface PartnerRoiPageProps {
@@ -20,6 +21,7 @@ export default async function PartnerRoiPage({ searchParams }: PartnerRoiPagePro
     <RoiDashboard
       scope_label={summary?.name ?? "Your partner"}
       scope_note="Your partner data only"
+      edit_baseline_href={PARTNER_BASELINE_ROUTE}
       period={Array.isArray(period) ? period[0] : period}
       compare={Array.isArray(compare) ? compare[0] : compare}
       q={Array.isArray(q) ? q[0] : q}

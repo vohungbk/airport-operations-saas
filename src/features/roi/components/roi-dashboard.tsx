@@ -1,15 +1,20 @@
+import Link from "next/link";
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageEmpty } from "@/components/shared/page-state";
 import { OverviewTile } from "@/features/dashboard/components/overview-tile";
 import { EstimatedBusinessValue } from "@/features/roi/components/estimated-business-value";
 import { KpiPeriodPicker } from "@/features/kpi/components/kpi-period-picker";
+import { EDIT_BASELINE_LABEL } from "@/features/roi/lib/baseline-inputs";
 import { buildEstimateCards } from "@/features/roi/lib/estimated-value";
 import { VERIFIED_RESULTS_NOTE, buildVerifiedResults, isEmptyRoiPeriod } from "@/features/roi/lib/verified-results";
 import { getAdditionalKpis, type AdditionalKpis } from "@/lib/kpi/get-additional-kpis";
 import { getCoreKpis, type CoreKpis } from "@/lib/kpi/get-core-kpis";
 import { kpiPeriodOptions, previousKpiPeriod, resolveKpiPeriod } from "@/lib/kpi/kpi-period";
 import { filterBySearch, parseKpiSearch } from "@/lib/kpi/kpi-search";
+import { cn } from "@/lib/utils";
 
 export const EMPTY_ROI_PERIOD_MESSAGE =
   "No completed rentals in this period. The verified results appear here once rentals are completed.";
@@ -25,6 +30,8 @@ interface RoiDashboardProps {
   compare?: string;
   /** The `q` of the address: the words the cards are narrowed to; it is validated here, not trusted. */
   q?: string;
+  /** Where Edit baseline inputs goes (VI-F05-S05, NAV-2). Only the partner page passes it, so the internal team has no button. */
+  edit_baseline_href?: string;
 }
 
 /**
@@ -33,7 +40,7 @@ interface RoiDashboardProps {
  * scope and period, so they match the KPI dashboard (E6). A period in the future gets its message and no
  * figures, and a failed read is thrown to the error boundary, never shown as an empty screen.
  */
-export async function RoiDashboard({ scope_label, scope_note, period, compare, q }: RoiDashboardProps) {
+export async function RoiDashboard({ scope_label, scope_note, period, compare, q, edit_baseline_href }: RoiDashboardProps) {
   const now = new Date();
   const resolved = resolveKpiPeriod(period, now);
 
@@ -55,9 +62,16 @@ export async function RoiDashboard({ scope_label, scope_note, period, compare, q
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">ROI dashboard</h1>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">ROI dashboard</h1>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        </div>
+        {edit_baseline_href && (
+          <Link href={edit_baseline_href} className={cn(buttonVariants({ variant: "outline" }), "min-h-11 px-4")}>
+            {EDIT_BASELINE_LABEL}
+          </Link>
+        )}
       </div>
 
       <KpiPeriodPicker

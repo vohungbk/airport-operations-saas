@@ -90,3 +90,7 @@ export const AUTH_ONLY_ROUTES = ["/login", "/signup"] as const;
  * story "Open Seat From QR" (CO-F04-S13); until it is built a scan gives a not-found page.
  */
 export const SEAT_QR_PATH_PREFIX = "/q";
+
+/** The ROI dashboard of a partner user (VI-F05-S04), and the Baseline inputs screen under it (VI-F05-S05). */
+export const PARTNER_ROI_ROUTE = "/partner/roi";
+export const PARTNER_BASELINE_ROUTE = "/partner/roi/baseline";
