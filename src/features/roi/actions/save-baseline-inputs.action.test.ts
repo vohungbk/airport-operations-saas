@@ -83,7 +83,8 @@ describe("saveBaselineInputsAction (VI-F05-S05, AC06)", () => {
     ["a conversion below 0", { programme_conversion_percent: -0.01 }],
     ["a missing value", { average_paid_days: undefined }],
     ["a value sent as text", { average_daily_price: "20" }],
-  ])("should answer a validation error and not call the database for %s (AC03 to AC05)", async (_name, change) => {
+    ["a value that is not a number", { average_paid_days: Number.NaN }],
+  ])("should answer a validation error and not call the database for %s (AC03 to AC05, VI-F05-S10 AC01)", async (_name, change) => {
     const result = await saveBaselineInputsAction(input(change));
 
     expect(result).toEqual({ success: false, error: { code: "VALIDATION_ERROR", message: "Check the form and try again." } });
