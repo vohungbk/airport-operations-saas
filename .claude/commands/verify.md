@@ -18,7 +18,8 @@ Run these in order. Show the real exit code of each. Do not say "pass" without r
 - On a failure, show the failing file, line and message. Then propose a fix. Do not fix silently unless the user asked.
 - Run the tests once, in step 3, and only the changed ones. Do not run `npm run test` or the whole suite unless the user asks.
 - Do not skip, disable or edit tests or lint rules just to get green.
-- Stop any running `next dev` server before step 4, because it shares the `.next` directory with the build.
+- Before step 4, check for a running dev server (`pgrep -fl "next dev"`). It shares the `.next` directory with the build. Never stop it yourself: it is the user's process. If one is running, skip step 4, say so in one line, run the other steps, and ask the user to stop it or to run the build.
+- Keep the output small. Send the output of steps 2 to 4 to a log file in the scratchpad directory and show only the exit code and the failing lines (for example `grep -E "FAIL|×|error|Test Files|Tests "`). Never print a whole log.
 
 ## Output
 | Step | Command | Exit code | Result |
