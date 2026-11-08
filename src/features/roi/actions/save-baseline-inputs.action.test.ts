@@ -7,6 +7,11 @@ const revalidatePathMock = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/auth/current-user", () => ({ requirePartnerScope: requirePartnerScopeMock }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ rpc: rpcMock }) }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
+vi.mock("next/navigation", () => ({
+  forbidden: vi.fn(() => {
+    throw new Error("FORBIDDEN_STATE");
+  }),
+}));
 
 import { saveBaselineInputsAction } from "@/features/roi/actions/save-baseline-inputs.action";
 
@@ -92,12 +97,10 @@ describe("saveBaselineInputsAction (VI-F05-S05, AC06)", () => {
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 
-  it("should answer forbidden when the database refuses the caller", async () => {
+  it("should end in the forbidden state when the database refuses the caller, as the permission was revoked (VI-F05-S12 AC02)", async () => {
     rpcMock.mockResolvedValue({ data: null, error: { code: "42501", message: "Not allowed" } });
 
-    const result = await saveBaselineInputsAction(input());
-
-    expect(result).toMatchObject({ success: false, error: { code: "FORBIDDEN" } });
+    await expect(saveBaselineInputsAction(input())).rejects.toThrow("FORBIDDEN_STATE");
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 

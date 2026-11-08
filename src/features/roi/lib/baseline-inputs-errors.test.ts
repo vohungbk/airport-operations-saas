@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { INTERNAL_ERROR, mapBaselineInputsError } from "@/features/roi/lib/baseline-inputs-errors";
+import { INTERNAL_ERROR, NETWORK_ERROR, mapBaselineInputsError } from "@/features/roi/lib/baseline-inputs-errors";
 
 describe("mapBaselineInputsError (VI-F05-S05)", () => {
-  it("should answer forbidden when the caller is not a partner user", () => {
-    expect(mapBaselineInputsError({ code: "42501" })).toMatchObject({ code: "FORBIDDEN" });
-  });
-
   it.each([
     ["22023", "Every field is required."],
     ["BL001", "An amount must be zero or more, with at most 2 decimals."],
@@ -21,5 +17,11 @@ describe("mapBaselineInputsError (VI-F05-S05)", () => {
 
     expect(result).toEqual(INTERNAL_ERROR);
     expect(JSON.stringify(result)).not.toContain("db.internal");
+  });
+
+  it("should tell the user the entries are kept and a retry is possible when the network fails (VI-F05-S12 AC01)", () => {
+    expect(NETWORK_ERROR).toMatchObject({ code: "NETWORK_ERROR" });
+    expect(NETWORK_ERROR.message).toContain("Your entries are kept");
+    expect(NETWORK_ERROR.message).toContain("try again");
   });
 });
