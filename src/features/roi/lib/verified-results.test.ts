@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { NO_COMPLETED_RENTALS_CAPTION } from "@/features/kpi/lib/core-kpi-tiles";
+import { buildAdditionalKpiTiles } from "@/features/kpi/lib/additional-kpi-tiles";
+import { NO_COMPLETED_RENTALS_CAPTION, buildCoreKpiTiles } from "@/features/kpi/lib/core-kpi-tiles";
 import {
   buildVerifiedResults,
   isEmptyRoiPeriod,
@@ -57,6 +58,20 @@ describe("buildVerifiedResults (VI-F05-S04, AC02, AC03)", () => {
     const { summary } = buildVerifiedResults({ ...CORE, commercial: { state: "value", amount: 1250.5 } }, ADDITIONAL);
 
     expect(summary.value).toBe("USD 1,250.50");
+  });
+
+  it("should say how many rentals are left out of the revenue, as the KPI dashboard does (AC01, AC04, R13)", () => {
+    const commercial = { state: "value", amount: 5000, excluded: 40 } as const;
+    const { summary } = buildVerifiedResults({ ...CORE, commercial }, ADDITIONAL);
+    const kpiTile = buildCoreKpiTiles({ ...CORE, commercial })[4];
+    const additionalTile = buildAdditionalKpiTiles(ADDITIONAL, commercial, "October 2026").find((tile) => tile.id === "monthly_partner_revenue");
+
+    expect(summary.value).toBe("USD 5,000");
+    expect(kpiTile.value).toBe("$5,000");
+    expect(summary.caption).toBe("240 completed rentals · 40 left out, no partner share calculated");
+    expect(kpiTile.caption).toContain("40 left out, no partner share calculated");
+    expect(additionalTile?.value).toBe(kpiTile.value);
+    expect(additionalTile?.caption).toBe("USD · October 2026 · 40 left out, no partner share calculated");
   });
 
   it("should say Not available with its reason, never USD 0, when no partner share is calculated (R13)", () => {
