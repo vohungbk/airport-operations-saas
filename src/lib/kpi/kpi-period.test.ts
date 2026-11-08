@@ -5,6 +5,7 @@ import {
   INVALID_PERIOD_MESSAGE,
   currentMonthParam,
   kpiPeriodOptions,
+  monthsInPeriod,
   previousKpiPeriod,
   resolveKpiPeriod,
 } from "@/lib/kpi/kpi-period";
@@ -144,5 +145,16 @@ describe("previousKpiPeriod (VI-F05-S01, comparison)", () => {
       from: "2025-01-01T00:00:00.000Z",
       to: "2025-12-01T00:00:00.000Z",
     });
+  });
+});
+
+describe("monthsInPeriod (VI-F05-S06)", () => {
+  it("should count the months so far this year, the current month included, for year to date", () => {
+    expect(monthsInPeriod("ytd", NOW)).toBe(11);
+    expect(monthsInPeriod("ytd", new Date("2026-01-31T12:00:00.000Z"))).toBe(1);
+  });
+
+  it.each(["current", "2026-09"])("should count one month for %s", (param) => {
+    expect(monthsInPeriod(param, NOW)).toBe(1);
   });
 });

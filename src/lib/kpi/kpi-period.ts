@@ -38,6 +38,14 @@ export function currentMonthParam(now: Date): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+/**
+ * The months a period covers (VI-F05-S06): year to date is the months so far this year, the current month
+ * included; the current month and a chosen month are one.
+ */
+export function monthsInPeriod(param: string, now: Date): number {
+  return param === "ytd" ? now.getUTCMonth() + 1 : 1;
+}
+
 const monthLabel = (date: Date) =>
   new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(date);
 

@@ -25,4 +25,21 @@ the period. A period is a UTC calendar month, year to date, or a chosen month, a
 | Complaints | Complaints recorded in the period | No source yet: no complaint record exists | Shown as Not available until the PO confirms where complaints come from (spec Q3). |
 | Monthly partner revenue | Sum of the partner revenue share of the completed bookings | Bookings (partner share) | In USD. The same figure as Commercial performance for the same scope and period. |
 
-The ROI lines of the ROI dashboard (VI-F05-S06 to S08) get their rows here when those stories are built.
+## ROI estimate formulas (VI-F05-S06)
+
+The estimated lines of the ROI dashboard of a partner. Every one is an estimate modelled from the saved baseline inputs
+and the verified rentals of the period; it is labelled Estimate and never added to a verified figure other than in the
+one total that says so. The words are written once in `src/features/roi/lib/roi-definitions.ts`, and
+`src/features/roi/lib/roi-definitions-doc.test.ts` fails when this table and that file differ.
+
+These formulas are a working assumption: spec Q2 (how each avoided cost is calculated) and Q4 (calendar rules) are still
+open until the PO answers. A period of year to date counts the months so far this year, the current month included. With
+no baseline saved, the estimated lines say Not available.
+
+| ROI line | Formula | Data source | Note |
+|---|---|---|---|
+| Avoided handling | Handling cost per rental × completed rentals | Baseline inputs and completed bookings | Estimate. The rentals are the verified rentals of the period. |
+| Inventory savings | (Monthly inventory cost − programme inventory cost) × months in the period | Baseline inputs | Estimate. Year to date counts the months so far this year, the current month included. |
+| Conversion value | (Programme conversion − baseline conversion) × qualified enquiries × months × average contribution per rental | Baseline inputs | Estimate. The first part is the incremental rentals shown under the value. |
+| Estimated avoided costs | Avoided handling + inventory savings | The two lines above | Estimate. Conversion value is a separate card. |
+| Total partner value created | Verified partner revenue + avoided handling + inventory savings + conversion value | Verified partner revenue and the three estimated lines | Estimate. Onboarding and annual fees are not taken off yet (spec R6 is open). Not available when the verified revenue is not. |

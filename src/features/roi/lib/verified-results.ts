@@ -32,7 +32,7 @@ export interface VerifiedResults {
 }
 
 /** The completed rentals of the period; `null` when there is none, so no figure is made up. */
-function completedRentals(core: CoreKpis): number | null {
+export function completedRentals(core: CoreKpis): number | null {
   return core.incidents.state === "value" ? core.incidents.completed_bookings : null;
 }
 
