@@ -37,7 +37,7 @@ describe("getCoreKpis (VI-F05-S01, AC03)", () => {
         family_ready_on_time: { state: "value", percent: 97.5, numerator: 234, denominator: 240, excluded: 0 },
         traceability: { state: "value", percent: 100, numerator: 240, denominator: 240, excluded: 0 },
         incidents: { state: "value", incidents: 3, completed_bookings: 240, percent: 1.25 },
-        commercial: { state: "value", amount: 6000 },
+        commercial: { state: "value", amount: 6000, excluded: 0 },
       },
     });
     for (const name of ["kpi_traceability_figures", "kpi_incident_figures", "kpi_commercial_figures"]) {

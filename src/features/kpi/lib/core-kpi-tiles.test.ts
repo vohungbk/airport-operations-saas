@@ -30,6 +30,12 @@ describe("buildCoreKpiTiles (VI-F05-S01, AC03)", () => {
     ]);
   });
 
+  it("should say how many rentals are left out of the commercial performance when the share is partial (AC01, R13)", () => {
+    const tiles = buildCoreKpiTiles({ ...FULL, commercial: { state: "value", amount: 5000, excluded: 40 } });
+
+    expect(tiles[4].caption).toBe("USD · Partner revenue share · 40 left out, no partner share calculated");
+  });
+
   it("should show cents only when the amount has them", () => {
     const tiles = buildCoreKpiTiles({ ...FULL, commercial: { state: "value", amount: 5953.5 } });
 

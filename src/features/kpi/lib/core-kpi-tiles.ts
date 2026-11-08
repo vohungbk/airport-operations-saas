@@ -61,7 +61,7 @@ function rateTile(
       : base;
   const change = rateChange(figure, options.previous);
 
-  return { id, label, value, caption: change ? `${note} · ${change}` : note };
+  return { id, label, value, caption: joinCaption(note, change) };
 }
 
 function incidentsTile(figure: IncidentsFigure, previous: IncidentsFigure | undefined): CoreKpiTile {
@@ -80,13 +80,27 @@ function incidentsTile(figure: IncidentsFigure, previous: IncidentsFigure | unde
   };
 }
 
+/** A caption and its gap note, joined as the other captions are; the note is left out when there is none. */
+export const joinCaption = (caption: string, note: string | null): string => (note ? `${caption} · ${note}` : caption);
+
+/**
+ * `40 left out, no partner share calculated` when some completed rentals are not in the revenue, so the
+ * amount is never read as the revenue of every rental (R13). Nothing when none is left out. Every screen that
+ * shows the revenue adds it, so they say the same.
+ */
+export function commercialGapNote(figure: AmountFigure): string | null {
+  if (figure.state !== "value" || !figure.excluded) return null;
+
+  return `${figure.excluded} left out, no partner share calculated`;
+}
+
 function commercialTile(figure: AmountFigure): CoreKpiTile {
   const label = "Commercial performance";
 
   if (figure.state === "no_data") return { id: "commercial", label, value: NO_DATA_TEXT, caption: NO_COMPLETED_RENTALS_CAPTION };
   if (figure.state === "not_available") return { id: "commercial", label, value: NOT_AVAILABLE_TEXT, caption: figure.reason };
 
-  return { id: "commercial", label, value: usd(figure.amount), caption: "USD · Partner revenue share" };
+  return { id: "commercial", label, value: usd(figure.amount), caption: joinCaption("USD · Partner revenue share", commercialGapNote(figure)) };
 }
 
 /**

@@ -108,7 +108,16 @@ describe("commercial performance (VI-F05-S01, AC03)", () => {
     expect(commercialFigure({ completed_bookings: 240, with_revenue: 240, partner_revenue: 6000 })).toEqual({
       state: "value",
       amount: 6000,
+      excluded: 0,
     });
+  });
+
+  it.each([
+    [240, 200, 40],
+    [5, 4, 1],
+    [3, 3, 0],
+  ])("should count the bookings left out of the revenue (%i completed, %i with a share) as %i", (completed_bookings, with_revenue, excluded) => {
+    expect(commercialFigure({ completed_bookings, with_revenue, partner_revenue: 100 })).toMatchObject({ state: "value", excluded });
   });
 
   it("should say No data with no completed booking, and Not available when no share is calculated", () => {
