@@ -9,11 +9,11 @@ import { EstimatedBusinessValue } from "@/features/roi/components/estimated-busi
 import { KpiPeriodPicker } from "@/features/kpi/components/kpi-period-picker";
 import { EDIT_BASELINE_LABEL } from "@/features/roi/lib/baseline-inputs";
 import type { BaselineValues } from "@/features/roi/lib/baseline-inputs";
-import { buildBaselineEstimate } from "@/features/roi/lib/estimated-value";
+import { buildBaselineEstimate, type TrendMonthFigures } from "@/features/roi/lib/estimated-value";
 import { VERIFIED_RESULTS_NOTE, buildVerifiedResults, isEmptyRoiPeriod } from "@/features/roi/lib/verified-results";
 import { getAdditionalKpis, type AdditionalKpis } from "@/lib/kpi/get-additional-kpis";
 import { getCoreKpis, type CoreKpis } from "@/lib/kpi/get-core-kpis";
-import { kpiPeriodOptions, monthsInPeriod, previousKpiPeriod, resolveKpiPeriod } from "@/lib/kpi/kpi-period";
+import { kpiPeriodOptions, monthsInPeriod, previousKpiPeriod, resolveKpiPeriod, trendMonths, type ResolvedKpiPeriod } from "@/lib/kpi/kpi-period";
 import { filterBySearch, parseKpiSearch } from "@/lib/kpi/kpi-search";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +60,8 @@ export async function RoiDashboard({ scope_label, scope_note, period, compare, q
       ])
     : [null, null];
 
+  const trend_months = resolved.ok && baseline ? await readTrendMonths(resolved.period) : [];
+
   if ((core && !core.ok) || (additional && !additional.ok)) {
     throw new Error("Could not load the ROI dashboard");
   }
@@ -102,10 +104,25 @@ export async function RoiDashboard({ scope_label, scope_note, period, compare, q
           period_label={resolved.period.label}
           months={monthsInPeriod(resolved.period.param, now)}
           baseline={baseline}
+          trend_months={trend_months}
           query={query}
         />
       )}
     </div>
+  );
+}
+
+/**
+ * The months of the trend (VI-F05-S07), read for the signed-in user like every figure of the page. A month that
+ * cannot be read has no figures, so its total says Not available instead of failing the whole dashboard.
+ */
+async function readTrendMonths(period: ResolvedKpiPeriod): Promise<TrendMonthFigures[]> {
+  return Promise.all(
+    trendMonths(period).map(async ({ label, from, to }) => {
+      const result = await getCoreKpis({ from, to });
+
+      return { label, core: result.ok ? result.kpis : null };
+    }),
   );
 }
 
@@ -115,14 +132,15 @@ interface RoiFiguresProps {
   period_label: string;
   months: number;
   baseline?: BaselineValues | null;
+  trend_months: TrendMonthFigures[];
   query: string;
 }
 
-function RoiFigures({ core, additional, period_label, months, baseline, query }: RoiFiguresProps) {
+function RoiFigures({ core, additional, period_label, months, baseline, trend_months, query }: RoiFiguresProps) {
   if (isEmptyRoiPeriod(core)) return <PageEmpty message={EMPTY_ROI_PERIOD_MESSAGE} />;
 
   const verified = buildVerifiedResults(core, additional);
-  const estimate = buildBaselineEstimate(baseline, core, { period_label, months, verified_revenue_text: verified.summary.value });
+  const estimate = buildBaselineEstimate(baseline, core, { period_label, months, verified_revenue_text: verified.summary.value, trend_months });
   const cards = filterBySearch([verified.summary, ...estimate.cards], query);
   const rows = filterBySearch(verified.rows, query);
 
