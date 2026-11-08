@@ -6,7 +6,7 @@
  */
 
 export interface RoiDefinition {
-  id: "avoided_handling" | "inventory_savings" | "conversion_value" | "avoided_costs" | "total_partner_value";
+  id: "avoided_handling" | "inventory_savings" | "conversion_value" | "avoided_costs" | "total_partner_value" | "monthly_total_trend";
   label: string;
   formula: string;
   source: string;
@@ -48,5 +48,12 @@ export const ROI_DEFINITIONS: readonly RoiDefinition[] = [
     formula: "Verified partner revenue + avoided handling + inventory savings + conversion value",
     source: "Verified partner revenue and the three estimated lines",
     note: "Estimate. Onboarding and annual fees are not taken off yet (spec R6 is open). Not available when the verified revenue is not.",
+  },
+  {
+    id: "monthly_total_trend",
+    label: "Monthly total trend",
+    formula: "Total partner value created, worked out for each of the last six calendar months",
+    source: "Verified partner revenue and baseline inputs",
+    note: "Estimate. Ends with the last month of the period; year to date ends with the current month. A month with no figures is Not available.",
   },
 ];

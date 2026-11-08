@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+import { Sparkline } from "@/components/charts/sparkline";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -73,6 +74,12 @@ export function EstimatedBusinessValue({ view }: EstimatedBusinessValueProps) {
                 </div>
               </div>
             ))}
+            {view.trend.points.length > 0 && (
+              <>
+                <Sparkline label="Estimate monthly total" points={view.trend.points} />
+                <p className="text-xs text-muted-foreground">{view.trend.summary}</p>
+              </>
+            )}
           </div>
         </div>
       </CardContent>

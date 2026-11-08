@@ -154,3 +154,35 @@ export function previousKpiPeriod(period: ResolvedKpiPeriod): PreviousKpiPeriod 
 
   return { label: monthLabel(previous), from: previous.toISOString(), to: period.from };
 }
+
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
+/** How many months the trend of the ROI dashboard shows (VI-F05-S07). */
+export const TREND_MONTH_COUNT = 6;
+
+export interface TrendMonth {
+  /** `May`: the three-letter name the trend line is worded with. */
+  label: string;
+  /** Inside the month. */
+  from: string;
+  /** Not inside the month. */
+  to: string;
+}
+
+/**
+ * The calendar months of the trend (VI-F05-S07, AC02): the last `count` months, oldest first, ending with the last
+ * month of the period. A month and the current month end with themselves; year to date ends with the current month.
+ * Same UTC months as `resolveKpiPeriod`, so the trend and the total of the period never read different calendars.
+ * Pure, no I/O.
+ */
+export function trendMonths(period: ResolvedKpiPeriod, count: number = TREND_MONTH_COUNT): TrendMonth[] {
+  const end = new Date(period.to);
+
+  return Array.from({ length: count }, (_, index) => {
+    const back = count - index;
+    const from = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - back, 1));
+    const to = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - back + 1, 1));
+
+    return { label: MONTH_NAMES[from.getUTCMonth()], from: from.toISOString(), to: to.toISOString() };
+  });
+}
