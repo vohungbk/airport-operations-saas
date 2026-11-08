@@ -56,6 +56,4 @@ Stop after the plan. Ask: "Approve this plan?"
 6. Do not commit or push unless the user asks. Wait for the user's review first, unless they already asked to commit and open the PR. Commit format follows `.claude/rules/git-commit.md`: `feat(<scope>): <subject>`, tests in a separate `test(<scope>)` commit.
 
 ## Output
-- Report each AC with a status: Pass / Fail / Block / Not run, and the evidence.
-- End with the dev server URL and what to check.
 - Do not summarise the agent's report again. Say only what was changed because of it, in one line.

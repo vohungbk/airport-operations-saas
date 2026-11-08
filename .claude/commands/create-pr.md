@@ -12,19 +12,18 @@ Run this only because the user asked for it. Pushing is outward-facing.
 1. Check the branch is not `main` and the working tree is clean (`git status`). If there are uncommitted changes, ask the user.
 2. Run `/security-scan`. Stop on High findings.
 3. Read the ticket: `gh issue view <number> --repo vohungbk/airport-operations-saas`. Copy every AC row verbatim.
-4. Capture screenshot evidence (see "Screenshot evidence" below). Skip it, and say so, when the diff has no UI change.
-5. Load the `pr-description` skill and fill `.github/PULL_REQUEST_TEMPLATE.md`. Keep the body short:
+4. Load the `pr-description` skill and fill `.github/PULL_REQUEST_TEMPLATE.md`. Keep the body short:
    - `Closes #<number>`
    - Summary: what, why and the changes in a few lines, plus the notes a reviewer needs (a difference from the spec or the Figma, an open question).
    - AC table: criteria verbatim, and in the status cell one line with the status (Pass / Fail / Block / Skip / Not run) and the real evidence.
    - Impact assessment from the actual diff (`git diff main...HEAD`): one line per changed area, no more than 6 rows. Fold the regression scenarios into it.
    - Verification checklist: tick only what was run (lint, build, RLS, service-role key, Zod). Do not tick "passes in CI" yet.
    - Manual testing, regression, evidence and test report sections: when nothing was done, one line each ("Not run: <why>", "n/a: not captured"), not a table. Leave out the bug fix section for a feature.
-6. Push and create the PR:
+5. Push and create the PR:
    - `git push -u origin <branch>` (never force push)
    - `gh pr create --base main --title "<conventional title>" --body-file <file>`
    - Write the body file in the scratchpad directory, not in the repo.
-7. Bind the PR with the ccd_pr tools if available. Report the PR link.
+6. Bind the PR with the ccd_pr tools if available. Report the PR link.
 
 ## Rules
 - Base branch is `main`.
