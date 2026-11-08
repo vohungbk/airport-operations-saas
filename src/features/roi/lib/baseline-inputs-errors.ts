@@ -5,18 +5,13 @@ import type { PostgrestError } from "@supabase/supabase-js";
  * A raw database error never reaches the client.
  */
 export interface BaselineInputsActionError {
-  code: "VALIDATION_ERROR" | "FORBIDDEN" | "NETWORK_ERROR" | "INTERNAL_ERROR";
+  code: "VALIDATION_ERROR" | "NETWORK_ERROR" | "INTERNAL_ERROR";
   message: string;
 }
 
 export const VALIDATION_ERROR: BaselineInputsActionError = {
   code: "VALIDATION_ERROR",
   message: "Check the form and try again.",
-};
-
-export const FORBIDDEN_ERROR: BaselineInputsActionError = {
-  code: "FORBIDDEN",
-  message: "Only a partner user can change the baseline inputs.",
 };
 
 export const NETWORK_ERROR: BaselineInputsActionError = {
@@ -29,11 +24,12 @@ export const INTERNAL_ERROR: BaselineInputsActionError = {
   message: "Something went wrong. Please try again.",
 };
 
-/** The error codes of `save_partner_baseline_inputs()`. Anything else is a generic error. */
+/**
+ * The error codes of `save_partner_baseline_inputs()`. Anything else is a generic error. `42501` (forbidden)
+ * is not mapped here: the action ends in the forbidden state instead.
+ */
 export function mapBaselineInputsError(error: Pick<PostgrestError, "code">): BaselineInputsActionError {
   switch (error.code) {
-    case "42501":
-      return FORBIDDEN_ERROR;
     case "22023":
       return { code: "VALIDATION_ERROR", message: "Every field is required." };
     case "BL001":
