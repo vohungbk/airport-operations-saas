@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { BaselineValues } from "@/features/roi/lib/baseline-inputs";
-import { buildBaselineEstimate, estimateAmount } from "@/features/roi/lib/estimated-value";
+import { buildBaselineEstimate, buildTotalTrend, estimateAmount } from "@/features/roi/lib/estimated-value";
 import type { CoreKpis } from "@/lib/kpi/get-core-kpis";
 
 const BASELINE: BaselineValues = {
@@ -133,5 +133,49 @@ describe("buildBaselineEstimate without a baseline (VI-F05-S06, AC03, E2, R13)",
     const core: CoreKpis = { ...CORE, incidents: { state: "no_data" } };
 
     expect(frame(BASELINE, core).cards[0].value).toBe("Not available");
+  });
+});
+
+describe("the monthly total of the trend (VI-F05-S07, AC01, AC02)", () => {
+  const month = (label: string, core: CoreKpis | null) => ({ label, core });
+  const SMALL: CoreKpis = { ...CORE, incidents: { state: "value", incidents: 0, completed_bookings: 100, percent: 0 }, commercial: { state: "value", amount: 2500 } };
+
+  it("should give each month its verified revenue plus its own estimated lines, and word them as an estimate", () => {
+    const trend = buildTotalTrend(BASELINE, [month("Sep", SMALL), month("Oct", CORE)]);
+
+    // 100 rentals: 500 handling + 800 inventory + 1,500 conversion on top of 2,500 revenue.
+    expect(trend.points).toEqual([
+      { label: "Sep", value: 5300 },
+      { label: "Oct", value: 9500 },
+    ]);
+    expect(trend.summary).toBe("Estimate monthly total: Sep USD 5,300 · Oct USD 9,500");
+  });
+
+  it("should end on the total of a one-month period, so the trend and the card agree (AC02)", () => {
+    const last = buildTotalTrend(BASELINE, [month("Oct", CORE)]).points[0].value;
+
+    expect(estimateAmount(last)).toBe(view().cards[2].value);
+  });
+
+  it("should say Not available for a month that cannot be read or has no verified revenue, never 0", () => {
+    const noRevenue: CoreKpis = { ...CORE, commercial: { state: "not_available", reason: "No share is calculated" } };
+    const trend = buildTotalTrend(BASELINE, [month("Aug", null), month("Sep", noRevenue), month("Oct", CORE)]);
+
+    expect(trend.points.map((point) => point.value)).toEqual([null, null, 9500]);
+    expect(trend.summary).toBe("Estimate monthly total: Aug Not available · Sep Not available · Oct USD 9,500");
+  });
+
+  it("should give no total for any month when no baseline is saved", () => {
+    const trend = buildTotalTrend(null, [month("Oct", CORE)]);
+
+    expect(trend.points).toEqual([{ label: "Oct", value: null }]);
+    expect(trend.summary).toBe("Estimate monthly total: Oct Not available");
+  });
+
+  it("should carry the trend in the view built for the dashboard", () => {
+    const withTrend = buildBaselineEstimate(BASELINE, CORE, { ...CONTEXT, trend_months: [month("Oct", CORE)] });
+
+    expect(withTrend.trend.points).toEqual([{ label: "Oct", value: 9500 }]);
+    expect(view().trend.points).toEqual([]);
   });
 });

@@ -144,6 +144,49 @@ describe("RoiDashboard (VI-F05-S04)", () => {
     }
   });
 
+  it("should show the monthly trend of the last six months with the total, marked Estimate (VI-F05-S07, AC01)", async () => {
+    const html = await render({ baseline: BASELINE, period: "2026-10" });
+
+    expect(html).toContain("Value breakdown and trend · Estimate");
+    expect(html).toContain(
+      "Estimate monthly total: May USD 9,500 · Jun USD 9,500 · Jul USD 9,500 · Aug USD 9,500 · Sep USD 9,500 · Oct USD 9,500",
+    );
+  });
+
+  it("should read the same calendar months for a month and for year to date, ending with the last month of the period (VI-F05-S07, AC02)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-15T10:00:00Z"));
+
+    try {
+      getCoreKpisMock.mockClear();
+      await render({ baseline: BASELINE, period: "ytd" });
+
+      const froms = getCoreKpisMock.mock.calls.map(([range]) => range.from);
+
+      expect(froms).toEqual(expect.arrayContaining(["2026-01-01T00:00:00.000Z", "2026-05-01T00:00:00.000Z", "2026-10-01T00:00:00.000Z"]));
+      expect(getCoreKpisMock).toHaveBeenCalledWith({ from: "2026-10-01T00:00:00.000Z", to: "2026-11-01T00:00:00.000Z" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("should read no month for the trend and draw none when no baseline is saved (VI-F05-S07, R13)", async () => {
+    const html = await render({ baseline: null, period: "2026-10" });
+
+    expect(getCoreKpisMock).toHaveBeenCalledTimes(1);
+    expect(html).not.toContain("Estimate monthly total");
+  });
+
+  it("should say Not available for a month that cannot be read and keep the others (VI-F05-S07, E3)", async () => {
+    getCoreKpisMock.mockResolvedValueOnce({ ok: true, kpis: CORE });
+    getCoreKpisMock.mockResolvedValueOnce({ ok: false, reason: "unavailable" });
+
+    const html = await render({ baseline: BASELINE, period: "2026-10" });
+
+    expect(html).toContain("Estimate monthly total: May Not available");
+    expect(html).toContain("Oct USD 9,500");
+  });
+
   it("should say Not available on the total, not 0, when the verified revenue is not available (VI-F05-S06, R13)", async () => {
     getCoreKpisMock.mockResolvedValue({ ok: true, kpis: { ...CORE, commercial: { state: "not_available", reason: "No share is calculated" } } });
 

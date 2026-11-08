@@ -8,6 +8,7 @@ import {
   monthsInPeriod,
   previousKpiPeriod,
   resolveKpiPeriod,
+  trendMonths,
 } from "@/lib/kpi/kpi-period";
 
 const NOW = new Date("2026-11-10T12:00:00.000Z");
@@ -156,5 +157,31 @@ describe("monthsInPeriod (VI-F05-S06)", () => {
 
   it.each(["current", "2026-09"])("should count one month for %s", (param) => {
     expect(monthsInPeriod(param, NOW)).toBe(1);
+  });
+});
+
+describe("trendMonths (VI-F05-S07, AC02)", () => {
+  const monthsOf = (param: string) => {
+    const result = resolveKpiPeriod(param, NOW);
+    if (!result.ok) throw new Error("period expected");
+
+    return trendMonths(result.period);
+  };
+
+  it.each([
+    ["current", "Jun Jul Aug Sep Oct Nov"],
+    ["2026-09", "Apr May Jun Jul Aug Sep"],
+    ["ytd", "Jun Jul Aug Sep Oct Nov"],
+    ["2026-03", "Oct Nov Dec Jan Feb Mar"],
+  ])("should end the six months with the last month of %s, oldest first", (param, labels) => {
+    expect(monthsOf(param).map((month) => month.label).join(" ")).toBe(labels);
+  });
+
+  it("should give calendar months in UTC that follow each other without a gap", () => {
+    const months = monthsOf("2026-03");
+
+    expect(months[0].from).toBe("2025-10-01T00:00:00.000Z");
+    expect(months[5].to).toBe("2026-04-01T00:00:00.000Z");
+    months.slice(1).forEach((month, index) => expect(month.from).toBe(months[index].to));
   });
 });
