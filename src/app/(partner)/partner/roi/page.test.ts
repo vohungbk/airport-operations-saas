@@ -46,7 +46,18 @@ describe("PartnerRoiPage (VI-F05-S04, AC01)", () => {
   it("should hand the partner name and the period to the dashboard", async () => {
     const element = (await render("2026-10")) as { props: { scope_label: string; period?: string } };
 
-    expect(element.props).toEqual({ scope_label: "Emirates Rent A Car", scope_note: "Your partner data only", period: "2026-10" });
+    expect(element.props).toEqual({
+      scope_label: "Emirates Rent A Car",
+      scope_note: "Your partner data only",
+      edit_baseline_href: "/partner/roi/baseline",
+      period: "2026-10",
+    });
+  });
+
+  it("should give the partner the way to Edit baseline inputs (VI-F05-S05, AC07)", async () => {
+    const element = (await render()) as { props: { edit_baseline_href?: string } };
+
+    expect(element.props.edit_baseline_href).toBe("/partner/roi/baseline");
   });
 
   it("should hand the comparison choice to the dashboard", async () => {
