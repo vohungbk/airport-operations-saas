@@ -37,6 +37,32 @@ const render = (props: Partial<Parameters<typeof CommandCentre>[0]> = {}) =>
     }),
   );
 
+describe("Command Centre empty state (VI-F11-S01, AC01)", () => {
+  const zero = { arrivalsToday: 0, installationsDue: 0, overdueTasks: 0 };
+
+  it("should say nothing needs attention when every figure is zero and no flight alert is shown", () => {
+    expect(render(zero)).toContain("Nothing needs attention today.");
+  });
+
+  it("should not say it when a figure could not be read", () => {
+    expect(render({ ...zero, overdueTasks: null })).not.toContain("Nothing needs attention today.");
+  });
+
+  it("should not say it when a flight alert is shown", () => {
+    const alert: FlightAlertItem = {
+      id: "f-1",
+      flight_number: "EK 203",
+      kind: "early",
+      minutes: 45,
+      arrival_label: "15:45",
+      booking_number: null,
+      deadline_label: null,
+    };
+
+    expect(render({ ...zero, flightAlerts: [alert] })).not.toContain("Nothing needs attention today.");
+  });
+});
+
 describe("Command Centre tiles (UI-F06-S04, R7)", () => {
   it("should show the four tiles of the design", () => {
     const out = render();

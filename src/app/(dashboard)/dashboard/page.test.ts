@@ -25,6 +25,10 @@ vi.mock("@/features/dashboard/components/dashboard-retry-button", () => ({
   DashboardRetryButton: () => "RETRY_BUTTON",
 }));
 
+vi.mock("@/features/dashboard/components/dashboard-refresh-button", () => ({
+  DashboardRefreshButton: () => "REFRESH_BUTTON",
+}));
+
 vi.mock("@/features/dashboard/lib/get-dashboard-charts", () => ({
   getDashboardCharts: getChartsMock,
 }));
@@ -105,6 +109,13 @@ describe("DashboardPage", () => {
     expect(html).toContain("Live operations");
     expect(html).toContain("Arrivals today");
     expect(html).toContain("Operational attention");
+  });
+
+  it("should show the refresh button and the load time of the figures (VI-F11-S01, AC02)", async () => {
+    const html = await render();
+
+    expect(html).toContain("REFRESH_BUTTON");
+    expect(html).toMatch(/Loaded \d{2}:\d{2} UTC/);
   });
 
   it("should show nothing that is not in the design", async () => {
