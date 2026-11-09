@@ -16,6 +16,15 @@ vi.mock("@/features/technicians/lib/get-technician-by-id", () => ({
   getTechnicianById: getTechnicianByIdMock,
 }));
 
+vi.mock("@/features/technicians/lib/get-technician-activity", () => ({
+  getTechnicianActivity: vi.fn().mockResolvedValue({
+    airport: null,
+    open_jobs: 0,
+    jobs_done_this_week: 0,
+    jobs: [],
+  }),
+}));
+
 vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
 
 import TechnicianDetailPage from "@/app/(admin)/technicians/[id]/page";
