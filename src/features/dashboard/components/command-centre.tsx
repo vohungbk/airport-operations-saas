@@ -1,3 +1,5 @@
+import { PageEmpty } from "@/components/shared/page-state";
+import { isNothingToAttend } from "@/features/dashboard/lib/command-centre-state";
 import { FlightBanners } from "@/features/dashboard/components/flight-banners";
 import { OperationalAttention } from "@/features/dashboard/components/operational-attention";
 import { OverviewTile } from "@/features/dashboard/components/overview-tile";
@@ -52,6 +54,13 @@ export function CommandCentre({
           href={overdueTasks === null ? undefined : OVERDUE_JOBS_HREF}
         />
       </div>
+
+      {isNothingToAttend({
+        arrivalsToday,
+        installationsDue,
+        overdueTasks,
+        flightAlertCount: flightAlerts.length,
+      }) && <PageEmpty message="Nothing needs attention today." />}
 
       <FlightBanners alerts={flightAlerts} />
 
