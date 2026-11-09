@@ -20,7 +20,7 @@ describe("parseTechniciansQuery", () => {
       sort: "full_name",
       order: "asc",
       page: 1,
-      page_size: 20,
+      page_size: 10,
     });
   });
 
@@ -62,7 +62,7 @@ describe("parseTechniciansQuery", () => {
     expect(query.sort).toBe("full_name");
     expect(query.order).toBe("asc");
     expect(query.page).toBe(1);
-    expect(query.page_size).toBe(20);
+    expect(query.page_size).toBe(10);
   });
 });
 

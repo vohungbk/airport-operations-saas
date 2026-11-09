@@ -8,76 +8,68 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { buildTechniciansHref } from "@/features/technicians/lib/build-technicians-href";
-import { TechnicianStatusBadge } from "@/features/technicians/components/technician-status-badge";
-import type { Technician } from "@/features/technicians/types";
-import type {
-  TechniciansQuery,
-  TechniciansSortColumn,
-} from "@/features/technicians/schemas/technicians-query.schema";
+import { getTechnicianInitials } from "@/features/technicians/lib/get-technician-initials";
+import type { TechnicianListRow } from "@/features/technicians/types";
 
 interface TechniciansTableProps {
-  technicians: Technician[];
-  query: TechniciansQuery;
+  technicians: TechnicianListRow[];
 }
 
-const SORTABLE_COLUMNS: { key: TechniciansSortColumn; label: string }[] = [
-  { key: "full_name", label: "Name" },
-  { key: "email", label: "Email" },
-];
+const HEAD_CLASS =
+  "h-auto px-0 py-0 text-[11px] font-normal uppercase leading-4 text-text-muted";
+const CELL_CLASS = "px-0 py-4 text-sm leading-5 text-foreground";
 
 /**
- * Server Component — sorting is plain `<Link>` navigation. The name cell
- * links to the detail page so a row can be opened from the keyboard.
+ * Server Component. The name cell links to the detail page so a row can be
+ * opened from the keyboard.
  */
-export function TechniciansTable({ technicians, query }: TechniciansTableProps) {
+export function TechniciansTable({ technicians }: TechniciansTableProps) {
   return (
     <Table>
-      <TableHeader>
-        <TableRow>
-          {SORTABLE_COLUMNS.map((column) => (
-            <TableHead key={column.key}>
-              <Link
-                href={buildTechniciansHref(query, {
-                  sort: column.key,
-                  order:
-                    query.sort === column.key && query.order === "asc"
-                      ? "desc"
-                      : "asc",
-                  page: 1,
-                })}
-                className="flex items-center gap-1 hover:text-foreground"
-              >
-                {column.label}
-                {query.sort === column.key && (
-                  <span aria-hidden="true">
-                    {query.order === "asc" ? "↑" : "↓"}
-                  </span>
-                )}
-              </Link>
-            </TableHead>
-          ))}
-          <TableHead>Status</TableHead>
-          <TableHead>Created</TableHead>
+      <TableHeader className="bg-surface-muted [&_tr]:border-b">
+        <TableRow className="hover:bg-transparent">
+          <TableHead className={`${HEAD_CLASS} w-[300px] pl-6 pt-4 pb-4`}>
+            Technician
+          </TableHead>
+          <TableHead className={`${HEAD_CLASS} w-[200px] pt-4 pb-4`}>
+            Airport
+          </TableHead>
+          <TableHead className={`${HEAD_CLASS} w-[150px] pt-4 pb-4`}>
+            Open jobs
+          </TableHead>
+          <TableHead className={`${HEAD_CLASS} pt-4 pb-4 pr-6`}>
+            Jobs done this week
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {technicians.map((technician) => (
-          <TableRow key={technician.id}>
-            <TableCell className="font-medium">
+          <TableRow
+            key={technician.id}
+            className="transition-colors hover:bg-primary-subtle"
+          >
+            <TableCell className={`${CELL_CLASS} pl-6`}>
               <Link
                 href={`/technicians/${technician.id}`}
-                className="text-primary underline-offset-4 hover:underline"
+                className="flex items-center gap-3 font-medium"
               >
+                <span
+                  aria-hidden="true"
+                  className="flex size-14 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-base font-semibold"
+                >
+                  {getTechnicianInitials(technician.full_name)}
+                </span>
                 {technician.full_name}
               </Link>
             </TableCell>
-            <TableCell>{technician.email}</TableCell>
-            <TableCell>
-              <TechnicianStatusBadge is_active={technician.is_active} />
+            <TableCell className={CELL_CLASS}>
+              {technician.airport_name
+                ? `${technician.airport_name} (${technician.airport_code})`
+                : "—"}
             </TableCell>
-            <TableCell>
-              {new Date(technician.created_at).toLocaleDateString()}
+            <TableCell className={CELL_CLASS}>{technician.open_jobs}</TableCell>
+            <TableCell className={`${CELL_CLASS} pr-6`}>
+              {technician.jobs_done_this_week}
             </TableCell>
           </TableRow>
         ))}

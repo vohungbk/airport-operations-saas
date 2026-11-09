@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
+import { SearchIcon } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { buildTechniciansHref } from "@/features/technicians/lib/build-technicians-href";
 import { getTechnicianSearchError } from "@/features/technicians/lib/technician-search";
@@ -44,19 +45,20 @@ export function TechniciansFilters({ query }: TechniciansFiltersProps) {
       noValidate
       className="flex flex-col gap-2"
     >
-      <div className="flex items-center gap-2">
+      <div className="relative">
+        <SearchIcon
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-3 size-3 -translate-y-1/2 text-text-muted"
+        />
         <Input
-          placeholder="Search by name or email..."
+          placeholder="Search technicians..."
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          className="min-w-0 flex-1 sm:w-64 sm:flex-none"
+          className="h-11 w-full rounded-lg border-border-input bg-surface pr-2 pl-9 text-sm sm:w-[204px]"
           aria-label="Search technicians"
           aria-invalid={searchError !== null}
           aria-describedby={searchError ? "technician-search-error" : undefined}
         />
-        <Button type="submit" variant="outline">
-          Search
-        </Button>
       </div>
       {searchError && (
         <p

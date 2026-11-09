@@ -14,7 +14,7 @@ const TECHNICIANS_SORT_COLUMNS = ["full_name", "email", "created_at"] as const;
 export type TechniciansSortColumn = (typeof TECHNICIANS_SORT_COLUMNS)[number];
 
 const TECHNICIANS_DEFAULT_SORT: TechniciansSortColumn = "full_name";
-const TECHNICIANS_DEFAULT_PAGE_SIZE = 20;
+const TECHNICIANS_DEFAULT_PAGE_SIZE = 10;
 const TECHNICIANS_MAX_PAGE_SIZE = 100;
 
 /**

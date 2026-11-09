@@ -2597,6 +2597,16 @@ export type Database = {
           seats_in_service: number
         }[]
       }
+      technician_list_figures: {
+        Args: { p_now?: string; p_technician_ids: string[] }
+        Returns: {
+          airport_code: string
+          airport_name: string
+          jobs_done_this_week: number
+          open_jobs: number
+          technician_id: string
+        }[]
+      }
       command_centre_arrival_queues: {
         Args: { p_now?: string }
         Returns: {
