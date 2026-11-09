@@ -6,6 +6,7 @@ import { OverviewTile } from "@/features/dashboard/components/overview-tile";
 import { StatusChart } from "@/features/dashboard/components/status-chart";
 import { StockByCategory } from "@/features/dashboard/components/stock-by-category";
 import { OVERDUE_JOBS_HREF } from "@/features/dashboard/lib/get-overdue-jobs";
+import type { ArrivalQueues } from "@/features/dashboard/lib/get-arrival-queues";
 import type { FlightAlertItem } from "@/features/dashboard/lib/get-flight-alerts";
 import type { DashboardChartResult } from "@/features/dashboard/lib/get-dashboard-charts";
 import type { BarItem } from "@/lib/charts/bar-data";
@@ -20,6 +21,8 @@ interface CommandCentreProps {
   arrivalsToday?: number | null;
   /** Bookings with pickup today that have no installation record; `null` when it could not be read. */
   installationsDue?: number | null;
+  /** Today's arrivals and the upcoming bookings for the attention table; `null` when they could not be read. */
+  arrivalQueues?: ArrivalQueues | null;
 }
 
 /**
@@ -35,6 +38,7 @@ export function CommandCentre({
   overdueTasks = null,
   arrivalsToday = null,
   installationsDue = null,
+  arrivalQueues = null,
 }: CommandCentreProps) {
   const chart = (id: string) => charts.find((result) => result.chart.id === id);
   const seats = chart("seats_by_status");
@@ -77,7 +81,7 @@ export function CommandCentre({
         {seats && <StockByCategory items={stock} />}
       </div>
 
-      <OperationalAttention />
+      <OperationalAttention arrivalQueues={arrivalQueues} />
     </div>
   );
 }
