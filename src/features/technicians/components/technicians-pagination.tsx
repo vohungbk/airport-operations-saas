@@ -17,14 +17,20 @@ interface PageLinkProps {
 }
 
 function PageLink({ href, children }: PageLinkProps) {
-  const linkClass = buttonVariants({ variant: "outline", size: "sm" });
+  const linkClass = cn(
+    buttonVariants({ variant: "outline" }),
+    "min-h-11 w-24 rounded-lg bg-surface",
+  );
 
   return href ? (
     <Link href={href} className={linkClass}>
       {children}
     </Link>
   ) : (
-    <span className={cn(linkClass, "pointer-events-none opacity-50")}>
+    <span
+      aria-disabled="true"
+      className={cn(linkClass, "pointer-events-none opacity-45")}
+    >
       {children}
     </span>
   );
@@ -35,12 +41,13 @@ export function TechniciansPagination({
   total,
 }: TechniciansPaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / query.page_size));
+  const from = (query.page - 1) * query.page_size + 1;
+  const to = Math.min(query.page * query.page_size, total);
 
   return (
-    <div className="flex items-center justify-between gap-2">
-      <p className="text-sm text-muted-foreground">
-        Page {query.page} of {totalPages} ({total} technician
-        {total === 1 ? "" : "s"})
+    <div className="flex items-center justify-between gap-2 border-t border-border bg-surface-muted p-4">
+      <p className="whitespace-pre text-sm text-text-muted">
+        {`${from}–${to} of ${total}  •  Rows per page: ${query.page_size}`}
       </p>
       <div className="flex items-center gap-2">
         <PageLink

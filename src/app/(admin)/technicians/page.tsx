@@ -25,11 +25,12 @@ export default async function TechniciansPage({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        Technicians
-      </h1>
-
-      <TechniciansFilters query={query} />
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-2xl leading-8 font-semibold text-primary-subtle-foreground">
+          Technicians
+        </h1>
+        <TechniciansFilters query={query} />
+      </div>
 
       {search_error && (
         <Alert variant="destructive">
@@ -41,10 +42,10 @@ export default async function TechniciansPage({
       {total === 0 ? (
         <PageEmpty message="No technicians found. Try adjusting the search." />
       ) : (
-        <>
-          <TechniciansTable technicians={technicians} query={query} />
+        <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface">
+          <TechniciansTable technicians={technicians} />
           <TechniciansPagination query={query} total={total} />
-        </>
+        </div>
       )}
     </div>
   );
