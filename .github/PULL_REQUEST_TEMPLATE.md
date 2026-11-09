@@ -74,14 +74,6 @@ Additional flows tested based on the Impact Assessment above:
 
 # Evidence
 
-## Screenshots
-
-Taken from the running app with local test data only (this repository is public). Write `n/a: no visible change` when the PR has no UI change.
-
-| Screen / state | AC | Screenshot |
-|----------------|----|------------|
-| | | |
-
 ## Test report
 
 - [ ] Test report summary (Vitest run output / report)

@@ -18,7 +18,6 @@ Run this only because the user asked for it. Pushing is outward-facing.
    - AC table: criteria verbatim, and in the status cell one line with the status (Pass / Fail / Block / Skip / Not run) and the real evidence.
    - Impact assessment from the actual diff (`git diff main...HEAD`): one line per changed area, no more than 6 rows. Fold the regression scenarios into it.
    - Verification checklist: tick only what was run (lint, build, RLS, service-role key, Zod). Do not tick "passes in CI" yet.
-   - Manual testing, regression, evidence and test report sections: when nothing was done, one line each ("Not run: <why>", "n/a: not captured"), not a table. Leave out the bug fix section for a feature.
 5. Push and create the PR:
    - `git push -u origin <branch>` (never force push)
    - `gh pr create --base main --title "<conventional title>" --body-file <file>`
