@@ -313,6 +313,34 @@ describe("Operational attention", () => {
     expect(out.match(/data-label="Queue"/g)).toHaveLength(9);
     expect(out).toContain('data-stacked=""');
   });
+
+  it("should list the arrivals and upcoming bookings with a link to each booking (VI-F11-S02, AC01, AC02)", () => {
+    const item = (id: string, status_label: string) => ({
+      booking_id: id,
+      booking_number: `BK-${id}`,
+      status_label,
+      arrival_label: "15:45 GMT+4",
+    });
+    const out = render({
+      arrivalQueues: {
+        arrivals_today: [item("a1", "Technician Assigned"), item("a2", "New")],
+        upcoming_bookings: [item("u1", "Allocated")],
+      },
+    });
+
+    expect(out).toContain('href="/bookings/a1"');
+    expect(out).toContain('href="/bookings/u1"');
+    expect(out).toContain("Technician Assigned");
+    expect(out).toContain("Allocated");
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(10);
+  });
+
+  it("should keep a dash for a queue that has no booking", () => {
+    const out = render({ arrivalQueues: { arrivals_today: [], upcoming_bookings: [] } });
+
+    expect(out).not.toContain('href="/bookings/');
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(9);
+  });
 });
 
 describe("Command Centre chart style", () => {
