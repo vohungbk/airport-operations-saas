@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -7,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { ArrivalQueueItem, ArrivalQueues } from "@/features/dashboard/lib/get-arrival-queues";
 
 /** The queues of the design. How each one is counted and what comes next in it is another ticket. */
 const QUEUES = [
@@ -21,11 +24,32 @@ const QUEUES = [
   "Overdue tasks",
 ] as const;
 
+interface OperationalAttentionProps {
+  /** Today's arrivals and the upcoming bookings (VI-F11-S02); `null` when they could not be read (a dash). */
+  arrivalQueues?: ArrivalQueues | null;
+}
+
+/** The booking a queue row opens, with its expected arrival (NAV-1). */
+function BookingItem({ item }: { item: ArrivalQueueItem }) {
+  return (
+    <Link href={`/bookings/${item.booking_id}`} className="font-medium hover:underline">
+      {item.booking_number}
+      <span className="font-normal text-muted-foreground"> · {item.arrival_label}</span>
+    </Link>
+  );
+}
+
 /**
- * The table of the design (UI-F06-S04): the queue, its next item and its status. The queues are laid out
- * and named; the next item and the status are a dash until they are built (another ticket).
+ * The table of the design (UI-F06-S04): the queue, its next item and its status. Today's arrivals and
+ * Upcoming bookings list their bookings (VI-F11-S02), up to five each; a queue with no booking or that
+ * could not be read, and the queues not built yet (another ticket), show a dash.
  */
-export function OperationalAttention() {
+export function OperationalAttention({ arrivalQueues = null }: OperationalAttentionProps) {
+  const itemsByQueue: Partial<Record<(typeof QUEUES)[number], readonly ArrivalQueueItem[]>> = {
+    "Today's arrivals": arrivalQueues?.arrivals_today,
+    "Upcoming bookings": arrivalQueues?.upcoming_bookings,
+  };
+
   return (
     <Card>
       <CardContent className="flex flex-col gap-3">
@@ -42,13 +66,29 @@ export function OperationalAttention() {
               </TableRow>
             </TableHeader>
             <TableBody className="sm:[&_tr]:border-0">
-              {QUEUES.map((queue) => (
-                <TableRow key={queue} className="sm:h-13">
-                  <TableCell data-label="Queue">{queue}</TableCell>
-                  <TableCell data-label="Next item">—</TableCell>
-                  <TableCell data-label="Status">—</TableCell>
-                </TableRow>
-              ))}
+              {QUEUES.flatMap((queue) => {
+                const items = itemsByQueue[queue];
+
+                if (!items || items.length === 0) {
+                  return (
+                    <TableRow key={queue} className="sm:h-13">
+                      <TableCell data-label="Queue">{queue}</TableCell>
+                      <TableCell data-label="Next item">—</TableCell>
+                      <TableCell data-label="Status">—</TableCell>
+                    </TableRow>
+                  );
+                }
+
+                return items.map((item) => (
+                  <TableRow key={`${queue}-${item.booking_id}`} className="sm:h-13">
+                    <TableCell data-label="Queue">{queue}</TableCell>
+                    <TableCell data-label="Next item">
+                      <BookingItem item={item} />
+                    </TableCell>
+                    <TableCell data-label="Status">{item.status_label}</TableCell>
+                  </TableRow>
+                ));
+              })}
             </TableBody>
           </Table>
         </div>

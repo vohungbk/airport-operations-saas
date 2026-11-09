@@ -2597,6 +2597,17 @@ export type Database = {
           seats_in_service: number
         }[]
       }
+      command_centre_arrival_queues: {
+        Args: { p_now?: string }
+        Returns: {
+          booking_id: string
+          booking_number: string
+          expected_at: string
+          queue: string
+          status: string
+          timezone: string
+        }[]
+      }
       kpi_today_figures: {
         Args: { p_now?: string }
         Returns: {

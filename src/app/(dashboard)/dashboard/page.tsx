@@ -4,6 +4,7 @@ import { requireAnyPermission } from "@/lib/auth/current-user";
 import { DASHBOARD_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { CommandCentre } from "@/features/dashboard/components/command-centre";
 import { CommandCentreHeading } from "@/features/dashboard/components/command-centre-heading";
+import { getArrivalQueues } from "@/features/dashboard/lib/get-arrival-queues";
 import { getDashboardCharts } from "@/features/dashboard/lib/get-dashboard-charts";
 import { getFlightAlerts } from "@/features/dashboard/lib/get-flight-alerts";
 import { getOverdueJobsCount } from "@/features/dashboard/lib/get-overdue-jobs";
@@ -25,12 +26,13 @@ export default async function DashboardPage() {
   }
 
   const loadedAt = new Date();
-  const [charts, flightAlerts, stock, overdueTasks, today] = await Promise.all([
+  const [charts, flightAlerts, stock, overdueTasks, today, arrivalQueues] = await Promise.all([
     getDashboardCharts(user.role),
     getFlightAlerts(),
     getStockByCategory(),
     getOverdueJobsCount(),
     getTodayFigures(),
+    getArrivalQueues(),
   ]);
 
   return (
@@ -43,6 +45,7 @@ export default async function DashboardPage() {
         overdueTasks={overdueTasks}
         arrivalsToday={today.arrivals_today}
         installationsDue={today.installations_due}
+        arrivalQueues={arrivalQueues}
       />
     </div>
   );
