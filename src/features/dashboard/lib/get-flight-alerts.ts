@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_BOOKING_STATUSES } from "@/features/bookings/lib/booking-status";
 import { OPEN_JOB_STATUSES } from "@/features/jobs/lib/job-deadline";
 import type { JobStatus } from "@/features/jobs/lib/job-status";
+import { sortFlightAlerts } from "@/features/dashboard/lib/sort-flight-alerts";
 import {
   classifyFlight,
   getFlightDisruption,
@@ -161,9 +162,7 @@ export async function getFlightAlerts(
       });
     }
 
-    // The flags for operations come first: a booking to replan matters more than a time that moved.
-    const flagged = (alert: FlightAlertItem) => getFlightDisruption(alert.kind) !== null;
-    return [...alerts.filter(flagged), ...alerts.filter((alert) => !flagged(alert))];
+    return sortFlightAlerts(alerts);
   } catch {
     return [];
   }
