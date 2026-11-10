@@ -9,24 +9,22 @@ Create a pull request for ticket: $ARGUMENTS
 Run this only because the user asked for it. Pushing is outward-facing.
 
 ## Steps
-1. Check the branch is not `main` and the working tree is clean (`git status`). If there are uncommitted changes, ask the user.
-2. Run `/security-scan`. Stop on High findings.
-3. Read the ticket: `gh issue view <number> --repo vohungbk/airport-operations-saas`. Copy every AC row verbatim.
-4. Load the `pr-description` skill and fill `.github/PULL_REQUEST_TEMPLATE.md`. Keep the body short:
+1. Run `/security-scan`. Stop on High findings.
+2. Read the ticket: `gh issue view <number> --repo vohungbk/airport-operations-saas`. Copy every AC row verbatim.
+3. Load the `pr-description` skill and fill `.github/PULL_REQUEST_TEMPLATE.md`. Keep the body short:
    - `Closes #<number>`
    - Summary: what, why and the changes in a few lines, plus the notes a reviewer needs (a difference from the spec or the Figma, an open question).
    - AC table: criteria verbatim, and in the status cell one line with the status (Pass / Fail / Block / Skip / Not run) and the real evidence.
    - Impact assessment from the actual diff (`git diff main...HEAD`): one line per changed area, no more than 6 rows. Fold the regression scenarios into it.
    - Verification checklist: tick only what was run (lint, build, RLS, service-role key, Zod). Do not tick "passes in CI" yet.
-5. Push and create the PR:
+4. Push and create the PR:
    - `git push -u origin <branch>` (never force push)
    - `gh pr create --base main --title "<conventional title>" --body-file <file>`
    - Write the body file in the scratchpad directory, not in the repo.
-6. Bind the PR with the ccd_pr tools if available. Report the PR link.
+6. Report the PR link.
 
 ## Rules
-- Base branch is `main`.
 - Title follows `.claude/rules/git-commit.md`: `<type>(<scope>): <subject>`.
-- Never enable auto-merge. Never merge the PR.
+- Never enable auto-merge.
 - No secrets, `.env` or build output in the diff. Screenshots are not committed to the PR branch.
 - Note any new migration or RLS policy in the PR body and confirm its cross-tenant denial test exists.
