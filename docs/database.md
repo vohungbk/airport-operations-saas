@@ -1041,6 +1041,14 @@ BK-00025, so the Overview and the Revenue tab can be looked at. It is **not** in
 local database after `demo.sql`: `npx supabase db query -f supabase/seeds/booking-detail-demo.sql`. It refuses to
 run next to real accounts or before `demo.sql`, and does nothing when loaded again.
 
+**Booking timeline demo data (UI-F06-T05).** `supabase/seeds/booking-timeline-demo.sql` adds the rental BK-00132 with
+a full history: the booking trigger writes the status events (created, confirmed with a reason, an update of
+vehicle, bay and notes, a seat change, in progress, completed), two flight updates and two adjustments (a refund
+and a chargeback), so the Status, Flight and Money chips of the Timeline tab can be looked at. Photos events are not
+recorded by the app yet, so that chip stays empty. It is **not** in `[db.seed]`. Load it by hand on a local database after
+`demo.sql`: `npx supabase db query -f supabase/seeds/booking-timeline-demo.sql`. It refuses to run next to real
+accounts or before `demo.sql`, and does nothing when loaded again.
+
 **KPI demo data (VI-F05-S01).** `supabase/seeds/kpi-demo.sql` adds 31 rentals that are
 over (BK-00101 to BK-00131), with their seats, installations, cleaning and inspection
 records and incidents, for the two demo partners in September, October and November

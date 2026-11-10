@@ -8,10 +8,11 @@ import { PageEmpty } from "@/components/shared/page-state";
 import { BookingRevenueTab, type BookingRevenueData } from "@/features/bookings/components/booking-revenue-tab";
 import { BookingOverview } from "@/features/bookings/components/booking-overview";
 import { BookingStatusBadge } from "@/features/bookings/components/booking-status-badge";
-import { BookingEventsTimeline } from "@/features/bookings/components/booking-events-timeline";
+import { BookingTimelineTab } from "@/features/bookings/components/booking-timeline-tab";
 import { BookingDetailTabs } from "@/features/bookings/components/booking-detail-tabs";
 import { BookingFlightPanel } from "@/features/bookings/components/booking-flight-panel";
 import { ChangeBookingStatusDialog } from "@/features/bookings/components/change-booking-status-dialog";
+import { buildTimelineEntries } from "@/features/bookings/lib/build-timeline-entries";
 import { formatStepWithTime } from "@/features/bookings/lib/booking-overview";
 import {
   ENDED_BOOKING_STATUS_LIST,
@@ -136,8 +137,13 @@ export function BookingDetail({
       timeline={
         <Card>
           <CardContent>
-            <BookingEventsTimeline
-              events={events.items}
+            <BookingTimelineTab
+              entries={buildTimelineEntries({
+                events: events.items,
+                adjustments: revenue?.adjustments ?? null,
+                flightUpdates: flightHistory?.items ?? null,
+                timeZone,
+              })}
               truncated={events.truncated}
               timeZone={timeZone}
             />

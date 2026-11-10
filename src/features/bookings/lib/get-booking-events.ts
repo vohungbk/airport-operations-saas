@@ -21,7 +21,9 @@ export type BookingEventItem = Pick<
   changes: Record<string, { from: unknown; to: unknown }> | null;
 };
 
-export const BOOKING_EVENTS_LIMIT = 100;
+import { BOOKING_EVENTS_LIMIT } from "@/features/bookings/lib/booking-timeline";
+
+export { BOOKING_EVENTS_LIMIT };
 
 export interface BookingEventsResult {
   items: BookingEventItem[];
