@@ -4,11 +4,15 @@ import { CameraIcon, CircleAlertIcon, ImagePlusIcon, RotateCcwIcon, XIcon } from
 
 import { PhotoThumbnail } from "@/components/domain/photo-viewer"
 import { Button } from "@/components/ui/button"
-import { clampProgress, type PhotoUploadItem } from "@/lib/field/photo-upload"
+import { PHOTO_RULE_HINT, clampProgress, type PhotoUploadItem } from "@/lib/field/photo-upload"
 import { cn } from "@/lib/utils"
 
 interface PhotoUploaderProps {
   items: readonly PhotoUploadItem[]
+  /** Replaces the heading of the drop area (a screen may name what the photos are for). */
+  title?: string
+  /** A line under the heading, for example the seat and the date. */
+  description?: string
   /** The camera view is open: the part offers Capture and Close instead of Take a photo. */
   camera_open?: boolean
   on_open_camera?: () => void
@@ -27,6 +31,8 @@ interface PhotoUploaderProps {
  */
 function PhotoUploader({
   items,
+  title,
+  description,
   camera_open = false,
   on_open_camera,
   on_capture,
@@ -58,8 +64,9 @@ function PhotoUploader({
         ) : (
           <>
             <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-sm font-medium">{empty ? "No photos yet. Take a photo or choose files" : "Take a photo or choose files"}</p>
-              <p className="text-xs text-muted-foreground">JPG or PNG · Maximum 10 MB per photo</p>
+              <p className="text-sm font-medium">{title ?? (empty ? "No photos yet. Take a photo or choose files" : "Take a photo or choose files")}</p>
+              {description && <p className="text-sm text-muted-foreground">{description}</p>}
+              <p className="text-xs text-muted-foreground">{PHOTO_RULE_HINT}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={on_open_camera}>
