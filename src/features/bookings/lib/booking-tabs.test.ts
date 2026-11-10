@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   BOOKING_TABS,
+  buildBookingRevenueHref,
   buildBookingTabHref,
   getBookingPageTitle,
+  getBookingTabBar,
   resolveBookingPageTab,
 } from "@/features/bookings/lib/booking-tabs";
 
@@ -25,7 +27,7 @@ describe("buildBookingTabHref", () => {
 });
 
 describe("resolveBookingPageTab", () => {
-  it.each(["flight", "timeline"])("should open the %s tab named in the address", (tab) => {
+  it.each(["flight", "timeline", "photos"])("should open the %s tab named in the address", (tab) => {
     expect(resolveBookingPageTab(tab)).toBe(tab);
   });
 
@@ -49,5 +51,19 @@ describe("getBookingPageTitle", () => {
   it("should keep the plain heading for the other tabs", () => {
     expect(getBookingPageTitle("overview")).toBe("Booking detail");
     expect(getBookingPageTitle("timeline")).toBe("Booking detail");
+  });
+});
+
+describe("getBookingTabBar", () => {
+  it("should list Overview, Flight, Revenue, Timeline and Photos in order when revenue is allowed", () => {
+    expect(getBookingTabBar(true).map((tab) => tab.label)).toEqual(["Overview", "Flight", "Revenue", "Timeline", "Photos"]);
+  });
+
+  it("should leave out Revenue when the role may not see the revenue", () => {
+    expect(getBookingTabBar(false).map((tab) => tab.value)).toEqual(["overview", "flight", "timeline", "photos"]);
+  });
+
+  it("should give the revenue page of the booking", () => {
+    expect(buildBookingRevenueHref("b1")).toBe("/bookings/b1/revenue");
   });
 });
