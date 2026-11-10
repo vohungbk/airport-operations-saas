@@ -3,8 +3,8 @@
 import { useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -88,79 +88,97 @@ export function SeatsFilters({
     return !value || value === ALL_VALUE ? "" : value;
   }
 
+  const triggerClass =
+    "h-11 w-full rounded-lg border-border-input bg-surface px-3 text-sm data-[size=default]:h-11";
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-end gap-3">
       <form
         onSubmit={handleSearchSubmit}
         role="search"
-        className="flex w-full items-center gap-2 sm:w-auto"
+        className="flex w-full flex-col gap-2 sm:w-[344px]"
       >
+        <Label htmlFor="seat-search" className="text-sm font-semibold">
+          Search
+        </Label>
         <Input
-          placeholder="Search by serial number or token..."
+          id="seat-search"
+          placeholder="Search serial number..."
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          className="min-w-0 flex-1 sm:w-72 sm:flex-none"
-          aria-label="Search seats"
+          className="h-11 w-full rounded-lg border-border-input bg-surface px-3 text-sm"
         />
-        <Button type="submit" variant="outline">
-          Search
-        </Button>
       </form>
 
-      <Select
-        value={airportId ?? ALL_VALUE}
-        onValueChange={(value) =>
-          navigate({ airport_id: toFilterValue(value) })
-        }
-      >
-        <SelectTrigger className="w-48" aria-label="Filter by airport">
-          <SelectValue placeholder="All airports" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL_VALUE}>All airports</SelectItem>
-          {airports.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex w-full flex-col gap-2 sm:w-[344px]">
+        <Label htmlFor="seat-airport-filter" className="text-sm font-semibold">
+          Airport
+        </Label>
+        <Select
+          value={airportId ?? ALL_VALUE}
+          onValueChange={(value) =>
+            navigate({ airport_id: toFilterValue(value) })
+          }
+        >
+          <SelectTrigger id="seat-airport-filter" className={triggerClass} aria-label="Filter by airport">
+            <SelectValue placeholder="All airports" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>All airports</SelectItem>
+            {airports.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      <Select
-        value={categoryId ?? ALL_VALUE}
-        onValueChange={(value) =>
-          navigate({ category_id: toFilterValue(value) })
-        }
-      >
-        <SelectTrigger className="w-48" aria-label="Filter by category">
-          <SelectValue placeholder="All categories" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL_VALUE}>All categories</SelectItem>
-          {categories.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex w-full flex-col gap-2 sm:w-[344px]">
+        <Label htmlFor="seat-category-filter" className="text-sm font-semibold">
+          Category
+        </Label>
+        <Select
+          value={categoryId ?? ALL_VALUE}
+          onValueChange={(value) =>
+            navigate({ category_id: toFilterValue(value) })
+          }
+        >
+          <SelectTrigger id="seat-category-filter" className={triggerClass} aria-label="Filter by category">
+            <SelectValue placeholder="All categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>All categories</SelectItem>
+            {categories.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      <Select
-        value={status ?? ALL_VALUE}
-        onValueChange={(value) => navigate({ status: toFilterValue(value) })}
-      >
-        <SelectTrigger className="w-40" aria-label="Filter by status">
-          <SelectValue placeholder="All statuses" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL_VALUE}>All statuses</SelectItem>
-          {SEAT_STATUSES.map((value) => (
-            <SelectItem key={value} value={value}>
-              {SEAT_STATUS_LABEL[value]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex w-full flex-col gap-2 sm:w-[344px]">
+        <Label htmlFor="seat-status-filter" className="text-sm font-semibold">
+          Status
+        </Label>
+        <Select
+          value={status ?? ALL_VALUE}
+          onValueChange={(value) => navigate({ status: toFilterValue(value) })}
+        >
+          <SelectTrigger id="seat-status-filter" className={triggerClass} aria-label="Filter by status">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>All statuses</SelectItem>
+            {SEAT_STATUSES.map((value) => (
+              <SelectItem key={value} value={value}>
+                {SEAT_STATUS_LABEL[value]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }

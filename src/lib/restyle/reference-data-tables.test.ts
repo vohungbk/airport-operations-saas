@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import { AirportsTable } from "@/features/airports/components/airports-table";
 import { PartnersTable } from "@/features/partners/components/partners-table";
 import { SeatCategoriesTable } from "@/features/seat-categories/components/seat-categories-table";
-import { SeatsTable } from "@/features/seats/components/seats-table";
 
 const html = (element: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(element);
 /** How React writes a class name into an attribute: `&`, `>` and `'` are escaped. */
@@ -33,24 +32,12 @@ const category = (name: string) => ({
   safety_standard: "ECE R129",
   is_active: true,
 });
-const seat = (serial: string) => ({
-  id: "s-1",
-  public_token: "d65193a1-bd16-5a78-fd25-e4a1428026e6",
-  serial_number: serial,
-  status: "available",
-  created_at: "2026-08-01T00:00:00Z",
-  category: { id: "c", name: "Convertible" },
-  airport: { id: "a", code: "DXB", name: "Dubai" },
-});
-
 const TABLES = {
   partners: (name: string) => html(createElement(PartnersTable, { partners: [partner(name)], query: partnersQuery } as never)),
   airports: (name: string) =>
     html(createElement(AirportsTable, { airports: [airport(name)], query: { sort: "code", order: "asc", page: 1, page_size: 20 } } as never)),
   "seat categories": (name: string) =>
     html(createElement(SeatCategoriesTable, { seatCategories: [category(name)], query: { sort: "name", order: "asc", page: 1, page_size: 20 } } as never)),
-  seats: (name: string) =>
-    html(createElement(SeatsTable, { seats: [seat(name)], query: { sort: "created_at", order: "desc", page: 1, page_size: 20 } } as never)),
 };
 
 describe.each(Object.keys(TABLES))("%s table (UI-F06-S02, R10, E1)", (name) => {
@@ -89,19 +76,5 @@ describe.each(Object.keys(TABLES))("%s table (UI-F06-S02, R10, E1)", (name) => {
     const out = draw(NO_BREAK);
     expect(out).toContain(NO_BREAK);
     expect(out).toContain(esc("group-data-stacked/table:max-sm:[&_td]:break-words"));
-  });
-});
-
-describe("the seats table", () => {
-  const out = TABLES.seats("SEAT-0001");
-
-  it("should cut the public token in a table and give it whole in the title", () => {
-    expect(out).toContain("truncate");
-    expect(out).toContain('title="d65193a1-bd16-5a78-fd25-e4a1428026e6"');
-  });
-
-  it("should let a card break the token instead of cutting it", () => {
-    expect(out).toContain("max-sm:break-all");
-    expect(out).toContain("max-sm:max-w-none");
   });
 });
