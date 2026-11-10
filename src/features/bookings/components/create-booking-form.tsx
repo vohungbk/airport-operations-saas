@@ -1,11 +1,8 @@
 "use client";
 
-import Link from "next/link";
-
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { useCreateBookingForm } from "@/features/bookings/hooks/use-create-booking-form";
 import { BookingForm } from "@/features/bookings/components/booking-form";
+import { BookingFormLayout } from "@/features/bookings/components/booking-form-layout";
 import type { BookingFormOptions } from "@/features/bookings/lib/get-booking-form-options";
 
 interface CreateBookingFormProps {
@@ -18,18 +15,28 @@ export function CreateBookingForm({ options }: CreateBookingFormProps) {
   const {
     register,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = form;
+  const categoryId = form.watch("seat_category_id");
+  const categoryName =
+    options.categories.find((category) => category.value === categoryId)
+      ?.label ?? null;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-      {result && !result.success && (
-        <Alert variant="destructive">
-          <AlertTitle>Could not create booking</AlertTitle>
-          <AlertDescription>{result.error?.message}</AlertDescription>
-        </Alert>
-      )}
-
+    <BookingFormLayout
+      crumb="Create"
+      title="Create booking"
+      onSubmit={onSubmit}
+      errors={errors}
+      result={result}
+      failureTitle="Could not create booking"
+      isDirty={isDirty}
+      isPending={isPending}
+      submitLabel="Create booking"
+      pendingLabel="Creating..."
+      cancelHref="/bookings"
+      timeZone={timeZone}
+    >
       <BookingForm
         mode="create"
         register={register}
@@ -39,19 +46,8 @@ export function CreateBookingForm({ options }: CreateBookingFormProps) {
         options={options}
         availableSeats={availableSeats}
         timeZone={timeZone}
+        categoryName={categoryName}
       />
-
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Creating..." : "Create booking"}
-        </Button>
-        <Link
-          href="/bookings"
-          className={buttonVariants({ variant: "outline" })}
-        >
-          Cancel
-        </Link>
-      </div>
-    </form>
+    </BookingFormLayout>
   );
 }

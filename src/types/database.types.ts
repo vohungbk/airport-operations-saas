@@ -2475,6 +2475,22 @@ export type Database = {
           serial_number: string
         }[]
       }
+      get_booking_seat_options: {
+        Args: {
+          p_airport_id: string
+          p_exclude_booking_id?: string
+          p_pickup_at: string
+          p_return_at: string
+          p_seat_category_id: string
+        }
+        Returns: {
+          availability: string
+          conflict_booking_number: string | null
+          id: string
+          serial_number: string
+          unusable_reason: string | null
+        }[]
+      }
       is_admin_or_ops_manager: {
         Args: never
         Returns: boolean

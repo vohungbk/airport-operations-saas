@@ -36,10 +36,11 @@ const localDateTimeField = (label: string) =>
 const dailyRateField = z
   .string()
   .trim()
-  .regex(/^\d+(\.\d{1,2})?$/, "Daily rate must be a number with up to 2 decimals.")
+  .regex(/^\d+(\.\d{1,2})?$/, "Daily price must be a number with up to 2 decimals.")
+  .refine((value) => Number(value) > 0, "Daily price must be greater than 0.")
   .refine(
     (value) => Number(value) <= DAILY_RATE_MAX,
-    `Daily rate must be at most ${DAILY_RATE_MAX}.`,
+    `Daily price must be at most ${DAILY_RATE_MAX}.`,
   );
 
 const childHeightField = z
