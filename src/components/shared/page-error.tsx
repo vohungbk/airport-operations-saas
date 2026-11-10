@@ -8,6 +8,8 @@ interface PageErrorProps {
   title: string;
   description?: string;
   reset?: () => void;
+  /** The text of the button that calls `reset`. */
+  resetLabel?: string;
   /**
    * For a page with no shell around it (the error at the root): the message is centered like the
    * forbidden and not-found pages. Inside a shell the alert stays at the top of the content.
@@ -23,6 +25,7 @@ export function PageError({
   title,
   description = "Something went wrong. Please try again.",
   reset,
+  resetLabel = "Try again",
   centered = false,
 }: PageErrorProps) {
   if (centered) {
@@ -30,7 +33,7 @@ export function PageError({
       <PageMessage role="alert" title={title} description={description}>
         {reset ? (
           <Button variant="outline" onClick={reset}>
-            Try again
+            {resetLabel}
           </Button>
         ) : null}
       </PageMessage>
@@ -46,7 +49,7 @@ export function PageError({
       {reset ? (
         <div>
           <Button variant="outline" onClick={reset}>
-            Try again
+            {resetLabel}
           </Button>
         </div>
       ) : null}

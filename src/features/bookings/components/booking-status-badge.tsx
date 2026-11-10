@@ -23,6 +23,7 @@ import type { BookingStatus } from "@/features/bookings/types";
 
 interface BookingStatusBadgeProps {
   status: BookingStatus;
+  className?: string;
 }
 
 export const STATUS_VARIANT = {
@@ -62,11 +63,11 @@ const STATUS_ICON: Record<BookingStatus, LucideIcon> = {
 };
 
 /** Status is conveyed by icon and text, never by color alone. */
-export function BookingStatusBadge({ status }: BookingStatusBadgeProps) {
+export function BookingStatusBadge({ status, className }: BookingStatusBadgeProps) {
   const Icon = STATUS_ICON[status];
 
   return (
-    <Badge variant={STATUS_VARIANT[status]}>
+    <Badge variant={STATUS_VARIANT[status]} className={className}>
       <Icon aria-hidden="true" />
       {BOOKING_STATUS_LABEL[status]}
     </Badge>
