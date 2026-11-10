@@ -1,19 +1,17 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  buildBookingRevenueHref,
   getBookingPageTitle,
   getBookingTabBar,
   resolveBookingPageTab,
+  resolveOpenTab,
   type BookingPageTab,
 } from "@/features/bookings/lib/booking-tabs";
 
 interface BookingDetailTabsProps {
-  bookingId: string;
   /** The tab that is open when the page loads. */
   defaultTab: BookingPageTab;
   /** The Revenue tab is for the roles that may see the revenue. */
@@ -24,6 +22,8 @@ interface BookingDetailTabsProps {
   actions: ReactNode;
   overview: ReactNode;
   flight: ReactNode;
+  /** The revenue of the booking; shown only when `canViewRevenue`. */
+  revenue: ReactNode;
   timeline: ReactNode;
   photos: ReactNode;
 }
@@ -35,10 +35,8 @@ const TAB_CLASS =
 /**
  * The heading and the tabs of the booking page. They share one piece of state because the heading names
  * the open tab (`Booking detail · Flight`); the content of each tab is built on the server and passed in.
- * Revenue is a page of its own: its tab opens that page and leaves the open tab as it was.
  */
 export function BookingDetailTabs({
-  bookingId,
   defaultTab,
   canViewRevenue,
   subtitle,
@@ -46,17 +44,13 @@ export function BookingDetailTabs({
   actions,
   overview,
   flight,
+  revenue,
   timeline,
   photos,
 }: BookingDetailTabsProps) {
-  const router = useRouter();
-  const [tab, setTab] = useState<BookingPageTab>(defaultTab);
+  const [tab, setTab] = useState<BookingPageTab>(resolveOpenTab(defaultTab, canViewRevenue));
 
   function handleTabChange(value: unknown) {
-    if (value === "revenue") {
-      router.push(buildBookingRevenueHref(bookingId));
-      return;
-    }
     setTab(resolveBookingPageTab(String(value)));
   }
 
@@ -90,6 +84,11 @@ export function BookingDetailTabs({
         <TabsContent value="flight" className="pt-4">
           {flight}
         </TabsContent>
+        {canViewRevenue && (
+          <TabsContent value="revenue" className="pt-4">
+            {revenue}
+          </TabsContent>
+        )}
         <TabsContent value="timeline" className="pt-4">
           {timeline}
         </TabsContent>

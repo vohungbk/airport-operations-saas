@@ -4,6 +4,7 @@ import { requireAnyPermission } from "@/lib/auth/current-user";
 import {
   BOOKINGS_ACCESS_PERMISSIONS,
   FINANCE_ACCESS_PERMISSIONS,
+  FINANCE_ADJUSTMENT_PERMISSIONS,
   hasAnyPermission,
   hasPermission,
 } from "@/lib/auth/permissions";
@@ -11,11 +12,14 @@ import { getBookingById } from "@/features/bookings/lib/get-booking-by-id";
 import { getBookingEvents } from "@/features/bookings/lib/get-booking-events";
 import { BookingDetail } from "@/features/bookings/components/booking-detail";
 import { getFlightUpdates } from "@/features/flights/lib/get-flight-updates";
+import { canAddAdjustment } from "@/features/bookings/lib/booking-adjustment";
+import { getBookingAdjustments } from "@/features/bookings/lib/get-booking-adjustments";
+import { getBookingRevenue } from "@/features/bookings/lib/get-booking-revenue";
 import { resolveBookingPageTab } from "@/features/bookings/lib/booking-tabs";
 
 interface BookingDetailPageProps {
   params: Promise<{ id: string }>;
-  /** `?tab=flight`, `?tab=timeline` or `?tab=photos` opens that tab; the tab bar of the workflow page links to them. */
+  /** `?tab=flight`, `?tab=revenue`, `?tab=timeline` or `?tab=photos` opens that tab; the tab bar of the workflow page links to them. */
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
@@ -42,6 +46,14 @@ export default async function BookingDetailPage({
   const flightHistory = await getFlightUpdates(booking.flight_id);
 
   const canManage = hasPermission(user.role, "bookings:manage");
+  const canViewRevenue = hasAnyPermission(user.role, FINANCE_ACCESS_PERMISSIONS);
+  const mayAdjust = hasAnyPermission(user.role, FINANCE_ADJUSTMENT_PERMISSIONS);
+
+  // The revenue is read only for a role that has the Revenue tab. The list of adjustments is for the
+  // operations team: a partner user sees the shares and the total, and RLS limits it to its own partner.
+  const [revenueRow, adjustments] = canViewRevenue
+    ? await Promise.all([getBookingRevenue(id), mayAdjust ? getBookingAdjustments(id) : Promise.resolve(null)])
+    : [null, null];
 
   return (
     <BookingDetail
@@ -51,7 +63,10 @@ export default async function BookingDetailPage({
       defaultTab={defaultTab}
       canManage={canManage}
       canEnterArrival={user.role === "admin" || user.role === "operations_manager"}
-      canViewRevenue={hasAnyPermission(user.role, FINANCE_ACCESS_PERMISSIONS)}
+      canViewRevenue={canViewRevenue}
+      revenue={
+        revenueRow ? { row: revenueRow, adjustments, canAdjust: mayAdjust && canAddAdjustment(revenueRow) } : null
+      }
     />
   );
 }

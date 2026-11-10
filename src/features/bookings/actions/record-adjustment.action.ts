@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireAnyPermission } from "@/lib/auth/current-user";
@@ -21,8 +20,8 @@ import { createAdjustmentSchema } from "@/features/bookings/schemas/adjustment.s
  * VI-F04-S10 (R5): records a refund, an adjustment or a chargeback and, in the same database
  * transaction, calculates the booking again. The permission is checked here before anything is read;
  * the gross revenue the amount is checked against is read again here, not taken from the browser; the
- * database function checks the role and every rule once more. On success the user is taken back to
- * Booking revenue (NAV-2).
+ * database function checks the role and every rule once more. On success the Revenue tab of the booking
+ * is read again and the dialog that sent the entries closes (UI-F06-T04).
  */
 export async function recordAdjustmentAction(
   bookingId: string,
@@ -66,6 +65,6 @@ export async function recordAdjustmentAction(
     return { success: false, error: mapAdjustmentError(error) };
   }
 
-  revalidatePath(`/bookings/${booking.id}/revenue`);
-  redirect(`/bookings/${booking.id}/revenue`);
+  revalidatePath(`/bookings/${booking.id}`);
+  return { success: true };
 }

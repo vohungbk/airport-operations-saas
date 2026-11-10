@@ -1995,7 +1995,7 @@ Supabase stack and skip without it.
 
 ## Booking revenue screen (VI-F04-S08)
 
-- **Who opens it.** `/bookings/[id]/revenue` needs `finance:view` (admin, operations manager) or
+- **Who opens it.** The Revenue tab of the booking page (`/bookings/[id]?tab=revenue`; the old address `/bookings/[id]/revenue` checks the same permission and redirects there) needs `finance:view` (admin, operations manager) or
   `finance:view_own_partner` (partner user); a technician has neither and is sent to `/forbidden`
   before anything is read. The check is on the server, in the page; the link on the booking detail
   is only shown to those roles and is not an access check.
@@ -2025,11 +2025,10 @@ Supabase stack and skip without it.
 - **Opening the adjustment form (VI-F04-S09).** "Add adjustment" is offered only to an admin and an
   operations manager (`FINANCE_ADJUSTMENT_PERMISSIONS`, which is `finance:view`; the spec gives the
   operations manager "conditional" rights without the condition, so both may: an assumption) and only
-  for a completed rental with revenue to correct. `/bookings/[id]/adjustment` checks the same
-  permission on the server before it reads anything, so a partner user or a technician who types the
-  address is sent to `/forbidden`; RLS still hides the bookings of another partner behind the same
-  not-found page. The page itself writes nothing: the form it shows (VI-F04-S10) sends the entries
-  to the Server Action above.
+  for a completed rental with revenue to correct. The booking page offers it only to those roles, and the Server Action checks the same
+  permission on the server before it reads anything (UI-F06-T04 moved the form into a dialog; the
+  `/bookings/[id]/adjustment` page is gone); RLS still hides the bookings of another partner. The
+  dialog sends the entries to the Server Action above.
 
 - **Generating a settlement (VI-F04-S12).** Only an admin generates: the Server Action
   (`requireRole(["admin"])`, before anything else) and `generate_monthly_settlement()` (`SECURITY
