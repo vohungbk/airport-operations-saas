@@ -27,15 +27,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { SeatStatusBadge } from "@/features/seats/components/seat-status-badge";
 import { useChangeSeatStatusForm } from "@/features/seats/hooks/use-change-seat-status-form";
 import {
   SEAT_STATUS_LABEL,
   type ManualTargetStatus,
 } from "@/features/seats/lib/seat-status";
+import type { SeatStatus } from "@/features/seats/types";
 
 interface ChangeSeatStatusDialogProps {
   seatId: string;
   serialNumber: string;
+  /** The status the seat has now. */
+  currentStatus: SeatStatus;
+  /** Shown after the serial number; left out when the seat has no airport. */
+  airportLabel?: string;
   allowedStatuses: ManualTargetStatus[];
 }
 
@@ -47,6 +53,8 @@ interface ChangeSeatStatusDialogProps {
 export function ChangeSeatStatusDialog({
   seatId,
   serialNumber,
+  currentStatus,
+  airportLabel,
   allowedStatuses,
 }: ChangeSeatStatusDialogProps) {
   const [open, setOpen] = useState(false);
@@ -74,13 +82,12 @@ export function ChangeSeatStatusDialog({
       <DialogTrigger render={<Button variant="outline" className="min-h-11 bg-surface dark:bg-surface" />}>
         Change status
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="md:w-[480px] md:max-w-[480px]">
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>Change status of {serialNumber}</DialogTitle>
+            <DialogTitle>Change status</DialogTitle>
             <DialogDescription>
-              Retiring a seat is permanent. Operational statuses are managed by
-              their own workflows.
+              {airportLabel ? `${serialNumber} · ${airportLabel}` : serialNumber}
             </DialogDescription>
           </DialogHeader>
 
@@ -91,8 +98,19 @@ export function ChangeSeatStatusDialog({
             </Alert>
           )}
 
-          <Field data-invalid={!!errors.to_status}>
-            <FieldLabel htmlFor="to_status">New status</FieldLabel>
+          <div className="flex items-center gap-4 text-sm">
+            <span className="w-24 shrink-0 text-text-muted">Current status</span>
+            <SeatStatusBadge status={currentStatus} />
+          </div>
+
+          <Field
+            data-invalid={!!errors.to_status}
+            orientation="horizontal"
+            className="*:data-[slot=field-label]:flex-none"
+          >
+            <FieldLabel htmlFor="to_status" className="w-24 shrink-0 text-text-muted">
+              New status <span aria-hidden="true">*</span>
+            </FieldLabel>
             <Controller
               control={control}
               name="to_status"
@@ -103,7 +121,7 @@ export function ChangeSeatStatusDialog({
                   onValueChange={(value) => field.onChange(value)}
                   disabled={isPending}
                 >
-                  <SelectTrigger id="to_status" className="w-full">
+                  <SelectTrigger id="to_status" className="w-full min-w-0 flex-1 bg-surface data-[size=default]:h-11 dark:bg-surface">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -118,28 +136,31 @@ export function ChangeSeatStatusDialog({
             />
           </Field>
 
-          <Field data-invalid={!!errors.reason}>
-            <FieldLabel htmlFor="reason">
-              {target === "quarantine" ? "Reason" : "Reason (optional)"}
-            </FieldLabel>
-            <Textarea
-              id="reason"
-              rows={3}
-              aria-invalid={!!errors.reason}
-              aria-describedby={errors.reason ? "reason-error" : undefined}
-              disabled={isPending}
-              {...register("reason")}
-            />
-            <FieldErrorMessage
-              id="reason-error"
-              errors={errors.reason ? [errors.reason] : undefined}
-            />
-          </Field>
+          {target === "quarantine" && (
+            <Field data-invalid={!!errors.reason}>
+              <FieldLabel htmlFor="reason">
+                Reason
+              </FieldLabel>
+              <Textarea
+                id="reason"
+                rows={3}
+                aria-invalid={!!errors.reason}
+                aria-describedby={errors.reason ? "reason-error" : undefined}
+                disabled={isPending}
+                {...register("reason")}
+              />
+              <FieldErrorMessage
+                id="reason-error"
+                errors={errors.reason ? [errors.reason] : undefined}
+              />
+            </Field>
+          )}
 
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
+              className="min-h-11 min-w-[90px] bg-surface dark:bg-surface"
               disabled={isPending}
               onClick={() => setOpen(false)}
             >
@@ -148,6 +169,7 @@ export function ChangeSeatStatusDialog({
             <Button
               type="submit"
               variant={target === "retired" ? "destructive" : "default"}
+              className="min-h-11 min-w-[120px]"
               disabled={isPending}
             >
               {isPending ? "Saving..." : "Confirm"}
