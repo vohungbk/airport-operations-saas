@@ -9,7 +9,11 @@ import { readBlock, readDeclarations } from "@/lib/accessibility/token-css";
 
 const SRC_DIR = join(process.cwd(), "src");
 /** The files that draw a printed document, not a screen, relative to `src`. */
-const PRINTED_DOCUMENT_FILES = new Set([join("features", "invoices", "lib", "invoice-pdf.ts")]);
+const PRINTED_DOCUMENT_FILES = new Set([
+  join("features", "invoices", "lib", "invoice-pdf.ts"),
+  // The QR label card is white in both themes, as the design shows it, so it names its few colors itself.
+  join("features", "seats", "components", "seat-qr-print.tsx"),
+]);
 const GLOBALS_CSS = join(SRC_DIR, "app", "globals.css");
 
 // Names and hex values from the design file, frame "Foundations / Exact source tokens".

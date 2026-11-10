@@ -42,6 +42,7 @@ export function SeatQrCard({ seatId, serialNumber, publicToken }: SeatQrCardProp
         svg={svg}
         seat_id={serialNumber}
         download_href={`/api/seats/${seatId}/qr`}
+        print_href={`/seats/${seatId}/qr-print`}
         action_class_name="min-h-11 bg-surface dark:bg-surface"
         className="max-w-none bg-transparent py-0 ring-0 [&_[data-slot=card-content]]:items-center [&_[role=img]]:w-42 [&_p]:text-center"
       />
