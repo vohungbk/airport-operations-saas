@@ -91,6 +91,8 @@ export function SeatDetail({ seat, history }: SeatDetailProps) {
               <ChangeSeatStatusDialog
                 seatId={seat.id}
                 serialNumber={seat.serial_number}
+                currentStatus={seat.status}
+                airportLabel={seat.airport ? airportLabel : undefined}
                 allowedStatuses={allowedTransitions}
               />
             </div>
