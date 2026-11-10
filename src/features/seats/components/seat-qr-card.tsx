@@ -24,18 +24,27 @@ export function SeatQrCard({ seatId, serialNumber, publicToken }: SeatQrCardProp
     // A missing address must not take the whole seat page down; only the code is unavailable.
     if (!(error instanceof ConfigurationError)) throw error;
     return (
-      <section className="max-w-xs rounded-lg border border-border p-4 text-sm text-muted-foreground print:hidden">
+      <section className="w-full min-w-0 flex-1 rounded-xl border border-border bg-surface p-5 text-sm text-muted-foreground print:hidden">
         The QR code is not available: the public address of the app is not set (NEXT_PUBLIC_APP_URL).
       </section>
     );
   }
 
   return (
-    <section aria-labelledby="seat-qr-heading" className="flex max-w-xs flex-col gap-2">
-      <h2 id="seat-qr-heading" className="text-sm font-medium text-foreground print:hidden">
-        QR code
+    <section
+      aria-labelledby="seat-qr-heading"
+      className="flex w-full min-w-0 flex-1 flex-col gap-4 rounded-xl border border-border bg-surface p-5 print:border-0 print:p-0"
+    >
+      <h2 id="seat-qr-heading" className="text-base leading-snug font-semibold text-foreground print:hidden">
+        Seat QR
       </h2>
-      <QrCodeCard svg={svg} seat_id={serialNumber} download_href={`/api/seats/${seatId}/qr`} />
+      <QrCodeCard
+        svg={svg}
+        seat_id={serialNumber}
+        download_href={`/api/seats/${seatId}/qr`}
+        action_class_name="min-h-11 bg-surface dark:bg-surface"
+        className="max-w-none bg-transparent py-0 ring-0 [&_[data-slot=card-content]]:items-center [&_[role=img]]:w-42 [&_p]:text-center"
+      />
     </section>
   );
 }

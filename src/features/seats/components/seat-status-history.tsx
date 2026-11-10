@@ -22,10 +22,10 @@ export function SeatStatusHistory({
   truncated = false,
 }: SeatStatusHistoryProps) {
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="seat-history">
+    <section className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5" aria-labelledby="seat-history">
       <h2
         id="seat-history"
-        className="text-lg font-semibold tracking-tight text-foreground"
+        className="text-base leading-snug font-semibold text-foreground"
       >
         Status history
       </h2>

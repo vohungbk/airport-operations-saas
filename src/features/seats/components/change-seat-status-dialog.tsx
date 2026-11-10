@@ -71,7 +71,7 @@ export function ChangeSeatStatusDialog({
         if (nextOpen) reset();
       }}
     >
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger render={<Button variant="outline" className="min-h-11 bg-surface dark:bg-surface" />}>
         Change status
       </DialogTrigger>
       <DialogContent>
