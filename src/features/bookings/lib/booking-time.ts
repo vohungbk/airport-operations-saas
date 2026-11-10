@@ -117,6 +117,13 @@ export function formatBookingDateTime(iso: string, timeZone: string): string {
   }).format(new Date(iso));
 }
 
+/** Human-readable date (no time) in the airport's timezone. */
+export function formatBookingDate(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone, day: "2-digit", month: "short", year: "numeric" }).format(
+    new Date(iso),
+  );
+}
+
 /**
  * Start of the given `YYYY-MM-DD` day in `timeZone` as a UTC ISO string;
  * `addDays` shifts the day first (1 = start of the next day, used as an

@@ -4,10 +4,11 @@ import { CheckIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageEmpty } from "@/components/shared/page-state";
 import { BookingRevenueTab, type BookingRevenueData } from "@/features/bookings/components/booking-revenue-tab";
 import { BookingOverview } from "@/features/bookings/components/booking-overview";
 import { BookingStatusBadge } from "@/features/bookings/components/booking-status-badge";
+import { BookingPhotosTab } from "@/features/bookings/components/booking-photos-tab";
+import { formatBookingDate } from "@/features/bookings/lib/booking-time";
 import { BookingTimelineTab } from "@/features/bookings/components/booking-timeline-tab";
 import { BookingDetailTabs } from "@/features/bookings/components/booking-detail-tabs";
 import { BookingFlightPanel } from "@/features/bookings/components/booking-flight-panel";
@@ -151,7 +152,16 @@ export function BookingDetail({
         </Card>
       }
       revenue={revenue && <BookingRevenueTab data={revenue} timeZone={timeZone} />}
-      photos={<PageEmpty message="Photos are not available yet." />}
+      photos={
+        <BookingPhotosTab
+          photos={[]}
+          timeZone={timeZone}
+          canUpload={canManage && isBookingEditable(booking.status)}
+          uploadContext={[booking.seat?.serial_number, booking.airport?.code, formatBookingDate(new Date().toISOString(), timeZone)]
+            .filter(Boolean)
+            .join(" · ")}
+        />
+      }
     />
   );
 }

@@ -32,3 +32,7 @@ export function summarizeUploads(items: readonly PhotoUploadItem[]): UploadSumma
   for (const item of items) summary[item.status] += 1;
   return summary;
 }
+
+export const PHOTO_ACCEPTED_TYPES = ["image/jpeg", "image/png"] as const;
+export const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+export const PHOTO_RULE_HINT = "JPG or PNG · Maximum 10 MB per photo";
