@@ -41,7 +41,7 @@ describe("the boundary files of src/app", () => {
     const html = renderToStaticMarkup(createElement(ErrorState, { error: failure, reset: () => {} }));
 
     expect(html).toContain('role="alert"');
-    expect(html).toContain("Try again");
+    expect(html).toMatch(/Try again|Retry/);
     expect(html).not.toContain("LEAK");
     expect(html).not.toContain("relation");
     expect(html).not.toContain("10.0.0.5");

@@ -15,7 +15,7 @@ import { resolveBookingPageTab } from "@/features/bookings/lib/booking-tabs";
 
 interface BookingDetailPageProps {
   params: Promise<{ id: string }>;
-  /** `?tab=flight` or `?tab=timeline` opens that tab; the tab bar of the workflow page links to them. */
+  /** `?tab=flight`, `?tab=timeline` or `?tab=photos` opens that tab; the tab bar of the workflow page links to them. */
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
@@ -51,7 +51,6 @@ export default async function BookingDetailPage({
       defaultTab={defaultTab}
       canManage={canManage}
       canEnterArrival={user.role === "admin" || user.role === "operations_manager"}
-      canEditOwn={!canManage && hasPermission(user.role, "bookings:manage_own_partner")}
       canViewRevenue={hasAnyPermission(user.role, FINANCE_ACCESS_PERMISSIONS)}
     />
   );
