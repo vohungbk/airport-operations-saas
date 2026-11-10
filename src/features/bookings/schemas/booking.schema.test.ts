@@ -64,6 +64,13 @@ describe("createBookingSchema", () => {
     ).toBe(false);
   });
 
+  it("should reject a daily price of zero", () => {
+    const result = createBookingSchema.safeParse({ ...VALID_CREATE, daily_rate: "0" });
+
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain("greater than 0");
+  });
+
   it("should reject a malformed pickup time", () => {
     expect(
       createBookingSchema.safeParse({

@@ -152,3 +152,37 @@ export function formatPickup(iso: string, timeZone: string, withDate: boolean): 
     timeZoneName: "short",
   }).format(new Date(iso));
 }
+
+/** The time zone as the form shows it: `Asia/Dubai (GST)`. Falls back to the plain name. */
+export function formatTimeZoneLabel(timeZone: string): string {
+  try {
+    const abbreviation = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      timeZoneName: "short",
+    })
+      .formatToParts(new Date())
+      .find((part) => part.type === "timeZoneName")?.value;
+
+    return abbreviation ? `${timeZone} (${abbreviation})` : timeZone;
+  } catch {
+    return timeZone;
+  }
+}
+
+/** `2026-10-24T16:30` as `24 Oct 2026, 16:30`. Empty for anything that is not a local date and time. */
+export function formatLocalDateTime(value: string): string {
+  if (!isLocalDateTime(value)) return "";
+  const [date, time] = value.split("T");
+  const [year, month, day] = date.split("-").map(Number);
+  const monthName = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-GB", {
+    month: "short",
+    timeZone: "UTC",
+  });
+
+  return `${day} ${monthName} ${year}, ${time}`;
+}
+
+/** True once the pickup time has passed: a booking that has started keeps its pickup and seat. */
+export function isPickupStarted(pickupAtIso: string, now: Date = new Date()): boolean {
+  return Date.parse(pickupAtIso) <= now.getTime();
+}

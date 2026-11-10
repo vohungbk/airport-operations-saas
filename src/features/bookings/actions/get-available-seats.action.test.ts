@@ -31,22 +31,48 @@ describe("getAvailableSeatsAction", () => {
     requirePermissionMock.mockResolvedValue({ role: "operations_manager" });
     rpcMock.mockReset();
     rpcMock.mockResolvedValue({
-      data: [{ id: "s1", serial_number: "SEAT-0001" }],
+      data: [
+        {
+          id: "s1",
+          serial_number: "SEAT-0001",
+          availability: "available",
+          conflict_booking_number: null,
+          unusable_reason: null,
+        },
+        {
+          id: "s2",
+          serial_number: "SEAT-0002",
+          availability: "conflict",
+          conflict_booking_number: "BK-2026-000123",
+          unusable_reason: null,
+        },
+        {
+          id: "s3",
+          serial_number: "SEAT-0003",
+          availability: "not_usable",
+          conflict_booking_number: null,
+          unusable_reason: "Seat status: cleaning",
+        },
+      ],
       error: null,
     });
     getAirportTimezoneMock.mockReset();
     getAirportTimezoneMock.mockResolvedValue({ timezone: "Asia/Dubai" });
   });
 
-  it("should return the seats from get_available_seats using UTC times", async () => {
+  it("should return every seat with its state from get_booking_seat_options using UTC times", async () => {
     const result = await getAvailableSeatsAction(INPUT);
 
-    expect(result).toEqual({
-      success: true,
-      seats: [{ id: "s1", serial_number: "SEAT-0001" }],
-    });
+    expect(result.success).toBe(true);
+    expect(result.seats?.map((seat) => seat.availability)).toEqual([
+      "available",
+      "conflict",
+      "not_usable",
+    ]);
+    expect(result.seats?.[1].conflict_booking_number).toBe("BK-2026-000123");
+    expect(result.seats?.[2].unusable_reason).toBe("Seat status: cleaning");
     expect(rpcMock).toHaveBeenCalledWith(
-      "get_available_seats",
+      "get_booking_seat_options",
       expect.objectContaining({ p_pickup_at: "2026-09-01T04:00:00.000Z" }),
     );
   });

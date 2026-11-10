@@ -1,11 +1,8 @@
 "use client";
 
-import Link from "next/link";
-
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { useCreatePartnerBookingForm } from "@/features/bookings/hooks/use-create-partner-booking-form";
 import { BookingForm } from "@/features/bookings/components/booking-form";
+import { BookingFormLayout } from "@/features/bookings/components/booking-form-layout";
 import type { PartnerBookingFormOptions } from "@/features/bookings/lib/get-booking-form-options";
 
 interface CreatePartnerBookingFormProps {
@@ -21,18 +18,24 @@ export function CreatePartnerBookingForm({
   const {
     register,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = form;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-      {result && !result.success && (
-        <Alert variant="destructive">
-          <AlertTitle>Could not create booking</AlertTitle>
-          <AlertDescription>{result.error?.message}</AlertDescription>
-        </Alert>
-      )}
-
+    <BookingFormLayout
+      crumb="Create"
+      title="Create booking"
+      onSubmit={onSubmit}
+      errors={errors}
+      result={result}
+      failureTitle="Could not create booking"
+      isDirty={isDirty}
+      isPending={isPending}
+      submitLabel="Create booking"
+      pendingLabel="Creating..."
+      cancelHref="/bookings"
+      timeZone={timeZone}
+    >
       <BookingForm
         mode="partner-create"
         register={register}
@@ -42,18 +45,6 @@ export function CreatePartnerBookingForm({
         options={options}
         timeZone={timeZone}
       />
-
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Creating..." : "Create booking"}
-        </Button>
-        <Link
-          href="/bookings"
-          className={buttonVariants({ variant: "outline" })}
-        >
-          Cancel
-        </Link>
-      </div>
-    </form>
+    </BookingFormLayout>
   );
 }

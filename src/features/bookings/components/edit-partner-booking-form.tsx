@@ -1,11 +1,8 @@
 "use client";
 
-import Link from "next/link";
-
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { useUpdatePartnerBookingForm } from "@/features/bookings/hooks/use-update-partner-booking-form";
 import { BookingForm } from "@/features/bookings/components/booking-form";
+import { BookingFormLayout } from "@/features/bookings/components/booking-form-layout";
 import { utcToZonedLocalInput } from "@/features/bookings/lib/booking-time";
 import type { BookingDetailItem } from "@/features/bookings/lib/get-bookings";
 
@@ -37,48 +34,37 @@ export function EditPartnerBookingForm({
   });
   const {
     register,
-    formState: { errors },
+    control,
+    formState: { errors, isDirty },
   } = form;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-      {result && !result.success && (
-        <Alert variant="destructive">
-          <AlertTitle>Could not update booking</AlertTitle>
-          <AlertDescription>{result.error?.message}</AlertDescription>
-        </Alert>
-      )}
-
-      <dl className="grid grid-cols-2 gap-3 rounded-lg border border-border p-4 text-sm">
-        <div>
-          <dt className="text-muted-foreground">Airport</dt>
-          <dd>{booking.airport?.code ?? "-"}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Seat category</dt>
-          <dd>{booking.category?.name ?? "-"}</dd>
-        </div>
-      </dl>
-
+    <BookingFormLayout
+      crumb={`${booking.booking_number} / Edit`}
+      title="Edit booking"
+      onSubmit={onSubmit}
+      errors={errors}
+      result={result}
+      failureTitle="Could not update booking"
+      isDirty={isDirty}
+      isPending={isPending}
+      submitLabel="Save"
+      pendingLabel="Saving..."
+      cancelHref={`/bookings/${booking.id}`}
+      timeZone={timeZone}
+    >
       <BookingForm
         mode="partner-edit"
         register={register}
+        control={control}
         errors={errors}
         isPending={isPending}
         timeZone={timeZone}
+        summary={{
+          airport: booking.airport?.code ?? "-",
+          category: booking.category?.name ?? "-",
+        }}
       />
-
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : "Save changes"}
-        </Button>
-        <Link
-          href={`/bookings/${booking.id}`}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          Cancel
-        </Link>
-      </div>
-    </form>
+    </BookingFormLayout>
   );
 }

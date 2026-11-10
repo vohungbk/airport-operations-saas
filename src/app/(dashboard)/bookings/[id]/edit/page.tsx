@@ -10,6 +10,7 @@ import {
   isBookingEditable,
   isPartnerBookingEditable,
 } from "@/features/bookings/lib/booking-status";
+import { isPickupStarted } from "@/features/bookings/lib/booking-time";
 import { EditBookingForm } from "@/features/bookings/components/edit-booking-form";
 import { EditPartnerBookingForm } from "@/features/bookings/components/edit-partner-booking-form";
 
@@ -43,24 +44,16 @@ export default async function EditBookingPage({
     redirect(`/bookings/${booking.id}`);
   }
 
-  return (
-    <div className="flex flex-1 flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        Edit booking {booking.booking_number}
-      </h1>
-      <div className="max-w-lg">
-        {isManager ? (
-          <EditBookingForm
-            booking={booking}
-            timeZone={booking.airport.timezone}
-          />
-        ) : (
-          <EditPartnerBookingForm
-            booking={booking}
-            timeZone={booking.airport.timezone}
-          />
-        )}
-      </div>
-    </div>
+  return isManager ? (
+    <EditBookingForm
+      booking={booking}
+      timeZone={booking.airport.timezone}
+      pickupLocked={isPickupStarted(booking.pickup_at)}
+    />
+  ) : (
+    <EditPartnerBookingForm
+      booking={booking}
+      timeZone={booking.airport.timezone}
+    />
   );
 }
