@@ -15,52 +15,22 @@ describe("BookingRevenueBreakdown", () => {
     expect(html).toContain("the rental is not completed");
   });
 
-  it("should show every line as a label and a value", () => {
+  it("should show the lines in two columns, a negative amount in the danger color, and the formula", () => {
     const html = render({
       state: "ready",
       caseLabel: "Standard rental",
-      notices: [],
-      lines: [
-        { label: "Gross revenue", value: "450.00" },
-        { label: "Partner share", value: "135.00 (30%)" },
-      ],
+      notices: ["A notice."],
+      card: {
+        left: [{ label: "Refund", value: "-20.00", negative: true }],
+        right: [{ label: "Net revenue", value: "100.00" }],
+        formula: ["How this is calculated: min(8, 6) × 20.00 = 100.00"],
+      },
     });
 
-    expect(html).toContain("Gross revenue");
-    expect(html).toContain("450.00");
-    expect(html).toContain("135.00 (30%)");
-  });
-
-  it("should show each notice", () => {
-    const html = render({
-      state: "ready",
-      caseLabel: "Cancelled",
-      notices: ["This booking was cancelled, so it is not charged."],
-      lines: [{ label: "Case", value: "Cancelled" }],
-    });
-
-    expect(html).toContain("so it is not charged");
-  });
-
-  it("should show Add adjustment when given where it leads, and not otherwise (VI-F04-S09)", () => {
-    const view: BookingRevenueView = { state: "ready", caseLabel: "Standard rental", notices: [], lines: [{ label: "Case", value: "Standard rental" }] };
-
-    const withLink = renderToStaticMarkup(createElement(BookingRevenueBreakdown, { view, adjustmentHref: "/bookings/b-1/adjustment" }));
-
-    expect(withLink).toContain('href="/bookings/b-1/adjustment"');
-    expect(withLink).toContain(">Add adjustment<");
-    expect(render(view)).not.toContain("Add adjustment");
-  });
-
-  it("should not show Add adjustment in the empty state", () => {
-    const html = renderToStaticMarkup(createElement(BookingRevenueBreakdown, { view: { state: "empty", message: "No." }, adjustmentHref: "/x" }));
-
-    expect(html).not.toContain("Add adjustment");
-  });
-
-  it("should be read only: no field, button or form", () => {
-    const html = render({ state: "ready", caseLabel: "Standard rental", notices: [], lines: [{ label: "Case", value: "Standard rental" }] });
-
-    expect(html).not.toMatch(/<input|<button|<form|<textarea/);
+    expect(html).toContain("Revenue breakdown · Verified amounts · USD");
+    expect(html).toContain("A notice.");
+    expect(html).toMatch(/text-danger-fg[^>]*>-20\.00</);
+    expect(html).toContain("tabular-nums");
+    expect(html).toContain("How this is calculated");
   });
 });

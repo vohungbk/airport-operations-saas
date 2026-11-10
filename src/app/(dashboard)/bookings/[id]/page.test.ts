@@ -4,6 +4,8 @@ const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const getBookingByIdMock = vi.hoisted(() => vi.fn());
 const getBookingEventsMock = vi.hoisted(() => vi.fn());
 const getFlightUpdatesMock = vi.hoisted(() => vi.fn());
+const getRevenueMock = vi.hoisted(() => vi.fn());
+const getAdjustmentsMock = vi.hoisted(() => vi.fn());
 const notFoundMock = vi.hoisted(() =>
   vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -26,6 +28,9 @@ vi.mock("@/features/flights/lib/get-flight-updates", () => ({
   getFlightUpdates: getFlightUpdatesMock,
 }));
 
+vi.mock("@/features/bookings/lib/get-booking-revenue", () => ({ getBookingRevenue: getRevenueMock }));
+vi.mock("@/features/bookings/lib/get-booking-adjustments", () => ({ getBookingAdjustments: getAdjustmentsMock }));
+
 vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
 
 import BookingDetailPage from "@/app/(dashboard)/bookings/[id]/page";
@@ -41,6 +46,10 @@ describe("BookingDetailPage", () => {
     getBookingEventsMock.mockResolvedValue({ items: [], truncated: false });
     getFlightUpdatesMock.mockReset();
     getFlightUpdatesMock.mockResolvedValue(null);
+    getRevenueMock.mockReset();
+    getRevenueMock.mockResolvedValue(null);
+    getAdjustmentsMock.mockReset();
+    getAdjustmentsMock.mockResolvedValue([]);
   });
 
   it("should guard the page with either booking permission", async () => {
@@ -57,6 +66,7 @@ describe("BookingDetailPage", () => {
   it.each([
     ["flight", "flight"],
     ["timeline", "timeline"],
+    ["revenue", "revenue"],
     ["workflow", "overview"],
     ["nonsense", "overview"],
   ])("should open the %s tab as %s (the tab bar of the workflow page links here)", async (tab, expected) => {
@@ -144,5 +154,40 @@ describe("BookingDetailPage", () => {
       BookingDetailPage({ params: Promise.resolve({ id: ID }) }),
     ).rejects.toThrow("REDIRECT:/forbidden");
     expect(getBookingByIdMock).not.toHaveBeenCalled();
+  });
+
+  type RevenueProps = { revenue: { row: unknown; adjustments: unknown; canAdjust: boolean } | null };
+  const completedRow = { id: ID, status: "completed", revenue_case: "standard", revenue_flag: null, gross_revenue: 100 };
+
+  it.each(["admin", "operations_manager"])("should read the revenue and the adjustments for %s and let them add one (UI-F06-T04 AC06)", async (role) => {
+    requireAnyPermissionMock.mockResolvedValue({ role });
+    getBookingByIdMock.mockResolvedValue({ id: ID });
+    getRevenueMock.mockResolvedValue(completedRow);
+
+    const element = await BookingDetailPage({ params: Promise.resolve({ id: ID }) });
+    const { revenue } = (element as { props: RevenueProps }).props;
+
+    expect(getAdjustmentsMock).toHaveBeenCalledWith(ID);
+    expect(revenue).toMatchObject({ row: completedRow, adjustments: [], canAdjust: true });
+  });
+
+  it("should give a partner user the revenue without the adjustments and without Add adjustment (UI-F06-T04 AC08)", async () => {
+    getBookingByIdMock.mockResolvedValue({ id: ID });
+    getRevenueMock.mockResolvedValue(completedRow);
+
+    const element = await BookingDetailPage({ params: Promise.resolve({ id: ID }) });
+
+    expect(getAdjustmentsMock).not.toHaveBeenCalled();
+    expect((element as { props: RevenueProps }).props.revenue).toMatchObject({ adjustments: null, canAdjust: false });
+  });
+
+  it("should not read any revenue for a technician (UI-F06-T04 AC09)", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ role: "technician" });
+    getBookingByIdMock.mockResolvedValue({ id: ID });
+
+    const element = await BookingDetailPage({ params: Promise.resolve({ id: ID }) });
+
+    expect(getRevenueMock).not.toHaveBeenCalled();
+    expect((element as { props: RevenueProps }).props.revenue).toBeNull();
   });
 });

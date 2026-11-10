@@ -4,17 +4,11 @@ const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const getRevenueMock = vi.hoisted(() => vi.fn());
 const rpcMock = vi.hoisted(() => vi.fn());
 const revalidatePathMock = vi.hoisted(() => vi.fn());
-const redirectMock = vi.hoisted(() =>
-  vi.fn((path: string) => {
-    throw new Error(`REDIRECT:${path}`);
-  }),
-);
 
 vi.mock("@/lib/auth/current-user", () => ({ requireAnyPermission: requireAnyPermissionMock }));
 vi.mock("@/features/bookings/lib/get-booking-revenue", () => ({ getBookingRevenue: getRevenueMock }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ rpc: rpcMock }) }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
-vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 
 import { recordAdjustmentAction } from "@/features/bookings/actions/record-adjustment.action";
 import { FINANCE_ADJUSTMENT_PERMISSIONS } from "@/lib/auth/permissions";
@@ -47,11 +41,10 @@ describe("recordAdjustmentAction", () => {
     rpcMock.mockReset();
     rpcMock.mockResolvedValue({ data: {}, error: null });
     revalidatePathMock.mockClear();
-    redirectMock.mockClear();
   });
 
-  it("should record the adjustment through the database function and go back to Booking revenue (AC06, AC07)", async () => {
-    await expect(recordAdjustmentAction(BOOKING_ID, input())).rejects.toThrow(`REDIRECT:/bookings/${BOOKING_ID}/revenue`);
+  it("should record the adjustment through the database function and read the booking page again (AC06)", async () => {
+    await expect(recordAdjustmentAction(BOOKING_ID, input())).resolves.toEqual({ success: true });
 
     expect(rpcMock).toHaveBeenCalledWith("add_booking_adjustment", {
       p_booking_id: BOOKING_ID,
@@ -59,7 +52,7 @@ describe("recordAdjustmentAction", () => {
       p_amount: 50,
       p_reason: "The harness was worn",
     });
-    expect(revalidatePathMock).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}/revenue`);
+    expect(revalidatePathMock).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}`);
   });
 
   it("should check the permission before anything is read (AC02)", async () => {
@@ -131,7 +124,6 @@ describe("recordAdjustmentAction", () => {
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe(mapped);
     expect(result.error?.message).not.toContain("raw database text");
-    expect(redirectMock).not.toHaveBeenCalled();
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 });
