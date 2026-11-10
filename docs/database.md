@@ -1034,6 +1034,13 @@ that are already there. `demo:reset` wipes it: run it again after.
   nothing is changed. A seeded row that was changed or deleted since is **not**
   put back by a rerun: only `npm run demo:reset` (a reset) does that.
 
+**Booking detail demo data (UI-F06-T03, UI-F06-T04).** `supabase/seeds/booking-detail-demo.sql` adds three
+rentals (BK-BD001 with an early flight, BK-BD002 with a late flight, BK-BD003 cancelled) with every field of the
+Overview filled, and three adjustments (a refund, an adjustment and a chargeback) on the completed rental
+BK-00025, so the Overview and the Revenue tab can be looked at. It is **not** in `[db.seed]`. Load it by hand on a
+local database after `demo.sql`: `npx supabase db query -f supabase/seeds/booking-detail-demo.sql`. It refuses to
+run next to real accounts or before `demo.sql`, and does nothing when loaded again.
+
 **KPI demo data (VI-F05-S01).** `supabase/seeds/kpi-demo.sql` adds 31 rentals that are
 over (BK-00101 to BK-00131), with their seats, installations, cleaning and inspection
 records and incidents, for the two demo partners in September, October and November

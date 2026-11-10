@@ -10,8 +10,8 @@ export const BOOKING_TAB_LABEL: Record<BookingTab, string> = {
   timeline: "Timeline",
 };
 
-/** The tabs that open inside the booking page itself. Revenue is a page of its own, so it is not one of them. */
-export const BOOKING_PAGE_TABS = ["overview", "flight", "timeline", "photos"] as const;
+/** The tabs that open inside the booking page itself. */
+export const BOOKING_PAGE_TABS = ["overview", "flight", "revenue", "timeline", "photos"] as const;
 
 export type BookingPageTab = (typeof BOOKING_PAGE_TABS)[number];
 
@@ -21,9 +21,7 @@ export function resolveBookingPageTab(value: string | string[] | undefined): Boo
   return BOOKING_PAGE_TABS.find((tab) => tab === single) ?? "overview";
 }
 
-export type BookingTabBarValue = BookingPageTab | "revenue";
-
-const TAB_BAR: readonly { value: BookingTabBarValue; label: string }[] = [
+const TAB_BAR: readonly { value: BookingPageTab; label: string }[] = [
   { value: "overview", label: BOOKING_TAB_LABEL.overview },
   { value: "flight", label: BOOKING_TAB_LABEL.flight },
   { value: "revenue", label: "Revenue" },
@@ -32,13 +30,13 @@ const TAB_BAR: readonly { value: BookingTabBarValue; label: string }[] = [
 ];
 
 /** The tab bar of the booking page: the Revenue tab is only for a role that may see the revenue (a technician may not). */
-export function getBookingTabBar(canViewRevenue: boolean): { value: BookingTabBarValue; label: string }[] {
+export function getBookingTabBar(canViewRevenue: boolean): { value: BookingPageTab; label: string }[] {
   return TAB_BAR.filter((tab) => tab.value !== "revenue" || canViewRevenue);
 }
 
-/** The address of the revenue page of a booking, the target of the Revenue tab. */
-export function buildBookingRevenueHref(bookingId: string): string {
-  return `/bookings/${bookingId}/revenue`;
+/** The tab that opens first: a `?tab=revenue` is ignored for a role that has no Revenue tab. */
+export function resolveOpenTab(tab: BookingPageTab, canViewRevenue: boolean): BookingPageTab {
+  return tab === "revenue" && !canViewRevenue ? "overview" : tab;
 }
 
 /** The heading of the booking page: the design adds the tab to it on the Flight tab (`Booking detail · Flight`). */

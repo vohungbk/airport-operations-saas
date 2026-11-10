@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   BOOKING_TABS,
-  buildBookingRevenueHref,
   buildBookingTabHref,
   getBookingPageTitle,
   getBookingTabBar,
   resolveBookingPageTab,
+  resolveOpenTab,
 } from "@/features/bookings/lib/booking-tabs";
 
 describe("BOOKING_TABS", () => {
@@ -27,11 +27,11 @@ describe("buildBookingTabHref", () => {
 });
 
 describe("resolveBookingPageTab", () => {
-  it.each(["flight", "timeline", "photos"])("should open the %s tab named in the address", (tab) => {
+  it.each(["flight", "revenue", "timeline", "photos"])("should open the %s tab named in the address", (tab) => {
     expect(resolveBookingPageTab(tab)).toBe(tab);
   });
 
-  it.each([undefined, "", "overview", "workflow", "revenue", "<script>"])(
+  it.each([undefined, "", "overview", "workflow", "<script>"])(
     "should open Overview for %s",
     (value) => {
       expect(resolveBookingPageTab(value)).toBe("overview");
@@ -62,8 +62,12 @@ describe("getBookingTabBar", () => {
   it("should leave out Revenue when the role may not see the revenue", () => {
     expect(getBookingTabBar(false).map((tab) => tab.value)).toEqual(["overview", "flight", "timeline", "photos"]);
   });
+});
 
-  it("should give the revenue page of the booking", () => {
-    expect(buildBookingRevenueHref("b1")).toBe("/bookings/b1/revenue");
+describe("resolveOpenTab", () => {
+  it("should open Overview instead of Revenue for a role without the Revenue tab", () => {
+    expect(resolveOpenTab("revenue", false)).toBe("overview");
+    expect(resolveOpenTab("revenue", true)).toBe("revenue");
+    expect(resolveOpenTab("flight", false)).toBe("flight");
   });
 });

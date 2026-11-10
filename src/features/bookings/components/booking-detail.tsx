@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageEmpty } from "@/components/shared/page-state";
+import { BookingRevenueTab, type BookingRevenueData } from "@/features/bookings/components/booking-revenue-tab";
 import { BookingOverview } from "@/features/bookings/components/booking-overview";
 import { BookingStatusBadge } from "@/features/bookings/components/booking-status-badge";
 import { BookingEventsTimeline } from "@/features/bookings/components/booking-events-timeline";
@@ -34,6 +35,8 @@ interface BookingDetailProps {
   canViewRevenue?: boolean;
   /** The tab that is open when the page loads. */
   defaultTab?: BookingPageTab;
+  /** The revenue of the booking for the Revenue tab; `null` when the role may not see it. */
+  revenue?: BookingRevenueData | null;
   /** The history of the booking's flight (VI-F02-T01); `null` when the booking has no linked flight. */
   flightHistory?: FlightUpdatesResult | null;
   /** An admin or an operations manager may enter an arrival by hand (VI-F02-S07, Q4). */
@@ -53,6 +56,7 @@ export function BookingDetail({
   events,
   canManage,
   canViewRevenue = false,
+  revenue = null,
   defaultTab = "overview",
   flightHistory = null,
   canEnterArrival = false,
@@ -66,7 +70,6 @@ export function BookingDetail({
 
   return (
     <BookingDetailTabs
-      bookingId={booking.id}
       defaultTab={defaultTab}
       canViewRevenue={canViewRevenue}
       subtitle={
@@ -141,6 +144,7 @@ export function BookingDetail({
           </CardContent>
         </Card>
       }
+      revenue={revenue && <BookingRevenueTab data={revenue} timeZone={timeZone} />}
       photos={<PageEmpty message="Photos are not available yet." />}
     />
   );

@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { Controller } from "react-hook-form";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -15,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { formatMoney } from "@/features/bookings/lib/booking-revenue";
 import { useAdjustmentForm } from "@/features/bookings/hooks/use-adjustment-form";
 import {
   ADJUSTMENT_TYPES,
@@ -26,16 +26,21 @@ interface AdjustmentFormProps {
   bookingId: string;
   /** The gross revenue the booking has now. */
   maxAmount: number;
+  /** Called after the adjustment was recorded. */
+  onSuccess: () => void;
+  /** Cancel closes the dialog without recording anything. */
+  onCancel: () => void;
 }
 
 /**
- * VI-F04 S3: record a refund, an adjustment or a chargeback on a booking. Save records it and takes
- * the user back to Booking revenue; Cancel goes back without recording anything (NAV-3).
+ * VI-F04 S3 / UI-F06-T04: record a refund, an adjustment or a chargeback on a booking, in the dialog of
+ * the Revenue tab. Every type takes the amount off the revenue, so the amount is shown with a minus.
  */
-export function AdjustmentForm({ bookingId, maxAmount }: AdjustmentFormProps) {
+export function AdjustmentForm({ bookingId, maxAmount, onSuccess, onCancel }: AdjustmentFormProps) {
   const { form, onSubmit, isPending, result } = useAdjustmentForm({
     bookingId,
     maxAmount,
+    onSuccess,
   });
   const {
     register,
@@ -44,11 +49,7 @@ export function AdjustmentForm({ bookingId, maxAmount }: AdjustmentFormProps) {
   } = form;
 
   return (
-    <form
-      onSubmit={onSubmit}
-      noValidate
-      className="flex max-w-lg flex-col gap-5"
-    >
+    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       {result && !result.success && !result.error?.field && (
         <Alert variant="destructive">
           <AlertTitle>Could not record the adjustment</AlertTitle>
@@ -67,7 +68,11 @@ export function AdjustmentForm({ bookingId, maxAmount }: AdjustmentFormProps) {
               onValueChange={field.onChange}
               disabled={isPending}
             >
-              <SelectTrigger id="type" aria-invalid={!!errors.type}>
+              <SelectTrigger
+                id="type"
+                aria-invalid={!!errors.type}
+                className="data-[size=default]:h-11"
+              >
                 <SelectValue placeholder="Choose a type" />
               </SelectTrigger>
               <SelectContent>
@@ -85,17 +90,19 @@ export function AdjustmentForm({ bookingId, maxAmount }: AdjustmentFormProps) {
 
       <Field data-invalid={!!errors.amount}>
         <FieldLabel htmlFor="amount">Amount</FieldLabel>
-        <Input
+        <MoneyInput
           id="amount"
-          type="number"
-          step="0.01"
-          min={0}
-          max={maxAmount}
-          inputMode="decimal"
+          currency="−"
+          maxLength={12}
           aria-invalid={!!errors.amount}
+          aria-describedby="amount-note"
           disabled={isPending}
+          className="h-11"
           {...register("amount", { valueAsNumber: true })}
         />
+        <p id="amount-note" className="text-sm text-muted-foreground">
+          This amount reduces the revenue of the booking (up to {formatMoney(maxAmount)}).
+        </p>
         <FieldError errors={errors.amount ? [errors.amount] : undefined} />
       </Field>
 
@@ -112,16 +119,13 @@ export function AdjustmentForm({ bookingId, maxAmount }: AdjustmentFormProps) {
         <FieldError errors={errors.reason ? [errors.reason] : undefined} />
       </Field>
 
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button type="button" variant="outline" className="min-h-11 px-4" onClick={onCancel} disabled={isPending}>
+          Cancel
+        </Button>
+        <Button type="submit" className="min-h-11 px-4" disabled={isPending}>
           {isPending ? "Saving..." : "Save adjustment"}
         </Button>
-        <Link
-          href={`/bookings/${bookingId}/revenue`}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          Cancel
-        </Link>
       </div>
     </form>
   );

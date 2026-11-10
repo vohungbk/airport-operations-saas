@@ -59,7 +59,7 @@ describe("getBookingAdjustments", () => {
     await expect(getBookingAdjustments(BOOKING_ID)).rejects.toThrow("db down");
   });
 
-  it("should not select who recorded it", () => {
-    expect(BOOKING_ADJUSTMENTS_SELECT).not.toContain("created_by");
+  it("should select the name of who recorded it, not the user id", () => {
+    expect(BOOKING_ADJUSTMENTS_SELECT).toContain("creator:users!created_by(full_name)");
   });
 });

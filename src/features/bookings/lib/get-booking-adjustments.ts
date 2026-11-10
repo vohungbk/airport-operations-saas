@@ -10,10 +10,13 @@ export interface BookingAdjustmentRow {
   created_at: string;
   /** Made after the settlement of its month was approved: carried to the next settlement. */
   after_settlement: boolean;
+  /** Who recorded it; `null` when that user was removed. */
+  creator: { full_name: string } | null;
 }
 
-/** Explicit columns (VI-F04-S10): the history of one booking. Not who recorded it. */
-export const BOOKING_ADJUSTMENTS_SELECT = "id, type, amount, reason, created_at, after_settlement";
+/** Explicit columns (VI-F04-S10): the history of one booking and the name of who recorded it (UI-F06-T04). */
+export const BOOKING_ADJUSTMENTS_SELECT =
+  "id, type, amount, reason, created_at, after_settlement, creator:users!created_by(full_name)";
 
 /** More than this many adjustments of one booking is not expected. */
 export const BOOKING_ADJUSTMENTS_LIMIT = 100;

@@ -17,6 +17,14 @@ export const ADJUSTMENT_TYPE_LABEL: Record<AdjustmentType, string> = {
   chargeback: "Chargeback",
 };
 
+/** The type as the Revenue tab shows it in the table: the two refunds are one "Refund". */
+export const ADJUSTMENT_GROUP_LABEL: Record<AdjustmentType, string> = {
+  partial_refund: "Refund",
+  full_refund: "Refund",
+  manual_adjustment: "Adjustment",
+  chargeback: "Chargeback",
+};
+
 export const MAX_REASON_LENGTH = 1000;
 
 const hasAtMostTwoDecimals = (value: number) => Math.round(value * 100) / 100 === value;
