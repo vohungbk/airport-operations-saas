@@ -17,7 +17,7 @@ export type SeatsSortColumn = (typeof SEATS_SORT_COLUMNS)[number];
 export const SEATS_DEFAULT_SORT: SeatsSortColumn = "created_at";
 const SEATS_DEFAULT_ORDER = "desc";
 export const SEATS_DEFAULT_PAGE = 1;
-export const SEATS_DEFAULT_PAGE_SIZE = 20;
+export const SEATS_DEFAULT_PAGE_SIZE = 10;
 export const SEATS_MAX_PAGE_SIZE = 100;
 
 /**

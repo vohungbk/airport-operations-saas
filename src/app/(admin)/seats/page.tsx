@@ -33,11 +33,16 @@ export default async function SeatsPage({ searchParams }: SeatsPageProps) {
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Seats
-        </h1>
-        <Link href="/seats/new" className={buttonVariants()}>
-          Add Seat
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl leading-8 font-semibold text-primary-subtle-foreground">
+            Seats
+          </h1>
+          <p className="text-sm leading-5 text-text-muted">
+            Manage seat inventory across airports
+          </p>
+        </div>
+        <Link href="/seats/new" className={buttonVariants({ className: "min-h-11 rounded-lg" })}>
+          Create seat
         </Link>
       </div>
 
@@ -57,10 +62,12 @@ export default async function SeatsPage({ searchParams }: SeatsPageProps) {
           message="No seats found. Try adjusting the search or filters, or add a new seat."
         />
       ) : (
-        <>
-          <SeatsTable seats={seats} query={query} />
-          <SeatsPagination query={query} total={total} />
-        </>
+        <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface">
+          <SeatsTable seats={seats} />
+          <div className="border-t border-border">
+            <SeatsPagination query={query} total={total} />
+          </div>
+        </div>
       )}
     </div>
   );
