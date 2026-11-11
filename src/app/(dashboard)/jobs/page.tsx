@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { PageEmpty } from "@/components/shared/page-state";
 import { getJobs } from "@/features/jobs/lib/get-jobs";
+import { getJobAirportOptions, getJobsTimeZone } from "@/features/jobs/lib/get-job-airport-options";
 import { getTechnicianOptions } from "@/features/jobs/lib/get-technician-options";
 import { parseJobsQuery } from "@/features/jobs/schemas/jobs-query.schema";
 import { JobsDeadlineChips } from "@/features/jobs/components/jobs-deadline-chips";
@@ -33,13 +34,24 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
     ? parsed
     : { ...parsed, technician_id: undefined };
 
-  const [{ jobs, total }, technicians] = await Promise.all([
-    getJobs(query),
+  const [airports, technicians] = await Promise.all([
+    getJobAirportOptions(),
     canManageJobs ? getTechnicianOptions() : Promise.resolve(null),
   ]);
+  const timeZone = getJobsTimeZone(airports, query.airport_id);
+  const { jobs, total } = await getJobs(query, new Date(), timeZone);
 
+  const clearHref = `/jobs?sort=${query.sort}&order=${query.order}`;
   const hasFilters = Boolean(
-    query.q || query.status || query.technician_id || query.deadline,
+    query.q ||
+      query.status ||
+      query.type ||
+      query.technician_id ||
+      query.airport_id ||
+      query.deadline ||
+      query.unassigned ||
+      query.from ||
+      query.to,
   );
   const emptyMessage = hasFilters
     ? "No jobs match the search or filters."
@@ -51,7 +63,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
     <div className="flex flex-1 flex-col gap-6 p-8">
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl leading-8 font-semibold text-primary-subtle-foreground">
             Jobs
           </h1>
           {canManageJobs && (
@@ -64,7 +76,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             </Link>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm leading-5 text-text-muted">
           {total} job{total === 1 ? "" : "s"}
         </p>
       </div>
@@ -74,6 +86,9 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
         key={query.q ?? ""}
         query={query}
         technicians={technicians}
+        airports={airports}
+        timeZone={timeZone}
+        clearHref={clearHref}
       />
 
       <JobsDeadlineChips query={query} />
@@ -86,12 +101,24 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
       )}
 
       {total === 0 ? (
-        <PageEmpty message={emptyMessage} />
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface p-6">
+          <PageEmpty message={emptyMessage} />
+          {hasFilters && (
+            <Link
+              href={clearHref}
+              className={buttonVariants({ variant: "outline", className: "min-h-11 rounded-lg bg-surface px-4" })}
+            >
+              Clear filters
+            </Link>
+          )}
+        </div>
       ) : (
-        <>
-          <JobsTable jobs={jobs} query={query} />
-          <JobsPagination query={query} total={total} />
-        </>
+        <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface">
+          <JobsTable jobs={jobs} />
+          <div className="border-t border-border">
+            <JobsPagination query={query} total={total} />
+          </div>
+        </div>
       )}
     </div>
   );

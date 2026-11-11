@@ -13,6 +13,7 @@ const JOB: JobDetailItem = {
   assigned_at: "2026-10-16T08:00:00Z",
   started_at: null,
   completed_at: null,
+  created_at: "2026-10-16T07:00:00Z",
   vehicle_bay: null,
   installation_notes: null,
   deadline_at: null,
@@ -77,6 +78,7 @@ describe("JobDetail", () => {
           ...JOB,
           deadline_at: "2026-10-24T11:15:00.000Z",
           booking: {
+            id: "b-1",
             booking_number: "BK-1",
             pickup_at: "2026-10-24T12:15:00.000Z",
             return_at: "2026-10-27T12:15:00.000Z",
@@ -118,6 +120,7 @@ describe("JobDetail", () => {
         job: {
           ...JOB,
           booking: {
+            id: "b-1",
             booking_number: "BK-1",
             pickup_at: "2026-10-24T12:15:00.000Z",
             return_at: "2026-10-27T12:15:00.000Z",

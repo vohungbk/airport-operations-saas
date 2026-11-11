@@ -9,6 +9,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { getJobById } from "@/features/jobs/lib/get-job-by-id";
+import { getSeatLastWork } from "@/features/jobs/lib/get-seat-last-work";
 import { getJobEvents } from "@/features/jobs/lib/get-job-events";
 import { getAllowedJobTransitions } from "@/features/jobs/lib/job-status";
 import { getSeatScanHref } from "@/features/installations/lib/seat-scan-href";
@@ -31,13 +32,15 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
 
   const { id } = await params;
   const [job, { events, truncated }] = await Promise.all([
-    getJobById(id),
+    getJobById(id, { withPartner: hasPermission(user.role, "technicians:manage") }),
     getJobEvents(id),
   ]);
 
   if (!job) {
     notFound();
   }
+
+  const lastWork = job.booking?.seat ? await getSeatLastWork(job.booking.seat.id) : null;
 
   const allowedStatuses = hasAnyPermission(
     user.role,
@@ -56,6 +59,12 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
       allowedStatuses={allowedStatuses}
       workRecordHref={getWorkRecordHref(job, user)}
       scanHref={getSeatScanHref(job, user)}
+      lastWork={lastWork}
+      links={{
+        seat: hasPermission(user.role, "seats:manage"),
+        booking: hasPermission(user.role, "bookings:manage"),
+        technician: hasPermission(user.role, "technicians:manage"),
+      }}
       reportIncidentHref={
         hasAnyPermission(user.role, INCIDENT_REPORT_PERMISSIONS)
           ? `/incidents/new?job_id=${job.id}`
