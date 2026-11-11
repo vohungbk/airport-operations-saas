@@ -1,24 +1,24 @@
-import { CircleCheck, CircleX, TriangleAlert, type LucideIcon } from "lucide-react";
+import { CircleCheck, CircleX, TriangleAlert } from "lucide-react";
 
 import {
   inspectionResultLabel,
   type InspectionResult,
 } from "@/features/inspections/schemas/record-inspection.schema";
 
-function resultIcon(result: InspectionResult): LucideIcon {
-  if (result === "pass") return CircleCheck;
-  if (result === "conditional_pass") return TriangleAlert;
+const ICON_CLASS = "size-4 shrink-0";
 
-  return CircleX;
+function ResultIcon({ result }: { result: InspectionResult }) {
+  if (result === "pass") return <CircleCheck aria-hidden="true" className={ICON_CLASS} />;
+  if (result === "conditional_pass") return <TriangleAlert aria-hidden="true" className={ICON_CLASS} />;
+
+  return <CircleX aria-hidden="true" className={ICON_CLASS} />;
 }
 
 /** A result as icon and text: the icon never stands alone (AC09). */
 export function InspectionResultLabel({ result }: { result: InspectionResult }) {
-  const Icon = resultIcon(result);
-
   return (
     <span className="inline-flex items-center gap-2">
-      <Icon aria-hidden="true" className="size-4 shrink-0" />
+      <ResultIcon result={result} />
       {inspectionResultLabel(result)}
     </span>
   );
