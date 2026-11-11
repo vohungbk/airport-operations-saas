@@ -13,11 +13,28 @@ const SEAT_ID = "e0000000-0000-0000-0000-000000000002";
 const valid = { job_id: JOB_ID, seat_id: SEAT_ID, result: "pass" as const };
 
 describe("recordInspectionSchema", () => {
-  it.each(INSPECTION_RESULTS.map((result) => [result]))(
-    "should accept the result %s with no notes",
+  it("should accept a pass with no notes", () => {
+    expect(recordInspectionSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it.each([["conditional_pass"], ["fail"]])(
+    "should reject the result %s when the notes are empty (AC03)",
+    (result) => {
+      const parsed = recordInspectionSchema.safeParse({ ...valid, result, notes: "  " });
+
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues[0].path).toEqual(["notes"]);
+      expect(parsed.error?.issues[0].message).toBe(
+        "Add notes for a conditional pass or fail.",
+      );
+    },
+  );
+
+  it.each([["conditional_pass"], ["fail"]])(
+    "should accept the result %s when notes are given",
     (result) => {
       expect(
-        recordInspectionSchema.safeParse({ ...valid, result }).success,
+        recordInspectionSchema.safeParse({ ...valid, result, notes: "Strap torn" }).success,
       ).toBe(true);
     },
   );
@@ -29,7 +46,7 @@ describe("recordInspectionSchema", () => {
     });
 
     expect(parsed.success).toBe(false);
-    expect(parsed.error?.issues[0].message).toBe("Choose the result.");
+    expect(parsed.error?.issues[0].message).toBe("Select an inspection result.");
   });
 
   it("should list exactly the values of the inspection_result enum in the migration", () => {

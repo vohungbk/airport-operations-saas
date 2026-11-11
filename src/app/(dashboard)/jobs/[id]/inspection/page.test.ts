@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const getContextMock = vi.hoisted(() => vi.fn());
+const getJobMock = vi.hoisted(() => vi.fn());
+const getHistoryMock = vi.hoisted(() => vi.fn());
 const notFoundMock = vi.hoisted(() =>
   vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -15,6 +17,14 @@ vi.mock("@/lib/auth/current-user", () => ({
 
 vi.mock("@/features/inspections/lib/get-inspection-context", () => ({
   getInspectionContext: getContextMock,
+}));
+
+vi.mock("@/features/jobs/lib/get-job-by-id", () => ({
+  getJobById: getJobMock,
+}));
+
+vi.mock("@/features/inspections/lib/get-inspection-history", () => ({
+  getInspectionHistory: getHistoryMock,
 }));
 
 vi.mock("@/features/inspections/actions/record-inspection.action", () => ({
@@ -51,6 +61,24 @@ function context(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function jobDetail() {
+  return {
+    id: "j-1",
+    job_number: "JOB-2026-000123",
+    job_type: "inspection",
+    status: "in_progress",
+    deadline_at: null,
+    created_at: "2026-10-16T08:00:00Z",
+    technician: { id: "t-1", full_name: "Nguyen Van An" },
+    booking: {
+      id: "b-1",
+      booking_number: "BK-00002",
+      airport: { code: "HAN", name: "Noi Bai", city: "Hanoi", timezone: "Asia/Dubai" },
+      seat: { id: "s-1", serial_number: "SN-2", status: "available" },
+    },
+  };
+}
+
 async function render() {
   return renderToStaticMarkup(
     await InspectionPage({ params: Promise.resolve({ id: "j-1" }) }),
@@ -64,6 +92,10 @@ describe("InspectionPage", () => {
     getContextMock.mockReset();
     getContextMock.mockResolvedValue(context());
     notFoundMock.mockClear();
+    getJobMock.mockReset();
+    getJobMock.mockResolvedValue(jobDetail());
+    getHistoryMock.mockReset();
+    getHistoryMock.mockResolvedValue([]);
   });
 
   it("should guard the page with the inspection permissions", async () => {
@@ -87,7 +119,7 @@ describe("InspectionPage", () => {
 
     const html = await render();
 
-    expect(html).toContain("You cannot record this inspection");
+    expect(html).toContain("You are not assigned to this job");
     expect(html).toContain("not found or is not assigned to you");
     expect(html).toContain('href="/jobs"');
     expect(html).not.toContain("Inspection result");
@@ -101,7 +133,7 @@ describe("InspectionPage", () => {
     const html = await render();
 
     expect(getContextMock).toHaveBeenCalledWith("j-1");
-    expect(html).toContain("You cannot record this inspection");
+    expect(html).toContain("You are not assigned to this job");
     expect(html).not.toContain("BK-00002");
     expect(html).not.toContain("SN-2");
     expect(html).not.toContain("Inspection result");
@@ -115,25 +147,73 @@ describe("InspectionPage", () => {
     await expect(render()).rejects.toThrow("NOT_FOUND");
   });
 
-  it("should show the form with the seat, the three results and a Cancel link back to the job", async () => {
+  it("should show a technician the new screen with the seat, the result select and Cancel, and no link to pages the technician cannot open", async () => {
     const html = await render();
 
     expect(html).toContain("SN-2 (Infant)");
-    expect(html).toContain("Inspection result");
-    expect(html).toContain("Pass");
-    expect(html).toContain("Conditional pass");
-    expect(html).toContain("Fail");
+    expect(html).toContain("Select result");
     expect(html).toContain('href="/jobs/j-1"');
     expect(html).toContain("Cancel");
+    expect(html).not.toContain('href="/technicians/');
+    expect(html).not.toContain('href="/seats/');
   });
 
-  it("should show the form to an internal user on a job assigned to a technician", async () => {
+  it("should show the Job, Seat and Technician cards and the form to an internal user (AC01)", async () => {
     requireAnyPermissionMock.mockResolvedValue({ id: "admin-1", role: "admin" });
 
     const html = await render();
 
+    expect(html).toContain("JOB-2026-000123");
+    expect(html).toContain("Nguyen Van An");
+    expect(html).toContain('href="/technicians/t-1"');
+    expect(html).toContain('href="/seats/s-1"');
     expect(html).toContain("Inspection result");
-    expect(html).not.toContain("You cannot record this inspection");
+    expect(html).toContain("Select result");
+    expect(html).not.toContain("You are not assigned to this job");
+  });
+
+  it("should show past inspections to an internal user with no delete action (AC07)", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "admin-1", role: "admin" });
+    getHistoryMock.mockResolvedValue([
+      {
+        id: "i-0",
+        result: "fail",
+        notes: "Strap torn",
+        created_at: "2026-10-10T08:05:00Z",
+        inspector: "Ahmed",
+      },
+    ]);
+
+    const html = await render();
+
+    expect(getHistoryMock).toHaveBeenCalledWith("s-1");
+    expect(html).toContain("Inspection history");
+    expect(html).toContain("Strap torn");
+    expect(html).toContain("Ahmed");
+    expect(html).not.toMatch(/<button[^>]*>\s*Delete/i);
+  });
+
+  it("should show the saved inspection read only to an internal user and no form (AC02)", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "admin-1", role: "admin" });
+    getContextMock.mockResolvedValue(
+      context({
+        inspection: {
+          id: "i-1",
+          result: "pass",
+          notes: "All good",
+          created_at: "2026-10-16T08:05:00Z",
+          follow_up: null,
+          seat_serial_number: "SN-2",
+          recorded_by: "Ahmed",
+        },
+      }),
+    );
+
+    const html = await render();
+
+    expect(html).toContain("Recorded by");
+    expect(html).toContain("All good");
+    expect(html).not.toContain("Select result");
   });
 
   it.each([

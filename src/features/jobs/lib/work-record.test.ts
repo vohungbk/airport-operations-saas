@@ -103,6 +103,25 @@ describe("getWorkRecordHref", () => {
     },
   );
 
+  it.each(["admin", "operations_manager"] as const)(
+    "should return the inspection screen for %s on an inspection job of another technician",
+    (role) => {
+      expect(
+        getWorkRecordHref(job({ job_type: "inspection" }), { id: "u-9", role }, ALL_AVAILABLE),
+      ).toBe("/jobs/j-1/inspection");
+    },
+  );
+
+  it("should return null for a technician on an inspection job assigned to another technician", () => {
+    expect(
+      getWorkRecordHref(
+        job({ job_type: "inspection", technician: { id: "t-2" } }),
+        TECHNICIAN,
+        ALL_AVAILABLE,
+      ),
+    ).toBeNull();
+  });
+
   it("should return null for an admin on a cleaning job that is already completed", () => {
     expect(
       getWorkRecordHref(

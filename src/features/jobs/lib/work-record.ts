@@ -54,8 +54,8 @@ interface WorkRecordUser {
 /**
  * Href of the workflow screen that matches the job, or `null` when the user
  * should not be offered one: the workflow is not available yet, the job is
- * not active, it is assigned to someone else (a cleaning job is open to Admin and
- * Operations Manager), or the user lacks the permission. Only a visibility rule — the workflow screen must guard
+ * not active, it is assigned to someone else (a cleaning or inspection job is open to Admin
+ * and Operations Manager), or the user lacks the permission. Only a visibility rule — the workflow screen must guard
  * itself.
  */
 export function getWorkRecordHref(
@@ -70,13 +70,14 @@ export function getWorkRecordHref(
     return null;
   }
 
-  // Admin and Operations Manager open the cleaning panel of any cleaning job (UI-F06-T08); every
-  // other work is only for the assigned technician.
-  const managesCleaning =
-    job.job_type === "cleaning" && hasPermission(user.role, "technicians:manage");
+  // Admin and Operations Manager open the panel of any cleaning job (UI-F06-T08) and inspection job
+  // (UI-F06-T09); every other work is only for the assigned technician.
+  const managesWork =
+    (job.job_type === "cleaning" || job.job_type === "inspection") &&
+    hasPermission(user.role, "technicians:manage");
 
   if (
-    !managesCleaning &&
+    !managesWork &&
     (job.technician?.id !== user.id || !hasPermission(user.role, workflow.permission))
   ) {
     return null;

@@ -29,16 +29,36 @@ export function inspectionResultLabel(result: InspectionResult): string {
   }
 }
 
-export const recordInspectionSchema = z.object({
-  job_id: idField("Job not found."),
-  seat_id: idField("A seat is required."),
-  // No default: the technician has to choose a result.
-  result: z.enum(INSPECTION_RESULTS, { error: "Choose the result." }),
-  notes: z
-    .string()
-    .trim()
-    .max(NOTES_MAX_LENGTH, `Notes must be at most ${NOTES_MAX_LENGTH} characters.`)
-    .optional(),
-});
+const RESULT_REQUIRED_MESSAGE = "Select an inspection result.";
+const NOTES_REQUIRED_MESSAGE = "Add notes for a conditional pass or fail.";
+
+/** A conditional pass or a fail has to say what is wrong with the seat. */
+export function isInspectionNotesRequired(
+  result: InspectionResult | undefined,
+): boolean {
+  return result === "conditional_pass" || result === "fail";
+}
+
+export const recordInspectionSchema = z
+  .object({
+    job_id: idField("Job not found."),
+    seat_id: idField("A seat is required."),
+    // No default: the technician has to choose a result.
+    result: z.enum(INSPECTION_RESULTS, { error: RESULT_REQUIRED_MESSAGE }),
+    notes: z
+      .string()
+      .trim()
+      .max(NOTES_MAX_LENGTH, `Notes must be at most ${NOTES_MAX_LENGTH} characters.`)
+      .optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (isInspectionNotesRequired(value.result) && !value.notes) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["notes"],
+        message: NOTES_REQUIRED_MESSAGE,
+      });
+    }
+  });
 
 export type RecordInspectionInput = z.infer<typeof recordInspectionSchema>;
