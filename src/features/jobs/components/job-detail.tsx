@@ -9,8 +9,9 @@ import { BookingFlightPanel } from "@/features/bookings/components/booking-fligh
 import { getInstallationDeadline } from "@/features/flights/lib/flight-panel";
 import { SeatStatusBadge } from "@/features/seats/components/seat-status-badge";
 import { ChangeJobStatusDialog } from "@/features/jobs/components/change-job-status-dialog";
+import { SavedToast } from "@/features/jobs/components/saved-toast";
 import { JobWorkTabs } from "@/features/jobs/components/job-work-tabs";
-import type { SeatLastWorkResult } from "@/features/jobs/lib/get-seat-last-work";
+import type { SeatLastWorkState } from "@/features/jobs/lib/get-seat-last-work";
 import { JobEventsTimeline } from "@/features/jobs/components/job-events-timeline";
 import { JobStatusBadge } from "@/features/jobs/components/job-status-badge";
 import type { JobTargetStatus } from "@/features/jobs/lib/job-status";
@@ -35,7 +36,9 @@ interface JobDetailProps {
   /** Which names link to their own page; a person without access to that page sees plain text. */
   links?: { seat: boolean; booking: boolean; technician: boolean };
   /** The last cleaning and inspection of the seat; null hides the line. */
-  lastWork?: SeatLastWorkResult | null;
+  lastWork?: Promise<SeatLastWorkState> | null;
+  /** A step that was just saved, from the address; shows its toast once. */
+  saved?: "inspection" | null;
 }
 
 /** `04 Nov 2026 14:30 GST`, in the airport time zone; `-` when the value is empty. */
@@ -98,6 +101,7 @@ export function JobDetail({
   reportIncidentHref = null,
   links = NO_LINKS,
   lastWork = null,
+  saved = null,
 }: JobDetailProps) {
   const { booking } = job;
   const timeZone = booking?.airport?.timezone ?? "UTC";
@@ -107,6 +111,7 @@ export function JobDetail({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
+      {saved === "inspection" && <SavedToast message="Inspection saved" />}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <h1 className="min-w-0 text-2xl leading-8 font-semibold break-words text-primary-subtle-foreground">
           {job.job_number}

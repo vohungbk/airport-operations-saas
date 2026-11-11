@@ -9,7 +9,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { getJobById } from "@/features/jobs/lib/get-job-by-id";
-import { getSeatLastWork } from "@/features/jobs/lib/get-seat-last-work";
+import { loadSeatLastWork } from "@/features/jobs/lib/get-seat-last-work";
 import { getJobEvents } from "@/features/jobs/lib/get-job-events";
 import { getAllowedJobTransitions } from "@/features/jobs/lib/job-status";
 import { getSeatScanHref } from "@/features/installations/lib/seat-scan-href";
@@ -18,6 +18,7 @@ import { JobDetail } from "@/features/jobs/components/job-detail";
 
 interface JobDetailPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 /**
@@ -27,10 +28,11 @@ interface JobDetailPageProps {
  * function enforces the same rules. The "Record work" link is only offered
  * when the matching workflow screen is available for this user and job.
  */
-export default async function JobDetailPage({ params }: JobDetailPageProps) {
+export default async function JobDetailPage({ params, searchParams }: JobDetailPageProps) {
   const user = await requireAnyPermission(JOBS_ACCESS_PERMISSIONS);
 
   const { id } = await params;
+  const { saved } = await searchParams;
   const [job, { events, truncated }] = await Promise.all([
     getJobById(id, { withPartner: hasPermission(user.role, "technicians:manage") }),
     getJobEvents(id),
@@ -40,7 +42,8 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
     notFound();
   }
 
-  const lastWork = job.booking?.seat ? await getSeatLastWork(job.booking.seat.id) : null;
+  // Not awaited: the panel shows the seat at once and waits for this line only.
+  const lastWork = job.booking?.seat ? loadSeatLastWork(job.booking.seat.id) : null;
 
   const allowedStatuses = hasAnyPermission(
     user.role,
@@ -60,6 +63,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
       workRecordHref={getWorkRecordHref(job, user)}
       scanHref={getSeatScanHref(job, user)}
       lastWork={lastWork}
+      saved={saved === "inspection" ? "inspection" : null}
       links={{
         seat: hasPermission(user.role, "seats:manage"),
         booking: hasPermission(user.role, "bookings:manage"),

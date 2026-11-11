@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/jobs",
 }));
 
@@ -13,7 +13,15 @@ import { JobsDeadlineChips } from "@/features/jobs/components/jobs-deadline-chip
 import { JobsFilters } from "@/features/jobs/components/jobs-filters";
 import { JobsPagination } from "@/features/jobs/components/jobs-pagination";
 import { JobsTable } from "@/features/jobs/components/jobs-table";
+import type { SeatLastWorkResult, SeatLastWorkState } from "@/features/jobs/lib/get-seat-last-work";
 import type { JobDetailItem, JobEventItem } from "@/features/jobs/types";
+
+/** A read that is already done, which React reads without waiting. */
+function settled(state: SeatLastWorkState): Promise<SeatLastWorkState> {
+  return Object.assign(Promise.resolve(state), { status: "fulfilled", value: state });
+}
+
+const ok = (data: SeatLastWorkResult) => settled({ ok: true, data });
 
 const html = (element: Parameters<typeof renderToStaticMarkup>[0]) =>
   renderToStaticMarkup(element);
@@ -428,12 +436,69 @@ describe("job detail layout of the design", () => {
         eventsTruncated: false,
         allowedStatuses: [],
         workRecordHref: "/jobs/j-1/cleaning",
-        lastWork: { cleaning: { at: "2026-11-03T13:20:00Z", outcome: "Success" }, inspection: null },
+        lastWork: ok({ cleaning: { at: "2026-11-03T13:20:00Z", outcome: "Success" }, inspection: null }),
       }),
     );
 
     expect(out).toContain("Start cleaning after confirming there is no conflicting booking.");
     expect(out).toMatch(/<a [^>]*href="\/jobs\/j-1\/cleaning"[^>]*>Start cleaning<\/a>/);
     expect(out).toContain("Last cleaning: 03 Nov 2026 17:20 GST · Success");
+  });
+
+  describe("Inspection tab", () => {
+    const inspectionJob: JobDetailItem = { ...detail, job_type: "inspection", status: "in_progress" };
+    const renderInspection = (workRecordHref: string | null, lastWork: Promise<SeatLastWorkState> | null) =>
+      html(
+        createElement(JobDetail, {
+          job: inspectionJob,
+          events: [],
+          eventsTruncated: false,
+          allowedStatuses: [],
+          workRecordHref,
+          lastWork,
+        }),
+      );
+
+    it("should show the seat, the hint, Record inspection and the last inspection", () => {
+      const out = renderInspection(
+        "/jobs/j-1/inspection",
+        ok({ cleaning: null, inspection: { at: "2026-11-03T12:40:00Z", outcome: "Pass" } }),
+      );
+
+      expect(out).toContain("Record the inspection result for this seat.");
+      expect(out).toMatch(/<a [^>]*href="\/jobs\/j-1\/inspection"[^>]*>Record inspection<\/a>/);
+      expect(out).toContain("Last inspection: 03 Nov 2026 16:40 GST · Pass");
+    });
+
+    it("should say no inspection is recorded yet when the seat has none", () => {
+      const out = renderInspection("/jobs/j-1/inspection", ok({ cleaning: null, inspection: null }));
+
+      expect(out).toContain("No inspection recorded yet");
+    });
+
+    it("should say the user is not assigned, and show the button off, when the job has no link", () => {
+      const out = renderInspection(
+        null,
+        ok({ cleaning: null, inspection: { at: "2026-11-03T12:40:00Z", outcome: "Pass" } }),
+      );
+
+      expect(out).toContain("You are not assigned to this job");
+      expect(out).toMatch(/<button [^>]*disabled[^>]*>Record inspection<\/button>/);
+      expect(out).not.toMatch(/<a [^>]*>Record inspection<\/a>/);
+      expect(out).toContain("Last inspection: 03 Nov 2026 16:40 GST · Pass");
+    });
+
+    it("should show an error with Try again when the last inspection cannot be read", () => {
+      const out = renderInspection("/jobs/j-1/inspection", settled({ ok: false }));
+
+      expect(out).toContain("Unable to load inspection. Please try again.");
+      expect(out).toContain("Try again");
+    });
+
+    it("should show Loading inspection while the last inspection is read", () => {
+      const out = renderInspection("/jobs/j-1/inspection", new Promise(() => {}));
+
+      expect(out).toContain("Loading inspection…");
+    });
   });
 });

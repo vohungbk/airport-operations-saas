@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 export interface SeatLastWork {
   /** When it was done and how it ended. */
   at: string;
-  outcome: "Success" | "Failed" | "Conditional pass";
+  outcome: "Success" | "Failed" | "Pass" | "Fail" | "Conditional pass";
 }
 
 export interface SeatLastWorkResult {
@@ -48,11 +48,21 @@ export async function getSeatLastWork(seatId: string): Promise<SeatLastWorkResul
           at: inspection.data.created_at,
           outcome:
             inspection.data.result === "fail"
-              ? "Failed"
+              ? "Fail"
               : inspection.data.result === "conditional_pass"
                 ? "Conditional pass"
-                : "Success",
+                : "Pass",
         }
       : null,
   };
+}
+
+/** What the panel gets: the read is started on the server, and a failed read is a state, not a crash. */
+export type SeatLastWorkState = { ok: true; data: SeatLastWorkResult } | { ok: false };
+
+export function loadSeatLastWork(seatId: string): Promise<SeatLastWorkState> {
+  return getSeatLastWork(seatId).then(
+    (data): SeatLastWorkState => ({ ok: true, data }),
+    (): SeatLastWorkState => ({ ok: false }),
+  );
 }

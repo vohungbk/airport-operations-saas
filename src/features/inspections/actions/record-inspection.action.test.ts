@@ -68,7 +68,7 @@ describe("recordInspectionAction", () => {
 
   it("should insert the inspection and redirect to the success screen on success", async () => {
     await expect(recordInspectionAction(VALID_INPUT)).rejects.toThrow(
-      `REDIRECT:/jobs/${JOB_ID}/done?step=inspection`,
+      `REDIRECT:/jobs/${JOB_ID}?saved=inspection`,
     );
 
     expect(requireAnyPermissionMock).toHaveBeenCalledWith([
@@ -97,7 +97,7 @@ describe("recordInspectionAction", () => {
     async (result) => {
       await expect(
         recordInspectionAction({ ...VALID_INPUT, result }),
-      ).rejects.toThrow(`REDIRECT:/jobs/${JOB_ID}/done?step=inspection`);
+      ).rejects.toThrow(`REDIRECT:/jobs/${JOB_ID}?saved=inspection`);
     },
   );
 

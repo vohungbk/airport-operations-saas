@@ -1047,6 +1047,13 @@ Start cleaning to Complete cleaning. It is **not** in `[db.seed]`. Load it by ha
 `demo.sql`: `npx supabase db query -f supabase/seeds/cleaning-demo.sql`. It refuses to run next to real accounts or
 before `demo.sql`, and does nothing when loaded again.
 
+**Inspection demo data.** `supabase/seeds/inspection-demo.sql` adds BK-IN001 with SEAT-0032 (never inspected) and an
+inspection job for technician1, and BK-IN002 with SEAT-0033 (one Pass inspection) and an inspection job for
+technician2, so the Inspection tab of the job can be tried in the states No inspection yet (technician1) and Not
+assigned (Admin or Operations Manager). It is **not** in `[db.seed]`. Load it by hand on a local database after
+`demo.sql`: `npx supabase db query -f supabase/seeds/inspection-demo.sql`. It refuses to run next to real accounts
+or before `demo.sql`, and does nothing when loaded again.
+
 **Booking timeline demo data (UI-F06-T05).** `supabase/seeds/booking-timeline-demo.sql` adds the rental BK-00132 with
 a full history: the booking trigger writes the status events (created, confirmed with a reason, an update of
 vehicle, bay and notes, a seat change, in progress, completed), two flight updates and two adjustments (a refund

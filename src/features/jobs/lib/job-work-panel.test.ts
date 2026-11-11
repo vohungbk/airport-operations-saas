@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getJobWorkTab,
+  getNoTaskMessage,
   getWorkActionLabel,
   getWorkPanelHint,
   WORK_TABS,
@@ -22,7 +23,8 @@ describe("job work panel", () => {
     expect(getWorkPanelHint("assigned", "cleaning")).toBe(
       "Start cleaning after confirming there is no conflicting booking.",
     );
-    expect(getWorkPanelHint("in_progress", "inspection")).toBe("Complete inspection to finish this job.");
+    expect(getWorkPanelHint("in_progress", "inspection")).toBe("Record the inspection result for this seat.");
+    expect(getWorkPanelHint("assigned", "inspection")).toBe("Record the inspection result for this seat.");
     expect(getWorkPanelHint("completed", "cleaning")).toBe("This job is completed.");
     expect(getWorkPanelHint("cancelled", "cleaning")).toBe("This job was cancelled.");
   });
@@ -30,5 +32,14 @@ describe("job work panel", () => {
   it("should name the button Start while assigned and Record work after", () => {
     expect(getWorkActionLabel("assigned", "cleaning")).toBe("Start cleaning");
     expect(getWorkActionLabel("in_progress", "cleaning")).toBe("Record work");
+  });
+
+  it("should name the inspection button Record inspection whether assigned or in progress", () => {
+    expect(getWorkActionLabel("assigned", "inspection")).toBe("Record inspection");
+    expect(getWorkActionLabel("in_progress", "inspection")).toBe("Record inspection");
+  });
+
+  it("should word the tab of a work the job does not have", () => {
+    expect(getNoTaskMessage("inspection")).toBe("This job has no inspection task");
   });
 });
