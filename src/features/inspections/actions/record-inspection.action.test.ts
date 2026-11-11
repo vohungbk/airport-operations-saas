@@ -86,9 +86,19 @@ describe("recordInspectionAction", () => {
     });
   });
 
+  it.each([["conditional_pass"], ["fail"]])(
+    "should not save the result %s when the notes are empty (AC03)",
+    async (result) => {
+      const saved = await recordInspectionAction({ ...VALID_INPUT, result, notes: " " });
+
+      expect(saved).toMatchObject({ success: false });
+      expect(insertMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("should redirect to the inspection page when the result is fail so the follow-up is shown", async () => {
     await expect(
-      recordInspectionAction({ ...VALID_INPUT, result: "fail" }),
+      recordInspectionAction({ ...VALID_INPUT, result: "fail", notes: "Cracked shell" }),
     ).rejects.toThrow(`REDIRECT:/jobs/${JOB_ID}/inspection`);
   });
 
@@ -96,7 +106,7 @@ describe("recordInspectionAction", () => {
     "should redirect to the success screen when the result is %s",
     async (result) => {
       await expect(
-        recordInspectionAction({ ...VALID_INPUT, result }),
+        recordInspectionAction({ ...VALID_INPUT, result, notes: "Checked" }),
       ).rejects.toThrow(`REDIRECT:/jobs/${JOB_ID}?saved=inspection`);
     },
   );
