@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const getContextMock = vi.hoisted(() => vi.fn());
+const getJobByIdMock = vi.hoisted(() => vi.fn());
+const getConflictMock = vi.hoisted(() => vi.fn());
+const getLastWorkMock = vi.hoisted(() => vi.fn());
 const notFoundMock = vi.hoisted(() =>
   vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -15,6 +18,18 @@ vi.mock("@/lib/auth/current-user", () => ({
 
 vi.mock("@/features/cleaning/lib/get-cleaning-context", () => ({
   getCleaningContext: getContextMock,
+}));
+
+vi.mock("@/features/jobs/lib/get-job-by-id", () => ({
+  getJobById: getJobByIdMock,
+}));
+
+vi.mock("@/features/cleaning/lib/get-seat-booking-conflict", () => ({
+  getSeatBookingConflict: getConflictMock,
+}));
+
+vi.mock("@/features/jobs/lib/get-seat-last-work", () => ({
+  getSeatLastWork: getLastWorkMock,
 }));
 
 vi.mock("@/features/cleaning/actions/start-cleaning.action", () => ({
@@ -41,17 +56,38 @@ function context(overrides: Record<string, unknown> = {}) {
       technician_id: "t-1",
     },
     booking: {
+      id: "b-1",
       booking_number: "BK-00002",
       airport: { code: "DXB", name: "Dubai", timezone: "Asia/Dubai" },
       seat: {
         id: "s-1",
         serial_number: "SN-2",
         status: "available",
+        quarantine_reason: null,
         category_name: "Infant",
       },
     },
     cleaning: null,
     ...overrides,
+  };
+}
+
+function jobDetail() {
+  return {
+    id: "j-1",
+    job_number: "JOB-2026-000123",
+    status: "in_progress",
+    job_type: "cleaning",
+    created_at: "2026-11-04T04:00:00Z",
+    deadline_at: null,
+    technician: { id: "t-1", full_name: "Omar Haddad" },
+    booking: {
+      id: "b-1",
+      booking_number: "BK-00002",
+      partner: { name: "Emirates Rent A Car" },
+      pickup_at: "2026-11-05T05:00:00Z",
+      airport: { code: "DXB", name: "Dubai", city: "Dubai", timezone: "Asia/Dubai" },
+    },
   };
 }
 
@@ -68,6 +104,15 @@ describe("CleaningPage", () => {
     getContextMock.mockReset();
     getContextMock.mockResolvedValue(context());
     notFoundMock.mockClear();
+    getJobByIdMock.mockReset();
+    getJobByIdMock.mockResolvedValue(jobDetail());
+    getConflictMock.mockReset();
+    getConflictMock.mockResolvedValue(null);
+    getLastWorkMock.mockReset();
+    getLastWorkMock.mockResolvedValue({
+      cleaning: { at: "2026-11-03T13:20:00Z", outcome: "Success" },
+      inspection: null,
+    });
   });
 
   it("should guard the page with the cleaning permissions", async () => {
@@ -116,13 +161,92 @@ describe("CleaningPage", () => {
     expect(html).toContain("Cancel");
   });
 
-  it("should show the Start step to an internal user on a job assigned to a technician", async () => {
-    requireAnyPermissionMock.mockResolvedValue({ id: "admin-1", role: "admin" });
+  describe("for Admin and Operations Manager", () => {
+    beforeEach(() => {
+      requireAnyPermissionMock.mockResolvedValue({ id: "admin-1", role: "admin" });
+    });
 
+    it("should show Not started with Start cleaning, the last cleaning and the job cards", async () => {
+      const html = await render();
+
+      expect(html).toContain("Start cleaning");
+      expect(html).toContain("Last cleaning: 03 Nov 2026 17:20 GST · Success");
+      expect(html).toContain("JOB-2026-000123");
+      expect(html).toContain("Emirates Rent A Car");
+      expect(html).toContain("Cleaning history is retained. No records can be deleted.");
+      expect(html).not.toContain("You cannot record this cleaning");
+    });
+
+    it("should block Start with the booking link and period when a booking holds the seat", async () => {
+      getConflictMock.mockResolvedValue({
+        id: "b-9",
+        booking_number: "BK-2026-000900",
+        pickup_at: "2026-11-04T05:00:00Z",
+        return_at: "2026-11-04T13:00:00Z",
+      });
+
+      const html = await render();
+
+      expect(html).toContain("Start cleaning - blocked");
+      expect(html).toContain('href="/bookings/b-9"');
+      expect(html).toContain("04 Nov 2026 09:00 GST - 04 Nov 2026 17:00 GST");
+    });
+
+    it("should show the Quarantine reason and Create incident after a failed cleaning", async () => {
+      getContextMock.mockResolvedValue(
+        context({
+          booking: {
+            ...context().booking,
+            seat: {
+              ...context().booking.seat,
+              status: "quarantine",
+              quarantine_reason: "persistent contamination on harness",
+            },
+          },
+          cleaning: {
+            id: "c-1",
+            started_at: "2026-11-04T07:00:00Z",
+            completed_at: "2026-11-04T07:18:00Z",
+            passed: false,
+            notes: "Sticky",
+            created_at: "2026-11-04T07:00:00Z",
+            seat_serial_number: "SN-2",
+            recorded_by: "Omar Haddad",
+          },
+        }),
+      );
+
+      const html = await render();
+
+      expect(html).toContain("persistent contamination on harness");
+      expect(html).toContain('href="/incidents/new?job_id=j-1"');
+      expect(html).toContain("Recorded by Omar Haddad");
+      expect(getConflictMock).not.toHaveBeenCalled();
+    });
+
+    it("should say the seat status instead of offering Start when the seat is not available and nothing blocks it", async () => {
+      getContextMock.mockResolvedValue(
+        context({
+          booking: {
+            ...context().booking,
+            seat: { ...context().booking.seat, status: "inspection" },
+          },
+        }),
+      );
+
+      const html = await render();
+
+      expect(html).toContain("The seat status is Inspection");
+      expect(html).not.toContain("Start cleaning");
+    });
+  });
+
+  it("should keep the technician screen, with no job cards, for a technician", async () => {
     const html = await render();
 
-    expect(html).toContain("Start cleaning");
-    expect(html).not.toContain("You cannot record this cleaning");
+    expect(html).toContain("Cancel");
+    expect(html).not.toContain("Cleaning history is retained");
+    expect(getJobByIdMock).not.toHaveBeenCalled();
   });
 
   it.each([

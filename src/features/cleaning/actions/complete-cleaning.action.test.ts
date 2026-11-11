@@ -43,10 +43,33 @@ describe("completeCleaningAction", () => {
 
   it("should send passed false for a failed cleaning", async () => {
     await expect(
-      completeCleaningAction({ job_id: JOB_ID, result: "failed" }),
+      completeCleaningAction({ job_id: JOB_ID, result: "failed", notes: "Sticky" }),
     ).rejects.toThrow("REDIRECT:");
 
     expect(rpcMock.mock.calls[0][1]).toMatchObject({ p_passed: false });
+  });
+
+  it.each(["admin", "operations_manager"])(
+    "should stay on the panel and not redirect when the caller is %s",
+    async (role) => {
+      requireAnyPermissionMock.mockResolvedValue({ id: "u-2", role });
+
+      await expect(
+        completeCleaningAction({ job_id: JOB_ID, result: "passed" }),
+      ).resolves.toEqual({ success: true });
+      expect(rpcMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("should return VALIDATION_ERROR and save nothing when a failed result has no notes", async () => {
+    const result = await completeCleaningAction({
+      job_id: JOB_ID,
+      result: "failed",
+      notes: "  ",
+    });
+
+    expect(result.error?.code).toBe("VALIDATION_ERROR");
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 
   it("should return VALIDATION_ERROR and skip the call when the result is missing", async () => {
