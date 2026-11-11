@@ -46,7 +46,7 @@ function formatDateTime(value: string | null, timeZone: string): string {
 const NO_LINKS = { seat: false, booking: false, technician: false };
 
 /** A label and its value on one row of a card; the value wraps instead of pushing the card wider. */
-function Detail({ label, children }: { label: string; children: ReactNode }) {
+export function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="grid min-w-0 grid-cols-[7.5rem_1fr] items-start gap-3 sm:grid-cols-[9rem_1fr]">
       <dt className="text-sm text-text-muted">{label}</dt>
@@ -55,7 +55,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function DetailCard({ title, children }: { title: string; children: ReactNode }) {
+export function DetailCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Card>
       <CardContent className="flex flex-col gap-3">
@@ -66,7 +66,7 @@ function DetailCard({ title, children }: { title: string; children: ReactNode })
   );
 }
 
-function NameLink({ href, children }: { href: string | null; children: ReactNode }) {
+export function NameLink({ href, children }: { href: string | null; children: ReactNode }) {
   return href ? (
     <Link href={href} className="text-primary underline underline-offset-2 hover:no-underline">
       {children}
