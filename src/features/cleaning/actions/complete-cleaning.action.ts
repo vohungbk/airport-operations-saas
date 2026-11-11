@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireAnyPermission } from "@/lib/auth/current-user";
-import { CLEANING_RECORD_PERMISSIONS } from "@/lib/auth/permissions";
+import {
+  CLEANING_RECORD_PERMISSIONS,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import {
   VALIDATION_ERROR,
   type JobActionResult,
@@ -22,7 +25,7 @@ import { completeCleaningSchema } from "@/features/cleaning/schemas/cleaning.sch
 export async function completeCleaningAction(
   input: unknown,
 ): Promise<JobActionResult> {
-  await requireAnyPermission(CLEANING_RECORD_PERMISSIONS);
+  const user = await requireAnyPermission(CLEANING_RECORD_PERMISSIONS);
 
   const parsed = completeCleaningSchema.safeParse(input);
 
@@ -39,6 +42,12 @@ export async function completeCleaningAction(
 
   if (error) {
     return { success: false, error: mapCleaningError(error) };
+  }
+
+  // Admin and Operations Manager stay on the cleaning panel and see a toast; a
+  // technician goes to the step-done screen.
+  if (hasPermission(user.role, "technicians:manage")) {
+    return { success: true };
   }
 
   redirect(`/jobs/${parsed.data.job_id}/done?step=cleaning`);

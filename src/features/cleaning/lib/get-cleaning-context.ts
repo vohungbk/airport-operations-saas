@@ -25,12 +25,15 @@ export interface CleaningContext {
     technician_id: string;
   };
   booking: {
+    id: string;
     booking_number: string;
     airport: { code: string; name: string; timezone: string };
     seat: {
       id: string;
       serial_number: string;
       status: SeatStatus;
+      /** Why the seat is in Quarantine; null for any other status. */
+      quarantine_reason: string | null;
       category_name: string | null;
     } | null;
   };
@@ -47,7 +50,7 @@ const CLEANING_CONTEXT_SELECT = [
   "status",
   "job_type",
   "technician_id",
-  "booking:bookings!inner(booking_number, airport:airports!inner(code, name, timezone), seat:seats!assigned_seat_id(id, serial_number, status, category:seat_categories(name)))",
+  "booking:bookings!inner(id, booking_number, airport:airports!inner(code, name, timezone), seat:seats!assigned_seat_id(id, serial_number, status, quarantine_reason, category:seat_categories(name)))",
   "cleaning:cleaning_records(id, started_at, completed_at, passed, notes, created_at, seat:seats(serial_number), recorder:users!employee_id(full_name))",
 ].join(", ");
 
@@ -57,12 +60,14 @@ interface Row {
   job_type: JobType;
   technician_id: string;
   booking: {
+    id: string;
     booking_number: string;
     airport: { code: string; name: string; timezone: string };
     seat: {
       id: string;
       serial_number: string;
       status: SeatStatus;
+      quarantine_reason: string | null;
       category: { name: string } | null;
     } | null;
   };
@@ -120,12 +125,14 @@ export async function getCleaningContext(
       technician_id: row.technician_id,
     },
     booking: {
+      id: row.booking.id,
       booking_number: row.booking.booking_number,
       airport: row.booking.airport,
       seat: row.booking.seat && {
         id: row.booking.seat.id,
         serial_number: row.booking.seat.serial_number,
         status: row.booking.seat.status,
+        quarantine_reason: row.booking.seat.quarantine_reason,
         category_name: row.booking.seat.category?.name ?? null,
       },
     },

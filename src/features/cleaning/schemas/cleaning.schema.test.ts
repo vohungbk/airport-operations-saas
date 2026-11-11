@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  FAILED_NOTES_REQUIRED_MESSAGE,
   NOTES_MAX_LENGTH,
   completeCleaningSchema,
   startCleaningSchema,
@@ -22,12 +23,37 @@ describe("startCleaningSchema", () => {
 });
 
 describe("completeCleaningSchema", () => {
-  it.each([["passed"], ["failed"]])(
-    "should accept the result %s with optional notes",
-    (result) => {
-      expect(
-        completeCleaningSchema.safeParse({ job_id: JOB_ID, result }).success,
-      ).toBe(true);
+  it("should accept a passed result without notes", () => {
+    expect(
+      completeCleaningSchema.safeParse({ job_id: JOB_ID, result: "passed" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("should accept a failed result with notes", () => {
+    expect(
+      completeCleaningSchema.safeParse({
+        job_id: JOB_ID,
+        result: "failed",
+        notes: "Buckle is sticky",
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each([[undefined], [""], ["   "]])(
+    "should ask for notes when the result is failed and notes are %j",
+    (notes) => {
+      const parsed = completeCleaningSchema.safeParse({
+        job_id: JOB_ID,
+        result: "failed",
+        notes,
+      });
+
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues[0]).toMatchObject({
+        path: ["notes"],
+        message: FAILED_NOTES_REQUIRED_MESSAGE,
+      });
     },
   );
 

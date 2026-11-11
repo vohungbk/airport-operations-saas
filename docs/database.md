@@ -1041,6 +1041,12 @@ BK-00025, so the Overview and the Revenue tab can be looked at. It is **not** in
 local database after `demo.sql`: `npx supabase db query -f supabase/seeds/booking-detail-demo.sql`. It refuses to
 run next to real accounts or before `demo.sql`, and does nothing when loaded again.
 
+**Cleaning demo data (UI-F06-T08).** `supabase/seeds/cleaning-demo.sql` adds the booking BK-CL001 with SEAT-0031
+(Available) and one cleaning job for technician1 that has not been started, so the Cleaning panel can be tried from
+Start cleaning to Complete cleaning. It is **not** in `[db.seed]`. Load it by hand on a local database after
+`demo.sql`: `npx supabase db query -f supabase/seeds/cleaning-demo.sql`. It refuses to run next to real accounts or
+before `demo.sql`, and does nothing when loaded again.
+
 **Booking timeline demo data (UI-F06-T05).** `supabase/seeds/booking-timeline-demo.sql` adds the rental BK-00132 with
 a full history: the booking trigger writes the status events (created, confirmed with a reason, an update of
 vehicle, bay and notes, a seat change, in progress, completed), two flight updates and two adjustments (a refund

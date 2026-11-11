@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireAnyPermission } from "@/lib/auth/current-user";
-import { CLEANING_RECORD_PERMISSIONS } from "@/lib/auth/permissions";
+import {
+  CLEANING_RECORD_PERMISSIONS,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageEmpty, PageForbidden } from "@/components/shared/page-state";
@@ -10,7 +13,13 @@ import { formatBookingDateTime } from "@/features/bookings/lib/booking-time";
 import { CleaningCompleteForm } from "@/features/cleaning/components/cleaning-complete-form";
 import { CleaningStartPanel } from "@/features/cleaning/components/cleaning-start-panel";
 import { CleaningRecord } from "@/features/cleaning/components/cleaning-record";
+import { CleaningManagerView } from "@/features/cleaning/components/cleaning-manager-view";
+import { buildCleaningPanelView } from "@/features/cleaning/lib/build-cleaning-panel-view";
+import { getCleaningPanelState } from "@/features/cleaning/lib/cleaning-panel-state";
 import { getCleaningContext } from "@/features/cleaning/lib/get-cleaning-context";
+import { getSeatBookingConflict } from "@/features/cleaning/lib/get-seat-booking-conflict";
+import { getJobById } from "@/features/jobs/lib/get-job-by-id";
+import { getSeatLastWork } from "@/features/jobs/lib/get-seat-last-work";
 import { canStartCleaningOnSeat } from "@/features/cleaning/lib/seat-eligibility";
 import { SEAT_STATUS_LABEL } from "@/features/seats/lib/seat-status";
 
@@ -25,7 +34,7 @@ interface CleaningPageProps {
  * (Complete with the result) and completed (read-only).
  */
 export default async function CleaningPage({ params }: CleaningPageProps) {
-  await requireAnyPermission(CLEANING_RECORD_PERMISSIONS);
+  const user = await requireAnyPermission(CLEANING_RECORD_PERMISSIONS);
 
   const { id } = await params;
   const context = await getCleaningContext(id);
@@ -57,6 +66,60 @@ export default async function CleaningPage({ params }: CleaningPageProps) {
         booking.seat.category_name ? ` (${booking.seat.category_name})` : ""
       }`
     : "";
+
+  // Admin and Operations Manager have their own panel; the technician screen below is unchanged.
+  if (hasPermission(user.role, "technicians:manage")) {
+    const detail = await getJobById(id, { withPartner: true });
+
+    if (!detail) {
+      notFound();
+    }
+
+    const seat = booking.seat;
+    const emptyMessage = cleaning
+      ? null
+      : !isActive
+        ? "This job is not active, so a cleaning cannot be started."
+        : !seat
+          ? "This job's booking has no seat assigned yet."
+          : null;
+    const conflict =
+      !cleaning && isActive && seat
+        ? await getSeatBookingConflict(seat.id, booking.id)
+        : null;
+    const state = getCleaningPanelState({ cleaning, hasBookingConflict: !!conflict });
+    const cannotStart =
+      !cleaning && !conflict && seat && !canStartCleaningOnSeat(seat.status);
+    const lastWork =
+      seat && !cleaning && !cannotStart ? await getSeatLastWork(seat.id) : null;
+
+    return (
+      <CleaningManagerView
+        job={detail}
+        seatId={seat?.id ?? null}
+        emptyMessage={
+          emptyMessage ??
+          (cannotStart
+            ? `The seat status is ${SEAT_STATUS_LABEL[seat.status]}, so a cleaning cannot be started.`
+            : null)
+        }
+        view={
+          seat && !emptyMessage && !cannotStart
+            ? buildCleaningPanelView({
+                state,
+                jobId: job.id,
+                seat,
+                cleaning,
+                conflict,
+                lastCleaning: lastWork?.cleaning ?? null,
+                timeZone,
+                now: new Date(),
+              })
+            : null
+        }
+      />
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">

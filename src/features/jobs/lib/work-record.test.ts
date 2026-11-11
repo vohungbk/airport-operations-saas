@@ -86,12 +86,31 @@ describe("getWorkRecordHref", () => {
     ).toBeNull();
   });
 
-  it("should return null for an admin or manager who is not the assignee", () => {
+  it("should return null for an admin or manager who is not the assignee of an installation job", () => {
     for (const role of ["admin", "operations_manager"] as const) {
       expect(
         getWorkRecordHref(job(), { id: "u-9", role }, ALL_AVAILABLE),
       ).toBeNull();
     }
+  });
+
+  it.each(["admin", "operations_manager"] as const)(
+    "should return the cleaning screen for %s on a cleaning job of another technician",
+    (role) => {
+      expect(
+        getWorkRecordHref(job({ job_type: "cleaning" }), { id: "u-9", role }, ALL_AVAILABLE),
+      ).toBe("/jobs/j-1/cleaning");
+    },
+  );
+
+  it("should return null for an admin on a cleaning job that is already completed", () => {
+    expect(
+      getWorkRecordHref(
+        job({ job_type: "cleaning", status: "completed" }),
+        { id: "u-9", role: "admin" },
+        ALL_AVAILABLE,
+      ),
+    ).toBeNull();
   });
 
   it("should return null when the job has no technician", () => {
