@@ -16,6 +16,11 @@ export function buildJobsHref(
   if (next.status) params.set("status", next.status);
   if (next.technician_id) params.set("technician_id", next.technician_id);
   if (next.deadline) params.set("deadline", next.deadline);
+  if (next.type) params.set("type", next.type);
+  if (next.airport_id) params.set("airport_id", next.airport_id);
+  if (next.from) params.set("from", next.from);
+  if (next.to) params.set("to", next.to);
+  if (next.unassigned) params.set("unassigned", next.unassigned);
   params.set("sort", next.sort);
   params.set("order", next.order);
   params.set("page", String(next.page));

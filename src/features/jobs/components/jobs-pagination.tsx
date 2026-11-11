@@ -19,7 +19,7 @@ interface PageLinkProps {
 function PageLink({ href, children }: PageLinkProps) {
   const linkClass = cn(
     buttonVariants({ variant: "outline" }),
-    "min-h-11 px-4 text-sm",
+    "min-h-11 w-24 rounded-lg bg-surface text-sm",
   );
 
   return href ? (
@@ -27,7 +27,7 @@ function PageLink({ href, children }: PageLinkProps) {
       {children}
     </Link>
   ) : (
-    <span className={cn(linkClass, "pointer-events-none opacity-50")}>
+    <span aria-disabled="true" className={cn(linkClass, "pointer-events-none opacity-45")}>
       {children}
     </span>
   );
@@ -40,10 +40,8 @@ export function JobsPagination({ query, total }: JobsPaginationProps) {
   const first = Math.min((query.page - 1) * query.page_size + 1, last);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <p className="text-sm text-muted-foreground">
-        Showing {first}–{last} of {total}
-      </p>
+    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-2 p-4">
+      <p className="text-sm text-text-muted">{`${first}-${last} of ${total}`}</p>
       <div className="flex items-center gap-2">
         <PageLink
           href={
@@ -64,6 +62,6 @@ export function JobsPagination({ query, total }: JobsPaginationProps) {
           Next
         </PageLink>
       </div>
-    </div>
+    </nav>
   );
 }

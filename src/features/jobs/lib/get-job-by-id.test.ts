@@ -4,7 +4,7 @@ const createClientMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: createClientMock }));
 
-import { getJobById, JOB_DETAIL_SELECT } from "@/features/jobs/lib/get-job-by-id";
+import { buildJobDetailSelect, getJobById, JOB_DETAIL_SELECT } from "@/features/jobs/lib/get-job-by-id";
 
 const JOB_ID = "e0000000-0000-0000-0000-000000000001";
 
@@ -73,5 +73,16 @@ describe("getJobById", () => {
 
   it("should select the job number", () => {
     expect(JOB_DETAIL_SELECT.split(", ")).toContain("job_number");
+  });
+
+  it("should add the partner name only when it is asked for, for a manager", () => {
+    expect(JOB_DETAIL_SELECT).not.toContain("partner:partners");
+    expect(buildJobDetailSelect(false)).not.toContain("partner:partners");
+    expect(buildJobDetailSelect(true)).toContain("partner:partners(name)");
+  });
+
+  it("should select the seat with its status, and the creation time of the job", () => {
+    expect(JOB_DETAIL_SELECT.split(", ")).toContain("created_at");
+    expect(JOB_DETAIL_SELECT).toContain("seat:seats!assigned_seat_id(id, serial_number, status,");
   });
 });

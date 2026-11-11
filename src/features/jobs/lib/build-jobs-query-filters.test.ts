@@ -43,6 +43,26 @@ describe("buildJobsQueryFilters", () => {
     expect(buildJobsQueryFilters(BASE_QUERY).search_field).toBe("booking_number");
   });
 
+  it("should search the seat when the search starts with seat, in any case", () => {
+    for (const q of ["SEAT-0001", "seat-00", "Seat"]) {
+      expect(buildJobsQueryFilters({ ...BASE_QUERY, q }).search_field, q).toBe("seat_number");
+    }
+  });
+
+  it("should pass the type, the airport and the unassigned chip through", () => {
+    const result = buildJobsQueryFilters({
+      ...BASE_QUERY,
+      type: "cleaning",
+      airport_id: "a0000000-0000-0000-0000-000000000001",
+      unassigned: "1",
+    });
+
+    expect(result.type).toBe("cleaning");
+    expect(result.airport_id).toBe("a0000000-0000-0000-0000-000000000001");
+    expect(result.unassigned).toBe(true);
+    expect(buildJobsQueryFilters(BASE_QUERY).unassigned).toBe(false);
+  });
+
   it("should pass status and technician filters through", () => {
     const result = buildJobsQueryFilters({
       ...BASE_QUERY,

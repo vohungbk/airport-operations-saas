@@ -1,11 +1,14 @@
 import { Timeline } from "@/components/domain/timeline";
 import { JobStatusBadge } from "@/features/jobs/components/job-status-badge";
+import { formatJobDeadline } from "@/features/jobs/lib/job-deadline";
 import { JOB_EVENTS_LIMIT } from "@/features/jobs/lib/get-job-events";
 import type { JobEventItem } from "@/features/jobs/types";
 
 interface JobEventsTimelineProps {
   events: JobEventItem[];
   truncated?: boolean;
+  /** The time zone of the airport; every time is written in it. */
+  timeZone?: string;
 }
 
 function EventSummary({ event }: { event: JobEventItem }) {
@@ -33,20 +36,21 @@ function EventSummary({ event }: { event: JobEventItem }) {
 export function JobEventsTimeline({
   events,
   truncated = false,
+  timeZone = "UTC",
 }: JobEventsTimelineProps) {
   return (
     <section className="flex flex-col gap-3" aria-labelledby="job-events">
       <h2
         id="job-events"
-        className="text-lg font-semibold tracking-tight text-foreground"
+        className="text-base font-semibold text-foreground"
       >
-        History
+        Timeline
       </h2>
       {events.length === 0 ? (
         <p className="text-sm text-muted-foreground">No changes recorded.</p>
       ) : (
         <Timeline
-          formatTime={(iso) => new Date(iso).toLocaleString()}
+          formatTime={(iso) => formatJobDeadline(iso, timeZone)}
           events={events.map((event) => ({
             id: event.id,
             actor: event.actor_name ?? "Staff",

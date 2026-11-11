@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { TriangleAlertIcon } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import {
-  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -11,116 +13,92 @@ import {
 } from "@/components/ui/table";
 import { JobDeadlineCell } from "@/features/jobs/components/job-deadline-cell";
 import { JobStatusBadge } from "@/features/jobs/components/job-status-badge";
-import { buildJobsHref } from "@/features/jobs/lib/build-jobs-href";
 import { buildJobDeadlineView } from "@/features/jobs/lib/job-deadline";
+import { JOB_TYPE_LABEL } from "@/features/jobs/lib/job-type";
 import type { JobListItem } from "@/features/jobs/types";
-import type {
-  JobsQuery,
-  JobsSortColumn,
-} from "@/features/jobs/schemas/jobs-query.schema";
 
 interface JobsTableProps {
   jobs: JobListItem[];
-  query: JobsQuery;
   /** Passed in so a test can fix the time; the page leaves it out. */
   now?: Date;
 }
 
-const SORTABLE: Record<"status" | "assigned_at", string> = {
-  status: "Status",
-  assigned_at: "Assigned",
-};
-
-function SortHeader({
-  query,
-  column,
-}: {
-  query: JobsQuery;
-  column: JobsSortColumn;
-}) {
-  const isActive = query.sort === column;
-
-  return (
-    <SortableTableHead
-      href={buildJobsHref(query, {
-        sort: column,
-        order: isActive && query.order === "asc" ? "desc" : "asc",
-        page: 1,
-      })}
-      label={SORTABLE[column]}
-      direction={isActive ? query.order : null}
-      idleIcon
-    />
-  );
-}
+const HEAD_CLASS = "h-auto px-0 py-0 py-3 pr-4 text-xs font-semibold leading-4 text-text-muted";
+const CELL_CLASS = "py-3 pr-4 text-sm leading-5 whitespace-normal break-words text-foreground";
 
 /**
- * Server Component. The link on the job number is stretched over the row, so the whole row opens the
- * job with no script and the keyboard reaches it. Below 640 px the table is a list of cards (UI-F06-S04,
- * spec R10); from 640 px up it is the table it was.
+ * Server Component. Columns of the design: job number, type, seat, booking, technician, deadline, status
+ * and a View action. An open job past its deadline shows the Overdue badge in the Status column too. Below
+ * 640 px the table is a list of cards; from 640 px up it is the table.
  */
-export function JobsTable({ jobs, query, now = new Date() }: JobsTableProps) {
+export function JobsTable({ jobs, now = new Date() }: JobsTableProps) {
   return (
-    <div className="min-w-0 sm:overflow-hidden sm:rounded-lg sm:border sm:bg-card">
-      <Table stacked>
-        <TableHeader className="sm:bg-muted [&_th]:h-13 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_th_a]:text-[11px] [&_th_a]:font-semibold">
-          <TableRow>
-            <TableHead>Job number</TableHead>
-            <TableHead>Booking</TableHead>
-            <TableHead>Technician</TableHead>
-            <TableHead>Deadline</TableHead>
-            <SortHeader query={query} column="status" />
-            <SortHeader query={query} column="assigned_at" />
-            <TableHead>Vehicle bay</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody className="sm:[&_tr]:border-0">
-          {jobs.map((job) => (
-            <TableRow
-              key={job.id}
-              className="relative cursor-pointer focus-within:bg-muted/50 sm:h-13"
-            >
-              <TableCell data-label="Job number" className="font-semibold">
-                <Link
-                  href={`/jobs/${job.id}`}
-                  aria-label={`View job ${job.job_number}`}
-                  className="after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
+    <Table stacked>
+      <TableHeader className="bg-surface-muted [&_tr]:border-b">
+        <TableRow className="hover:bg-transparent">
+          <TableHead className={`${HEAD_CLASS} pl-4`}>Job number</TableHead>
+          <TableHead className={HEAD_CLASS}>Type</TableHead>
+          <TableHead className={HEAD_CLASS}>Seat</TableHead>
+          <TableHead className={HEAD_CLASS}>Booking</TableHead>
+          <TableHead className={HEAD_CLASS}>Technician</TableHead>
+          <TableHead className={HEAD_CLASS}>Deadline</TableHead>
+          <TableHead className={HEAD_CLASS}>Status</TableHead>
+          <TableHead className={HEAD_CLASS}>Row action</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {jobs.map((job) => {
+          const deadline = buildJobDeadlineView(job, job.booking?.airport?.timezone ?? "UTC", now);
+
+          return (
+            <TableRow key={job.id} className="transition-colors hover:bg-primary-subtle">
+              <TableCell data-label="Job number" className={`${CELL_CLASS} pl-4 font-medium`}>
+                <Link href={`/jobs/${job.id}`} className="hover:underline">
                   {job.job_number}
                 </Link>
               </TableCell>
-              <TableCell data-label="Booking" className="font-mono text-[13px]">
+              <TableCell data-label="Type" className={CELL_CLASS}>
+                {JOB_TYPE_LABEL[job.job_type]}
+              </TableCell>
+              <TableCell data-label="Seat" className={CELL_CLASS}>
+                {job.booking?.seat?.serial_number ?? "—"}
+              </TableCell>
+              <TableCell data-label="Booking" className={CELL_CLASS}>
                 {job.booking?.booking_number ?? "—"}
               </TableCell>
               <TableCell
                 data-label="Technician"
                 title={job.technician?.full_name}
-                className="max-w-48 truncate max-sm:max-w-none"
+                className={job.technician ? CELL_CLASS : `${CELL_CLASS} text-text-muted`}
               >
-                {job.technician?.full_name ?? "—"}
+                {job.technician?.full_name ?? "Unassigned"}
               </TableCell>
-              <TableCell data-label="Deadline">
-                <JobDeadlineCell
-                  view={buildJobDeadlineView(
-                    job,
-                    job.booking?.airport?.timezone ?? "UTC",
-                    now,
-                  )}
-                />
+              <TableCell data-label="Deadline" className={CELL_CLASS}>
+                <JobDeadlineCell view={deadline} />
               </TableCell>
-              <TableCell data-label="Status">
-                <JobStatusBadge status={job.status} />
+              <TableCell data-label="Status" className={CELL_CLASS}>
+                {deadline.kind === "overdue" ? (
+                  <Badge variant="warning">
+                    <TriangleAlertIcon aria-hidden="true" />
+                    Overdue
+                  </Badge>
+                ) : (
+                  <JobStatusBadge status={job.status} />
+                )}
               </TableCell>
-              <TableCell data-label="Assigned">
-                {new Date(job.assigned_at).toLocaleString()}
-              </TableCell>
-              <TableCell data-label="Vehicle bay">
-                {job.vehicle_bay ?? "—"}
+              <TableCell data-label="Row action" className={CELL_CLASS}>
+                <Link
+                  href={`/jobs/${job.id}`}
+                  aria-label={`View job ${job.job_number}`}
+                  className={buttonVariants({ variant: "outline", className: "min-h-11 rounded-lg bg-surface px-4" })}
+                >
+                  View
+                </Link>
               </TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }

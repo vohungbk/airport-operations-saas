@@ -1,4 +1,5 @@
 import type { BookingFlight } from "@/features/bookings/lib/get-bookings";
+import type { SeatStatus } from "@/features/seats/types";
 import type { JobStatus } from "@/features/jobs/lib/job-status";
 import type { JobType } from "@/features/jobs/lib/job-type";
 
@@ -6,6 +7,7 @@ import type { JobType } from "@/features/jobs/lib/job-type";
 export interface JobListItem {
   id: string;
   job_number: string;
+  job_type: JobType;
   status: JobStatus;
   assigned_at: string;
   started_at: string | null;
@@ -17,8 +19,15 @@ export interface JobListItem {
     id: string;
     booking_number: string;
     airport: { timezone: string } | null;
+    seat: { id: string; serial_number: string } | null;
   } | null;
   technician: { id: string; full_name: string } | null;
+}
+
+export interface JobAirportOption {
+  id: string;
+  code: string;
+  timezone: string;
 }
 
 export interface TechnicianOption {
@@ -39,13 +48,17 @@ export interface JobDetailItem {
   assigned_at: string;
   started_at: string | null;
   completed_at: string | null;
+  created_at: string;
   vehicle_bay: string | null;
   installation_notes: string | null;
   /** Set for installation jobs only (see `JobListItem`). */
   deadline_at: string | null;
   technician: { id: string; full_name: string } | null;
   booking: {
+    id: string;
     booking_number: string;
+    /** Only for a manager (see `buildJobDetailSelect`). */
+    partner?: { name: string } | null;
     pickup_at: string;
     return_at: string;
     vehicle: string | null;
@@ -59,7 +72,9 @@ export interface JobDetailItem {
     /** The linked flight; null when none is linked. */
     flight: BookingFlight | null;
     seat: {
+      id: string;
       serial_number: string;
+      status: SeatStatus;
       category: { name: string } | null;
     } | null;
   } | null;

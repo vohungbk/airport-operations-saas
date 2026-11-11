@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const getJobsMock = vi.hoisted(() => vi.fn());
 const getTechnicianOptionsMock = vi.hoisted(() => vi.fn());
+const getJobAirportOptionsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
   requireAnyPermission: requireAnyPermissionMock,
@@ -13,6 +14,11 @@ vi.mock("@/features/jobs/lib/get-jobs", () => ({ getJobs: getJobsMock }));
 
 vi.mock("@/features/jobs/lib/get-technician-options", () => ({
   getTechnicianOptions: getTechnicianOptionsMock,
+}));
+
+vi.mock("@/features/jobs/lib/get-job-airport-options", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/jobs/lib/get-job-airport-options")>()),
+  getJobAirportOptions: getJobAirportOptionsMock,
 }));
 
 // Client component that needs the app router; irrelevant to these assertions.
@@ -35,6 +41,8 @@ describe("JobsPage", () => {
     requireAnyPermissionMock.mockReset();
     getJobsMock.mockReset();
     getTechnicianOptionsMock.mockReset();
+    getJobAirportOptionsMock.mockReset();
+    getJobAirportOptionsMock.mockResolvedValue([]);
     getJobsMock.mockResolvedValue({ jobs: [], total: 0 });
     getTechnicianOptionsMock.mockResolvedValue([]);
   });
@@ -64,6 +72,8 @@ describe("JobsPage", () => {
 
     expect(getJobsMock).toHaveBeenCalledWith(
       expect.objectContaining({ q: undefined }),
+      expect.any(Date),
+      "UTC",
     );
   });
 
@@ -75,6 +85,8 @@ describe("JobsPage", () => {
     expect(getTechnicianOptionsMock).toHaveBeenCalled();
     expect(getJobsMock).toHaveBeenCalledWith(
       expect.objectContaining({ technician_id: OTHER_TECHNICIAN_ID }),
+      expect.any(Date),
+      "UTC",
     );
   });
 
@@ -86,6 +98,8 @@ describe("JobsPage", () => {
     expect(getTechnicianOptionsMock).not.toHaveBeenCalled();
     expect(getJobsMock).toHaveBeenCalledWith(
       expect.objectContaining({ technician_id: undefined }),
+      expect.any(Date),
+      "UTC",
     );
   });
 
@@ -103,5 +117,31 @@ describe("JobsPage", () => {
     const html = renderToStaticMarkup(await render());
 
     expect(html).not.toContain('href="/jobs/new"');
+  });
+
+  it("should read the date range in the time zone of the chosen airport", async () => {
+    requireAnyPermissionMock.mockResolvedValue(OPS);
+    getJobAirportOptionsMock.mockResolvedValue([
+      { id: "d0000000-0000-0000-0000-0000000000a1", code: "DXB", timezone: "Asia/Dubai" },
+    ]);
+
+    await render({ airport_id: "d0000000-0000-0000-0000-0000000000a1", from: "2026-11-01" });
+
+    expect(getJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ from: "2026-11-01" }),
+      expect.any(Date),
+      "Asia/Dubai",
+    );
+  });
+
+  it("should offer Clear filters in the empty state only when a filter is set", async () => {
+    requireAnyPermissionMock.mockResolvedValue(OPS);
+
+    const plain = renderToStaticMarkup(await render());
+    const filtered = renderToStaticMarkup(await render({ status: "assigned" }));
+
+    expect(plain).not.toContain("Clear filters");
+    expect(filtered).toContain("No jobs match the search or filters.");
+    expect(filtered).toContain("Clear filters");
   });
 });

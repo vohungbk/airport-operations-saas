@@ -23,6 +23,7 @@ function mockRequest(result: { data: unknown; error: unknown; count: number | nu
     ilike: vi.fn(() => request),
     eq: vi.fn(() => request),
     in: vi.fn(() => request),
+    is: vi.fn(() => request),
     gte: vi.fn(() => request),
     lt: vi.fn(() => request),
     order: vi.fn(() => request),
@@ -112,5 +113,29 @@ describe("getJobs", () => {
     mockRequest({ data: null, error: new Error("boom"), count: null });
 
     await expect(getJobs(BASE_QUERY)).rejects.toThrow("boom");
+  });
+
+  it("should filter by type, airport and the unassigned chip", async () => {
+    const { request } = mockRequest({ data: [], error: null, count: 0 });
+
+    await getJobs({
+      ...BASE_QUERY,
+      type: "cleaning",
+      airport_id: "a0000000-0000-0000-0000-000000000001",
+      unassigned: "1",
+    });
+
+    expect(request.eq).toHaveBeenCalledWith("job_type", "cleaning");
+    expect(request.eq).toHaveBeenCalledWith("booking.airport_id", "a0000000-0000-0000-0000-000000000001");
+    expect(request.is).toHaveBeenCalledWith("technician_id", null);
+  });
+
+  it("should read the date range as whole days in the given time zone", async () => {
+    const { request } = mockRequest({ data: [], error: null, count: 0 });
+
+    await getJobs({ ...BASE_QUERY, from: "2026-11-01", to: "2026-11-04" }, new Date(), "Asia/Dubai");
+
+    expect(request.gte).toHaveBeenCalledWith("deadline_at", "2026-10-31T20:00:00.000Z");
+    expect(request.lt).toHaveBeenCalledWith("deadline_at", "2026-11-04T20:00:00.000Z");
   });
 });
