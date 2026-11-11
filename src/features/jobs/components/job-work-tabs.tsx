@@ -4,21 +4,23 @@ import { useState } from "react";
 import Link from "next/link";
 import { ScanLine } from "lucide-react";
 
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SeatStatusBadge } from "@/features/seats/components/seat-status-badge";
-import { formatJobDeadline } from "@/features/jobs/lib/job-deadline";
+import { SeatLastWorkLine } from "@/features/jobs/components/seat-last-work-line";
 import type { JobStatus } from "@/features/jobs/lib/job-status";
 import type { JobType } from "@/features/jobs/lib/job-type";
 import {
   getJobWorkTab,
+  getNoTaskMessage,
   getWorkActionLabel,
+  NOT_ASSIGNED_MESSAGE,
   getWorkPanelHint,
   WORK_TABS,
   WORK_TAB_LABEL,
   type WorkTab,
 } from "@/features/jobs/lib/job-work-panel";
-import type { SeatLastWorkResult } from "@/features/jobs/lib/get-seat-last-work";
+import type { SeatLastWorkState } from "@/features/jobs/lib/get-seat-last-work";
 import type { SeatStatus } from "@/features/seats/types";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +32,7 @@ interface JobWorkTabsProps {
   seatLink: boolean;
   workRecordHref: string | null;
   scanHref: string | null;
-  lastWork: SeatLastWorkResult | null;
+  lastWork: Promise<SeatLastWorkState> | null;
   timeZone: string;
 }
 
@@ -52,10 +54,16 @@ export function JobWorkTabs({
 }: JobWorkTabsProps) {
   const own = getJobWorkTab(jobType);
   const [tab, setTab] = useState<WorkTab>(own ?? "cleaning");
-  // An installation job has no tab of its own, so its buttons show under every tab.
-  const isOwn = own === null || tab === own;
+  // An installation job has no tab of its own, so its buttons show under the Cleaning and Return tabs. The
+  // Inspection tab is only for an inspection job: any other job has no inspection task (design E10.05).
+  const isOwn = tab === "inspection" ? own === "inspection" : own === null || tab === own;
   const title = WORK_TAB_LABEL[tab];
-  const last = tab === "cleaning" ? lastWork?.cleaning : tab === "inspection" ? lastWork?.inspection : null;
+  // An active inspection job with no button is one the user may not record.
+  const notAssigned =
+    isOwn &&
+    tab === "inspection" &&
+    (jobStatus === "assigned" || jobStatus === "in_progress") &&
+    !workRecordHref;
 
   return (
     <div className="flex flex-col gap-4">
@@ -106,7 +114,7 @@ export function JobWorkTabs({
             </>
           )}
           <p className="text-sm text-foreground">
-            {isOwn ? getWorkPanelHint(jobStatus, jobType) : "This job is not a " + title.toLowerCase() + " job."}
+            {isOwn ? getWorkPanelHint(jobStatus, jobType) : getNoTaskMessage(tab)}
           </p>
           {isOwn && (workRecordHref || scanHref) && (
             <div className="flex flex-col gap-2">
@@ -129,10 +137,18 @@ export function JobWorkTabs({
               )}
             </div>
           )}
-          {last && (
-            <p className="text-sm text-foreground">
-              {`Last ${tab}: ${formatJobDeadline(last.at, timeZone)} · ${last.outcome}`}
-            </p>
+          {notAssigned && (
+            <>
+              <p role="status" className="text-sm text-danger-fg">
+                {NOT_ASSIGNED_MESSAGE}
+              </p>
+              <Button type="button" disabled className="min-h-11 w-full rounded-lg px-4">
+                {getWorkActionLabel(jobStatus, jobType)}
+              </Button>
+            </>
+          )}
+          {lastWork && isOwn && (tab === "cleaning" || tab === "inspection") && (
+            <SeatLastWorkLine tab={tab} lastWork={lastWork} timeZone={timeZone} />
           )}
         </CardContent>
       </Card>

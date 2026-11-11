@@ -64,10 +64,11 @@ export async function recordInspectionAction(
   }
 
   // A failed inspection moves the seat to quarantine: the record page shows
-  // that (and any active booking) to the person who recorded it.
+  // that (and any active booking) to the person who recorded it. Any other
+  // result goes back to the job, which tells the person it was saved.
   redirect(
     parsed.data.result === "fail"
       ? `/jobs/${context.job.id}/inspection`
-      : `/jobs/${context.job.id}/done?step=inspection`,
+      : `/jobs/${context.job.id}?saved=inspection`,
   );
 }

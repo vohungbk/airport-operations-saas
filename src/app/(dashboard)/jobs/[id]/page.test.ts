@@ -40,7 +40,7 @@ describe("JobDetailPage", () => {
   it("should guard the page with the jobs access permissions", async () => {
     getJobByIdMock.mockResolvedValue({ id: "j-1", status: "assigned", job_type: "installation" });
 
-    await JobDetailPage({ params: Promise.resolve({ id: "j-1" }) });
+    await JobDetailPage({ params: Promise.resolve({ id: "j-1" }), searchParams: Promise.resolve({}) });
 
     expect(requireAnyPermissionMock).toHaveBeenCalledWith([
       "technicians:manage",
@@ -52,7 +52,7 @@ describe("JobDetailPage", () => {
     requireAnyPermissionMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
 
     await expect(
-      JobDetailPage({ params: Promise.resolve({ id: "j-1" }) }),
+      JobDetailPage({ params: Promise.resolve({ id: "j-1" }), searchParams: Promise.resolve({}) }),
     ).rejects.toThrow("REDIRECT:/forbidden");
     expect(getJobByIdMock).not.toHaveBeenCalled();
   });
@@ -61,8 +61,24 @@ describe("JobDetailPage", () => {
     getJobByIdMock.mockResolvedValue(null);
 
     await expect(
-      JobDetailPage({ params: Promise.resolve({ id: "other" }) }),
+      JobDetailPage({ params: Promise.resolve({ id: "other" }), searchParams: Promise.resolve({}) }),
     ).rejects.toThrow("NOT_FOUND");
+  });
+
+  it("should pass the saved inspection mark to the screen, and nothing for any other value", async () => {
+    getJobByIdMock.mockResolvedValue({ id: "j-1", status: "in_progress", job_type: "inspection" });
+
+    const saved = await JobDetailPage({
+      params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({ saved: "inspection" }),
+    });
+    const other = await JobDetailPage({
+      params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({ saved: "<script>" }),
+    });
+
+    expect(saved.props.saved).toBe("inspection");
+    expect(other.props.saved).toBeNull();
   });
 
   it("should offer a technician only the work transitions", async () => {
@@ -70,6 +86,7 @@ describe("JobDetailPage", () => {
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({}),
     });
 
     expect(element.props.allowedStatuses).toEqual(["in_progress"]);
@@ -84,6 +101,7 @@ describe("JobDetailPage", () => {
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({}),
     });
 
     expect(element.props.allowedStatuses).toEqual(["completed", "cancelled"]);
@@ -94,6 +112,7 @@ describe("JobDetailPage", () => {
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({}),
     });
 
     expect(element.props.allowedStatuses).toEqual([]);
@@ -109,6 +128,7 @@ describe("JobDetailPage", () => {
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({}),
     });
 
     expect(element.props.workRecordHref).toBe("/jobs/j-1/installation");
@@ -124,6 +144,7 @@ describe("JobDetailPage", () => {
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({}),
     });
 
     expect(element.props.workRecordHref).toBe("/jobs/j-1/cleaning");
@@ -139,6 +160,7 @@ describe("JobDetailPage", () => {
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({}),
     });
 
     expect(element.props.workRecordHref).toBe("/jobs/j-1/inspection");
@@ -159,6 +181,7 @@ describe("JobDetailPage", () => {
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({}),
     });
 
     expect(element.props.reportIncidentHref).toBe("/incidents/new?job_id=j-1");
@@ -175,6 +198,7 @@ describe("JobDetailPage", () => {
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({}),
     });
 
     expect(element.props.reportIncidentHref).toBeNull();
@@ -190,6 +214,7 @@ describe("JobDetailPage", () => {
 
     const element = await JobDetailPage({
       params: Promise.resolve({ id: "j-1" }),
+      searchParams: Promise.resolve({}),
     });
 
     expect(element.props.workRecordHref).toBeNull();

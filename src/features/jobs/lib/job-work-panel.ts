@@ -21,6 +21,11 @@ export function getJobWorkTab(type: JobType): WorkTab | null {
 export function getWorkPanelHint(status: JobStatus, type: JobType): string {
   const name = JOB_TYPE_LABEL[type].toLowerCase();
 
+  // The design words the active inspection job as one line, whether it is assigned or in progress.
+  if (type === "inspection" && (status === "assigned" || status === "in_progress")) {
+    return "Record the inspection result for this seat.";
+  }
+
   switch (status) {
     case "assigned":
       return `Start ${name} after confirming there is no conflicting booking.`;
@@ -35,5 +40,24 @@ export function getWorkPanelHint(status: JobStatus, type: JobType): string {
 
 /** The label of the main button: Start while the job is assigned, Record work after. */
 export function getWorkActionLabel(status: JobStatus, type: JobType): string {
+  if (type === "inspection") return "Record inspection";
+
   return status === "assigned" ? `Start ${JOB_TYPE_LABEL[type].toLowerCase()}` : "Record work";
+}
+
+/** Shown on a tab of a work the job does not have. */
+export function getNoTaskMessage(tab: WorkTab): string {
+  return tab === "inspection" ? "This job has no inspection task" : `This job is not a ${tab} job.`;
+}
+
+/** Shown in place of the button when the user may not record the inspection of an active job. */
+export const NOT_ASSIGNED_MESSAGE = "You are not assigned to this job";
+
+export const NO_INSPECTION_YET = "No inspection recorded yet";
+
+export const INSPECTION_LOAD_ERROR = "Unable to load inspection. Please try again.";
+
+/** The first line of the last work, `Last inspection: 03 Nov 2026 16:40 GST · Pass`. */
+export function getLastWorkLine(tab: WorkTab, when: string, outcome: string): string {
+  return `Last ${tab}: ${when} · ${outcome}`;
 }
