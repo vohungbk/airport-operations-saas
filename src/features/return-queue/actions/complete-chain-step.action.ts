@@ -2,8 +2,10 @@
 
 import { redirect } from "next/navigation";
 
-import { requirePermission } from "@/lib/auth/current-user";
+import { requireAnyPermission } from "@/lib/auth/current-user";
+import { RETURN_CHAIN_STEP_PERMISSIONS } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { chainStepBackHref } from "@/features/return-queue/lib/chain-step-access";
 import {
   CHAIN_STEP_VALIDATION_ERROR,
   mapChainStepError,
@@ -15,12 +17,14 @@ import { completeChainStepSchema } from "@/features/return-queue/schemas/complet
  * Complete the current step of a seat's return chain (FO-F08-S02). The
  * database function checks the role, the step order, the rules and the
  * photos again, stores the step with the actor and time, and moves the seat
- * and the booking. On success the user goes back to the Return queue (NAV-2).
+ * and the booking. On success the user goes back to the Return queue (NAV-2),
+ * or a technician to their home (FO-F08-S08). The database lets a technician
+ * act only on a booking assigned to them (R8, E6).
  */
 export async function completeChainStepAction(
   input: unknown,
 ): Promise<ChainStepActionResult> {
-  await requirePermission("dashboards:view");
+  const user = await requireAnyPermission(RETURN_CHAIN_STEP_PERMISSIONS);
 
   const parsed = completeChainStepSchema.safeParse(input);
 
@@ -43,5 +47,5 @@ export async function completeChainStepAction(
     return { success: false, error: mapChainStepError(error) };
   }
 
-  redirect("/return-queue");
+  redirect(chainStepBackHref(user.role));
 }

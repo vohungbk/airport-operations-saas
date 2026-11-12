@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const requirePermissionMock = vi.hoisted(() => vi.fn());
+const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const rpcMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
-  requirePermission: requirePermissionMock,
+  requireAnyPermission: requireAnyPermissionMock,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+import { RETURN_CHAIN_STEP_PERMISSIONS } from "@/lib/auth/permissions";
 import { completeChainStepAction } from "@/features/return-queue/actions/complete-chain-step.action";
 
 const BOOKING_ID = "b0000000-0000-0000-0000-000000000123";
@@ -32,8 +33,8 @@ const INPUT = {
 
 describe("completeChainStepAction", () => {
   beforeEach(() => {
-    requirePermissionMock.mockReset();
-    requirePermissionMock.mockResolvedValue({ id: "u-1", role: "operations_manager" });
+    requireAnyPermissionMock.mockReset();
+    requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role: "operations_manager" });
     rpcMock.mockReset();
     rpcMock.mockResolvedValue({ error: null });
   });
@@ -41,7 +42,7 @@ describe("completeChainStepAction", () => {
   it("should store the step and go back to the Return queue", async () => {
     await expect(completeChainStepAction(INPUT)).rejects.toThrow("REDIRECT:/return-queue");
 
-    expect(requirePermissionMock).toHaveBeenCalledWith("dashboards:view");
+    expect(requireAnyPermissionMock).toHaveBeenCalledWith(RETURN_CHAIN_STEP_PERMISSIONS);
     expect(rpcMock).toHaveBeenCalledWith("complete_return_chain_step", {
       p_booking_id: BOOKING_ID,
       p_step: "cleaning",
@@ -50,6 +51,12 @@ describe("completeChainStepAction", () => {
       p_notes: "Torn strap",
       p_photo_paths: INPUT.photo_paths,
     });
+  });
+
+  it("should send the technician back to their home after the step is stored (FO-F08-S08)", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "t-1", role: "technician" });
+
+    await expect(completeChainStepAction(INPUT)).rejects.toThrow("REDIRECT:/technician");
   });
 
   it("should return a validation error and store nothing when the input is invalid", async () => {

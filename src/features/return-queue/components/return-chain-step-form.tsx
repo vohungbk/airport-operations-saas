@@ -41,6 +41,8 @@ const RESULT_ITEMS = CHAIN_STEP_RESULTS.map((value) => ({
 interface ReturnChainStepFormProps {
   bookingId: string;
   step: RecordedChainStep;
+  /** Where Cancel leads: the Return queue, or the technician's home. */
+  backHref: string;
   /** `SEAT-0001 · DXB · 04 Nov 2026`, under the photo heading. */
   photoStamp: string;
   /** The read-only Seat and Booking fields, at the top of the left column. */
@@ -51,6 +53,7 @@ interface ReturnChainStepFormProps {
 export function ReturnChainStepForm({
   bookingId,
   step,
+  backHref,
   photoStamp,
   children,
 }: ReturnChainStepFormProps) {
@@ -171,7 +174,7 @@ export function ReturnChainStepForm({
 
       <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
         <Link
-          href="/return-queue"
+          href={backHref}
           className={cn(buttonVariants({ variant: "outline" }), "min-h-11 bg-surface px-4")}
         >
           Cancel

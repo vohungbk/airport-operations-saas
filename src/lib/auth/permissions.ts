@@ -176,6 +176,17 @@ export const DASHBOARD_ACCESS_PERMISSIONS = [
 ] as const satisfies readonly Permission[];
 
 /**
+ * Who may open and complete a step of the return chain (FO-F08-S08): managers
+ * (`dashboards:view`) and technicians (`jobs:update_assigned`). A technician
+ * acts only on a booking assigned to them; the database function and RLS
+ * decide that. The permission matrix is unchanged; this is an any-of set.
+ */
+export const RETURN_CHAIN_STEP_PERMISSIONS = [
+  "dashboards:view",
+  "jobs:update_assigned",
+] as const satisfies readonly Permission[];
+
+/**
  * Who may change an incident's status: managers (`incidents:view`). The
  * permission matrix is unchanged; the database function checks the role too.
  */
