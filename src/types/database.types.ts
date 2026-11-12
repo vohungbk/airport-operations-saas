@@ -1332,6 +1332,67 @@ export type Database = {
         }
         Relationships: []
       }
+      return_chain_steps: {
+        Row: {
+          booking_id: string
+          checklist: Json
+          completed_at: string
+          completed_by: string
+          id: string
+          notes: string | null
+          photo_paths: string[]
+          result: Database["public"]["Enums"]["inspection_result"]
+          seat_id: string
+          step: string
+        }
+        Insert: {
+          booking_id: string
+          checklist: Json
+          completed_at?: string
+          completed_by: string
+          id?: string
+          notes?: string | null
+          photo_paths: string[]
+          result: Database["public"]["Enums"]["inspection_result"]
+          seat_id: string
+          step: string
+        }
+        Update: {
+          booking_id?: string
+          checklist?: Json
+          completed_at?: string
+          completed_by?: string
+          id?: string
+          notes?: string | null
+          photo_paths?: string[]
+          result?: Database["public"]["Enums"]["inspection_result"]
+          seat_id?: string
+          step?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_chain_steps_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_chain_steps_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_chain_steps_seat_id_fkey"
+            columns: ["seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seat_categories: {
         Row: {
           created_at: string
@@ -1849,6 +1910,36 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      complete_return_chain_step: {
+        Args: {
+          p_booking_id: string
+          p_checklist: Json
+          p_notes: string
+          p_photo_paths: string[]
+          p_result: Database["public"]["Enums"]["inspection_result"]
+          p_step: string
+        }
+        Returns: {
+          booking_id: string
+          checklist: Json
+          completed_at: string
+          completed_by: string
+          id: string
+          notes: string | null
+          photo_paths: string[]
+          result: Database["public"]["Enums"]["inspection_result"]
+          seat_id: string
+          step: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "return_chain_steps"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      return_chain_checklist: { Args: { p_step: string }; Returns: string[] }
+      return_chain_step_order: { Args: { p_step: string }; Returns: number }
       save_partner_baseline_inputs: {
         Args: {
           p_average_contribution_per_rental: number

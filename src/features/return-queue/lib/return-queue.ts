@@ -1,10 +1,12 @@
 import type { BookingStatus } from "@/features/bookings/types";
 import type { SeatStatus } from "@/features/seats/types";
 import {
-  chainStepOf,
+  currentChainStep,
   currentStepLabel,
+  lastRecordedStep,
   queueStepOf,
   RETURN_QUEUE_STEPS,
+  type RecordedChainStepRow,
   type ReturnChainBookingStatus,
   type ReturnChainStep,
   type ReturnQueueStep,
@@ -20,6 +22,7 @@ export interface ReturnQueueBookingRow {
   partner: { name: string } | null;
   seat: { id: string; serial_number: string; status: SeatStatus } | null;
   events: { to_status: BookingStatus; created_at: string }[];
+  chain_steps: RecordedChainStepRow[];
 }
 
 /** One row of the queue. */
@@ -63,7 +66,16 @@ export function toReturnQueueItem(
   now: Date,
 ): ReturnQueueItem {
   const seatStatus = row.seat?.status ?? null;
-  const stepStartedAt = latestEventAt(row.events, row.status);
+  const chainStep = currentChainStep(row.status, row.chain_steps);
+  const statusAt = latestEventAt(row.events, row.status);
+  const recordedAt = lastRecordedStep(row.chain_steps)?.completed_at ?? null;
+  // The current step began at the later of the status change and the last recorded step.
+  const stepStartedAt =
+    statusAt && recordedAt
+      ? statusAt > recordedAt
+        ? statusAt
+        : recordedAt
+      : (statusAt ?? recordedAt);
 
   return {
     booking_id: row.id,
@@ -73,9 +85,9 @@ export function toReturnQueueItem(
     partner_name: row.partner?.name ?? null,
     airport_code: row.airport?.code ?? null,
     time_zone: row.airport?.timezone ?? "UTC",
-    chain_step: chainStepOf(row.status),
-    queue_step: queueStepOf(row.status, seatStatus),
-    current_step_label: currentStepLabel(row.status, seatStatus),
+    chain_step: chainStep,
+    queue_step: queueStepOf(chainStep, seatStatus),
+    current_step_label: currentStepLabel(chainStep, seatStatus),
     returned_at: latestEventAt(row.events, "returned"),
     step_started_at: stepStartedAt,
     waiting_minutes: stepStartedAt

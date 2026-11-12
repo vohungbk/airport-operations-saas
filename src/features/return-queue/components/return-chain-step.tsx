@@ -4,10 +4,13 @@ import { Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatReportedAt } from "@/features/incidents/lib/incident-time";
+import { ReturnChainStepForm } from "@/features/return-queue/components/return-chain-step-form";
 import { ReturnChainStepper } from "@/features/return-queue/components/return-chain-stepper";
+import { chainStepPhotoStamp } from "@/features/return-queue/lib/chain-step-photos";
 import {
   buildChainProgress,
   chainStepNumber,
+  isRecordedChainStep,
   RETURN_CHAIN_STEPS,
   RETURN_QUEUE_STEP_LABEL,
 } from "@/features/return-queue/lib/return-chain";
@@ -17,6 +20,8 @@ interface ReturnChainStepProps {
   item: ReturnQueueItem;
   /** `Admin · Full access`. */
   accessLabel: string;
+  /** Now, for the date under the photo heading. */
+  now: Date;
 }
 
 function ReadOnlyField({
@@ -53,11 +58,11 @@ function ReadOnlyField({
 }
 
 /**
- * The chain step of a seat: the seven steps and the current one. Recording a
- * step (result, checklist, notes, photos) comes with FO-F08-S02; this screen
- * only reads.
+ * The chain step of a seat: the seven steps and the current one, and the form
+ * that records the current step (FO-F08-S02). A seat in quarantine or at the
+ * end of the chain has no step to record, so only the read-only part shows.
  */
-export function ReturnChainStep({ item, accessLabel }: ReturnChainStepProps) {
+export function ReturnChainStep({ item, accessLabel, now }: ReturnChainStepProps) {
   const failed = item.queue_step === "quarantine";
   const steps = buildChainProgress(item.chain_step, failed);
   const seat = item.seat_serial_number ?? "No seat";
@@ -71,6 +76,24 @@ export function ReturnChainStep({ item, accessLabel }: ReturnChainStepProps) {
   ]
     .filter(Boolean)
     .join(" · ");
+  const readOnlyFields = (
+    <>
+      <ReadOnlyField
+        id="return-chain-seat"
+        label="Seat · read only"
+        value={seat}
+        hint="Read only"
+      />
+      <ReadOnlyField
+        id="return-chain-booking"
+        label="Booking · optional, read only"
+        value={item.booking_number}
+        hint={[item.partner_name, item.airport_code]
+          .filter(Boolean)
+          .join(" · ")}
+      />
+    </>
+  );
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
@@ -97,20 +120,17 @@ export function ReturnChainStep({ item, accessLabel }: ReturnChainStepProps) {
           >
             {`${RETURN_QUEUE_STEP_LABEL[item.chain_step]} · Step ${chainStepNumber(item.chain_step)} of ${RETURN_CHAIN_STEPS.length}`}
           </h2>
-          <ReadOnlyField
-            id="return-chain-seat"
-            label="Seat · read only"
-            value={seat}
-            hint="Read only"
-          />
-          <ReadOnlyField
-            id="return-chain-booking"
-            label="Booking · optional, read only"
-            value={item.booking_number}
-            hint={[item.partner_name, item.airport_code]
-              .filter(Boolean)
-              .join(" · ")}
-          />
+          {!failed && isRecordedChainStep(item.chain_step) ? (
+            <ReturnChainStepForm
+              bookingId={item.booking_id}
+              step={item.chain_step}
+              photoStamp={chainStepPhotoStamp(seat, item.airport_code, now, item.time_zone)}
+            >
+              {readOnlyFields}
+            </ReturnChainStepForm>
+          ) : (
+            readOnlyFields
+          )}
         </section>
       </div>
     </div>

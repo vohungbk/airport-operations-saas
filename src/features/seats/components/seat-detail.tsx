@@ -13,6 +13,8 @@ import type { SeatStatusHistoryResult } from "@/features/seats/lib/get-seat-stat
 interface SeatDetailProps {
   seat: SeatDetailItem;
   history: SeatStatusHistoryResult;
+  /** The booking whose return chain holds the seat; null when the seat is not in the chain. */
+  chainBookingId?: string | null;
 }
 
 function InfoRow({
@@ -30,7 +32,7 @@ function InfoRow({
   );
 }
 
-export function SeatDetail({ seat, history }: SeatDetailProps) {
+export function SeatDetail({ seat, history, chainBookingId }: SeatDetailProps) {
   const isRetired = seat.status === "retired";
   const allowedTransitions = getAllowedManualTransitions(seat.status);
   const airportLabel = seat.airport
@@ -44,6 +46,14 @@ export function SeatDetail({ seat, history }: SeatDetailProps) {
           <h1 className="min-w-0 flex-1 text-3xl leading-tight font-semibold text-foreground">
             {seat.serial_number}
           </h1>
+          {chainBookingId && (
+            <Link
+              href={`/return-queue/${chainBookingId}`}
+              className={cn(buttonVariants({ variant: "outline" }), "min-h-11 bg-surface px-4")}
+            >
+              Open chain step
+            </Link>
+          )}
           {!isRetired && (
             <Link
               href={`/seats/${seat.id}/edit`}

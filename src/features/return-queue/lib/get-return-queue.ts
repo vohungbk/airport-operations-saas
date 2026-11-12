@@ -9,11 +9,11 @@ import {
 } from "@/features/return-queue/lib/return-queue";
 
 /**
- * One nested select: the booking, its airport, partner, assigned seat and
- * status events. Explicit columns: no commercial or contact data.
+ * One nested select: the booking, its airport, partner, assigned seat, status
+ * events and recorded chain steps. Explicit columns: no commercial or contact data.
  */
 export const RETURN_QUEUE_SELECT =
-  "id, booking_number, status, airport:airports(code, timezone), partner:partners(name), seat:seats!assigned_seat_id(id, serial_number, status), events:booking_events(to_status, created_at)";
+  "id, booking_number, status, airport:airports(code, timezone), partner:partners(name), seat:seats!assigned_seat_id(id, serial_number, status), events:booking_events(to_status, created_at), chain_steps:return_chain_steps(step, result, completed_at)";
 
 /** The queue holds the seats being turned around, never the whole history. */
 export const RETURN_QUEUE_MAX_ROWS = 500;
@@ -78,4 +78,32 @@ export async function getReturnChainItem(
   return data
     ? toReturnQueueItem(data as unknown as ReturnQueueBookingRow, now)
     : null;
+}
+
+/**
+ * Server-only. The booking whose return chain holds the seat, for the link
+ * from the seat page (reached by a QR scan); null when there is none or RLS
+ * hides it.
+ */
+export async function getReturnChainBookingIdForSeat(
+  seatId: string,
+): Promise<string | null> {
+  if (!z.guid().safeParse(seatId).success) {
+    return null;
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("assigned_seat_id", seatId)
+    .in("status", RETURN_CHAIN_BOOKING_STATUSES)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.id ?? null;
 }

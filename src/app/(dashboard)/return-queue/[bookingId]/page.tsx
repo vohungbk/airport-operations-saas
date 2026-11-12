@@ -18,7 +18,8 @@ export default async function ReturnChainStepPage({
 }: ReturnChainStepPageProps) {
   const user = await requirePermission("dashboards:view");
   const { bookingId } = await params;
-  const item = await getReturnChainItem(bookingId, new Date());
+  const now = new Date();
+  const item = await getReturnChainItem(bookingId, now);
 
   if (!item) {
     return (
@@ -35,6 +36,7 @@ export default async function ReturnChainStepPage({
     <ReturnChainStep
       item={item}
       accessLabel={`${ROLE_LABELS[user.role]} · Full access`}
+      now={now}
     />
   );
 }
