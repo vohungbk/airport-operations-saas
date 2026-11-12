@@ -66,6 +66,11 @@ describe("completeChainStepAction", () => {
     [{ code: "RC001", details: "drying" }, "OUT_OF_ORDER", "This step is not the next one. The seat is at Drying."],
     [{ code: "42501", details: "" }, "FORBIDDEN", "You do not have permission to complete this step."],
     [{ code: "55000", details: "" }, "SEAT_IN_QUARANTINE", "This seat is in quarantine. Its chain is stopped."],
+    [
+      { code: "RC002", details: "" },
+      "BOOKING_CONFLICT",
+      "Another booking holds or uses the seat now or soon. Handle that booking first, then complete this step.",
+    ],
   ])("should map database error %o to a clear message", async (error, code, message) => {
     rpcMock.mockResolvedValue({ error });
 
