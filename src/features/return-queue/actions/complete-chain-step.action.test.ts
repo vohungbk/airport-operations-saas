@@ -15,6 +15,9 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
+  forbidden: vi.fn(() => {
+    throw new Error("FORBIDDEN");
+  }),
 }));
 
 import { RETURN_CHAIN_STEP_PERMISSIONS } from "@/lib/auth/permissions";
@@ -59,6 +62,19 @@ describe("completeChainStepAction", () => {
     await expect(completeChainStepAction(INPUT)).rejects.toThrow("REDIRECT:/technician");
   });
 
+  it("should show the forbidden state when the database refuses a user who lost the permission (E9)", async () => {
+    rpcMock.mockResolvedValue({ error: { code: "42501", details: "", message: "forbidden" } });
+
+    await expect(completeChainStepAction(INPUT)).rejects.toThrow("FORBIDDEN");
+  });
+
+  it("should not call the database when the permission is already lost (E9)", async () => {
+    requireAnyPermissionMock.mockRejectedValue(new Error("FORBIDDEN"));
+
+    await expect(completeChainStepAction(INPUT)).rejects.toThrow("FORBIDDEN");
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
   it("should return a validation error and store nothing when the input is invalid", async () => {
     const result = await completeChainStepAction({ ...INPUT, notes: "" });
 
@@ -89,7 +105,6 @@ describe("completeChainStepAction", () => {
       "PHOTO_REQUIRED",
       "Add a photo of this step.",
     ],
-    [{ code: "42501", details: "" }, "FORBIDDEN", "You do not have permission to complete this step."],
     [{ code: "55000", details: "" }, "SEAT_IN_QUARANTINE", "This seat is in quarantine. Its chain is stopped."],
     [
       { code: "RC002", details: "" },
