@@ -10,7 +10,7 @@ interface SeatStatusHistoryProps {
 }
 
 /** The time of a change as it was shown before the restyle (UI-F06-S02, spec R8): no new time zone. */
-const formatChangeTime = (iso: string) => new Date(iso).toLocaleString();
+export const formatChangeTime = (iso: string) => new Date(iso).toLocaleString();
 
 /**
  * Read-only: the log is append-only in the DB, with no edit UI. The changes are shown as the shared

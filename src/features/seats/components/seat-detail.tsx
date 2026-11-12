@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils";
 import { ChangeSeatStatusDialog } from "@/features/seats/components/change-seat-status-dialog";
 import { SeatQrCard } from "@/features/seats/components/seat-qr-card";
 import { SeatStatusBadge } from "@/features/seats/components/seat-status-badge";
-import { SeatStatusHistory } from "@/features/seats/components/seat-status-history";
+import { formatChangeTime, SeatStatusHistory } from "@/features/seats/components/seat-status-history";
+import { ChainHistory } from "@/features/return-queue/components/chain-history";
+import type { ChainHistoryResult } from "@/features/return-queue/lib/get-chain-history";
 import { getAllowedManualTransitions } from "@/features/seats/lib/seat-status";
 import type { SeatDetailItem } from "@/features/seats/lib/get-seats";
 import type { SeatStatusHistoryResult } from "@/features/seats/lib/get-seat-status-history";
@@ -15,6 +17,8 @@ interface SeatDetailProps {
   history: SeatStatusHistoryResult;
   /** The booking whose return chain holds the seat; null when the seat is not in the chain. */
   chainBookingId?: string | null;
+  /** Every stored step of the seat's return chain, across its bookings (FO-F08-S10). */
+  chainHistory?: ChainHistoryResult;
 }
 
 function InfoRow({
@@ -32,7 +36,7 @@ function InfoRow({
   );
 }
 
-export function SeatDetail({ seat, history, chainBookingId }: SeatDetailProps) {
+export function SeatDetail({ seat, history, chainBookingId, chainHistory }: SeatDetailProps) {
   const isRetired = seat.status === "retired";
   const allowedTransitions = getAllowedManualTransitions(seat.status);
   const airportLabel = seat.airport
@@ -122,6 +126,17 @@ export function SeatDetail({ seat, history, chainBookingId }: SeatDetailProps) {
           truncated={history.truncated}
         />
       </div>
+
+      {chainHistory && (
+        <div className="print:hidden">
+          <ChainHistory
+            rows={chainHistory.items}
+            truncated={chainHistory.truncated}
+            formatTime={formatChangeTime}
+            showBooking
+          />
+        </div>
+      )}
     </div>
   );
 }

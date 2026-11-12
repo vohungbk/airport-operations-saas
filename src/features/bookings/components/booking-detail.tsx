@@ -25,6 +25,9 @@ import type { BookingPageTab } from "@/features/bookings/lib/booking-tabs";
 import type { BookingEventsResult } from "@/features/bookings/lib/get-booking-events";
 import type { BookingDetailItem } from "@/features/bookings/lib/get-bookings";
 import { getInstallationDeadline } from "@/features/flights/lib/flight-panel";
+import { ChainHistory } from "@/features/return-queue/components/chain-history";
+import type { ChainHistoryResult } from "@/features/return-queue/lib/get-chain-history";
+import { formatReportedAt } from "@/features/incidents/lib/incident-time";
 import { stepOf } from "@/lib/workflow/board";
 import type { FlightUpdatesResult } from "@/features/flights/lib/get-flight-updates";
 
@@ -43,6 +46,8 @@ interface BookingDetailProps {
   flightHistory?: FlightUpdatesResult | null;
   /** An admin or an operations manager may enter an arrival by hand (VI-F02-S07, Q4). */
   canEnterArrival?: boolean;
+  /** The stored steps of the booking's return chain (FO-F08-S10); `null` when the role may not read them. */
+  chainHistory?: ChainHistoryResult | null;
 }
 
 /** The badges of the header are 28 px high, taller than the default badge. */
@@ -62,6 +67,7 @@ export function BookingDetail({
   defaultTab = "overview",
   flightHistory = null,
   canEnterArrival = false,
+  chainHistory = null,
 }: BookingDetailProps) {
   const timeZone = booking.airport?.timezone ?? "UTC";
   const allowedTransitions = getAllowedManualTransitions(booking.status);
@@ -136,20 +142,29 @@ export function BookingDetail({
         />
       }
       timeline={
-        <Card>
-          <CardContent>
-            <BookingTimelineTab
-              entries={buildTimelineEntries({
-                events: events.items,
-                adjustments: revenue?.adjustments ?? null,
-                flightUpdates: flightHistory?.items ?? null,
-                timeZone,
-              })}
-              truncated={events.truncated}
-              timeZone={timeZone}
+        <div className="flex flex-col gap-6">
+          <Card>
+            <CardContent>
+              <BookingTimelineTab
+                entries={buildTimelineEntries({
+                  events: events.items,
+                  adjustments: revenue?.adjustments ?? null,
+                  flightUpdates: flightHistory?.items ?? null,
+                  timeZone,
+                })}
+                truncated={events.truncated}
+                timeZone={timeZone}
+              />
+            </CardContent>
+          </Card>
+          {chainHistory && (
+            <ChainHistory
+              rows={chainHistory.items}
+              truncated={chainHistory.truncated}
+              formatTime={(iso) => formatReportedAt(iso, timeZone)}
             />
-          </CardContent>
-        </Card>
+          )}
+        </div>
       }
       revenue={revenue && <BookingRevenueTab data={revenue} timeZone={timeZone} />}
       photos={

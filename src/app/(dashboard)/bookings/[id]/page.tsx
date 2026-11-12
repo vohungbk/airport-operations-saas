@@ -15,6 +15,7 @@ import { getFlightUpdates } from "@/features/flights/lib/get-flight-updates";
 import { canAddAdjustment } from "@/features/bookings/lib/booking-adjustment";
 import { getBookingAdjustments } from "@/features/bookings/lib/get-booking-adjustments";
 import { getBookingRevenue } from "@/features/bookings/lib/get-booking-revenue";
+import { getChainHistory } from "@/features/return-queue/lib/get-chain-history";
 import { resolveBookingPageTab } from "@/features/bookings/lib/booking-tabs";
 
 interface BookingDetailPageProps {
@@ -45,6 +46,10 @@ export default async function BookingDetailPage({
   // throws: a failure is shown inside its own card and the flight card stays (VI-F02-T01 AC05).
   const flightHistory = await getFlightUpdates(booking.flight_id);
 
+  // Only admin and operations manager read the chain steps (RLS); for any other role the card is left out.
+  const isInternalRole = user.role === "admin" || user.role === "operations_manager";
+  const chainHistory = isInternalRole ? await getChainHistory({ bookingId: id }) : null;
+
   const canManage = hasPermission(user.role, "bookings:manage");
   const canViewRevenue = hasAnyPermission(user.role, FINANCE_ACCESS_PERMISSIONS);
   const mayAdjust = hasAnyPermission(user.role, FINANCE_ADJUSTMENT_PERMISSIONS);
@@ -62,7 +67,8 @@ export default async function BookingDetailPage({
       flightHistory={flightHistory}
       defaultTab={defaultTab}
       canManage={canManage}
-      canEnterArrival={user.role === "admin" || user.role === "operations_manager"}
+      canEnterArrival={isInternalRole}
+      chainHistory={chainHistory}
       canViewRevenue={canViewRevenue}
       revenue={
         revenueRow ? { row: revenueRow, adjustments, canAdjust: mayAdjust && canAddAdjustment(revenueRow) } : null
