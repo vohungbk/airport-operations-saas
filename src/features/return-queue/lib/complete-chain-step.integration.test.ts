@@ -10,6 +10,11 @@ import {
   partnerId,
   run,
 } from "@/lib/finance/finance-test-support";
+import {
+  RECORDED_CHAIN_STEPS,
+  RETURN_CHAIN_CHECKLIST,
+  type RecordedChainStep,
+} from "@/features/return-queue/lib/return-chain";
 
 /**
  * FO-F08-S02 (AC06, AC09, R3 to R7, E1, E4): complete_return_chain_step() stores a step with the
@@ -24,11 +29,10 @@ const PARTNER_USER = USER("partner_user");
 
 const SEAT = `(select s.id from public.seats s where s.airport_id = '${AIRPORT}' and s.category_id = '${CATEGORY}' and s.status <> 'retired' order by s.serial_number limit 1)`;
 
-const CHECKLIST: Record<string, string> = {
-  returned: `'{"seat_received": true, "serial_matches": true, "parts_returned": true}'`,
-  initial_inspection: `'{"shell_checked": true, "harness_checked": true, "buckle_checked": true}'`,
-  cleaning: `'{"shell_cleaned": true, "harness_cleaned": true, "straps_cleaned": true}'`,
-};
+/** Every checklist item of a step ticked, as a SQL jsonb literal. */
+const checklist = (step: RecordedChainStep) =>
+  `'${JSON.stringify(Object.fromEntries(RETURN_CHAIN_CHECKLIST[step].map((item) => [item.id, true])))}'`;
+
 
 const photo = (step: string) => `${bookingId(1)}/${step}/p-1.jpg`;
 
@@ -45,13 +49,13 @@ const setup = `
   select set_config('app.seat_status_change', '', true);
   insert into storage.objects (bucket_id, name)
   select 'return-chain-photos', '${bookingId(1)}/' || s || '/p-1.jpg'
-    from unnest(array['returned', 'initial_inspection', 'cleaning']) s;`;
+    from unnest(array[${RECORDED_CHAIN_STEPS.map((step) => `'${step}'`).join(", ")}]) s;`;
 
 /** Completes a step as a user and reports `R|name|ok` or `R|name|<sqlstate>|<detail>`. */
 const complete = (
   name: string,
   user: string,
-  step: string,
+  step: RecordedChainStep,
   result = "pass",
   notes = "null",
   photos = `array['${photo(step)}']`,
@@ -59,7 +63,7 @@ const complete = (
   select set_config('request.jwt.claim.sub', coalesce(${user}, ''), true);
   set local role authenticated;
   do $$ declare d text; begin
-    perform public.complete_return_chain_step('${bookingId(1)}', '${step}', '${result}', ${CHECKLIST[step] ?? "'{}'"}, ${notes}, ${photos});
+    perform public.complete_return_chain_step('${bookingId(1)}', '${step}', '${result}', ${checklist(step)}, ${notes}, ${photos});
     raise notice 'R|${name}|ok';
   exception when others then
     get stacked diagnostics d = pg_exception_detail;
@@ -189,5 +193,33 @@ describe.skipIf(!available)("complete a step of the return chain (FO-F08-S02)", 
     expect(get(rows, "insert")).toEqual(["42501"]);
     expect(get(rows, "delete")).toEqual(["42501"]);
     expect(get(rows, "after")).toEqual(["returned", "inspection", "1"]);
+  });
+});
+
+/**
+ * FO-F08-S06 (R6, E7): a pass on the final inspection completes the booking and adds a rental
+ * cycle; the seat becomes available, or goes to quarantine when it reaches its maximum cycles.
+ */
+describe.skipIf(!available)("return the seat to available after the final inspection (FO-F08-S06)", () => {
+  /** Reports `R|name|<booking status>|<seat status>|<rental cycles>|<quarantine reason>`. */
+  const seatAfter = (name: string) => `
+    do $$ declare b text; s public.seats; begin
+      select status::text into b from public.bookings where id = '${bookingId(1)}';
+      select * into s from public.seats st where st.id = ${SEAT};
+      raise notice 'R|${name}|%|%|%|%', b, s.status, s.rental_cycles, coalesce(s.quarantine_reason, '');
+    end $$;`;
+
+  it.each([
+    ["become available with one more rental cycle when below its maximum", 3, ["completed", "available", "4", ""]],
+    ["go to quarantine for retirement when it reaches its maximum rental cycles", 4, ["completed", "quarantine", "5", "Reached max rental cycles"]],
+  ])("should let the seat %s", (_, cycles, expected) => {
+    const rows = run(`
+      ${setup}
+      update public.seats set rental_cycles = ${cycles}, max_rental_cycles = 5 where id = ${SEAT};
+      ${RECORDED_CHAIN_STEPS.map((step) => complete(step, OPS, step)).join("\n")}
+      ${seatAfter("after")}`);
+
+    RECORDED_CHAIN_STEPS.forEach((step) => expect(get(rows, step)).toEqual(["ok"]));
+    expect(get(rows, "after")).toEqual(expected);
   });
 });
