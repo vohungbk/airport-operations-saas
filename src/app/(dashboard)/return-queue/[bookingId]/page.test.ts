@@ -12,6 +12,10 @@ vi.mock("@/features/return-queue/lib/get-return-queue", () => ({
   getReturnChainItem: getReturnChainItemMock,
 }));
 
+vi.mock("@/features/return-queue/actions/complete-chain-step.action", () => ({
+  completeChainStepAction: vi.fn(),
+}));
+
 import ReturnChainStepPage from "@/app/(dashboard)/return-queue/[bookingId]/page";
 import { toReturnQueueItem } from "@/features/return-queue/lib/return-queue";
 
@@ -27,6 +31,7 @@ function item(seatStatus: "cleaning" | "quarantine", status: "cleaning" | "inspe
       partner: { name: "Emirates Rent A Car" },
       seat: { id: "s-1", serial_number: "SEAT-0001", status: seatStatus },
       events: [{ to_status: status, created_at: "2026-11-04T07:10:00Z" }],
+      chain_steps: [],
     },
     NOW,
   );
@@ -66,13 +71,25 @@ describe("ReturnChainStepPage", () => {
     expect(html).toContain("Locked");
   });
 
-  it("should show the failed step of a quarantined seat", async () => {
+  it("should show the form of the current step with its checklist, notes, photo and actions", async () => {
+    const html = await render();
+
+    expect(html).toContain("Result *");
+    expect(html).toContain("Shell cleaned");
+    expect(html).toContain("Required when result is Fail");
+    expect(html).toContain("Photo evidence *");
+    expect(html).toContain("Complete step");
+    expect(html).toMatch(/<a[^>]*href="\/return-queue"[^>]*>Cancel<\/a>/);
+  });
+
+  it("should show the failed step of a quarantined seat, with no step to record", async () => {
     getReturnChainItemMock.mockResolvedValue(item("quarantine", "inspection"));
 
     const html = await render();
 
     expect(html).toContain("Final inspection · Step 6 of 7");
     expect(html).toContain("Failed");
+    expect(html).not.toContain("Complete step");
   });
 
   it("should show not found, with no booking data, for a seat outside the chain or the user's scope", async () => {

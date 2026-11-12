@@ -21,6 +21,7 @@ function row(overrides: Partial<ReturnQueueBookingRow> = {}): ReturnQueueBooking
       { to_status: "returned", created_at: "2026-11-04T06:00:00Z" },
       { to_status: "cleaning", created_at: "2026-11-04T06:20:00Z" },
     ],
+    chain_steps: [],
     ...overrides,
   };
 }
@@ -30,6 +31,19 @@ function item(overrides: Partial<ReturnQueueBookingRow> = {}) {
 }
 
 describe("toReturnQueueItem", () => {
+  it("should place the seat after its last recorded step and time the step from it", () => {
+    expect(
+      item({
+        chain_steps: [{ step: "cleaning", result: "pass", completed_at: "2026-11-04T06:50:00Z" }],
+      }),
+    ).toMatchObject({
+      chain_step: "drying",
+      current_step_label: "Drying",
+      step_started_at: "2026-11-04T06:50:00Z",
+      waiting_minutes: 12,
+    });
+  });
+
   it("should give the returned time and the minutes waited in the current step", () => {
     expect(item()).toMatchObject({
       seat_serial_number: "SEAT-0001",
