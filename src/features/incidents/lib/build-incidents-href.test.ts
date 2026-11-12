@@ -7,6 +7,9 @@ const BASE: IncidentsQuery = {
   q: undefined,
   status: undefined,
   severity: undefined,
+  seat_id: undefined,
+  from: undefined,
+  to: undefined,
   sort: "created_at",
   order: "desc",
   page: 1,
@@ -52,5 +55,18 @@ describe("buildIncidentsHref", () => {
 
   it("should encode a search that has special characters", () => {
     expect(buildIncidentsHref({ ...BASE, q: "a&b=c" })).toContain("q=a%26b%3Dc");
+  });
+
+  it("should keep the seat and the date range in the address", () => {
+    const href = buildIncidentsHref({
+      ...BASE,
+      seat_id: "s-1",
+      from: "2026-11-01",
+      to: "2026-11-04",
+    });
+
+    expect(href).toContain("seat_id=s-1");
+    expect(href).toContain("from=2026-11-01");
+    expect(href).toContain("to=2026-11-04");
   });
 });

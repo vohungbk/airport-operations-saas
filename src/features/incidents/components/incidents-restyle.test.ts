@@ -15,6 +15,7 @@ import { IncidentDetail } from "@/features/incidents/components/incident-detail"
 import { IncidentHistoryTimeline } from "@/features/incidents/components/incident-history-timeline";
 import { IncidentsFilters } from "@/features/incidents/components/incidents-filters";
 import { IncidentsPagination } from "@/features/incidents/components/incidents-pagination";
+import { IncidentsStatusChips } from "@/features/incidents/components/incidents-status-chips";
 import { IncidentsTable } from "@/features/incidents/components/incidents-table";
 import type {
   IncidentDetailItem,
@@ -49,44 +50,54 @@ const table = (description?: string) =>
   html(
     createElement(IncidentsTable, {
       incidents: [row(description)],
-      query,
+      timeZone: "Asia/Dubai",
     } as never),
   );
 
-describe("incidents table (UI-F06-S04, R6, R10)", () => {
+describe("incidents table", () => {
   it("should become cards on a phone and label every cell", () => {
     const out = table();
     const cells = out.match(/<td /g)?.length ?? 0;
     const labelled = out.match(/<td [^>]*data-label="[^"]+"/g)?.length ?? 0;
 
     expect(out).toContain('data-stacked=""');
-    expect(cells).toBe(7);
+    expect(cells).toBe(8);
     expect(labelled).toBe(cells);
   });
 
-  it("should open the incident from a link stretched over the whole row", () => {
+  it("should open the incident from the type and from a View button", () => {
     const out = table();
 
-    expect(out).toContain('href="/incidents/i-1"');
-    expect(out).toContain("after:absolute after:inset-0");
+    expect(out.match(/href="\/incidents\/i-1"/g)).toHaveLength(2);
+    expect(out).toContain("View");
   });
 
-  it("should cut a long description short and keep it whole as a title", () => {
-    const out = table(LONG);
-
-    expect(out).toContain("truncate");
-    expect(out).toContain(`title="${LONG}"`);
+  it("should write the reported time in the airport time zone", () => {
+    expect(table()).toContain("24 Oct 2026 14:20 GST");
   });
 
-  it("should render a description with markup as text, never as markup", () => {
-    const out = table("<script>alert(1)</script>");
+  it("should show severity and status with an icon and text", () => {
+    const out = table();
+
+    expect(out).toContain("High");
+    expect(out).toContain("Open");
+    expect(out.match(/<svg/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("should render the type with markup as text, never as markup", () => {
+    const out = html(
+      createElement(IncidentsTable, {
+        incidents: [{ ...row(), type: "<script>alert(1)</script>" }],
+        timeZone: "UTC",
+      } as never),
+    );
 
     expect(out).not.toContain("<script>alert(1)</script>");
     expect(out).toContain("&lt;script&gt;");
   });
 });
 
-describe("incidents pagination and filters", () => {
+describe("incidents pagination, chips and filters", () => {
   it("should say which rows are shown", () => {
     const out = html(
       createElement(IncidentsPagination, {
@@ -95,19 +106,48 @@ describe("incidents pagination and filters", () => {
       } as never),
     );
 
-    expect(out).toContain("Showing 41–45 of 45");
+    expect(out).toContain("41-45 of 45");
   });
 
-  it("should offer Clear all only once a filter is set", () => {
-    const plain = html(createElement(IncidentsFilters, { query } as never));
-    const filtered = html(
-      createElement(IncidentsFilters, {
-        query: { ...query, severity: "high" },
+  it("should mark the chip of the chosen status and keep All for none", () => {
+    const all = html(createElement(IncidentsStatusChips, { query } as never));
+    const open = html(
+      createElement(IncidentsStatusChips, {
+        query: { ...query, status: "open" },
       } as never),
     );
 
-    expect(plain).not.toContain("Clear all");
-    expect(filtered).toContain("Clear all");
+    expect(all.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(all).toMatch(/aria-current="page"[^>]*>All</);
+    expect(open).toMatch(/aria-current="page"[^>]*>Open</);
+    expect(open).toContain("Investigating");
+    expect(open).toContain("Resolved");
+  });
+
+  it("should keep the other filters when a chip is chosen", () => {
+    const out = html(
+      createElement(IncidentsStatusChips, {
+        query: { ...query, severity: "high", page: 4 },
+      } as never),
+    );
+
+    expect(out).toContain("severity=high");
+    expect(out).toContain("status=resolved");
+    expect(out).toContain("page=1");
+  });
+
+  it("should show the airport time zone under the date range", () => {
+    const out = html(
+      createElement(IncidentsFilters, {
+        query,
+        seats: [],
+        timeZone: "Asia/Dubai",
+        clearHref: "/incidents",
+      } as never),
+    );
+
+    expect(out).toContain("Airport time zone: GST");
+    expect(out).toContain("Clear filters");
   });
 });
 

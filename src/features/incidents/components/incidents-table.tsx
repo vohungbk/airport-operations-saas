@@ -1,7 +1,7 @@
 import Link from "next/link";
 
+import { buttonVariants } from "@/components/ui/button";
 import {
-  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -12,110 +12,91 @@ import {
 import { IncidentSeverityBadge } from "@/features/incidents/components/incident-severity-badge";
 import { IncidentStatusBadge } from "@/features/incidents/components/incident-status-badge";
 import { formatIncidentSeat } from "@/features/incidents/lib/incident-seat";
-import { buildIncidentsHref } from "@/features/incidents/lib/build-incidents-href";
-import type {
-  IncidentsQuery,
-  IncidentsSortColumn,
-} from "@/features/incidents/schemas/incidents-query.schema";
+import { formatReportedAt } from "@/features/incidents/lib/incident-time";
 import type { IncidentListItem } from "@/features/incidents/types";
 
 interface IncidentsTableProps {
   incidents: IncidentListItem[];
-  query: IncidentsQuery;
+  /** The zone the reported time is written in. */
+  timeZone: string;
 }
 
-const SORTABLE: Record<IncidentsSortColumn, string> = {
-  created_at: "Reported",
-  severity: "Severity",
-  status: "Status",
-};
-
-function SortHeader({
-  query,
-  column,
-}: {
-  query: IncidentsQuery;
-  column: IncidentsSortColumn;
-}) {
-  const isActive = query.sort === column;
-
-  return (
-    <SortableTableHead
-      href={buildIncidentsHref(query, {
-        sort: column,
-        order: isActive && query.order === "asc" ? "desc" : "asc",
-        page: 1,
-      })}
-      label={SORTABLE[column]}
-      direction={isActive ? query.order : null}
-      idleIcon
-    />
-  );
-}
+const HEAD_CLASS =
+  "h-auto px-0 py-0 py-3 pr-4 text-xs font-semibold leading-4 text-text-muted";
+const CELL_CLASS =
+  "py-3 pr-4 text-sm leading-5 whitespace-normal break-words text-foreground";
 
 /**
- * Server Component. The link on the type is stretched over the row, so the whole row opens the incident
- * with no script and the keyboard reaches it. The description is free text: it is rendered as text and
- * cut short, never as markup. Below 640 px the table is a list of cards (UI-F06-S04, spec R10).
+ * Server Component. Columns of the design: incident, seat, booking, severity,
+ * status, reported by, reported at and a View action. Below 640 px the table
+ * is a list of cards; from 640 px up it is the table. The incident type is
+ * free text: it is rendered as text, never as markup.
  */
-export function IncidentsTable({ incidents, query }: IncidentsTableProps) {
+export function IncidentsTable({ incidents, timeZone }: IncidentsTableProps) {
   return (
-    <div className="min-w-0 sm:overflow-hidden sm:rounded-lg sm:border sm:bg-card">
-      <Table stacked>
-        <TableHeader className="sm:bg-muted [&_th]:h-13 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_th_a]:text-[11px] [&_th_a]:font-semibold">
-          <TableRow>
-            <SortHeader query={query} column="created_at" />
-            <SortHeader query={query} column="severity" />
-            <SortHeader query={query} column="status" />
-            <TableHead>Type</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Related</TableHead>
-            <TableHead>Reported by</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody className="sm:[&_tr]:border-0">
-          {incidents.map((incident) => (
-            <TableRow
-              key={incident.id}
-              className="relative cursor-pointer focus-within:bg-muted/50 sm:h-13"
+    <Table stacked>
+      <TableHeader className="bg-surface-muted [&_tr]:border-b">
+        <TableRow className="hover:bg-transparent">
+          <TableHead className={`${HEAD_CLASS} pl-4`}>Incident</TableHead>
+          <TableHead className={HEAD_CLASS}>Seat</TableHead>
+          <TableHead className={HEAD_CLASS}>Booking</TableHead>
+          <TableHead className={HEAD_CLASS}>Severity</TableHead>
+          <TableHead className={HEAD_CLASS}>Status</TableHead>
+          <TableHead className={HEAD_CLASS}>Reported by</TableHead>
+          <TableHead className={HEAD_CLASS}>Reported at</TableHead>
+          <TableHead className={HEAD_CLASS}>Row action</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {incidents.map((incident) => (
+          <TableRow
+            key={incident.id}
+            className="transition-colors hover:bg-primary-subtle"
+          >
+            <TableCell
+              data-label="Incident"
+              className={`${CELL_CLASS} pl-4 font-medium`}
             >
-              <TableCell data-label="Reported">
-                {new Date(incident.created_at).toLocaleString()}
-              </TableCell>
-              <TableCell data-label="Severity">
-                <IncidentSeverityBadge severity={incident.severity} />
-              </TableCell>
-              <TableCell data-label="Status">
-                <IncidentStatusBadge status={incident.status} />
-              </TableCell>
-              <TableCell data-label="Type" className="font-medium">
-                <Link
-                  href={`/incidents/${incident.id}`}
-                  aria-label={`View incident ${incident.type}`}
-                  className="after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  {incident.type}
-                </Link>
-              </TableCell>
-              <TableCell
-                data-label="Description"
-                className="max-w-xs truncate max-sm:max-w-none"
-                title={incident.description}
+              <Link
+                href={`/incidents/${incident.id}`}
+                className="hover:underline"
               >
-                {incident.description}
-              </TableCell>
-              <TableCell data-label="Related">
-                {formatIncidentSeat(incident.seat) ??
-                  incident.booking?.booking_number ??
-                  "—"}
-              </TableCell>
-              <TableCell data-label="Reported by">
-                {incident.reporter?.full_name ?? "—"}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+                {incident.type}
+              </Link>
+            </TableCell>
+            <TableCell data-label="Seat" className={CELL_CLASS}>
+              {formatIncidentSeat(incident.seat) ?? "—"}
+            </TableCell>
+            <TableCell data-label="Booking" className={CELL_CLASS}>
+              {incident.booking?.booking_number ?? "—"}
+            </TableCell>
+            <TableCell data-label="Severity" className={CELL_CLASS}>
+              <IncidentSeverityBadge severity={incident.severity} />
+            </TableCell>
+            <TableCell data-label="Status" className={CELL_CLASS}>
+              <IncidentStatusBadge status={incident.status} />
+            </TableCell>
+            <TableCell data-label="Reported by" className={CELL_CLASS}>
+              {incident.reporter?.full_name ?? "—"}
+            </TableCell>
+            <TableCell data-label="Reported at" className={CELL_CLASS}>
+              {formatReportedAt(incident.created_at, timeZone)}
+            </TableCell>
+            <TableCell data-label="Row action" className={CELL_CLASS}>
+              <Link
+                href={`/incidents/${incident.id}`}
+                aria-label={`View incident ${incident.type}`}
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "min-h-11 rounded-lg bg-surface px-4",
+                })}
+              >
+                View
+              </Link>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

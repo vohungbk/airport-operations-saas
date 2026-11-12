@@ -15,6 +15,8 @@ const INCIDENTS_SORT_COLUMNS = ["created_at", "severity", "status"] as const;
 
 export type IncidentsSortColumn = (typeof INCIDENTS_SORT_COLUMNS)[number];
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 const INCIDENTS_DEFAULT_SORT: IncidentsSortColumn = "created_at";
 const INCIDENTS_DEFAULT_PAGE_SIZE = 20;
 const INCIDENTS_MAX_PAGE_SIZE = 100;
@@ -35,6 +37,10 @@ export const incidentsQuerySchema = z.object({
     .catch(undefined),
   status: z.enum(INCIDENT_STATUSES).optional().catch(undefined),
   severity: z.enum(INCIDENT_SEVERITIES).optional().catch(undefined),
+  seat_id: z.guid().optional().catch(undefined),
+  /** Reported-at range, `YYYY-MM-DD` in the airport time zone; either end may be left out. */
+  from: z.string().regex(ISO_DATE).optional().catch(undefined),
+  to: z.string().regex(ISO_DATE).optional().catch(undefined),
   sort: z.enum(INCIDENTS_SORT_COLUMNS).catch(INCIDENTS_DEFAULT_SORT),
   order: z.enum(["asc", "desc"]).catch("desc"),
   page: z.coerce.number().int().min(1).catch(1),

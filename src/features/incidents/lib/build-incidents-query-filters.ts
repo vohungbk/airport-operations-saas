@@ -15,6 +15,9 @@ export interface IncidentsQueryFilters {
   search: string | undefined;
   status: IncidentStatus | undefined;
   severity: IncidentSeverity | undefined;
+  seat_id: string | undefined;
+  from: string | undefined;
+  to: string | undefined;
   sort: IncidentsSortColumn;
   order: "asc" | "desc";
   range: { from: number; to: number };
@@ -35,7 +38,7 @@ function toQuotedIlikePattern(term: string): string {
 export function buildIncidentsQueryFilters(
   query: IncidentsQuery,
 ): IncidentsQueryFilters {
-  const { q, status, severity, sort, order, page, page_size } = query;
+  const { q, status, severity, seat_id, from: from_date, to: to_date, sort, order, page, page_size } = query;
 
   const from = (page - 1) * page_size;
   const to = from + page_size - 1;
@@ -46,5 +49,15 @@ export function buildIncidentsQueryFilters(
     search = `type.ilike.${pattern},description.ilike.${pattern}`;
   }
 
-  return { search, status, severity, sort, order, range: { from, to } };
+  return {
+    search,
+    status,
+    severity,
+    seat_id,
+    from: from_date,
+    to: to_date,
+    sort,
+    order,
+    range: { from, to },
+  };
 }

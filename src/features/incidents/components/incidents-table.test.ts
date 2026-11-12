@@ -3,18 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { IncidentsTable } from "@/features/incidents/components/incidents-table";
-import type { IncidentsQuery } from "@/features/incidents/schemas/incidents-query.schema";
 import type { IncidentListItem } from "@/features/incidents/types";
-
-const QUERY: IncidentsQuery = {
-  q: undefined,
-  status: undefined,
-  severity: undefined,
-  sort: "created_at",
-  order: "desc",
-  page: 1,
-  page_size: 20,
-};
 
 function incident(overrides: Partial<IncidentListItem> = {}): IncidentListItem {
   return {
@@ -31,9 +20,9 @@ function incident(overrides: Partial<IncidentListItem> = {}): IncidentListItem {
   };
 }
 
-function render(incidents: IncidentListItem[], query = QUERY) {
+function render(incidents: IncidentListItem[]) {
   return renderToStaticMarkup(
-    createElement(IncidentsTable, { incidents, query }),
+    createElement(IncidentsTable, { incidents, timeZone: "Asia/Dubai" }),
   );
 }
 
@@ -51,11 +40,11 @@ describe("IncidentsTable", () => {
     expect(html).toContain("Investigating");
   });
 
-  it("should show the seat as the related item when there is one", () => {
+  it("should show the seat and the booking in their own columns", () => {
     const html = render([incident()]);
 
     expect(html).toContain("SN-2");
-    expect(html).not.toContain("BK-00002");
+    expect(html).toContain("BK-00002");
   });
 
   it("should keep the seat in the list and say it is retired when the seat was retired", () => {
@@ -66,26 +55,22 @@ describe("IncidentsTable", () => {
     expect(html).toContain("SN-2 (Retired)");
   });
 
-  it("should fall back to the booking number, then to a dash", () => {
-    expect(render([incident({ seat: null })])).toContain("BK-00002");
-
+  it("should show a dash when the seat, booking or reporter is missing", () => {
     const bare = render([
       incident({ seat: null, booking: null, reporter: null }),
     ]);
-    expect(bare).toContain("—");
+
+    expect(bare.match(/—/g)).toHaveLength(3);
   });
 
-  it("should render the description as text and not as markup", () => {
-    const html = render([incident({ description: "<script>alert(1)</script>" })]);
+  it("should write the reported time in the airport time zone", () => {
+    expect(render([incident()])).toContain("16 Oct 2026 12:05 GST");
+  });
+
+  it("should render the incident type as text and not as markup", () => {
+    const html = render([incident({ type: "<script>alert(1)</script>" })]);
 
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
-  });
-
-  it("should link the sort headers and flip the order of the current sort", () => {
-    const html = render([incident()], { ...QUERY, sort: "severity", order: "asc" });
-
-    expect(html).toContain("sort=severity&amp;order=desc&amp;page=1");
-    expect(html).toContain("sort=status&amp;order=asc&amp;page=1");
   });
 });
