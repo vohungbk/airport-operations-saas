@@ -32,7 +32,10 @@ function incident(
     technician_job_id: "j-1",
     partner: { name: "Emirates Rent A Car" },
     seat: { serial_number: "SN-2", status: "available" },
-    booking: { booking_number: "BK-00002" },
+    booking: {
+      booking_number: "BK-00002",
+      airport: { code: "DXB", timezone: "Asia/Dubai" },
+    },
     reporter: { full_name: "Ahmed" },
     resolver: null,
     ...overrides,
@@ -46,6 +49,8 @@ function render(
     historyTruncated?: boolean;
     allowedStatuses?: IncidentStatus[];
     showStaffDetails?: boolean;
+    showJobLink?: boolean;
+    accessLabel?: string | null;
   } = {},
 ) {
   return renderToStaticMarkup(
@@ -54,7 +59,10 @@ function render(
       history: options.history === undefined ? [] : options.history,
       historyTruncated: options.historyTruncated ?? false,
       showStaffDetails: options.showStaffDetails ?? true,
+      showJobLink: options.showJobLink ?? false,
       allowedStatuses: options.allowedStatuses ?? [],
+      accessLabel: options.accessLabel === undefined ? null : options.accessLabel,
+      timeZone: "Asia/Dubai",
     }),
   );
 }
@@ -69,49 +77,43 @@ describe("IncidentDetail", () => {
     expect(html).toContain("The harness strap is torn.");
   });
 
-  it("should show what the incident refers to and who reported it", () => {
+  it("should show the seat, booking, reporter and time of the incident", () => {
     const html = render();
 
-    expect(html).toContain("Emirates Rent A Car");
     expect(html).toContain("SN-2");
     expect(html).toContain("BK-00002");
     expect(html).toContain("Ahmed");
-    expect(html).toContain('href="/jobs/j-1"');
+    expect(html).toContain("16 Oct 2026 12:05 GST");
   });
 
-  it("should link back to the incident list", () => {
-    const html = render();
-
-    expect(html).toContain('href="/incidents"');
-    expect(html).toContain("Back to incidents");
+  it("should show the airport and the reported time under the title", () => {
+    expect(render()).toContain("DXB - 16 Oct 2026, 12:05 GST");
   });
 
-  it("should show a dash for what is missing and no job link without a job", () => {
+  it("should show the access line only when it is given", () => {
+    expect(render(incident(), { accessLabel: "Admin - Full access" })).toContain(
+      "Admin - Full access",
+    );
+    expect(render()).not.toContain("Full access");
+  });
+
+  it("should show a dash for what is missing", () => {
     const html = render(
-      incident({
-        partner: null,
-        seat: null,
-        booking: null,
-        reporter: null,
-        technician_job_id: null,
-      }),
+      incident({ seat: null, booking: null, reporter: null }),
     );
 
-    expect(html).not.toContain('href="/jobs/');
-    expect(html.match(/>-</g)).toHaveLength(7);
+    expect(html.match(/>-</g)).toHaveLength(3);
   });
 
-  it("should show who resolved the incident and when", () => {
-    const html = render(
-      incident({
-        status: "resolved",
-        resolved_at: "2026-10-18T10:00:00Z",
-        resolver: { full_name: "Fatima" },
-      }),
+  it("should link to the job only when the job link is asked for", () => {
+    expect(render(incident(), { showJobLink: true })).toContain(
+      'href="/jobs/j-1"',
     );
+    expect(render()).not.toContain('href="/jobs/');
+  });
 
-    expect(html).toContain("Fatima");
-    expect(html).toContain("Resolved");
+  it("should show the read-only photos section", () => {
+    expect(render()).toContain("Photos - read only");
   });
 
   it("should render the description as text and not as markup", () => {
@@ -137,20 +139,11 @@ describe("IncidentDetail", () => {
   });
 
   it("should leave out the staff names and the job link for a partner user", () => {
-    const html = render(
-      incident({
-        resolver: { full_name: "Fatima" },
-        resolved_at: "2026-10-18T10:00:00Z",
-      }),
-      { showStaffDetails: false },
-    );
+    const html = render(incident(), { showStaffDetails: false });
 
-    expect(html).toContain("Emirates Rent A Car");
     expect(html).toContain("SN-2");
     expect(html).not.toContain("Ahmed");
-    expect(html).not.toContain("Fatima");
     expect(html).not.toContain("Reported by");
-    expect(html).not.toContain("Resolved by");
     expect(html).not.toContain('href="/jobs/');
   });
 
@@ -161,15 +154,15 @@ describe("IncidentDetail", () => {
     expect(html).not.toContain("No changes recorded.");
   });
 
-  it("should offer Update status when the user has a permitted transition", () => {
+  it("should offer Change status when the user has a permitted transition", () => {
     expect(render(incident(), { allowedStatuses: ["resolved"] })).toContain(
-      "Update status",
+      "Change status",
     );
   });
 
-  it("should not offer Update status when there is no permitted transition", () => {
+  it("should not offer Change status when there is no permitted transition", () => {
     expect(render(incident({ status: "closed" }))).not.toContain(
-      "Update status",
+      "Change status",
     );
   });
 
@@ -187,7 +180,8 @@ describe("IncidentDetail", () => {
       ],
     });
 
-    expect(html).toContain("History");
+    expect(html).toContain("Status history");
+    expect(html).toContain("History retained permanently. No delete action.");
     expect(html).toContain("Fatima");
     expect(html).toContain("Looking into it");
   });

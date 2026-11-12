@@ -13,6 +13,11 @@ vi.mock("@/features/incidents/lib/get-incident-by-id", () => ({
   getIncidentById: getIncidentByIdMock,
 }));
 
+vi.mock("@/features/jobs/lib/get-job-airport-options", () => ({
+  getJobAirportOptions: vi.fn().mockResolvedValue([]),
+  getJobsTimeZone: () => "UTC",
+}));
+
 vi.mock("@/features/incidents/lib/get-incident-history", () => ({
   getIncidentHistory: getHistoryMock,
   INCIDENT_HISTORY_LIMIT: 50,
@@ -91,8 +96,8 @@ describe("IncidentDetailPage", () => {
 
     expect(getIncidentByIdMock).toHaveBeenCalledWith("i-1");
     expect(html).toContain("Damaged strap");
-    expect(html).toContain("Emirates Rent A Car");
-    expect(html).toContain('href="/incidents"');
+    expect(html).toContain("BK-00002");
+    expect(html).toContain("Admin - Full access");
   });
 
   it("should show the forbidden state, with no incident details, when the incident is not within scope", async () => {
@@ -104,7 +109,7 @@ describe("IncidentDetailPage", () => {
     expect(html).toContain("not found or is not within your access");
     expect(html).toContain('href="/incidents"');
     expect(html).not.toContain("Damaged strap");
-    expect(html).not.toContain("Emirates Rent A Car");
+    expect(html).not.toContain("BK-00002");
   });
 
   it.each([
@@ -168,9 +173,8 @@ describe("IncidentDetailPage", () => {
     const html = await render();
 
     expect(html).toContain("Damaged strap");
-    expect(html).toContain("Emirates Rent A Car");
     expect(html).not.toContain("Ahmed");
-    expect(html).not.toContain("Fatima");
+    expect(html).not.toContain("Full access");
     expect(html).not.toContain('href="/jobs/');
     expect(html).not.toContain("History");
     expect(html).not.toContain("DIALOG:");

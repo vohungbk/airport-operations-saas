@@ -31,7 +31,10 @@ export interface IncidentDetailItem {
   technician_job_id: string | null;
   partner: { name: string } | null;
   seat: IncidentSeatRef | null;
-  booking: { booking_number: string } | null;
+  booking: {
+    booking_number: string;
+    airport: { code: string; timezone: string } | null;
+  } | null;
   reporter: { full_name: string } | null;
   resolver: { full_name: string } | null;
 }

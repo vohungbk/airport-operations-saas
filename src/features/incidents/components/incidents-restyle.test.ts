@@ -164,7 +164,10 @@ describe("incident detail and history", () => {
     technician_job_id: "j-1",
     partner: { name: "Emirates Rent A Car" },
     seat: { serial_number: "SEAT-0018", status: "quarantine" },
-    booking: { booking_number: "BK-2026-000118" },
+    booking: {
+      booking_number: "BK-2026-000118",
+      airport: { code: "DXB", timezone: "Asia/Dubai" },
+    },
     reporter: { full_name: "Omar Haddad" },
     resolver: null,
   };
@@ -183,22 +186,27 @@ describe("incident detail and history", () => {
         history,
         historyTruncated: false,
         showStaffDetails: true,
+        showJobLink: false,
         allowedStatuses: [],
+        accessLabel: "Admin - Full access",
+        timeZone: "Asia/Dubai",
       }),
     );
 
-  it("should show the description and the details in cards that wrap a long text", () => {
+  it("should show the details in an Incident card that wraps a long text", () => {
     const out = render(null);
 
-    expect(out).toContain('data-slot="card"');
+    expect(out).toContain(">Incident<");
     expect(out).toContain("break-words");
   });
 
-  it("should draw the history as a timeline for a manager", () => {
+  it("should list the status history with who, when, from, to and the note for a manager", () => {
     const out = render([entry]);
 
-    expect(out).toContain('data-slot="timeline"');
-    expect(out).toContain("Note: Assigned for investigation");
+    expect(out).toContain("Status history");
+    expect(out).toContain("Priya Nair");
+    expect(out).toContain("24 Oct 2026 14:25 GST");
+    expect(out).toContain("Assigned for investigation");
   });
 
   it("should not show the history to someone who may not read it", () => {
@@ -206,7 +214,12 @@ describe("incident detail and history", () => {
   });
 
   it("should say so when no change is recorded", () => {
-    const out = html(createElement(IncidentHistoryTimeline, { history: [] }));
+    const out = html(
+      createElement(IncidentHistoryTimeline, {
+        history: [],
+        timeZone: "Asia/Dubai",
+      }),
+    );
 
     expect(out).toContain("No changes recorded.");
   });

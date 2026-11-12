@@ -19,7 +19,11 @@ function entry(overrides: Partial<IncidentHistoryItem> = {}): IncidentHistoryIte
 
 function render(history: IncidentHistoryItem[], truncated = false) {
   return renderToStaticMarkup(
-    createElement(IncidentHistoryTimeline, { history, truncated }),
+    createElement(IncidentHistoryTimeline, {
+      history,
+      truncated,
+      timeZone: "Asia/Dubai",
+    }),
   );
 }
 
@@ -38,9 +42,20 @@ describe("IncidentHistoryTimeline", () => {
 
   it("should show the note when there is one and leave it out when there is none", () => {
     expect(render([entry({ notes: "Seat failed again" })])).toContain(
-      "Note: Seat failed again",
+      "Seat failed again",
     );
-    expect(render([entry()])).not.toContain("Note:");
+    expect(render([entry()]).match(/<p/g)).toHaveLength(3);
+  });
+
+  it("should show the first entry as Created to the first status", () => {
+    const html = render([entry({ from_status: null, to_status: "open" })]);
+
+    expect(html).toContain("Created");
+    expect(html).toContain("Open");
+  });
+
+  it("should show the time of the change in the airport time zone", () => {
+    expect(render([entry()])).toContain("17 Oct 2026 13:00 GST");
   });
 
   it("should fall back to Staff when the actor is unknown", () => {
