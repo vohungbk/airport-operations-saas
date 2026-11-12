@@ -39,9 +39,19 @@ export function useCompleteChainStepForm(bookingId: string, step: RecordedChainS
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
     startTransition(async () => {
-      setResult(
-        await runClientAction(() => completeChainStepAction(values), CHAIN_STEP_NETWORK_ERROR),
+      const outcome = await runClientAction(
+        () => completeChainStepAction(values),
+        CHAIN_STEP_NETWORK_ERROR,
       );
+
+      // A refused photo is shown at the photo field, not in the page alert (E5).
+      if (!outcome.success && outcome.error.code === "PHOTO_REQUIRED") {
+        form.setError("photo_paths", { type: "server", message: outcome.error.message });
+
+        return;
+      }
+
+      setResult(outcome);
     });
   });
 

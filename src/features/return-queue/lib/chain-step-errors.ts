@@ -1,5 +1,6 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 
+import { PHOTO_REQUIRED_MESSAGE } from "@/features/return-queue/schemas/complete-chain-step.schema";
 import {
   RETURN_QUEUE_STEP_LABEL,
   type ReturnQueueStep,
@@ -9,6 +10,7 @@ import {
 export interface ChainStepActionError {
   code:
     | "VALIDATION_ERROR"
+    | "PHOTO_REQUIRED"
     | "FORBIDDEN"
     | "NOT_FOUND"
     | "OUT_OF_ORDER"
@@ -32,6 +34,14 @@ export const CHAIN_STEP_NETWORK_ERROR: ChainStepActionError = {
   code: "NETWORK_ERROR",
   message: "The step was not saved. Check your connection and try again.",
 };
+
+/** The database refused the step for a missing or misplaced photo (spec E5). */
+export const CHAIN_STEP_PHOTO_REQUIRED_ERROR: ChainStepActionError = {
+  code: "PHOTO_REQUIRED",
+  message: PHOTO_REQUIRED_MESSAGE,
+};
+
+const DB_PHOTO_REQUIRED_MESSAGE = "A photo is required for this step";
 
 const FORBIDDEN_ERROR: ChainStepActionError = {
   code: "FORBIDDEN",
@@ -77,7 +87,7 @@ function outOfOrderError(nextStep: string | undefined): ChainStepActionError {
 
 /** Maps an error of complete_return_chain_step() to the stable shape. Pure. */
 export function mapChainStepError(
-  error: Pick<PostgrestError, "code" | "details">,
+  error: Pick<PostgrestError, "code" | "details" | "message">,
 ): ChainStepActionError {
   switch (error.code) {
     case "42501":
@@ -92,7 +102,9 @@ export function mapChainStepError(
     case "RC002":
       return BOOKING_CONFLICT_ERROR;
     case "22023":
-      return CHAIN_STEP_VALIDATION_ERROR;
+      return error.message === DB_PHOTO_REQUIRED_MESSAGE
+        ? CHAIN_STEP_PHOTO_REQUIRED_ERROR
+        : CHAIN_STEP_VALIDATION_ERROR;
     default:
       return INTERNAL_ERROR;
   }
