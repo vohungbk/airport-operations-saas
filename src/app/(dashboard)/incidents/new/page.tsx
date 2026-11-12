@@ -4,8 +4,13 @@ import {
   INCIDENT_REPORT_PERMISSIONS,
   hasAnyPermission,
 } from "@/lib/auth/permissions";
-import { Card, CardContent } from "@/components/ui/card";
 import { IncidentReportForm } from "@/features/incidents/components/incident-report-form";
+import { formatReportStamp } from "@/features/incidents/lib/report-stamp";
+import {
+  getJobAirportOptions,
+  getJobsTimeZone,
+} from "@/features/jobs/lib/get-job-airport-options";
+import { zoneLabel } from "@/features/jobs/lib/job-time";
 import { getIncidentJobOptions } from "@/features/incidents/lib/get-incident-job-options";
 
 interface NewIncidentPageProps {
@@ -22,10 +27,12 @@ export default async function NewIncidentPage({
 }: NewIncidentPageProps) {
   const user = await requireAnyPermission(INCIDENT_REPORT_PERMISSIONS);
 
-  const [jobs, params] = await Promise.all([
+  const [jobs, airports, params] = await Promise.all([
     getIncidentJobOptions(),
+    getJobAirportOptions(),
     searchParams,
   ]);
+  const timeZone = getJobsTimeZone(airports, undefined);
   // Only a job the user can report on is selected first.
   const requested = typeof params.job_id === "string" ? params.job_id : "";
   const initialJobId = jobs.some((job) => job.id === requested)
@@ -37,18 +44,16 @@ export default async function NewIncidentPage({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+      <h1 className="text-2xl leading-8 font-semibold text-primary-subtle-foreground">
         Report incident
       </h1>
-      <Card className="max-w-lg">
-        <CardContent>
-          <IncidentReportForm
-            jobs={jobs}
-            initialJobId={initialJobId}
-            cancelHref={cancelHref}
-          />
-        </CardContent>
-      </Card>
+      <IncidentReportForm
+        jobs={jobs}
+        reportedAt={formatReportStamp(new Date().toISOString(), timeZone)}
+        zone={zoneLabel(timeZone)}
+        initialJobId={initialJobId}
+        cancelHref={cancelHref}
+      />
     </div>
   );
 }

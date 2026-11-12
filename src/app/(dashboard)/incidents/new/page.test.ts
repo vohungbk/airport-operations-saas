@@ -12,6 +12,11 @@ vi.mock("@/features/incidents/lib/get-incident-job-options", () => ({
   getIncidentJobOptions: getJobOptionsMock,
 }));
 
+vi.mock("@/features/jobs/lib/get-job-airport-options", () => ({
+  getJobAirportOptions: vi.fn().mockResolvedValue([]),
+  getJobsTimeZone: () => "Asia/Dubai",
+}));
+
 // Client component that needs the router and a Server Action.
 vi.mock("@/features/incidents/components/incident-report-form", () => ({
   IncidentReportForm: () => null,
@@ -58,14 +63,19 @@ describe("NewIncidentPage", () => {
   });
 
   function formProps(node: Awaited<ReturnType<typeof element>>) {
-    // The form sits in the card of the page's second child.
-    const card = (node.props.children as unknown[])[1] as {
-      props: {
-        children: { props: { children: { props: Record<string, unknown> } } };
-      };
+    // The form is the page's second child, after the title.
+    const form = (node.props.children as unknown[])[1] as {
+      props: Record<string, unknown>;
     };
-    return card.props.children.props.children.props;
+    return form.props;
   }
+
+  it("should pass the airport time zone to the form", async () => {
+    const props = formProps(await element());
+
+    expect(props.zone).toBe("GST");
+    expect(props.reportedAt).toMatch(/GST$/);
+  });
 
   it("should select the job from the url when the user can report on it", async () => {
     expect(formProps(await element({ job_id: "j-1" })).initialJobId).toBe("j-1");
