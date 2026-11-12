@@ -4,6 +4,7 @@ const requirePermissionMock = vi.hoisted(() => vi.fn());
 const getSeatByIdMock = vi.hoisted(() => vi.fn());
 const getSeatStatusHistoryMock = vi.hoisted(() => vi.fn());
 const getChainBookingMock = vi.hoisted(() => vi.fn());
+const getChainHistoryMock = vi.hoisted(() => vi.fn());
 const notFoundMock = vi.hoisted(() =>
   vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -24,6 +25,10 @@ vi.mock("@/features/seats/lib/get-seat-status-history", () => ({
 
 vi.mock("@/features/return-queue/lib/get-return-queue", () => ({
   getReturnChainBookingIdForSeat: getChainBookingMock,
+}));
+
+vi.mock("@/features/return-queue/lib/get-chain-history", () => ({
+  getChainHistory: getChainHistoryMock,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -49,6 +54,8 @@ describe("SeatDetailPage", () => {
     getSeatByIdMock.mockReset();
     getSeatStatusHistoryMock.mockReset();
     getSeatStatusHistoryMock.mockResolvedValue({ items: [], truncated: false });
+    getChainHistoryMock.mockReset();
+    getChainHistoryMock.mockResolvedValue({ items: [], truncated: false });
     getChainBookingMock.mockReset();
     getChainBookingMock.mockResolvedValue(null);
     notFoundMock.mockClear();
@@ -72,6 +79,15 @@ describe("SeatDetailPage", () => {
     await SeatDetailPage({ params: Promise.resolve({ id: "seat-1" }) });
 
     expect(getChainBookingMock).toHaveBeenCalledWith("seat-1");
+  });
+
+  it("should read the chain history of the seat across its bookings (FO-F08-S10)", async () => {
+    requirePermissionMock.mockResolvedValue(USER);
+    getSeatByIdMock.mockResolvedValue(SEAT);
+
+    await SeatDetailPage({ params: Promise.resolve({ id: "seat-1" }) });
+
+    expect(getChainHistoryMock).toHaveBeenCalledWith({ seatId: "seat-1" });
   });
 
   it("should call notFound() when the seat does not exist or is hidden", async () => {

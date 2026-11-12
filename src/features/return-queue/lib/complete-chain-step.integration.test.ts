@@ -363,4 +363,31 @@ describe.skipIf(!available)("restrict who can act on the return chain (FO-F08-S0
 
     expect(get(rows, "photo")).toEqual([expected]);
   });
+  it("should keep every stored step readable by seat and refuse to change it (FO-F08-S10, AC01)", () => {
+    const rows = run(`
+      ${setup}
+      ${complete("returned", OPS, "returned")}
+      ${complete("initial", OPS, "initial_inspection")}
+      select set_config('request.jwt.claim.sub', coalesce(${OPS}, ''), true);
+      set local role authenticated;
+      do $$ declare s text; begin
+        select string_agg(step, ',' order by completed_at desc, step) into s
+          from public.return_chain_steps where seat_id = ${SEAT};
+        raise notice 'R|by-seat|%', s;
+      end $$;
+      do $$ declare c integer; begin
+        update public.return_chain_steps set notes = 'changed' where booking_id = '${bookingId(1)}';
+        get diagnostics c = row_count;
+        raise notice 'R|update|ok|%', c;
+      exception when others then
+        raise notice 'R|update|%', sqlstate;
+      end $$;
+      reset role;
+      ${state("after")}`);
+
+    // Both steps share the transaction time, so the tie is broken by the step name.
+    expect(get(rows, "by-seat")).toEqual(["initial_inspection,returned"]);
+    expect(get(rows, "update")).toEqual(["42501"]);
+    expect(get(rows, "after")).toEqual(["cleaning", "cleaning", "2"]);
+  });
 });
