@@ -135,7 +135,7 @@ describe("where the restyle stands", () => {
     expect(group.notes?.length).toBeGreaterThan(0);
   });
 
-  it("should note that the Return queue has a frame but no screen", () => {
+  it("should note that the Return queue is a new screen and not a restyle", () => {
     const group = RESTYLE_GROUPS.find((g) => g.id === "field_operations")!;
 
     expect(group.notes?.join(" ")).toContain("Return queue");
