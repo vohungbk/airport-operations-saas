@@ -24,6 +24,8 @@ import {
  */
 const OPS = USER("operations_manager");
 const TECHNICIAN = USER("technician");
+// Another technician, not assigned to the booking (FO-F08-S08, E6).
+const OTHER_TECHNICIAN = USER("technician", 1);
 // A partner user of another partner than the booking's: the tenant boundary.
 const PARTNER_USER = USER("partner_user");
 
@@ -157,15 +159,15 @@ describe.skipIf(!available)("complete a step of the return chain (FO-F08-S02)", 
     expect(get(rows, "not-stored")[0]).toBe("22023");
   });
 
-  it("should not let a partner user or a technician read, write or complete steps (cross-tenant denial)", () => {
+  it("should not let a partner user or a technician not assigned read, write or complete steps (cross-tenant denial)", () => {
     const rows = run(`
       ${setup}
       ${complete("ops", OPS, "returned")}
       ${readAs("read-ops", OPS)}
       ${readAs("read-partner", PARTNER_USER)}
-      ${readAs("read-technician", TECHNICIAN)}
+      ${readAs("read-technician", OTHER_TECHNICIAN)}
       ${complete("partner", PARTNER_USER, "initial_inspection")}
-      ${complete("technician", TECHNICIAN, "initial_inspection")}
+      ${complete("technician", OTHER_TECHNICIAN, "initial_inspection")}
       select set_config('request.jwt.claim.sub', coalesce(${OPS}, ''), true);
       set local role authenticated;
       do $$ begin
@@ -290,5 +292,75 @@ describe.skipIf(!available)("follow the seat status through the return chain (FO
       ${complete("step", OPS, step)}`);
 
     expect(get(rows, "step")).toEqual(["ok"]);
+  });
+});
+
+/**
+ * FO-F08-S08 (R8, E6): only the assigned technician or an internal role completes a step. The
+ * assigned technician also reads the steps, the seat and the photos of their booking; another
+ * technician gets nothing, and a photo under another booking is refused.
+ */
+describe.skipIf(!available)("restrict who can act on the return chain (FO-F08-S08)", () => {
+  /** Adds a photo as a user and reports `R|name|ok` or `R|name|<sqlstate>`. */
+  const addPhoto = (name: string, user: string, path: string) => `
+    select set_config('request.jwt.claim.sub', coalesce(${user}, ''), true);
+    set local role authenticated;
+    do $$ begin
+      insert into storage.objects (bucket_id, name) values ('return-chain-photos', '${path}');
+      raise notice 'R|${name}|ok';
+    exception when others then
+      raise notice 'R|${name}|%', sqlstate;
+    end $$;
+    reset role;`;
+
+  /** Reports what a user reads of the booking: `R|name|<steps>|<seat visible>|<photos>`. */
+  const visibleTo = (name: string, user: string) => `
+    select set_config('request.jwt.claim.sub', coalesce(${user}, ''), true);
+    set local role authenticated;
+    do $$ declare c integer; v boolean; p integer; begin
+      select count(*) into c from public.return_chain_steps where booking_id = '${bookingId(1)}';
+      select exists (select 1 from public.seats where id = ${SEAT}) into v;
+      select count(*) into p from storage.objects where bucket_id = 'return-chain-photos' and name like '${bookingId(1)}/%';
+      raise notice 'R|${name}|%|%|%', c, v, p;
+    end $$;
+    reset role;`;
+
+  it("should let the assigned technician complete a step and read its steps, seat and photos (AC01)", () => {
+    const rows = run(`
+      ${setup}
+      ${complete("assigned", TECHNICIAN, "returned")}
+      ${state("after")}
+      ${visibleTo("assigned-reads", TECHNICIAN)}`);
+
+    expect(get(rows, "assigned")).toEqual(["ok"]);
+    expect(get(rows, "after")).toEqual(["returned", "inspection", "1"]);
+    expect(get(rows, "assigned-reads")).toEqual(["1", "true", String(RECORDED_CHAIN_STEPS.length)]);
+  });
+
+  it("should reject a technician not assigned and show them nothing of the booking (AC02)", () => {
+    const rows = run(`
+      ${setup}
+      ${complete("ops", OPS, "returned")}
+      ${complete("other", OTHER_TECHNICIAN, "initial_inspection")}
+      ${visibleTo("other-reads", OTHER_TECHNICIAN)}
+      ${state("after")}`);
+
+    expect(get(rows, "other")[0]).toBe("42501");
+    // Steps and photos only: the seat may be theirs through a technician job of another booking.
+    const [steps, , photos] = get(rows, "other-reads");
+    expect([steps, photos]).toEqual(["0", "0"]);
+    expect(get(rows, "after")).toEqual(["returned", "inspection", "1"]);
+  });
+
+  it.each([
+    ["the assigned technician under their own booking", TECHNICIAN, `${bookingId(1)}/returned/p-2.jpg`, "ok"],
+    ["the assigned technician under another booking", TECHNICIAN, `${bookingId(9)}/returned/p-2.jpg`, "42501"],
+    ["a technician not assigned", OTHER_TECHNICIAN, `${bookingId(1)}/returned/p-2.jpg`, "42501"],
+  ])("should decide a photo added by %s", (_, user, path, expected) => {
+    const rows = run(`
+      ${setup}
+      ${addPhoto("photo", user, path)}`);
+
+    expect(get(rows, "photo")).toEqual([expected]);
   });
 });

@@ -1,11 +1,18 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const requirePermissionMock = vi.hoisted(() => vi.fn());
+const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const getReturnChainItemMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
-  requirePermission: requirePermissionMock,
+  requireAnyPermission: requireAnyPermissionMock,
+}));
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  forbidden: vi.fn(() => {
+    throw new Error("FORBIDDEN");
+  }),
 }));
 
 vi.mock("@/features/return-queue/lib/get-return-queue", () => ({
@@ -17,6 +24,7 @@ vi.mock("@/features/return-queue/actions/complete-chain-step.action", () => ({
 }));
 
 import ReturnChainStepPage from "@/app/(dashboard)/return-queue/[bookingId]/page";
+import { RETURN_CHAIN_STEP_PERMISSIONS } from "@/lib/auth/permissions";
 import { toReturnQueueItem } from "@/features/return-queue/lib/return-queue";
 
 const NOW = new Date("2026-11-04T07:30:00Z");
@@ -45,16 +53,16 @@ async function render(bookingId = "b-1") {
 
 describe("ReturnChainStepPage", () => {
   beforeEach(() => {
-    requirePermissionMock.mockReset();
-    requirePermissionMock.mockResolvedValue({ id: "u-1", role: "operations_manager" });
+    requireAnyPermissionMock.mockReset();
+    requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role: "operations_manager" });
     getReturnChainItemMock.mockReset();
     getReturnChainItemMock.mockResolvedValue(item("cleaning", "cleaning"));
   });
 
-  it("should guard the page with the manager permission", async () => {
+  it("should guard the page with the manager or the technician permission", async () => {
     await render();
 
-    expect(requirePermissionMock).toHaveBeenCalledWith("dashboards:view");
+    expect(requireAnyPermissionMock).toHaveBeenCalledWith(RETURN_CHAIN_STEP_PERMISSIONS);
   });
 
   it("should show the chain with the current step of the seat", async () => {
@@ -100,5 +108,22 @@ describe("ReturnChainStepPage", () => {
     expect(html).toContain("Seat not in the return queue");
     expect(html).toContain('href="/return-queue"');
     expect(html).not.toContain("BK-2026-000123");
+  });
+
+  it("should show the assigned technician their step with Cancel leading to their home (FO-F08-S08)", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "t-1", role: "technician" });
+
+    const html = await render();
+
+    expect(html).toContain("Technician · Assigned work · DXB");
+    expect(html).toContain("Complete step");
+    expect(html).toMatch(/<a[^>]*href="\/technician"[^>]*>Cancel<\/a>/);
+  });
+
+  it("should show the forbidden state to a technician for a booking not assigned to them (E6)", async () => {
+    requireAnyPermissionMock.mockResolvedValue({ id: "t-1", role: "technician" });
+    getReturnChainItemMock.mockResolvedValue(null);
+
+    await expect(render("other")).rejects.toThrow("FORBIDDEN");
   });
 });

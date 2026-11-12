@@ -94,8 +94,9 @@ export const report = (name: string, n: number) => `
 
 // --- Adjustments (VI-F04-S10, S11) ---
 
-export const USER = (role: string) =>
-  `(select id::text from public.users u where u.role = '${role}' and u.is_active order by u.email limit 1)`;
+/** The id of an active user of a role, by email; `offset` picks the next one of that role. */
+export const USER = (role: string, offset = 0) =>
+  `(select id::text from public.users u where u.role = '${role}' and u.is_active order by u.email${offset ? ` offset ${offset}` : ""} limit 1)`;
 
 /** The next calls are made by this user (an empty string is nobody signed in). */
 export const asUser = (role: string | null) =>
