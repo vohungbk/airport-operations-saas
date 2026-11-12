@@ -36,6 +36,9 @@ export const TECHNICIAN_WORKFLOW_ROUTE = "/technician/workflow";
 /** The home of a technician: the jobs of the day. */
 export const TECHNICIAN_HOME_ROUTE = "/technician";
 
+/** The Return queue (FO-F08): returned seats by step of the return chain. */
+export const RETURN_QUEUE_ROUTE = "/return-queue";
+
 /**
  * Shown for both "authenticated but not permitted" (role/permission
  * check failed) and "invalid/missing profile" (session exists but

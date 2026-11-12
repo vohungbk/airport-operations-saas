@@ -20,6 +20,8 @@ interface ReturnChainStepProps {
   item: ReturnQueueItem;
   /** `Admin · Full access`. */
   accessLabel: string;
+  /** Where Cancel leads: the Return queue, or the technician's home. */
+  backHref: string;
   /** Now, for the date under the photo heading. */
   now: Date;
 }
@@ -62,7 +64,7 @@ function ReadOnlyField({
  * that records the current step (FO-F08-S02). A seat in quarantine or at the
  * end of the chain has no step to record, so only the read-only part shows.
  */
-export function ReturnChainStep({ item, accessLabel, now }: ReturnChainStepProps) {
+export function ReturnChainStep({ item, accessLabel, backHref, now }: ReturnChainStepProps) {
   const failed = item.queue_step === "quarantine";
   const steps = buildChainProgress(item.chain_step, failed);
   const seat = item.seat_serial_number ?? "No seat";
@@ -124,6 +126,7 @@ export function ReturnChainStep({ item, accessLabel, now }: ReturnChainStepProps
             <ReturnChainStepForm
               bookingId={item.booking_id}
               step={item.chain_step}
+              backHref={backHref}
               photoStamp={chainStepPhotoStamp(seat, item.airport_code, now, item.time_zone)}
             >
               {readOnlyFields}
