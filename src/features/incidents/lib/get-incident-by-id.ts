@@ -19,7 +19,7 @@ export const INCIDENT_DETAIL_SELECT = [
   "technician_job_id",
   "partner:partners(name)",
   "seat:seats(serial_number, status)",
-  "booking:bookings(booking_number)",
+  "booking:bookings(booking_number, airport:airports(code, timezone))",
   "reporter:users!reported_by(full_name)",
   "resolver:users!resolved_by(full_name)",
 ].join(", ");

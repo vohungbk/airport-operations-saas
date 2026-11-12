@@ -1,51 +1,64 @@
-import { Timeline } from "@/components/domain/timeline";
-import { IncidentStatusBadge } from "@/features/incidents/components/incident-status-badge";
 import { INCIDENT_HISTORY_LIMIT } from "@/features/incidents/lib/get-incident-history";
+import { INCIDENT_STATUS_LABEL } from "@/features/incidents/lib/incident-status";
+import { formatReportedAt } from "@/features/incidents/lib/incident-time";
 import type { IncidentHistoryItem } from "@/features/incidents/types";
 
 interface IncidentHistoryTimelineProps {
   history: IncidentHistoryItem[];
   truncated?: boolean;
+  /** The zone the times are written in. */
+  timeZone: string;
 }
 
-/** Read-only: the log is append-only in the database, with no edit UI. */
+/**
+ * Read-only: the log is append-only in the database, with no edit UI. The
+ * first entry has no previous status: it reads `Created -> Open`.
+ */
 export function IncidentHistoryTimeline({
   history,
   truncated = false,
+  timeZone,
 }: IncidentHistoryTimelineProps) {
   return (
     <section className="flex flex-col gap-3" aria-labelledby="incident-history">
       <h2
         id="incident-history"
-        className="text-lg font-semibold tracking-tight text-foreground"
+        className="text-base font-medium text-foreground"
       >
-        History
+        Status history
       </h2>
       {history.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No changes recorded.</p>
+        <p className="text-sm text-text-muted">No changes recorded.</p>
       ) : (
-        <Timeline
-          formatTime={(iso) => new Date(iso).toLocaleString()}
-          events={history.map((entry) => ({
-            id: entry.id,
-            actor: entry.actor_name ?? "Staff",
-            occurred_at: entry.created_at,
-            note: entry.notes ? `Note: ${entry.notes}` : null,
-            title: (
-              <span className="flex flex-wrap items-center gap-2">
-                Status changed
-                {entry.from_status && (
-                  <IncidentStatusBadge status={entry.from_status} />
-                )}
-                <span aria-hidden="true">→</span>
-                <IncidentStatusBadge status={entry.to_status} />
-              </span>
-            ),
-          }))}
-        />
+        <ol className="flex flex-col gap-3">
+          {history.map((entry) => (
+            <li
+              key={entry.id}
+              className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm leading-5 text-foreground"
+            >
+              <p>
+                {entry.from_status
+                  ? INCIDENT_STATUS_LABEL[entry.from_status]
+                  : "Created"}
+                <span aria-hidden="true"> → </span>
+                <span className="sr-only"> to </span>
+                {INCIDENT_STATUS_LABEL[entry.to_status]}
+              </p>
+              <p>{entry.actor_name ?? "Staff"}</p>
+              <p>
+                <time dateTime={entry.created_at}>
+                  {formatReportedAt(entry.created_at, timeZone)}
+                </time>
+              </p>
+              {entry.notes && (
+                <p className="break-words whitespace-pre-wrap">{entry.notes}</p>
+              )}
+            </li>
+          ))}
+        </ol>
       )}
       {truncated && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-text-muted">
           Showing latest {INCIDENT_HISTORY_LIMIT} changes
         </p>
       )}

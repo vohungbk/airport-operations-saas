@@ -13,7 +13,7 @@ vi.mock("@/features/incidents/actions/change-incident-status.action", () => ({
 import { ChangeIncidentStatusDialog } from "@/features/incidents/components/change-incident-status-dialog";
 
 describe("ChangeIncidentStatusDialog", () => {
-  it("should offer the Update status button", () => {
+  it("should offer the Change status button", () => {
     const html = renderToStaticMarkup(
       createElement(ChangeIncidentStatusDialog, {
         incidentId: "i-1",
@@ -23,6 +23,6 @@ describe("ChangeIncidentStatusDialog", () => {
       }),
     );
 
-    expect(html).toContain("Update status");
+    expect(html).toContain("Change status");
   });
 });

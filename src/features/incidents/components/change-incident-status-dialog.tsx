@@ -80,14 +80,14 @@ export function ChangeIncidentStatusDialog({
       }}
     >
       <DialogTrigger
-        render={<Button variant="outline" className="min-h-11 px-4" />}
+        render={<Button className="min-h-11 rounded-lg px-4" />}
       >
-        Update status
+        Change status
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>Update status of {incidentLabel}</DialogTitle>
+            <DialogTitle>Change status of {incidentLabel}</DialogTitle>
             <DialogDescription>
               Closed incidents cannot be changed again. Every change is kept in
               the incident history.

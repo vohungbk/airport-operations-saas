@@ -1,14 +1,13 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { ChangeIncidentStatusDialog } from "@/features/incidents/components/change-incident-status-dialog";
 import { IncidentHistoryTimeline } from "@/features/incidents/components/incident-history-timeline";
 import { IncidentSeverityBadge } from "@/features/incidents/components/incident-severity-badge";
 import { IncidentStatusBadge } from "@/features/incidents/components/incident-status-badge";
 import { formatIncidentSeat } from "@/features/incidents/lib/incident-seat";
 import type { IncidentStatus } from "@/features/incidents/lib/incident-status";
+import { formatReportedAt } from "@/features/incidents/lib/incident-time";
 import type {
   IncidentDetailItem,
   IncidentHistoryItem,
@@ -19,24 +18,29 @@ interface IncidentDetailProps {
   /** `null` hides the history: only managers read it. */
   history: IncidentHistoryItem[] | null;
   historyTruncated: boolean;
-  /**
-   * False for a partner user: staff names and the link to the job are
-   * internal (a partner has no access to the jobs).
-   */
+  /** False for a partner user: staff names are internal. */
   showStaffDetails: boolean;
+  /**
+   * True for a technician only: the link back to the job they reported from.
+   * A partner has no access to the jobs; the manager design has no job row.
+   */
+  showJobLink: boolean;
   /** Transitions the current user may make; empty hides the control. */
   allowedStatuses: IncidentStatus[];
+  /** `Admin - Full access`; `null` leaves the line out. */
+  accessLabel: string | null;
+  /** The zone the times are written in. */
+  timeZone: string;
 }
 
-function formatDateTime(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : "-";
-}
+const CARD_CLASS =
+  "flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4";
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="min-w-0">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="mt-1 min-w-0 text-sm break-words text-foreground">
+    <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4">
+      <dt className="text-sm leading-5 text-text-muted">{label}</dt>
+      <dd className="min-w-0 text-sm leading-5 break-words whitespace-pre-wrap text-foreground">
         {children}
       </dd>
     </div>
@@ -46,66 +50,60 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 /**
  * The only edit here is the status, through the dialog and the database
  * function behind it. The description is free text: it is rendered as text,
- * never as markup.
+ * never as markup. Photos are read only and wait for photo storage.
  */
 export function IncidentDetail({
   incident,
   history,
   historyTruncated,
   showStaffDetails,
+  showJobLink,
   allowedStatuses,
+  accessLabel,
+  timeZone,
 }: IncidentDetailProps) {
+  const place = [
+    incident.booking?.airport?.code,
+    formatReportedAt(incident.created_at, timeZone, ", "),
+  ]
+    .filter(Boolean)
+    .join(" - ");
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 flex-col gap-2">
-          <h1 className="text-3xl font-semibold tracking-tight break-words text-foreground">
-            Incident: {incident.type}
+      <div className="flex flex-col items-start gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="text-2xl leading-8 font-semibold break-words text-primary-subtle-foreground">
+            {incident.type}
           </h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <IncidentSeverityBadge severity={incident.severity} />
-            <IncidentStatusBadge status={incident.status} />
-          </div>
+          {accessLabel && (
+            <p className="text-sm leading-5 text-foreground">{accessLabel}</p>
+          )}
+          <p className="text-sm leading-5 text-foreground">{place}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {allowedStatuses.length > 0 && (
-            <ChangeIncidentStatusDialog
-              incidentId={incident.id}
-              incidentLabel={incident.type}
-              currentStatus={incident.status}
-              allowedStatuses={allowedStatuses}
-            />
-          )}
-          <Link
-            href="/incidents"
-            className={buttonVariants({
-              variant: "outline",
-              className: "min-h-11 px-4",
-            })}
-          >
-            Back to incidents
-          </Link>
+          <IncidentSeverityBadge severity={incident.severity} />
+          <IncidentStatusBadge status={incident.status} />
         </div>
+        {allowedStatuses.length > 0 && (
+          <ChangeIncidentStatusDialog
+            incidentId={incident.id}
+            incidentLabel={incident.type}
+            currentStatus={incident.status}
+            allowedStatuses={allowedStatuses}
+          />
+        )}
       </div>
 
-      <Card>
-        <CardContent className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">
-            Description
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <section aria-labelledby="incident-details" className={CARD_CLASS}>
+          <h2
+            id="incident-details"
+            className="text-base font-semibold text-foreground"
+          >
+            Incident
           </h2>
-          <p className="max-w-prose text-sm break-words whitespace-pre-wrap text-foreground">
-            {incident.description}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">
-            Details
-          </h2>
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <Detail label="Partner">{incident.partner?.name ?? "-"}</Detail>
+          <dl className="flex flex-col gap-3">
             <Detail label="Seat">
               {formatIncidentSeat(incident.seat) ?? "-"}
             </Detail>
@@ -113,6 +111,15 @@ export function IncidentDetail({
               {incident.booking?.booking_number ?? "-"}
             </Detail>
             {showStaffDetails && (
+              <Detail label="Reported by">
+                {incident.reporter?.full_name ?? "-"}
+              </Detail>
+            )}
+            <Detail label="Reported at">
+              {formatReportedAt(incident.created_at, timeZone)}
+            </Detail>
+            <Detail label="Description">{incident.description}</Detail>
+            {showJobLink && (
               <Detail label="Job">
                 {incident.technician_job_id ? (
                   <Link
@@ -126,39 +133,34 @@ export function IncidentDetail({
                 )}
               </Detail>
             )}
-            {showStaffDetails && (
-              <Detail label="Reported by">
-                {incident.reporter?.full_name ?? "-"}
-              </Detail>
-            )}
-            <Detail label="Reported at">
-              {formatDateTime(incident.created_at)}
-            </Detail>
-            <Detail label="Updated at">
-              {formatDateTime(incident.updated_at)}
-            </Detail>
-            {showStaffDetails && (
-              <Detail label="Resolved by">
-                {incident.resolver?.full_name ?? "-"}
-              </Detail>
-            )}
-            <Detail label="Resolved at">
-              {formatDateTime(incident.resolved_at)}
-            </Detail>
           </dl>
-        </CardContent>
-      </Card>
+        </section>
 
-      {history && (
-        <Card>
-          <CardContent>
-            <IncidentHistoryTimeline
-              history={history}
-              truncated={historyTruncated}
-            />
-          </CardContent>
-        </Card>
-      )}
+        {history && (
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className={CARD_CLASS}>
+              <IncidentHistoryTimeline
+                history={history}
+                truncated={historyTruncated}
+                timeZone={timeZone}
+              />
+            </div>
+            <p className="text-sm leading-5 text-text-muted">
+              History retained permanently. No delete action.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <section aria-labelledby="incident-photos" className="flex flex-col gap-3">
+        <h2
+          id="incident-photos"
+          className="text-base font-semibold text-foreground"
+        >
+          Photos - read only
+        </h2>
+        <p className="text-sm text-text-muted">No photos added.</p>
+      </section>
     </div>
   );
 }
