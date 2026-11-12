@@ -70,7 +70,25 @@ describe("completeChainStepAction", () => {
   });
 
   it.each([
+    ["no photo", []],
+    ["a photo of another step", [`${BOOKING_ID}/drying/p-1.jpg`]],
+  ])("should refuse the step and store nothing with %s", async (_name, photo_paths) => {
+    const result = await completeChainStepAction({ ...INPUT, photo_paths });
+
+    expect(result).toEqual({
+      success: false,
+      error: expect.objectContaining({ code: "VALIDATION_ERROR" }),
+    });
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
     [{ code: "RC001", details: "drying" }, "OUT_OF_ORDER", "This step is not the next one. The seat is at Drying."],
+    [
+      { code: "22023", details: "", message: "A photo is required for this step" },
+      "PHOTO_REQUIRED",
+      "Add a photo of this step.",
+    ],
     [{ code: "42501", details: "" }, "FORBIDDEN", "You do not have permission to complete this step."],
     [{ code: "55000", details: "" }, "SEAT_IN_QUARANTINE", "This seat is in quarantine. Its chain is stopped."],
     [
