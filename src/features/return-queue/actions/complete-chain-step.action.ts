@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { forbidden, redirect } from "next/navigation";
 
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { RETURN_CHAIN_STEP_PERMISSIONS } from "@/lib/auth/permissions";
@@ -44,6 +44,11 @@ export async function completeChainStepAction(
   });
 
   if (error) {
+    // The permission was lost after the screen opened (E9): show the forbidden state.
+    if (error.code === "42501") {
+      forbidden();
+    }
+
     return { success: false, error: mapChainStepError(error) };
   }
 

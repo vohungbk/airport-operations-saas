@@ -11,7 +11,6 @@ export interface ChainStepActionError {
   code:
     | "VALIDATION_ERROR"
     | "PHOTO_REQUIRED"
-    | "FORBIDDEN"
     | "NOT_FOUND"
     | "OUT_OF_ORDER"
     | "SEAT_IN_QUARANTINE"
@@ -42,11 +41,6 @@ export const CHAIN_STEP_PHOTO_REQUIRED_ERROR: ChainStepActionError = {
 };
 
 const DB_PHOTO_REQUIRED_MESSAGE = "A photo is required for this step";
-
-const FORBIDDEN_ERROR: ChainStepActionError = {
-  code: "FORBIDDEN",
-  message: "You do not have permission to complete this step.",
-};
 
 const NOT_FOUND_ERROR: ChainStepActionError = {
   code: "NOT_FOUND",
@@ -85,13 +79,14 @@ function outOfOrderError(nextStep: string | undefined): ChainStepActionError {
   };
 }
 
-/** Maps an error of complete_return_chain_step() to the stable shape. Pure. */
+/**
+ * Maps an error of complete_return_chain_step() to the stable shape. Pure.
+ * `42501` is not mapped here: the action shows the forbidden state for it (E9).
+ */
 export function mapChainStepError(
   error: Pick<PostgrestError, "code" | "details" | "message">,
 ): ChainStepActionError {
   switch (error.code) {
-    case "42501":
-      return FORBIDDEN_ERROR;
     case "P0002":
       return NOT_FOUND_ERROR;
     case "RC001":

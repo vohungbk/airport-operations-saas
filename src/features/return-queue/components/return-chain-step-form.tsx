@@ -71,7 +71,20 @@ export function ReturnChainStepForm({
       {serverError && (
         <Alert variant="destructive" role="alert">
           <AlertTitle>The step was not saved</AlertTitle>
-          <AlertDescription>{serverError.message}</AlertDescription>
+          <AlertDescription className="flex flex-col items-start gap-3">
+            {serverError.message}
+            {serverError.code === "NETWORK_ERROR" && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isPending}
+                onClick={onSubmit}
+                className="min-h-11 bg-surface px-4"
+              >
+                Retry
+              </Button>
+            )}
+          </AlertDescription>
         </Alert>
       )}
 
