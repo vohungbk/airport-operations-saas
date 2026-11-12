@@ -93,7 +93,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/return-queue",
     permission: "dashboards:view",
     icon: RefreshCw,
-    planned: true,
   },
   {
     label: "Incidents",
