@@ -93,6 +93,7 @@ const GUARDS: Record<string, () => Promise<{ default: unknown }>> = {
   "/settlements": () => import("@/app/(dashboard)/settlements/page"),
   "/invoices": () => import("@/app/(dashboard)/invoices/page"),
   "/kpi": () => import("@/app/(dashboard)/kpi/layout"),
+  "/return-queue": () => import("@/app/(dashboard)/return-queue/layout"),
   "/roi": () => import("@/app/(dashboard)/roi/layout"),
   "/settings": () => import("@/app/(admin)/settings/page"),
 };
