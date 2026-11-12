@@ -4,7 +4,7 @@ import { INCIDENT_SEVERITIES } from "@/features/incidents/lib/incident-severity"
 
 export const INCIDENT_DESCRIPTION_MAX_LENGTH = 1000;
 
-const JOB_REQUIRED_MESSAGE = "Choose the related job.";
+const JOB_REQUIRED_MESSAGE = "Choose the seat.";
 
 export const reportIncidentSchema = z.object({
   // z.guid(), not z.uuid(): seeded dev ids are not RFC-variant UUIDs.

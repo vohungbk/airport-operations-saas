@@ -97,7 +97,7 @@ describe("reportIncidentSchema", () => {
       const parsed = reportIncidentSchema.safeParse({ ...valid, job_id });
 
       expect(parsed.success).toBe(false);
-      expect(parsed.error?.issues[0].message).toBe("Choose the related job.");
+      expect(parsed.error?.issues[0].message).toBe("Choose the seat.");
     },
   );
 });

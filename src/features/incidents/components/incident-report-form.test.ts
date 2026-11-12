@@ -11,13 +11,21 @@ vi.mock("@/features/incidents/hooks/use-report-incident-form", () => ({
 import { IncidentReportForm } from "@/features/incidents/components/incident-report-form";
 
 const JOBS = [
-  { id: "j-1", job_type: "inspection" as const, booking_number: "BK-00002" },
-  { id: "j-2", job_type: "cleaning" as const, booking_number: "BK-00004" },
+  { id: "j-1", job_type: "inspection" as const, booking_number: "BK-00002", seat_number: "SEAT-0001" },
+  { id: "j-2", job_type: "cleaning" as const, booking_number: "BK-00004", seat_number: "SEAT-0002" },
 ];
 
-function hookState(result: unknown, errors: Record<string, unknown> = {}) {
+function hookState(
+  result: unknown,
+  errors: Record<string, unknown> = {},
+  jobId = "",
+) {
   return {
-    form: { register: () => ({}), formState: { errors } },
+    form: {
+      register: () => ({}),
+      watch: () => jobId,
+      formState: { errors },
+    },
     onSubmit: vi.fn(),
     isPending: false,
     result,
@@ -28,6 +36,8 @@ function render(cancelHref = "/incidents") {
   return renderToStaticMarkup(
     createElement(IncidentReportForm, {
       jobs: JOBS,
+      reportedAt: "04 Nov 2026 11:15 GST",
+      zone: "GST",
       initialJobId: "",
       cancelHref,
     }),
@@ -39,23 +49,51 @@ describe("IncidentReportForm", () => {
     hookMock.mockReset();
   });
 
-  it("should show the job and severity choices with none selected, a description, Save and Cancel", () => {
+  it("should show the seat and severity choices with none selected, a description, Submit incident and Cancel", () => {
     hookMock.mockReturnValue(hookState(null));
 
     const html = render();
 
-    expect(html).toContain("BK-00002 - Inspection");
-    expect(html).toContain("BK-00004 - Cleaning");
+    expect(html).toContain("SEAT-0001 - BK-00002 - Inspection");
+    expect(html).toContain("SEAT-0002 - BK-00004 - Cleaning");
     for (const label of ["Low", "Medium", "High", "Critical"]) {
       expect(html).toContain(`>${label}</option>`);
     }
-    expect(html).toContain("Select a job");
-    expect(html).toContain("Select a severity");
+    expect(html).toContain("Select a seat");
+    expect(html).toContain("Select severity");
     expect(html).not.toMatch(/<option[^>]*selected/);
     expect(html).toContain('id="description"');
-    expect(html).toContain(">Save<");
+    expect(html).toContain(">Submit incident<");
     expect(html).toContain('href="/incidents"');
     expect(html).not.toContain("Could not report incident");
+  });
+
+  it("should mark the required fields and show the helper texts of the design", () => {
+    hookMock.mockReturnValue(hookState(null));
+
+    const html = render();
+
+    expect(html.match(/aria-hidden="true"> \*/g)).toHaveLength(3);
+    expect(html).toContain("Booking (optional)");
+    expect(html).toContain("Required - include fault and immediate action");
+    expect(html).toContain("Set when you submit - airport time zone GST");
+    expect(html).toContain(">04 Nov 2026 11:15 GST<");
+  });
+
+  it("should fill the booking from the chosen job", () => {
+    hookMock.mockReturnValue(hookState(null, {}, "j-2"));
+
+    expect(render()).toContain(">BK-00004<");
+  });
+
+  it("should show the photos box with the upload buttons disabled", () => {
+    hookMock.mockReturnValue(hookState(null));
+
+    const html = render();
+
+    expect(html).toContain("Photos (optional)");
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>Open camera/);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>Choose files/);
   });
 
   it("should send Cancel back to the jobs for a technician", () => {
@@ -67,7 +105,7 @@ describe("IncidentReportForm", () => {
   it("should show a clear message for the job, the severity and the description", () => {
     hookMock.mockReturnValue(
       hookState(null, {
-        job_id: { message: "Choose the related job." },
+        job_id: { message: "Choose the seat." },
         severity: { message: "Choose the severity." },
         description: { message: "Describe what happened." },
       }),
@@ -75,7 +113,7 @@ describe("IncidentReportForm", () => {
 
     const html = render();
 
-    expect(html).toContain("Choose the related job.");
+    expect(html).toContain("Choose the seat.");
     expect(html).toContain("Choose the severity.");
     expect(html).toContain("Describe what happened.");
   });
