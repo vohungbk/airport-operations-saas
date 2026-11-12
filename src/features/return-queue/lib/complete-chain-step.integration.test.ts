@@ -223,3 +223,72 @@ describe.skipIf(!available)("return the seat to available after the final inspec
     expect(get(rows, "after")).toEqual(expected);
   });
 });
+
+/**
+ * FO-F08-S07 (AC01, R7): the seat status follows each completed step of the chain, and (AC02, R10)
+ * a booking that holds the seat in a conflicting period stops the chain from starting or
+ * completing, by the conflict rule of FO-F03.
+ */
+describe.skipIf(!available)("follow the seat status through the return chain (FO-F08-S07)", () => {
+  /** Another pending booking of the same seat, picked up `startsIn` from now for one day. */
+  const otherBooking = (startsIn: string) => `
+    insert into public.bookings (id, booking_number, partner_id, airport_id, pickup_at, return_at, seat_category_id, daily_rate, assigned_seat_id)
+    values ('${bookingId(2)}', 'RC-2', '${partnerId(1)}', '${AIRPORT}', now() + interval '${startsIn}', now() + interval '${startsIn}' + interval '1 day', '${CATEGORY}', 90, ${SEAT});`;
+
+  const stepsBeforeLast = RECORDED_CHAIN_STEPS.filter((step) => step !== "final_inspection");
+
+  it("should move the seat to the status of each step until it is available (AC01)", () => {
+    const rows = run(`
+      ${setup}
+      update public.seats set rental_cycles = 0, max_rental_cycles = 100 where id = ${SEAT};
+      ${RECORDED_CHAIN_STEPS.map((step) => `${complete(step, OPS, step)}\n${state(`after-${step}`)}`).join("\n")}`);
+
+    expect(RECORDED_CHAIN_STEPS.map((step) => get(rows, `after-${step}`).slice(0, 2))).toEqual([
+      ["returned", "inspection"],
+      ["cleaning", "cleaning"],
+      ["cleaning", "cleaning"],
+      ["cleaning", "cleaning"],
+      ["inspection", "inspection"],
+      ["completed", "available"],
+    ]);
+  });
+
+  it("should refuse to start the chain while another booking holds the seat in the period and change nothing (AC02)", () => {
+    const rows = run(`
+      ${setup}
+      ${otherBooking("1 hour")}
+      ${complete("start", OPS, "returned")}
+      ${state("after")}`);
+
+    expect(get(rows, "start")[0]).toBe("RC002");
+    expect(get(rows, "after")).toEqual(["returned", "available", "0"]);
+  });
+
+  it("should refuse to complete the chain while another booking holds the seat in the period and change nothing (AC02)", () => {
+    const rows = run(`
+      ${setup}
+      ${stepsBeforeLast.map((step) => complete(step, OPS, step)).join("\n")}
+      ${otherBooking("1 hour")}
+      ${complete("final", OPS, "final_inspection")}
+      ${state("after")}`);
+
+    expect(get(rows, "final")[0]).toBe("RC002");
+    expect(get(rows, "after")).toEqual(["inspection", "inspection", String(stepsBeforeLast.length)]);
+  });
+
+  it.each([
+    ["start the chain when the other booking starts after the period", `${otherBooking("3 hours")}`, "returned"],
+    [
+      "complete a step in the middle of the chain",
+      `${complete("start", OPS, "returned")}\n${otherBooking("1 hour")}`,
+      "initial_inspection",
+    ],
+  ] as const)("should %s (AC02)", (_, before, step) => {
+    const rows = run(`
+      ${setup}
+      ${before}
+      ${complete("step", OPS, step)}`);
+
+    expect(get(rows, "step")).toEqual(["ok"]);
+  });
+});
