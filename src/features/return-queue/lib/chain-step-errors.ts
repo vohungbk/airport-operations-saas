@@ -13,6 +13,7 @@ export interface ChainStepActionError {
     | "NOT_FOUND"
     | "OUT_OF_ORDER"
     | "SEAT_IN_QUARANTINE"
+    | "BOOKING_CONFLICT"
     | "NETWORK_ERROR"
     | "INTERNAL_ERROR";
   message: string;
@@ -45,6 +46,13 @@ const NOT_FOUND_ERROR: ChainStepActionError = {
 const QUARANTINE_ERROR: ChainStepActionError = {
   code: "SEAT_IN_QUARANTINE",
   message: "This seat is in quarantine. Its chain is stopped.",
+};
+
+/** A booking holds or uses the seat when the chain starts or completes (spec R10, FO-F03 R10). */
+const BOOKING_CONFLICT_ERROR: ChainStepActionError = {
+  code: "BOOKING_CONFLICT",
+  message:
+    "Another booking holds or uses the seat now or soon. Handle that booking first, then complete this step.",
 };
 
 const INTERNAL_ERROR: ChainStepActionError = {
@@ -81,6 +89,8 @@ export function mapChainStepError(
       return outOfOrderError(error.code === "RC001" ? error.details : undefined);
     case "55000":
       return QUARANTINE_ERROR;
+    case "RC002":
+      return BOOKING_CONFLICT_ERROR;
     case "22023":
       return CHAIN_STEP_VALIDATION_ERROR;
     default:
