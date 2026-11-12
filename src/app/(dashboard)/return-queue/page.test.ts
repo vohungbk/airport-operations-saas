@@ -36,6 +36,7 @@ const ITEM = toReturnQueueItem(
     partner: { name: "Emirates Rent A Car" },
     seat: { id: "s-1", serial_number: "SEAT-0001", status: "cleaning" },
     events: [{ to_status: "returned", created_at: "2026-11-04T06:20:00Z" }],
+    chain_steps: [],
   },
   new Date("2026-11-04T07:02:00Z"),
 );
