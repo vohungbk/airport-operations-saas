@@ -6,6 +6,7 @@ const getBookingEventsMock = vi.hoisted(() => vi.fn());
 const getFlightUpdatesMock = vi.hoisted(() => vi.fn());
 const getRevenueMock = vi.hoisted(() => vi.fn());
 const getAdjustmentsMock = vi.hoisted(() => vi.fn());
+const getChainHistoryMock = vi.hoisted(() => vi.fn());
 const notFoundMock = vi.hoisted(() =>
   vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -31,6 +32,8 @@ vi.mock("@/features/flights/lib/get-flight-updates", () => ({
 vi.mock("@/features/bookings/lib/get-booking-revenue", () => ({ getBookingRevenue: getRevenueMock }));
 vi.mock("@/features/bookings/lib/get-booking-adjustments", () => ({ getBookingAdjustments: getAdjustmentsMock }));
 
+vi.mock("@/features/return-queue/lib/get-chain-history", () => ({ getChainHistory: getChainHistoryMock }));
+
 vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
 
 import BookingDetailPage from "@/app/(dashboard)/bookings/[id]/page";
@@ -48,6 +51,8 @@ describe("BookingDetailPage", () => {
     getFlightUpdatesMock.mockResolvedValue(null);
     getRevenueMock.mockReset();
     getRevenueMock.mockResolvedValue(null);
+    getChainHistoryMock.mockReset();
+    getChainHistoryMock.mockResolvedValue({ items: [], truncated: false });
     getAdjustmentsMock.mockReset();
     getAdjustmentsMock.mockResolvedValue([]);
   });
@@ -108,6 +113,21 @@ describe("BookingDetailPage", () => {
     const element = await BookingDetailPage({ params: Promise.resolve({ id: ID }) });
 
     expect((element as { props: { canViewRevenue: boolean } }).props.canViewRevenue).toBe(expected);
+  });
+
+  it.each([
+    ["admin", true],
+    ["operations_manager", true],
+    ["partner_user", false],
+    ["technician", false],
+  ])("should read the chain history for %s: %s (FO-F08-S10, RLS limits it to internal roles)", async (role, expected) => {
+    requireAnyPermissionMock.mockResolvedValue({ role });
+    getBookingByIdMock.mockResolvedValue({ id: ID });
+
+    const element = await BookingDetailPage({ params: Promise.resolve({ id: ID }) });
+
+    expect(getChainHistoryMock.mock.calls.length > 0).toBe(expected);
+    expect((element as { props: { chainHistory: unknown } }).props.chainHistory !== null).toBe(expected);
   });
 
   it("should pass the history of the booking's flight to the page (VI-F02-T01)", async () => {
