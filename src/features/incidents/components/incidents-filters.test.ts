@@ -19,6 +19,9 @@ const QUERY: IncidentsQuery = {
   q: undefined,
   status: undefined,
   severity: undefined,
+  seat_id: undefined,
+  from: undefined,
+  to: undefined,
   sort: "created_at",
   order: "desc",
   page: 1,
@@ -26,14 +29,21 @@ const QUERY: IncidentsQuery = {
 };
 
 function render(query: IncidentsQuery = QUERY) {
-  return renderToStaticMarkup(createElement(IncidentsFilters, { query }));
+  return renderToStaticMarkup(
+    createElement(IncidentsFilters, {
+      query,
+      seats: [{ id: "s-1", serial_number: "SEAT-0001" }],
+      timeZone: "Asia/Dubai",
+      clearHref: "/incidents",
+    }),
+  );
 }
 
 describe("IncidentsFilters", () => {
   it("should render the search field with the current search and no error", () => {
     const html = render({ ...QUERY, q: "strap" });
 
-    expect(html).toContain('aria-label="Search incidents"');
+    expect(html).toContain('id="incident-search"');
     expect(html).toContain('value="strap"');
     expect(html).not.toContain('role="alert"');
   });
@@ -43,7 +53,8 @@ describe("IncidentsFilters", () => {
 
     expect(html).toContain('aria-label="Filter by status"');
     expect(html).toContain('aria-label="Filter by severity"');
-    expect(html.match(/hidden-input"[^>]*value="all"/g)).toHaveLength(2);
+    expect(html).toContain('aria-label="Filter by seat"');
+    expect(html.match(/hidden-input"[^>]*value="all"/g)).toHaveLength(3);
   });
 
   it("should select the chosen status and severity", () => {
@@ -55,7 +66,8 @@ describe("IncidentsFilters", () => {
 
     expect(html).toMatch(/hidden-input"[^>]*value="investigating"/);
     expect(html).toMatch(/hidden-input"[^>]*value="critical"/);
-    expect(html).not.toMatch(/hidden-input"[^>]*value="all"/);
+    // Only the seat filter is left on All.
+    expect(html.match(/hidden-input"[^>]*value="all"/g)).toHaveLength(1);
   });
 });
 

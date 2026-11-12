@@ -12,6 +12,15 @@ vi.mock("@/features/incidents/lib/get-incidents", () => ({
   getIncidents: getIncidentsMock,
 }));
 
+vi.mock("@/features/incidents/lib/get-incident-seat-options", () => ({
+  getIncidentSeatOptions: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/features/jobs/lib/get-job-airport-options", () => ({
+  getJobAirportOptions: vi.fn().mockResolvedValue([]),
+  getJobsTimeZone: () => "Asia/Dubai",
+}));
+
 // Client component that needs the app router; irrelevant to these assertions.
 vi.mock("@/features/incidents/components/incidents-filters", () => ({
   IncidentsFilters: () => null,
@@ -94,7 +103,35 @@ describe("IncidentsPage", () => {
     expect(html).toContain("Open");
     expect(html).toContain("SN-2");
     expect(html).toContain("Ahmed");
-    expect(html).toContain("Showing 1–1 of 1");
+    expect(html).toContain("1-1 of 1");
+  });
+
+  it("should write the reported time in the airport time zone", async () => {
+    expect(await render()).toContain("16 Oct 2026 12:05 GST");
+  });
+
+  it("should read the seat and date range filters from the address", async () => {
+    await render({
+      seat_id: "2b1c1f0e-1111-4111-8111-111111111111",
+      from: "2026-11-01",
+      to: "2026-11-04",
+    });
+
+    expect(getIncidentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        seat_id: "2b1c1f0e-1111-4111-8111-111111111111",
+        from: "2026-11-01",
+        to: "2026-11-04",
+      }),
+      "Asia/Dubai",
+    );
+  });
+
+  it("should offer Clear filters in the empty state only when a filter is set", async () => {
+    getIncidentsMock.mockResolvedValue({ incidents: [], total: 0 });
+
+    expect(await render()).not.toContain("Clear filters");
+    expect(await render({ status: "closed" })).toContain("Clear filters");
   });
 
   it("should show the empty state when there are no incidents", async () => {
@@ -114,6 +151,7 @@ describe("IncidentsPage", () => {
     expect(html).toContain("No incidents match the search or filters.");
     expect(getIncidentsMock).toHaveBeenCalledWith(
       expect.objectContaining({ q: "nothing" }),
+      "Asia/Dubai",
     );
   });
 
@@ -122,6 +160,7 @@ describe("IncidentsPage", () => {
 
     expect(getIncidentsMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: "open", severity: "high" }),
+      "Asia/Dubai",
     );
   });
 
@@ -130,6 +169,7 @@ describe("IncidentsPage", () => {
 
     expect(getIncidentsMock).toHaveBeenCalledWith(
       expect.objectContaining({ q: "strap", status: "investigating" }),
+      "Asia/Dubai",
     );
   });
 
@@ -138,6 +178,7 @@ describe("IncidentsPage", () => {
 
     expect(getIncidentsMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: undefined, severity: undefined }),
+      "Asia/Dubai",
     );
   });
 
@@ -159,6 +200,7 @@ describe("IncidentsPage", () => {
     expect(html).toContain(INCIDENT_SEARCH_TOO_LONG_MESSAGE);
     expect(getIncidentsMock).toHaveBeenCalledWith(
       expect.objectContaining({ q: undefined }),
+      "Asia/Dubai",
     );
   });
 

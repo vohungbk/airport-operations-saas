@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { nextDay, zonedDayStart } from "@/features/jobs/lib/job-time";
 import { buildIncidentsQueryFilters } from "@/features/incidents/lib/build-incidents-query-filters";
 import type { IncidentsQuery } from "@/features/incidents/schemas/incidents-query.schema";
 import type { IncidentListItem } from "@/features/incidents/types";
@@ -22,6 +23,7 @@ export const INCIDENT_LIST_SELECT =
  */
 export async function getIncidents(
   query: IncidentsQuery,
+  timeZone = "UTC",
 ): Promise<GetIncidentsResult> {
   const filters = buildIncidentsQueryFilters(query);
   const supabase = await createClient();
@@ -44,6 +46,21 @@ export async function getIncidents(
 
   if (filters.severity) {
     request = request.eq("severity", filters.severity);
+  }
+
+  if (filters.seat_id) {
+    request = request.eq("seat_id", filters.seat_id);
+  }
+
+  if (filters.from) {
+    request = request.gte("created_at", zonedDayStart(filters.from, timeZone));
+  }
+
+  if (filters.to) {
+    request = request.lt(
+      "created_at",
+      zonedDayStart(nextDay(filters.to), timeZone),
+    );
   }
 
   const { data, error, count } = await request;

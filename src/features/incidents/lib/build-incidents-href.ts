@@ -15,6 +15,9 @@ export function buildIncidentsHref(
   if (next.q) params.set("q", next.q);
   if (next.status) params.set("status", next.status);
   if (next.severity) params.set("severity", next.severity);
+  if (next.seat_id) params.set("seat_id", next.seat_id);
+  if (next.from) params.set("from", next.from);
+  if (next.to) params.set("to", next.to);
   params.set("sort", next.sort);
   params.set("order", next.order);
   params.set("page", String(next.page));
