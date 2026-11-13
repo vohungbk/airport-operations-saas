@@ -40,6 +40,22 @@ function render(
 }
 
 describe("JobDetail", () => {
+  it("should show an Edit link when an edit address is given, and hide it otherwise", () => {
+    const withEdit = renderToStaticMarkup(
+      createElement(JobDetail, {
+        job: JOB,
+        events: [],
+        eventsTruncated: false,
+        allowedStatuses: [],
+        workRecordHref: null,
+        editHref: "/jobs/j-1/edit",
+      }),
+    );
+
+    expect(withEdit).toContain('href="/jobs/j-1/edit"');
+    expect(render(null)).not.toContain("/edit");
+  });
+
   it("should link Record work to the workflow screen when one is offered", () => {
     const html = render("/jobs/j-1/installation");
 
