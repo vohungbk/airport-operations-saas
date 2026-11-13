@@ -44,3 +44,27 @@ no baseline saved, the estimated lines say Not available.
 | Estimated avoided costs | Avoided handling + inventory savings | The two lines above | Estimate. Conversion value is a separate card. |
 | Total partner value created | Verified partner revenue + avoided handling + inventory savings + conversion value | Verified partner revenue and the three estimated lines | Estimate. Onboarding and annual fees are not taken off yet (spec R6 is open). Not available when the verified revenue is not. |
 | Monthly total trend | Total partner value created, worked out for each of the last six calendar months | Verified partner revenue and baseline inputs | Estimate. Ends with the last month of the period; year to date ends with the current month. A month with no figures is Not available. |
+
+## Partner overview figures (VI-F11-S12)
+
+The figures of the Partner Overview (`/partner`). Every one is read as the signed-in partner user, so row-level security
+limits it to the rows of its own partner. A figure that could not be read, or has nothing to count, is a dash or No
+data, never a 0 (spec R12, R13). The month is the UTC calendar month of today.
+`src/features/partners/lib/partner-overview-doc.test.ts` fails when this table and the screen differ.
+
+| Figure | Formula | Data source | Note |
+|---|---|---|---|
+| Rentals today | Bookings that arrive today, at the calendar day of each booking's airport | Bookings (KPI function `kpi_today_figures`) | The line under it compares with yesterday. |
+| Active rentals | Bookings whose status is in progress | Bookings | |
+| Upcoming reservations | Bookings not started, with a pickup in the next 7 days | Bookings | Not started: every active status before in progress. |
+| Family Ready vehicles | Bookings whose status is Family Ready | Bookings | The line under it counts the bookings whose status is assigned, as awaiting installation. |
+| Correct-seat fulfilment | Same as the KPI of that name, for the month | Bookings and installation records | |
+| On-time readiness | Same as Family Ready on time, for the month | Bookings and installation records | |
+| Operational incidents | Incidents linked to the completed bookings of the month | Incidents and bookings | The line under it counts the incidents resolved in the month. No completed booking is No data. |
+| Completed rentals | Completed bookings of the month | Bookings | No completed booking is No data. |
+| Gross child-seat revenue | Gross revenue of the latest approved or paid settlement | Settlements | A dash until a settlement is approved. |
+| Partner revenue share | Partner share of the latest approved or paid settlement | Settlements | |
+| Amount payable | Final amount of the latest approved or paid settlement | Settlements | Before VAT. |
+| Open invoices | Invoices whose status is issued or overdue | Invoices | |
+| Outstanding invoice value | Sum of the total of the open invoices | Invoices | In USD. |
+| Launch credit | Launch credit accumulated ÷ launch credit target of the commercial terms in force | Partner commercial terms | A dash when the terms have no target. |
