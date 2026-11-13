@@ -63,7 +63,12 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
       workRecordHref={getWorkRecordHref(job, user)}
       scanHref={getSeatScanHref(job, user)}
       lastWork={lastWork}
-      saved={saved === "inspection" ? "inspection" : null}
+      saved={saved === "inspection" || saved === "job" ? saved : null}
+      editHref={
+        hasPermission(user.role, "technicians:manage")
+          ? `/jobs/${job.id}/edit`
+          : null
+      }
       links={{
         seat: hasPermission(user.role, "seats:manage"),
         booking: hasPermission(user.role, "bookings:manage"),

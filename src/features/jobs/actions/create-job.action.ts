@@ -39,5 +39,5 @@ export async function createJobAction(
     return { success: false, error: mapJobError(error) };
   }
 
-  redirect(`/jobs/${data.id}`);
+  redirect(`/jobs/${data.id}?saved=job`);
 }

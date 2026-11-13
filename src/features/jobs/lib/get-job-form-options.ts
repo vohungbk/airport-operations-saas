@@ -6,17 +6,31 @@ interface Option {
   label: string;
 }
 
+/** A technician in the picker. A deactivated one is listed but cannot be chosen. */
+export interface TechnicianOption extends Option {
+  is_active: boolean;
+  /** Airport of the most recently assigned job; null until the first job. */
+  airport_code: string | null;
+}
+
 export interface JobFormOptions {
-  technicians: Option[];
+  technicians: TechnicianOption[];
   bookings: Option[];
+}
+
+/** The part of a `technician_list_figures` row used here; the server client is untyped. */
+interface TechnicianAirportRow {
+  technician_id: string;
+  airport_code: string | null;
 }
 
 const MAX_OPTIONS = 200;
 
 /**
  * Server-only dropdown data for the job form (admin/ops only — the caller
- * guards with `technicians:manage`). Only active technicians and active
- * bookings are offered; the insert guard trigger enforces the same rules.
+ * guards with `technicians:manage`). Active technicians come first, then the
+ * deactivated ones, which the picker shows as unavailable. Only active
+ * bookings are offered; the guard triggers enforce the same rules.
  */
 export async function getJobFormOptions(): Promise<JobFormOptions> {
   const supabase = await createClient();
@@ -24,9 +38,9 @@ export async function getJobFormOptions(): Promise<JobFormOptions> {
   const [technicians, bookings] = await Promise.all([
     supabase
       .from("users")
-      .select("id, full_name")
+      .select("id, full_name, is_active")
       .eq("role", "technician")
-      .eq("is_active", true)
+      .order("is_active", { ascending: false })
       .order("full_name", { ascending: true })
       .limit(MAX_OPTIONS),
     supabase
@@ -43,10 +57,33 @@ export async function getJobFormOptions(): Promise<JobFormOptions> {
     }
   }
 
+  const users = technicians.data ?? [];
+
+  // One call for the whole list keeps this free of N+1 queries.
+  const figures =
+    users.length === 0
+      ? { data: [], error: null }
+      : await supabase.rpc("technician_list_figures", {
+          p_technician_ids: users.map((user) => user.id),
+        });
+
+  if (figures.error) {
+    throw figures.error;
+  }
+
+  const airportCodes = new Map(
+    ((figures.data ?? []) as TechnicianAirportRow[]).map((row) => [
+      row.technician_id,
+      row.airport_code,
+    ]),
+  );
+
   return {
-    technicians: (technicians.data ?? []).map((technician) => ({
+    technicians: users.map((technician) => ({
       value: technician.id,
       label: technician.full_name,
+      is_active: technician.is_active,
+      airport_code: airportCodes.get(technician.id) ?? null,
     })),
     bookings: (bookings.data ?? []).map((booking) => ({
       value: booking.id,

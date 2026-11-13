@@ -25,7 +25,7 @@ const BASELINE = new Map<string, number>([
   ["features/bookings/components/booking-timeline-tab.tsx", 1],
   ["features/cleaning/components/cleaning-complete-form.tsx", 2],
   ["features/incidents/components/incident-report-form.tsx", 1],
-  ["features/jobs/components/create-job-form.tsx", 1],
+  ["features/jobs/components/job-form.tsx", 1],
   ["features/jobs/components/job-work-tabs.tsx", 1],
   ["features/return-queue/components/chain-step-photo-field.tsx", 2],
   ["features/seats/components/partner-seats-filters.tsx", 1],
