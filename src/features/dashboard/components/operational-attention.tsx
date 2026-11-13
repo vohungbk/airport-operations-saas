@@ -38,6 +38,8 @@ const ALLOCATION_QUEUE_BY_NAME: Partial<Record<(typeof QUEUES)[number], Allocati
 };
 
 interface OperationalAttentionProps {
+  /** The seats damaged or in quarantine (VI-F11-S05); `null` when they could not be read. */
+  quarantineQueue?: AllocationQueue | null;
   /** The active rentals and the returned seats (VI-F11-S04); `null` when they could not be read. */
   activeReturned?: ActiveReturned | null;
   /** Today's arrivals and the upcoming bookings (VI-F11-S02); `null` when they could not be read (a dash). */
@@ -79,13 +81,15 @@ function BookingItem({ item }: { item: ArrivalQueueItem }) {
  * The table of the design (UI-F06-S04): the queue, its next item and its status. Today's arrivals and
  * Upcoming bookings list their bookings (VI-F11-S02), up to five each. Seats requiring allocation,
  * Installations due and the Cleaning and Inspection queues show their count in the name and one next item
- * (VI-F11-S03); so do Active rentals and Returned seats (VI-F11-S04). A queue with no item or that could not be read, and the queues not built yet (another
+ * (VI-F11-S03); so do Active rentals and Returned seats (VI-F11-S04) and Damaged or quarantined
+ * (VI-F11-S05). A queue with no item or that could not be read, and the queues not built yet (another
  * ticket), show a dash.
  */
 export function OperationalAttention({
   arrivalQueues = null,
   allocationQueues = null,
   activeReturned = null,
+  quarantineQueue = null,
 }: OperationalAttentionProps) {
   const countedQueues: Partial<Record<(typeof QUEUES)[number], AllocationQueue>> = {
     ...(allocationQueues &&
@@ -96,6 +100,7 @@ export function OperationalAttention({
       "Active rentals": activeReturned.active,
       "Returned seats": activeReturned.returned,
     }),
+    ...(quarantineQueue && { "Damaged or quarantined": quarantineQueue }),
   };
 
   const itemsByQueue: Partial<Record<(typeof QUEUES)[number], readonly ArrivalQueueItem[]>> = {
