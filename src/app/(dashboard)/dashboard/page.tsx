@@ -14,6 +14,7 @@ import { getOverdueList } from "@/features/dashboard/lib/get-overdue-list";
 import { getOverdueJobsCount } from "@/features/dashboard/lib/get-overdue-jobs";
 import { getQuarantineQueue } from "@/features/dashboard/lib/get-quarantine-queue";
 import { getStockByCategory } from "@/features/dashboard/lib/get-stock-by-category";
+import { getTechnicianAssignments } from "@/features/dashboard/lib/get-technician-assignments";
 import { PARTNER_HOME_ROUTE } from "@/lib/constants/routes";
 import { getTodayFigures } from "@/lib/kpi/get-kpi-figures";
 
@@ -31,7 +32,7 @@ export default async function DashboardPage() {
   }
 
   const loadedAt = new Date();
-  const [charts, flightAlerts, stock, overdueTasks, today, arrivalQueues, allocationQueues, activeReturned, quarantineQueue, overdueList, openIncidents] = await Promise.all([
+  const [charts, flightAlerts, stock, overdueTasks, today, arrivalQueues, allocationQueues, activeReturned, quarantineQueue, overdueList, openIncidents, technicianAssignments] = await Promise.all([
     getDashboardCharts(user.role),
     getFlightAlerts(),
     getStockByCategory(),
@@ -43,6 +44,7 @@ export default async function DashboardPage() {
     getQuarantineQueue(),
     getOverdueList(),
     getOpenIncidents(),
+    getTechnicianAssignments(),
   ]);
 
   return (
@@ -62,6 +64,7 @@ export default async function DashboardPage() {
         quarantineQueue={quarantineQueue}
         overdueList={overdueList}
         openIncidents={openIncidents}
+        technicianAssignments={technicianAssignments}
       />
     </div>
   );

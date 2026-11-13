@@ -16,6 +16,7 @@ import type { ArrivalQueueItem, ArrivalQueues } from "@/features/dashboard/lib/g
 import type { AttentionList } from "@/features/dashboard/lib/attention-list";
 import { OPEN_INCIDENTS_HREF } from "@/features/dashboard/lib/get-open-incidents";
 import { OVERDUE_JOBS_HREF } from "@/features/dashboard/lib/get-overdue-jobs";
+import { TECHNICIAN_ASSIGNMENTS_HREF } from "@/features/dashboard/lib/get-technician-assignments";
 
 /** The queues of the design. How each one is counted and what comes next in it is another ticket. */
 const QUEUES = [
@@ -43,11 +44,14 @@ const ALLOCATION_QUEUE_BY_NAME: Partial<Record<(typeof QUEUES)[number], Allocati
 
 /** The queues that list their first items, most urgent first, and link to the full list (VI-F11-S08). */
 const LISTED_QUEUES = {
+  "Technician assignments": { href: TECHNICIAN_ASSIGNMENTS_HREF, empty: "No technician assignments." },
   "Overdue tasks": { href: OVERDUE_JOBS_HREF, empty: "No overdue tasks." },
   "Open incidents": { href: OPEN_INCIDENTS_HREF, empty: "No open incidents." },
 } as const;
 
 interface OperationalAttentionProps {
+  /** The open jobs with their technician and deadline (VI-F11-S07); `null` when they could not be read. */
+  technicianAssignments?: AttentionList | null;
   /** The overdue jobs, longest overdue first (VI-F11-S08); `null` when they could not be read. */
   overdueList?: AttentionList | null;
   /** The open incidents, most severe first (VI-F11-S08); `null` when they could not be read. */
@@ -96,7 +100,7 @@ function BookingItem({ item }: { item: ArrivalQueueItem }) {
  * Upcoming bookings list their bookings (VI-F11-S02), up to five each. Seats requiring allocation,
  * Installations due and the Cleaning and Inspection queues show their count in the name and one next item
  * (VI-F11-S03); so do Active rentals and Returned seats (VI-F11-S04) and Damaged or quarantined
- * (VI-F11-S05). Overdue tasks and Open incidents list their first five items, an empty message when there
+ * (VI-F11-S05). Technician assignments, Overdue tasks and Open incidents list their first five items, an empty message when there
  * is none, and a link to the full list when there are more (VI-F11-S08). A queue with no item or that could not be read, and the queues not built yet (another
  * ticket), show a dash.
  */
@@ -105,10 +109,12 @@ export function OperationalAttention({
   allocationQueues = null,
   activeReturned = null,
   quarantineQueue = null,
+  technicianAssignments = null,
   overdueList = null,
   openIncidents = null,
 }: OperationalAttentionProps) {
   const listsByQueue: Partial<Record<keyof typeof LISTED_QUEUES, AttentionList | null>> = {
+    "Technician assignments": technicianAssignments,
     "Overdue tasks": overdueList,
     "Open incidents": openIncidents,
   };
