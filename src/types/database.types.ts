@@ -2714,6 +2714,13 @@ export type Database = {
           technician_id: string
         }[]
       }
+      technician_job_partner_names: {
+        Args: { p_job_ids: string[] }
+        Returns: {
+          job_id: string
+          partner_name: string
+        }[]
+      }
       command_centre_arrival_queues: {
         Args: { p_now?: string }
         Returns: {

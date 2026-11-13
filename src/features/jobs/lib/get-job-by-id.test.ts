@@ -8,13 +8,14 @@ import { buildJobDetailSelect, getJobById, JOB_DETAIL_SELECT } from "@/features/
 
 const JOB_ID = "e0000000-0000-0000-0000-000000000001";
 
-function mockQuery(result: { data: unknown; error: unknown }) {
+function mockQuery(result: { data: unknown; error: unknown }, partnerNames: { job_id: string; partner_name: string }[] = []) {
   const maybeSingle = vi.fn().mockResolvedValue(result);
   const eq = vi.fn(() => ({ maybeSingle }));
   const select = vi.fn(() => ({ eq }));
   const from = vi.fn(() => ({ select }));
-  createClientMock.mockResolvedValue({ from });
-  return { from, select, eq, maybeSingle };
+  const rpc = vi.fn().mockResolvedValue({ data: partnerNames, error: null });
+  createClientMock.mockResolvedValue({ from, rpc });
+  return { from, select, eq, maybeSingle, rpc };
 }
 
 describe("getJobById", () => {
@@ -42,6 +43,29 @@ describe("getJobById", () => {
       id: JOB_ID,
       status: "assigned",
     });
+  });
+
+  it("should give a technician the partner name of their own job from the function, not from the partners table", async () => {
+    const { rpc, select } = mockQuery(
+      { data: { id: JOB_ID, booking: { id: "b1" } }, error: null },
+      [{ job_id: JOB_ID, partner_name: "Emirates Rent A Car" }],
+    );
+
+    const job = await getJobById(JOB_ID);
+
+    expect(rpc).toHaveBeenCalledWith("technician_job_partner_names", { p_job_ids: [JOB_ID] });
+    expect(job?.booking?.partner).toEqual({ name: "Emirates Rent A Car" });
+    expect(select).toHaveBeenCalledWith(JOB_DETAIL_SELECT);
+  });
+
+  it("should give no partner name when the function returns none, and not call it for a manager", async () => {
+    const { rpc } = mockQuery({ data: { id: JOB_ID, booking: { id: "b1" } }, error: null });
+
+    const job = await getJobById(JOB_ID);
+    await getJobById(JOB_ID, { withPartner: true });
+
+    expect(job?.booking?.partner).toBeUndefined();
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 
   it("should throw when the query fails", async () => {

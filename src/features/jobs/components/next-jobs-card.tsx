@@ -28,7 +28,7 @@ export function NextJobsCard({ jobs }: NextJobsCardProps) {
                 {NONE} · {job.booking_number}
               </p>
               <p className="break-words">
-                Partner / location: {NONE} · {job.vehicle_bay ?? NONE}
+                Partner / location: {job.partner_name ?? NONE} · {job.vehicle_bay ?? NONE}
               </p>
               <p className="break-words">
                 Vehicle / seat: {job.vehicle ?? NONE} · {job.seat ?? NONE}

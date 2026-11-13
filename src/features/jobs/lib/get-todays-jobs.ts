@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getTechnicianJobPartnerNames } from "@/features/jobs/lib/get-technician-job-partner-names";
 import {
   OPEN_JOB_STATUSES,
   selectTodaysJobs,
@@ -22,7 +23,7 @@ export const TODAYS_JOBS_SELECT = [
 
 /**
  * Server-only. The open jobs the viewer's RLS allows (a technician reads only their own), picked and
- * sorted for today by `selectTodaysJobs`. A failed read throws, so the page shows its error state and
+ * sorted for today by `selectTodaysJobs`. A technician's own jobs carry the partner name (VI-F11-T02). A failed read throws, so the page shows its error state and
  * never an empty list in its place.
  */
 export async function getTodaysJobs(now: Date = new Date()): Promise<TodaysJobs> {
@@ -36,5 +37,11 @@ export async function getTodaysJobs(now: Date = new Date()): Promise<TodaysJobs>
     throw error;
   }
 
-  return selectTodaysJobs((data ?? []) as unknown as TodayJobRow[], now);
+  const picked = selectTodaysJobs((data ?? []) as unknown as TodayJobRow[], now);
+  const partnerNames = await getTechnicianJobPartnerNames(supabase, picked.jobs.map((job) => job.id));
+
+  return {
+    ...picked,
+    jobs: picked.jobs.map((job) => ({ ...job, partner_name: partnerNames.get(job.id) ?? null })),
+  };
 }

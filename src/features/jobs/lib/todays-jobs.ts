@@ -57,6 +57,8 @@ export interface TodayJob {
   /** The pickup time of the booking: it orders the list and is the time of the next job in the empty state. */
   pickup_at: string;
   booking_number: string;
+  /** The display name of the partner; only a technician's own job has it (VI-F11-T02). Set by the read, never by `selectTodaysJobs`. */
+  partner_name?: string | null;
   technician: string | null;
   vehicle: string | null;
   vehicle_bay: string | null;
