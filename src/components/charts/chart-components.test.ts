@@ -129,7 +129,7 @@ describe("ChartContainer", () => {
 
   it("should take the width of its parent and set none of its own (R11)", () => {
     const out = container();
-    expect(out).toContain("w-full min-w-0 overflow-hidden");
+    expect(out).toContain("w-full min-w-0 overflow-x-clip overflow-y-visible");
     expect(out).toContain('width:100%');
   });
 

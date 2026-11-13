@@ -6,7 +6,7 @@ import { Cell, Pie, PieChart, Tooltip } from "recharts"
 import { ChartContainer } from "@/components/charts/chart-container"
 import { ChartFrame } from "@/components/charts/chart-frame"
 import { ChartPatternDefs, patternFill, patternId } from "@/components/charts/chart-patterns"
-import { CHART_TOOLTIP_STYLE, formatTooltipValue } from "@/components/charts/chart-tooltip"
+import { CHART_TOOLTIP_STYLE, CHART_TOOLTIP_WRAPPER_STYLE, formatTooltipValue } from "@/components/charts/chart-tooltip"
 import type { ChartStatus } from "@/lib/charts/chart-data"
 import { seriesColor } from "@/lib/charts/chart-tokens"
 import { centerTotal, describeSlices, donutTable, sliceDetail, toDonutSeries, toSlices, type DonutItem } from "@/lib/charts/donut-data"
@@ -53,7 +53,7 @@ function DonutChart({ title, description, status, items, series_name = "Count", 
         <ChartContainer label={describeSlices(title, data)} name={title} size="md">
           <PieChart accessibilityLayer>
             {!solid && <ChartPatternDefs id={id} count={data.slices.length} />}
-            <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={formatTooltipValue} />
+            <Tooltip contentStyle={CHART_TOOLTIP_STYLE} wrapperStyle={CHART_TOOLTIP_WRAPPER_STYLE} formatter={formatTooltipValue} />
             <Pie data={ring} dataKey="value" nameKey="label" innerRadius="62%" outerRadius="90%" paddingAngle={ring.length > 1 ? 2 : 0} stroke="none" isAnimationActive={false}>
               {ring.map((slice) => (
                 <Cell key={slice.label} fill={solid ? seriesColor(slice.index) : patternFill(id, slice.index)} />

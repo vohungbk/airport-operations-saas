@@ -10,6 +10,9 @@ export const CHART_TOOLTIP_STYLE = {
   fontSize: "0.75rem",
 }
 
+/** A tooltip over something drawn on top of the chart (the total in the middle of a ring) must be above it. */
+export const CHART_TOOLTIP_WRAPPER_STYLE = { zIndex: 10 }
+
 /** The bar a pointer is over is marked in the grid color. */
 export const CHART_TOOLTIP_CURSOR = { fill: CHART_GRID_COLOR, fillOpacity: 0.4 }
 

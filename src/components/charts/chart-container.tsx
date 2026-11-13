@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
  * with the screen and does not push the page sideways at 390 px. The height is one of four sizes, or
  * a number of pixels when the chart grows with its data.
  */
-const chartContainerVariants = cva("w-full min-w-0 overflow-hidden", {
+const chartContainerVariants = cva("w-full min-w-0 overflow-x-clip overflow-y-visible", {
   variants: {
     size: {
       /** A line in a tile (a sparkline). */
@@ -44,10 +44,11 @@ interface ChartContainerProps extends Omit<VariantProps<typeof chartContainerVar
  * The drawing of the library is focusable (`accessibilityLayer`: Tab to it, arrow keys move between
  * the values, which are read out) but has no name of its own, so it is given one. It sits in a group, not
  * in `role="img"`: an image has presentational children, and a focusable drawing inside one is read
- * without a name or a role.
+ * without a name or a role. The name goes in `aria-label`, not in `title`: the library turns `title` into an
+ * SVG `<title>`, which the browser shows as its own tooltip over the chart and over the values one.
  */
 export function withChartName(chart: React.ReactElement, name: string): React.ReactElement {
-  return cloneElement(chart as React.ReactElement<{ title?: string }>, { title: name })
+  return cloneElement(chart as React.ReactElement<{ "aria-label"?: string }>, { "aria-label": name })
 }
 
 function ChartContainer({ label, name, size, height, children, className }: ChartContainerProps) {

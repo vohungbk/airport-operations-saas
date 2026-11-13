@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -9,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { AllocationQueueId, AllocationQueues } from "@/features/dashboard/lib/get-allocation-queues";
 import type { ArrivalQueueItem, ArrivalQueues } from "@/features/dashboard/lib/get-arrival-queues";
 
 /** The queues of the design. How each one is counted and what comes next in it is another ticket. */
@@ -24,27 +26,61 @@ const QUEUES = [
   "Overdue tasks",
 ] as const;
 
+/** The queues that show a count and one next item (VI-F11-S03), by the queue of the design. */
+const ALLOCATION_QUEUE_BY_NAME: Partial<Record<(typeof QUEUES)[number], AllocationQueueId>> = {
+  "Seats requiring allocation": "allocation",
+  "Installations due": "installations",
+  "Cleaning queue": "cleaning",
+  "Inspection queue": "inspection",
+};
+
 interface OperationalAttentionProps {
   /** Today's arrivals and the upcoming bookings (VI-F11-S02); `null` when they could not be read (a dash). */
   arrivalQueues?: ArrivalQueues | null;
+  /** The seats to allocate, installations due and seats in cleaning and inspection (VI-F11-S03); `null` when they could not be read. */
+  allocationQueues?: AllocationQueues | null;
+}
+
+function QueueLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="font-medium hover:underline">
+      {children}
+    </Link>
+  );
+}
+
+/** One row of the table; a missing next item or status is a dash. */
+function QueueRow({ queue, next, status }: { queue: string; next?: ReactNode; status?: string }) {
+  return (
+    <TableRow className="sm:h-13">
+      <TableCell data-label="Queue">{queue}</TableCell>
+      <TableCell data-label="Next item">{next || "—"}</TableCell>
+      <TableCell data-label="Status">{status || "—"}</TableCell>
+    </TableRow>
+  );
 }
 
 /** The booking a queue row opens, with its expected arrival (NAV-1). */
 function BookingItem({ item }: { item: ArrivalQueueItem }) {
   return (
-    <Link href={`/bookings/${item.booking_id}`} className="font-medium hover:underline">
+    <QueueLink href={`/bookings/${item.booking_id}`}>
       {item.booking_number}
       <span className="font-normal text-muted-foreground"> · {item.arrival_label}</span>
-    </Link>
+    </QueueLink>
   );
 }
 
 /**
  * The table of the design (UI-F06-S04): the queue, its next item and its status. Today's arrivals and
- * Upcoming bookings list their bookings (VI-F11-S02), up to five each; a queue with no booking or that
- * could not be read, and the queues not built yet (another ticket), show a dash.
+ * Upcoming bookings list their bookings (VI-F11-S02), up to five each. Seats requiring allocation,
+ * Installations due and the Cleaning and Inspection queues show their count in the name and one next item
+ * (VI-F11-S03). A queue with no item or that could not be read, and the queues not built yet (another
+ * ticket), show a dash.
  */
-export function OperationalAttention({ arrivalQueues = null }: OperationalAttentionProps) {
+export function OperationalAttention({
+  arrivalQueues = null,
+  allocationQueues = null,
+}: OperationalAttentionProps) {
   const itemsByQueue: Partial<Record<(typeof QUEUES)[number], readonly ArrivalQueueItem[]>> = {
     "Today's arrivals": arrivalQueues?.arrivals_today,
     "Upcoming bookings": arrivalQueues?.upcoming_bookings,
@@ -67,26 +103,34 @@ export function OperationalAttention({ arrivalQueues = null }: OperationalAttent
             </TableHeader>
             <TableBody className="sm:[&_tr]:border-0">
               {QUEUES.flatMap((queue) => {
-                const items = itemsByQueue[queue];
+                const allocationId = ALLOCATION_QUEUE_BY_NAME[queue];
 
-                if (!items || items.length === 0) {
+                if (allocationId && allocationQueues) {
+                  const { count, next } = allocationQueues[allocationId];
+
                   return (
-                    <TableRow key={queue} className="sm:h-13">
-                      <TableCell data-label="Queue">{queue}</TableCell>
-                      <TableCell data-label="Next item">—</TableCell>
-                      <TableCell data-label="Status">—</TableCell>
-                    </TableRow>
+                    <QueueRow
+                      key={queue}
+                      queue={`${queue} (${count})`}
+                      next={next && <QueueLink href={next.href}>{next.label}</QueueLink>}
+                      status={next?.status_label}
+                    />
                   );
                 }
 
+                const items = itemsByQueue[queue];
+
+                if (!items || items.length === 0) {
+                  return <QueueRow key={queue} queue={queue} />;
+                }
+
                 return items.map((item) => (
-                  <TableRow key={`${queue}-${item.booking_id}`} className="sm:h-13">
-                    <TableCell data-label="Queue">{queue}</TableCell>
-                    <TableCell data-label="Next item">
-                      <BookingItem item={item} />
-                    </TableCell>
-                    <TableCell data-label="Status">{item.status_label}</TableCell>
-                  </TableRow>
+                  <QueueRow
+                    key={`${queue}-${item.booking_id}`}
+                    queue={queue}
+                    next={<BookingItem item={item} />}
+                    status={item.status_label}
+                  />
                 ));
               })}
             </TableBody>
