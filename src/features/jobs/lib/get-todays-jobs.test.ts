@@ -11,12 +11,13 @@ import {
 
 const NOW = new Date("2026-10-28T10:00:00Z");
 
-function mockQuery(result: { data: unknown; error: unknown }) {
+function mockQuery(result: { data: unknown; error: unknown }, partnerNames: { job_id: string; partner_name: string }[] = []) {
   const inFilter = vi.fn().mockResolvedValue(result);
   const select = vi.fn(() => ({ in: inFilter }));
   const from = vi.fn(() => ({ select }));
-  createClientMock.mockResolvedValue({ from });
-  return { from, select, inFilter };
+  const rpc = vi.fn().mockResolvedValue({ data: partnerNames, error: null });
+  createClientMock.mockResolvedValue({ from, rpc });
+  return { from, select, inFilter, rpc };
 }
 
 describe("getTodaysJobs", () => {
@@ -53,6 +54,39 @@ describe("getTodaysJobs", () => {
     expect(from).toHaveBeenCalledWith("technician_jobs");
     expect(inFilter).toHaveBeenCalledWith("status", ["assigned", "in_progress"]);
     expect(result.jobs.map((job) => job.id)).toEqual(["j1"]);
+  });
+
+  it("should give each job the partner name read for the technician, in one call, and none for a job without one", async () => {
+    const row = (id: string) => ({
+      id,
+      status: "assigned",
+      job_type: "installation",
+      vehicle_bay: null,
+      technician: null,
+      booking: {
+        booking_number: `BK-${id}`,
+        pickup_at: "2026-10-28T12:00:00Z",
+        vehicle: null,
+        vehicle_bay: null,
+        airport: null,
+        required_category: null,
+        seat: null,
+        flight: null,
+      },
+    });
+    const { rpc } = mockQuery(
+      { data: [row("j1"), row("j2")], error: null },
+      [{ job_id: "j1", partner_name: "Emirates Rent A Car" }],
+    );
+
+    const result = await getTodaysJobs(NOW);
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("technician_job_partner_names", { p_job_ids: ["j1", "j2"] });
+    expect(result.jobs.map((job) => [job.id, job.partner_name])).toEqual([
+      ["j1", "Emirates Rent A Car"],
+      ["j2", null],
+    ]);
   });
 
   it("should return no jobs when the viewer has none", async () => {

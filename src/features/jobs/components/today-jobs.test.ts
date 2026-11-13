@@ -105,6 +105,17 @@ describe("Today's Jobs flight card and banner", () => {
   });
 });
 
+describe("Today's Jobs partner name (VI-F11-T02, AC01)", () => {
+  it("should show the partner name of the job on the first job and on the next jobs", () => {
+    const out = render({
+      jobs: [job({ partner_name: "Emirates Rent A Car" }), job({ id: "second", partner_name: "Hertz Dubai" })],
+    });
+
+    expect(out).toMatch(/Partner<\/[^>]+><[^>]+>Emirates Rent A Car</);
+    expect(out).toContain("Partner / location: Hertz Dubai · C-14");
+  });
+});
+
 describe("Today's Jobs button and next jobs", () => {
   it("should open the installation of the first job with a button of at least 44 px", () => {
     const out = render({ jobs: [job({ id: "abc" })] });
