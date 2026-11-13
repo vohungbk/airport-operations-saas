@@ -3,6 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PartnerOverview } from "@/features/partners/components/partner-overview";
 import { getUpcomingPartnerRentals } from "@/features/partners/lib/get-upcoming-partner-rentals";
 import { getPartnerSummary } from "@/features/partners/lib/get-partner-summary";
+import { getPartnerOverview } from "@/features/partners/lib/get-partner-overview";
 
 function formatMonth(): string {
   return new Date().toLocaleDateString("en-GB", {
@@ -40,9 +41,10 @@ function Heading({ title, subtitle }: HeadingProps) {
 export default async function PartnerPage() {
   const user = await requirePartnerScope("bookings:view_own_partner");
 
-  const [summary, upcoming] = await Promise.all([
+  const [summary, upcoming, overview] = await Promise.all([
     getPartnerSummary(user.partner_id),
     getUpcomingPartnerRentals(),
+    getPartnerOverview(),
   ]);
 
   if (summary === null) {
@@ -66,7 +68,7 @@ export default async function PartnerPage() {
         title="Partner Overview"
         subtitle={`${summary.name} · ${summary.code} · ${formatMonth()} · Your partner data only`}
       />
-      <PartnerOverview upcoming={upcoming} />
+      <PartnerOverview view={overview} upcoming={upcoming} />
     </div>
   );
 }

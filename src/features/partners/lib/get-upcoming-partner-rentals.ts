@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { ACTIVE_BOOKING_STATUSES } from "@/features/bookings/lib/booking-status";
 
 export interface UpcomingPartnerRental {
   id: string;
@@ -10,6 +11,11 @@ export interface UpcomingPartnerRental {
 }
 
 export const UPCOMING_RENTALS_LIMIT = 5;
+
+/** The bookings that have not started: the upcoming rentals and the upcoming reservations count these. */
+export const NOT_STARTED_BOOKING_STATUSES = ACTIVE_BOOKING_STATUSES.filter(
+  (status) => status !== "in_progress",
+);
 
 /** The select is a runtime string, like the bookings list, so the nested relations are cast below. */
 const UPCOMING_RENTALS_SELECT =
@@ -38,7 +44,7 @@ export async function getUpcomingPartnerRentals(
       .from("bookings")
       .select(UPCOMING_RENTALS_SELECT)
       .gte("pickup_at", now.toISOString())
-      .in("status", ["pending", "confirmed", "preparation", "ready", "assigned", "en_route", "installed", "family_ready"])
+      .in("status", NOT_STARTED_BOOKING_STATUSES)
       .order("pickup_at", { ascending: true })
       .limit(UPCOMING_RENTALS_LIMIT);
 
