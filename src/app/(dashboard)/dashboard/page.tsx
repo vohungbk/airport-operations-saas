@@ -4,6 +4,7 @@ import { requireAnyPermission } from "@/lib/auth/current-user";
 import { DASHBOARD_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { CommandCentre } from "@/features/dashboard/components/command-centre";
 import { CommandCentreHeading } from "@/features/dashboard/components/command-centre-heading";
+import { getActiveReturned } from "@/features/dashboard/lib/get-active-returned";
 import { getAllocationQueues } from "@/features/dashboard/lib/get-allocation-queues";
 import { getArrivalQueues } from "@/features/dashboard/lib/get-arrival-queues";
 import { getDashboardCharts } from "@/features/dashboard/lib/get-dashboard-charts";
@@ -27,7 +28,7 @@ export default async function DashboardPage() {
   }
 
   const loadedAt = new Date();
-  const [charts, flightAlerts, stock, overdueTasks, today, arrivalQueues, allocationQueues] = await Promise.all([
+  const [charts, flightAlerts, stock, overdueTasks, today, arrivalQueues, allocationQueues, activeReturned] = await Promise.all([
     getDashboardCharts(user.role),
     getFlightAlerts(),
     getStockByCategory(),
@@ -35,6 +36,7 @@ export default async function DashboardPage() {
     getTodayFigures(),
     getArrivalQueues(),
     getAllocationQueues(),
+    getActiveReturned(),
   ]);
 
   return (
@@ -49,6 +51,7 @@ export default async function DashboardPage() {
         installationsDue={today.installations_due}
         arrivalQueues={arrivalQueues}
         allocationQueues={allocationQueues}
+        activeReturned={activeReturned}
       />
     </div>
   );

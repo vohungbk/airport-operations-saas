@@ -310,7 +310,7 @@ describe("Operational attention", () => {
     ]) {
       expect(out).toContain(queue);
     }
-    expect(out.match(/data-label="Queue"/g)).toHaveLength(9);
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(11);
     expect(out).toContain('data-stacked=""');
   });
 
@@ -332,14 +332,14 @@ describe("Operational attention", () => {
     expect(out).toContain('href="/bookings/u1"');
     expect(out).toContain("Technician Assigned");
     expect(out).toContain("Allocated");
-    expect(out.match(/data-label="Queue"/g)).toHaveLength(10);
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(12);
   });
 
   it("should keep a dash for a queue that has no booking", () => {
     const out = render({ arrivalQueues: { arrivals_today: [], upcoming_bookings: [] } });
 
     expect(out).not.toContain('href="/bookings/');
-    expect(out.match(/data-label="Queue"/g)).toHaveLength(9);
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(11);
   });
 });
 
@@ -358,7 +358,7 @@ describe("Operational attention allocation queues (VI-F11-S03, AC01)", () => {
     inspection: empty,
   };
 
-  it("should show each queue with its count and a link to its next item, in the nine rows of the design", () => {
+  it("should show each queue with its count and a link to its next item, in the eleven rows of the table", () => {
     const out = render({ allocationQueues });
 
     expect(out).toContain("Seats requiring allocation (3)");
@@ -368,7 +368,7 @@ describe("Operational attention allocation queues (VI-F11-S03, AC01)", () => {
     expect(out).toContain('href="/jobs/job-1"');
     expect(out).toContain('href="/seats/s-1"');
     expect(out).toContain("Assigned");
-    expect(out.match(/data-label="Queue"/g)).toHaveLength(9);
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(11);
   });
 
   it("should show a count of 0 and a dash for a queue with nothing in it", () => {
@@ -383,6 +383,33 @@ describe("Operational attention allocation queues (VI-F11-S03, AC01)", () => {
     expect(out).toContain("Seats requiring allocation");
     expect(out).not.toContain("Seats requiring allocation (");
     expect(out).not.toContain('href="/jobs/');
+  });
+});
+
+describe("Operational attention active and returned (VI-F11-S04, AC01)", () => {
+  const activeReturned = {
+    active: {
+      count: 12,
+      next: { href: "/bookings/bk-9", label: "BK-2026-000140 · Toddler Seat", status_label: "Active Rental" },
+    },
+    returned: { count: 0, next: null },
+  };
+
+  it("should list the active rentals and the returned seats with their counts and a link to the next item", () => {
+    const out = render({ activeReturned });
+
+    expect(out).toContain("Active rentals (12)");
+    expect(out).toContain("Returned seats (0)");
+    expect(out).toContain('href="/bookings/bk-9"');
+    expect(out).toContain("Active Rental");
+  });
+
+  it("should show the plain names and a dash, with no count, when they could not be read", () => {
+    const out = render({ activeReturned: null });
+
+    expect(out).toContain("Active rentals");
+    expect(out).not.toContain("Active rentals (");
+    expect(out).not.toContain("Returned seats (");
   });
 });
 
