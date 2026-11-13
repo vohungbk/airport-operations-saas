@@ -6,6 +6,7 @@ import { OverviewTile } from "@/features/dashboard/components/overview-tile";
 import { StatusChart } from "@/features/dashboard/components/status-chart";
 import { StockByCategory } from "@/features/dashboard/components/stock-by-category";
 import { OVERDUE_JOBS_HREF } from "@/features/dashboard/lib/get-overdue-jobs";
+import type { ActiveReturned } from "@/features/dashboard/lib/get-active-returned";
 import type { AllocationQueues } from "@/features/dashboard/lib/get-allocation-queues";
 import type { ArrivalQueues } from "@/features/dashboard/lib/get-arrival-queues";
 import type { FlightAlertItem } from "@/features/dashboard/lib/get-flight-alerts";
@@ -26,6 +27,8 @@ interface CommandCentreProps {
   arrivalQueues?: ArrivalQueues | null;
   /** Seats to allocate, installations due and seats in cleaning and inspection; `null` when they could not be read. */
   allocationQueues?: AllocationQueues | null;
+  /** Active rentals and returned seats with counts; `null` when they could not be read. */
+  activeReturned?: ActiveReturned | null;
 }
 
 /**
@@ -43,6 +46,7 @@ export function CommandCentre({
   installationsDue = null,
   arrivalQueues = null,
   allocationQueues = null,
+  activeReturned = null,
 }: CommandCentreProps) {
   const chart = (id: string) => charts.find((result) => result.chart.id === id);
   const seats = chart("seats_by_status");
@@ -85,7 +89,11 @@ export function CommandCentre({
         {seats && <StockByCategory items={stock} />}
       </div>
 
-      <OperationalAttention arrivalQueues={arrivalQueues} allocationQueues={allocationQueues} />
+      <OperationalAttention
+        arrivalQueues={arrivalQueues}
+        allocationQueues={allocationQueues}
+        activeReturned={activeReturned}
+      />
     </div>
   );
 }
