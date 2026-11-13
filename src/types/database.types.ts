@@ -2725,6 +2725,17 @@ export type Database = {
           timezone: string
         }[]
       }
+      command_centre_quarantine_queue: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          detail: string | null
+          item_id: string
+          queue: string
+          status: string
+          title: string | null
+          total: number
+        }[]
+      }
       command_centre_active_returned: {
         Args: Record<PropertyKey, never>
         Returns: {

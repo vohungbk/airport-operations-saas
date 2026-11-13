@@ -10,6 +10,7 @@ import { getArrivalQueues } from "@/features/dashboard/lib/get-arrival-queues";
 import { getDashboardCharts } from "@/features/dashboard/lib/get-dashboard-charts";
 import { getFlightAlerts } from "@/features/dashboard/lib/get-flight-alerts";
 import { getOverdueJobsCount } from "@/features/dashboard/lib/get-overdue-jobs";
+import { getQuarantineQueue } from "@/features/dashboard/lib/get-quarantine-queue";
 import { getStockByCategory } from "@/features/dashboard/lib/get-stock-by-category";
 import { PARTNER_HOME_ROUTE } from "@/lib/constants/routes";
 import { getTodayFigures } from "@/lib/kpi/get-kpi-figures";
@@ -28,7 +29,7 @@ export default async function DashboardPage() {
   }
 
   const loadedAt = new Date();
-  const [charts, flightAlerts, stock, overdueTasks, today, arrivalQueues, allocationQueues, activeReturned] = await Promise.all([
+  const [charts, flightAlerts, stock, overdueTasks, today, arrivalQueues, allocationQueues, activeReturned, quarantineQueue] = await Promise.all([
     getDashboardCharts(user.role),
     getFlightAlerts(),
     getStockByCategory(),
@@ -37,6 +38,7 @@ export default async function DashboardPage() {
     getArrivalQueues(),
     getAllocationQueues(),
     getActiveReturned(),
+    getQuarantineQueue(),
   ]);
 
   return (
@@ -52,6 +54,7 @@ export default async function DashboardPage() {
         arrivalQueues={arrivalQueues}
         allocationQueues={allocationQueues}
         activeReturned={activeReturned}
+        quarantineQueue={quarantineQueue}
       />
     </div>
   );
