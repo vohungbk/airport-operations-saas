@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requirePartnerScopeMock = vi.hoisted(() => vi.fn());
 const getSummaryMock = vi.hoisted(() => vi.fn());
 const getUpcomingMock = vi.hoisted(() => vi.fn());
+const getOverviewMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({
   requirePartnerScope: requirePartnerScopeMock,
@@ -15,6 +16,10 @@ vi.mock("@/features/partners/lib/get-partner-summary", () => ({
 
 vi.mock("@/features/partners/lib/get-upcoming-partner-rentals", () => ({
   getUpcomingPartnerRentals: getUpcomingMock,
+}));
+
+vi.mock("@/features/partners/lib/get-partner-overview", () => ({
+  getPartnerOverview: getOverviewMock,
 }));
 
 import PartnerPage from "@/app/(partner)/partner/page";
@@ -40,6 +45,12 @@ describe("PartnerPage", () => {
     getSummaryMock.mockResolvedValue({ name: "ERAC Rentals", code: "ERAC" });
     getUpcomingMock.mockReset();
     getUpcomingMock.mockResolvedValue([]);
+    getOverviewMock.mockReset();
+    getOverviewMock.mockResolvedValue({
+      tiles: [{ label: "Rentals today", value: "18", href: "/partner/kpi" }],
+      revenue: [{ label: "Gross child-seat revenue", value: "USD 12,000.00" }],
+      launch_credit: null,
+    });
   });
 
   it("should guard the page with bookings:view_own_partner (defense-in-depth alongside the layout)", async () => {
@@ -56,6 +67,14 @@ describe("PartnerPage", () => {
     await expect(render()).rejects.toThrow("REDIRECT:/forbidden");
     expect(getSummaryMock).not.toHaveBeenCalled();
     expect(getUpcomingMock).not.toHaveBeenCalled();
+    expect(getOverviewMock).not.toHaveBeenCalled();
+  });
+
+  it("should show the figures of the overview", async () => {
+    const html = await render();
+
+    expect(html).toContain("USD 12,000.00");
+    expect(html).toContain(">18<");
   });
 
   it("should show the Partner Overview with the partner's name and code, and never its raw id", async () => {
