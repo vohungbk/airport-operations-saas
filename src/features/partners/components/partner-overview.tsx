@@ -14,10 +14,8 @@ import { OverviewTile } from "@/features/dashboard/components/overview-tile";
 import { BOOKING_STATUS_LABEL } from "@/features/bookings/lib/booking-status";
 import { formatBookingDateTime } from "@/features/bookings/lib/booking-time";
 import type { UpcomingPartnerRental } from "@/features/partners/lib/get-upcoming-partner-rentals";
-import {
-  PARTNER_FINANCE_HREF,
-  type PartnerOverviewView,
-} from "@/features/partners/lib/partner-overview";
+import { PARTNER_FINANCE_HREF } from "@/features/partners/lib/partner-home-items";
+import type { PartnerOverviewView } from "@/features/partners/lib/partner-overview";
 
 interface PartnerOverviewProps {
   /** The figures, ready from `buildPartnerOverview`; nothing is calculated here. */

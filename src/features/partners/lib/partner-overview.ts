@@ -1,5 +1,5 @@
 import { currentMonthParam } from "@/lib/kpi/kpi-period";
-import { formatKpiFigure, type KpiFigure } from "@/lib/kpi/kpi-figures";
+import { formatKpiFigure, NO_DATA_TEXT, type KpiFigure } from "@/lib/kpi/kpi-figures";
 import type { CoreKpis } from "@/lib/kpi/get-core-kpis";
 import { meterProgress } from "@/lib/money/money";
 import {
@@ -10,11 +10,11 @@ import {
   type PartnerFinanceData,
 } from "@/features/partners/lib/partner-finance";
 
-/** Where a figure opens (NAV-2): the partner has no booking list of its own, so the figures open its KPI and Finance screens. */
+/** Where an operations figure opens (NAV-2): the partner has no booking list of its own, so it opens the KPI screen; the finance figures open Finance. */
 export const PARTNER_KPI_HREF = "/partner/kpi";
-export const PARTNER_FINANCE_HREF = "/partner/finance";
 
 const NONE = "—";
+const NO_COMPLETED_CAPTION = "No completed rentals yet";
 
 /** What the database gave for the overview. A `null` is a read that failed or has nothing to count: it shows a dash. */
 export interface PartnerOverviewInputs {
@@ -75,7 +75,7 @@ function rateTile(label: string, figure: KpiFigure | undefined): PartnerOverview
 
   if (figure === undefined) return { ...base, value: NONE };
   if (figure.state === "not_available") return { ...base, value: formatKpiFigure(figure), caption: figure.reason };
-  if (figure.state === "no_data") return { ...base, value: formatKpiFigure(figure), caption: "No completed rentals yet" };
+  if (figure.state === "no_data") return { ...base, value: formatKpiFigure(figure), caption: NO_COMPLETED_CAPTION };
 
   return { ...base, value: formatKpiFigure(figure), caption: `${figure.numerator} / ${figure.denominator} bookings` };
 }
@@ -86,7 +86,8 @@ function incidentsTile(core: CoreKpis | null, resolved: number | null): PartnerO
   const caption = resolved === null ? undefined : `${resolved} resolved this month`;
 
   if (!figure) return { ...base, value: NONE };
-  if (figure.state === "no_data") return { ...base, value: "0", caption };
+  // The figure counts the incidents of the completed rentals: with none, it is a gap, never a 0 (R13).
+  if (figure.state === "no_data") return { ...base, value: NO_DATA_TEXT, caption: NO_COMPLETED_CAPTION };
 
   return { ...base, value: String(figure.incidents), caption };
 }
@@ -97,7 +98,7 @@ function completedTile(core: CoreKpis | null, monthName: string): PartnerOvervie
 
   if (!figure) return { ...base, value: NONE };
 
-  return { ...base, value: figure.state === "no_data" ? "0" : String(figure.completed_bookings) };
+  return { ...base, value: figure.state === "no_data" ? NO_DATA_TEXT : String(figure.completed_bookings) };
 }
 
 const wholeAmount = (value: number): string => formatTileAmount(value).slice(1);
