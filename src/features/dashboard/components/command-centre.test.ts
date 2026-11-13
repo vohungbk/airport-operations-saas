@@ -2,12 +2,16 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CommandCentre } from "@/features/dashboard/components/command-centre";
 import { DASHBOARD_CHARTS } from "@/features/dashboard/lib/dashboard-charts";
 import type { FlightAlertItem } from "@/features/dashboard/lib/get-flight-alerts";
 import type { DashboardChartResult } from "@/features/dashboard/lib/get-dashboard-charts";
+
+vi.mock("@/features/dashboard/components/dashboard-retry-button", () => ({
+  DashboardRetryButton: () => "RETRY_BUTTON",
+}));
 
 const html = (element: Parameters<typeof renderToStaticMarkup>[0]) =>
   renderToStaticMarkup(element);
@@ -33,6 +37,7 @@ const render = (props: Partial<Parameters<typeof CommandCentre>[0]> = {}) =>
       charts: [],
       flightAlerts: [],
       stock: [],
+      loadedAt: new Date("2026-10-24T08:00:00Z"),
       ...props,
     }),
   );
@@ -232,12 +237,12 @@ describe("Command Centre charts (UI-F06-S05, R7)", () => {
         chartResult("jobs_by_status", [3, 2, 1, 4]),
         chartResult("open_incidents_by_severity", [0, 1, 3, 2]),
       ],
-      stock: [{ label: "Convertible", value: 16 }],
+      stock: [{ label: "Convertible", available: 16, total: 20 }],
     });
 
-    expect(out.match(/data-slot="chart-frame"/g)).toHaveLength(5);
-    expect(out.match(/data-slot="chart-legend"/g)).toHaveLength(5);
-    expect(out.match(/View as table/g)).toHaveLength(5);
+    expect(out.match(/data-slot="chart-frame"/g)).toHaveLength(4);
+    expect(out.match(/data-slot="chart-legend"/g)).toHaveLength(4);
+    expect(out.match(/View as table/g)).toHaveLength(4);
   });
 
   it("should show the chart error with a retry, not zeros, when a count could not be read", () => {
@@ -259,11 +264,11 @@ describe("Command Centre charts (UI-F06-S05, R7)", () => {
     expect(out).not.toContain('data-slot="chart-legend"');
   });
 
-  it("should show the stock by category next to the seats chart, and the chart error when it could not be read", () => {
+  it("should show the stock by category next to the seats chart, and an error when it could not be read", () => {
     const seats = chartResult("seats_by_status", [16, 6, 12, 2, 2, 2, 0]);
     const ready = render({
       charts: [seats],
-      stock: [{ label: "Convertible", value: 16 }],
+      stock: [{ label: "Convertible", available: 16, total: 20 }],
     });
     const failed = render({ charts: [seats], stock: null });
 
@@ -271,19 +276,20 @@ describe("Command Centre charts (UI-F06-S05, R7)", () => {
     expect(ready).toContain("Convertible");
     expect(failed).toContain("Stock by category");
     expect(failed).toContain("This chart could not be loaded.");
+    expect(failed).toContain("RETRY_BUTTON");
   });
 
-  it("should say there is nothing to chart when the stock is empty", () => {
+  it("should say there is no category when the stock is empty", () => {
     const out = render({
       charts: [chartResult("seats_by_status", [1, 0, 0, 0, 0, 0, 0])],
       stock: [],
     });
 
-    expect(out).toContain("No data to chart yet.");
+    expect(out).toContain("No seat categories yet.");
   });
 
   it("should not draw a chart by hand in the dashboard components", () => {
-    for (const file of ["status-chart.tsx", "stock-by-category.tsx"]) {
+    for (const file of ["status-chart.tsx"]) {
       const source = readFileSync(
         join(process.cwd(), "src/features/dashboard/components", file),
         "utf8",
@@ -294,6 +300,35 @@ describe("Command Centre charts (UI-F06-S05, R7)", () => {
       expect(source).not.toContain("<circle");
       expect(source).not.toContain("style={{");
     }
+  });
+});
+
+describe("Command Centre stock by category (VI-F11-S06, AC01)", () => {
+  const seats = chartResult("seats_by_status", [16, 6, 12, 2, 2, 2, 0]);
+  const stock = [
+    { label: "Infant Carrier", available: 10, total: 100 },
+    { label: "Convertible", available: 16, total: 80 },
+    { label: "Booster", available: 8, total: 0 },
+  ];
+
+  it("should show each category with its symbol, its count and the date of the figures", () => {
+    const out = render({ charts: [seats], stock });
+
+    expect(out).toContain("● ");
+    expect(out).toContain("Infant Carrier");
+    expect(out).toMatch(/Convertible<\/span><span[^>]*>16</);
+    expect(out).toContain("Legend: symbol + status label · count · 24 Oct 2026");
+  });
+
+  it("should show a category with no available seat as 0, not hide it", () => {
+    const out = render({ charts: [seats], stock: [{ label: "Booster", available: 0, total: 5 }] });
+
+    expect(out).toMatch(/Booster<\/span><span[^>]*>0</);
+    expect(out).toContain('aria-valuenow="0"');
+  });
+
+  it("should not show a legend line when the stock could not be read", () => {
+    expect(render({ charts: [seats], stock: null })).not.toContain("Legend: symbol");
   });
 });
 

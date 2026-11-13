@@ -48,6 +48,7 @@ export default async function DashboardPage() {
         charts={charts}
         flightAlerts={flightAlerts}
         stock={stock}
+        loadedAt={loadedAt}
         overdueTasks={overdueTasks}
         arrivalsToday={today.arrivals_today}
         installationsDue={today.installations_due}

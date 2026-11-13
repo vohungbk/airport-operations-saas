@@ -11,12 +11,14 @@ import type { AllocationQueue, AllocationQueues } from "@/features/dashboard/lib
 import type { ArrivalQueues } from "@/features/dashboard/lib/get-arrival-queues";
 import type { FlightAlertItem } from "@/features/dashboard/lib/get-flight-alerts";
 import type { DashboardChartResult } from "@/features/dashboard/lib/get-dashboard-charts";
-import type { BarItem } from "@/lib/charts/bar-data";
+import type { StockCategory } from "@/features/dashboard/lib/stock-rows";
 
 interface CommandCentreProps {
   charts: readonly DashboardChartResult[];
   flightAlerts: readonly FlightAlertItem[];
-  stock: readonly BarItem[] | null;
+  stock: readonly StockCategory[] | null;
+  /** When the page counted its figures. */
+  loadedAt: Date;
   /** Jobs past their deadline and not done; `null` when it could not be read (a dash). */
   overdueTasks?: number | null;
   /** Bookings not cancelled that arrive today at their airport; `null` when it could not be read. */
@@ -43,6 +45,7 @@ export function CommandCentre({
   charts,
   flightAlerts,
   stock,
+  loadedAt,
   overdueTasks = null,
   arrivalsToday = null,
   installationsDue = null,
@@ -89,7 +92,7 @@ export function CommandCentre({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {incidents && <StatusChart result={incidents} variant="stacked" />}
-        {seats && <StockByCategory items={stock} />}
+        {seats && <StockByCategory items={stock} loadedAt={loadedAt} />}
       </div>
 
       <OperationalAttention
