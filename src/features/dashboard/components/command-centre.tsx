@@ -38,6 +38,8 @@ interface CommandCentreProps {
   overdueList?: AttentionList | null;
   /** The open incidents, most severe first; `null` when they could not be read. */
   openIncidents?: AttentionList | null;
+  /** The open jobs with their technician and deadline; `null` when they could not be read. */
+  technicianAssignments?: AttentionList | null;
 }
 
 /**
@@ -60,6 +62,7 @@ export function CommandCentre({
   quarantineQueue = null,
   overdueList = null,
   openIncidents = null,
+  technicianAssignments = null,
 }: CommandCentreProps) {
   const chart = (id: string) => charts.find((result) => result.chart.id === id);
   const seats = chart("seats_by_status");
@@ -109,6 +112,7 @@ export function CommandCentre({
         quarantineQueue={quarantineQueue}
         overdueList={overdueList}
         openIncidents={openIncidents}
+        technicianAssignments={technicianAssignments}
       />
     </div>
   );
