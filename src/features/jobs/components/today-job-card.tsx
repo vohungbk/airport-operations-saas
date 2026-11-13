@@ -24,8 +24,8 @@ function locationOf(job: TodayJob): string {
 }
 
 /**
- * The job to do first, as the design draws it (UI-F07-S01, spec R1). The job number, the partner and the
- * deadline have no source yet (no job number column, the partner is not readable by a technician, no
+ * The job to do first, as the design draws it (UI-F07-S01, spec R1). The partner is the name given to the
+ * technician (VI-F11-T02). The job number and the deadline have no source yet (no job number column, no
  * deadline formula), so they are a dash.
  */
 export function TodayJobCard({ job }: TodayJobCardProps) {
@@ -37,7 +37,7 @@ export function TodayJobCard({ job }: TodayJobCardProps) {
       <KeyValue label="Booking" mono>
         {job.booking_number}
       </KeyValue>
-      <KeyValue label="Partner">{NONE}</KeyValue>
+      <KeyValue label="Partner">{job.partner_name ?? NONE}</KeyValue>
       <KeyValue label="Location">{locationOf(job)}</KeyValue>
       <KeyValue label="Vehicle">{job.vehicle ?? NONE}</KeyValue>
       <KeyValue label="Required category">

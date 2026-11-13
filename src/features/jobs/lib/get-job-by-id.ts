@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getTechnicianJobPartnerNames } from "@/features/jobs/lib/get-technician-job-partner-names";
 import { jobIdSchema } from "@/features/jobs/schemas/jobs-query.schema";
 import type { JobDetailItem } from "@/features/jobs/types";
 
@@ -10,7 +11,8 @@ import type { JobDetailItem } from "@/features/jobs/types";
  * columns, so this list is what keeps that data out of the page.
  */
 /**
- * `withPartner` adds the partner name of the booking, for a manager only: a technician never gets it.
+ * `withPartner` adds the partner name of the booking through the partners table, for a manager. A technician cannot read that
+ * table: the name of the partner of their own job comes from `getTechnicianJobPartnerNames` instead (VI-F11-T02).
  */
 export function buildJobDetailSelect(withPartner: boolean): string {
   const partner = withPartner ? ", partner:partners(name)" : "";
@@ -58,5 +60,13 @@ export async function getJobById(
     throw error;
   }
 
-  return data as unknown as JobDetailItem | null;
+  const job = data as unknown as JobDetailItem | null;
+
+  if (job && !withPartner && job.booking) {
+    const name = (await getTechnicianJobPartnerNames(supabase, [job.id])).get(job.id);
+
+    if (name) job.booking.partner = { name };
+  }
+
+  return job;
 }
