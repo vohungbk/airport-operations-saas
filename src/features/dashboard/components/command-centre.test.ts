@@ -413,6 +413,25 @@ describe("Operational attention active and returned (VI-F11-S04, AC01)", () => {
   });
 });
 
+describe("Operational attention damaged or quarantined (VI-F11-S05, AC01)", () => {
+  it("should show the seats in quarantine with their count and a link to the next seat", () => {
+    const out = render({
+      quarantineQueue: {
+        count: 2,
+        next: { href: "/seats/s-7", label: "SEAT-0007 · Infant", status_label: "Quarantine" },
+      },
+    });
+
+    expect(out).toContain("Damaged or quarantined (2)");
+    expect(out).toContain('href="/seats/s-7"');
+  });
+
+  it("should show a count of 0 when no seat is in quarantine, and no count when it could not be read", () => {
+    expect(render({ quarantineQueue: { count: 0, next: null } })).toContain("Damaged or quarantined (0)");
+    expect(render({ quarantineQueue: null })).not.toContain("Damaged or quarantined (");
+  });
+});
+
 describe("Command Centre chart style", () => {
   const charts = [
     chartResult("seats_by_status", [16, 6, 12, 2, 2, 2, 0]),
