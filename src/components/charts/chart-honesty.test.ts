@@ -147,7 +147,12 @@ describe("the table view (AC03, AC04, NAV-1)", () => {
 describe("the name of the drawing (AC06, E5)", () => {
   it("should give the drawing of the library the name a keyboard user lands on", () => {
     const named = withChartName(createElement("div"), "Seats by status");
-    expect((named.props as { title?: string }).title).toBe("Seats by status");
+    expect((named.props as { "aria-label"?: string })["aria-label"]).toBe("Seats by status");
+  });
+
+  it("should not give the drawing a title, which the browser would show as a tooltip over the values", () => {
+    const named = withChartName(createElement("div"), "Seats by status");
+    expect(named.props).not.toHaveProperty("title");
   });
 });
 

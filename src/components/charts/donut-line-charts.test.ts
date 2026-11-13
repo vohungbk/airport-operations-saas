@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { ChartMarker } from "@/components/charts/chart-markers";
+import { CHART_TOOLTIP_WRAPPER_STYLE } from "@/components/charts/chart-tooltip";
 import { DonutChart, type DonutChartProps } from "@/components/charts/donut-chart";
 import { LineTrendChart, type LineTrendChartProps } from "@/components/charts/line-chart";
 import { SERIES_MARKERS, seriesColor } from "@/lib/charts/chart-tokens";
@@ -36,6 +37,11 @@ describe("DonutChart", () => {
     expect(out).toContain('data-slot="donut-total"');
     expect(out).toMatch(/data-slot="donut-total"[^>]*>.*>193</);
     expect(out).toContain("Total");
+  });
+
+  it("should lift the tooltip above the total in the middle, so the total does not cover it", () => {
+    expect(CHART_TOOLTIP_WRAPPER_STYLE.zIndex).toBeGreaterThan(0);
+    expect(donut()).toContain('data-slot="donut-total"');
   });
 
   it("should write every slice with its value and share for a screen reader, and the total", () => {
