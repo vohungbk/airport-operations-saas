@@ -38,7 +38,9 @@ interface JobDetailProps {
   /** The last cleaning and inspection of the seat; null hides the line. */
   lastWork?: Promise<SeatLastWorkState> | null;
   /** A step that was just saved, from the address; shows its toast once. */
-  saved?: "inspection" | null;
+  saved?: "inspection" | "job" | null;
+  /** Where the Edit button goes, for a manager; `null` hides it. */
+  editHref?: string | null;
 }
 
 /** `04 Nov 2026 14:30 GST`, in the airport time zone; `-` when the value is empty. */
@@ -102,6 +104,7 @@ export function JobDetail({
   links = NO_LINKS,
   lastWork = null,
   saved = null,
+  editHref = null,
 }: JobDetailProps) {
   const { booking } = job;
   const timeZone = booking?.airport?.timezone ?? "UTC";
@@ -112,6 +115,7 @@ export function JobDetail({
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
       {saved === "inspection" && <SavedToast message="Inspection saved" />}
+      {saved === "job" && <SavedToast message="Job saved" />}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <h1 className="min-w-0 text-2xl leading-8 font-semibold break-words text-primary-subtle-foreground">
           {job.job_number}
@@ -139,6 +143,17 @@ export function JobDetail({
               currentStatus={job.status}
               allowedStatuses={allowedStatuses}
             />
+          )}
+          {editHref && (
+            <Link
+              href={editHref}
+              className={buttonVariants({
+                variant: "outline",
+                className: "min-h-11 rounded-lg bg-surface px-4",
+              })}
+            >
+              Edit
+            </Link>
           )}
           <Link
             href="/jobs"
