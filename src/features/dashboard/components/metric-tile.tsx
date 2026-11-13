@@ -1,3 +1,4 @@
+import { UNAVAILABLE_TEXT } from "@/features/dashboard/lib/failed-queues";
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,7 +46,7 @@ export function MetricTile({ metric, value, notReleased = false }: MetricTilePro
           <p className="text-sm text-muted-foreground">{metric.label}</p>
           {value === null ? (
             <p className="text-lg font-medium text-muted-foreground">
-              Unavailable
+              {UNAVAILABLE_TEXT}
             </p>
           ) : (
             <p className="text-3xl font-semibold tracking-tight text-foreground">
