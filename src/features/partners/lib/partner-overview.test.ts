@@ -139,11 +139,11 @@ describe("buildPartnerOverview (VI-F11-S10)", () => {
     });
   });
 
-  it("should count no completed rentals and no incidents as 0 when the KPI has no completed booking", () => {
+  it("should say No data, never 0, for the incidents and completed rentals when no rental is completed (R13)", () => {
     const view = buildPartnerOverview({ ...FULL, core: { ...CORE, incidents: { state: "no_data" } } }, NOW);
 
-    expect(tile(view, "Completed rentals")?.value).toBe("0");
-    expect(tile(view, "Operational incidents")?.value).toBe("0");
+    expect(tile(view, "Completed rentals")?.value).toBe("No data");
+    expect(tile(view, "Operational incidents")).toMatchObject({ value: "No data", caption: "No completed rentals yet" });
   });
 
   it("should not promise a share change once the launch is over, and not draw a bar with no target", () => {
