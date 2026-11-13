@@ -192,18 +192,23 @@ describe("Command Centre banners", () => {
     expect(out).toContain("EK 215 · Arrival 19:20 GMT+4");
   });
 
-  it("should say the deadline moved and give the new time when a delay moved it (UI-F06-T01, AC03)", () => {
-    const out = render({ flightAlerts: alerts });
+  it("should say the deadline moved in the title of a delay and on the detail line of every banner (VI-F11-S09)", () => {
+    const out = render({
+      flightAlerts: [{ ...alerts[0], deadline_label: "15:15 GMT+4" }, alerts[1]],
+    });
 
     expect(out).toContain("DELAYED 50 MINUTES, DEADLINE MOVED");
-    expect(out).toContain("New deadline: 20:10 GMT+4");
+    expect(out).toContain("EK 203 · New arrival 15:45 GMT+4 · BK-2026-000123 · Installation deadline moved to 15:15 GMT+4.");
+    expect(out).toContain("EK 215 · Arrival 19:20 GMT+4 · Installation deadline moved to 20:10 GMT+4.");
+    expect(out).not.toContain("New deadline");
+    expect(out).not.toContain("technicians notified");
   });
 
   it("should not write a deadline for a flight whose deadline did not move", () => {
     const out = render({ flightAlerts: [alerts[0]] });
 
     expect(out).not.toContain("DEADLINE MOVED");
-    expect(out).not.toContain("New deadline");
+    expect(out).not.toContain("Installation deadline moved");
   });
 
   it("should not write a deadline for a delayed flight with no deadline stored", () => {

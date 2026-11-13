@@ -99,13 +99,13 @@ describe("getFlightAlerts deadline (UI-F06-T01, AC03)", () => {
     expect((await getFlightAlerts(NOW))[0].deadline_label).toBeNull();
   });
 
-  it("should give no deadline for an early flight", async () => {
+  it("should give the moved deadline for an early flight too (VI-F11-S09)", async () => {
     mockFlights([flight({ estimated_arrival_at: "2026-11-04T11:10:00Z" })]);
 
     const [alert] = await getFlightAlerts(NOW);
 
     expect(alert.kind).toBe("early");
-    expect(alert.deadline_label).toBeNull();
+    expect(alert.deadline_label).toBe("16:55 GST");
   });
 });
 

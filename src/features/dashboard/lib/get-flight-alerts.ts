@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_BOOKING_STATUSES } from "@/features/bookings/lib/booking-status";
-import { OPEN_JOB_STATUSES } from "@/features/jobs/lib/job-deadline";
-import type { JobStatus } from "@/features/jobs/lib/job-status";
+import { formatClock, getInstallationDeadline, type DeadlineJob } from "@/features/flights/lib/flight-panel";
 import { sortFlightAlerts } from "@/features/dashboard/lib/sort-flight-alerts";
 import {
   classifyFlight,
@@ -21,16 +20,10 @@ export interface FlightAlertItem {
   /** A booking linked to the flight, or null when none is. */
   booking_number: string | null;
   /**
-   * The new installation deadline, in the time zone of the airport, when the delay moved the deadline of
-   * an open installation job of the linked booking; null for an early flight or when no job has one.
+   * The moved installation deadline, in the time zone of the airport, of an open installation job of the
+   * linked booking (a delay or an early arrival moved it); null when no job has one.
    */
   deadline_label: string | null;
-}
-
-interface FlightJobRow {
-  deadline_at: string | null;
-  status: JobStatus;
-  job_type: string;
 }
 
 interface FlightRow {
@@ -42,7 +35,7 @@ interface FlightRow {
   actual_arrival_at: string | null;
   delay_minutes: number | null;
   airport: { timezone: string } | null;
-  bookings: { booking_number: string; status: string; technician_jobs: FlightJobRow[] | null }[] | null;
+  bookings: { booking_number: string; status: string; technician_jobs: DeadlineJob[] | null }[] | null;
 }
 
 const HOUR_MS = 3_600_000;
@@ -52,18 +45,12 @@ const MINUTE_MS = 60_000;
 const FLIGHTS_SELECT =
   "id, flight_number, status, scheduled_arrival_at, estimated_arrival_at, actual_arrival_at, delay_minutes, airport:airports(timezone), bookings(booking_number, status, technician_jobs(deadline_at, status, job_type))";
 
-function formatClock(iso: string, flight: FlightRow): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: flight.airport?.timezone ?? "UTC",
-    timeZoneName: "short",
-  }).format(new Date(iso));
+function clockAt(iso: string, flight: FlightRow): string {
+  return formatClock(iso, flight.airport?.timezone ?? "UTC");
 }
 
 function formatArrival(flight: FlightRow, offset: number): string {
-  return formatClock(
+  return clockAt(
     flight.actual_arrival_at ??
       flight.estimated_arrival_at ??
       new Date(
@@ -74,21 +61,13 @@ function formatArrival(flight: FlightRow, offset: number): string {
 }
 
 /**
- * The deadline a delay moved: the earliest deadline of the open installation jobs of the first linked
+ * The deadline a delay or an early arrival moved: the earliest deadline of the open installation jobs of the first linked
  * booking, the booking the banner names. Nothing stored gives null, and no line is written.
  */
 function formatMovedDeadline(flight: FlightRow): string | null {
-  const deadlines = (flight.bookings?.[0]?.technician_jobs ?? [])
-    .filter(
-      (job) =>
-        job.job_type === "installation" &&
-        job.deadline_at !== null &&
-        (OPEN_JOB_STATUSES as readonly JobStatus[]).includes(job.status),
-    )
-    .map((job) => job.deadline_at as string)
-    .sort((a, b) => Date.parse(a) - Date.parse(b));
+  const deadline = getInstallationDeadline(flight.bookings?.[0]?.technician_jobs);
 
-  return deadlines.length > 0 ? formatClock(deadlines[0], flight) : null;
+  return deadline ? clockAt(deadline, flight) : null;
 }
 
 /**
@@ -135,7 +114,7 @@ export async function getFlightAlerts(
             flight_number: flight.flight_number,
             kind: disruption,
             minutes: 0,
-            arrival_label: formatClock(flight.scheduled_arrival_at, flight),
+            arrival_label: clockAt(flight.scheduled_arrival_at, flight),
             booking_number: openBooking.booking_number,
             deadline_label: null,
           });
@@ -157,8 +136,7 @@ export async function getFlightAlerts(
         minutes: Math.abs(offset),
         arrival_label: formatArrival(flight, offset),
         booking_number: flight.bookings?.[0]?.booking_number ?? null,
-        deadline_label:
-          timing === "delayed" ? formatMovedDeadline(flight) : null,
+        deadline_label: formatMovedDeadline(flight),
       });
     }
 
