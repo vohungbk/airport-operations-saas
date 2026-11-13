@@ -2725,6 +2725,19 @@ export type Database = {
           timezone: string
         }[]
       }
+      command_centre_allocation_queues: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          detail: string | null
+          due_at: string | null
+          item_id: string
+          queue: string
+          status: string
+          timezone: string | null
+          title: string | null
+          total: number
+        }[]
+      }
       kpi_today_figures: {
         Args: { p_now?: string }
         Returns: {
