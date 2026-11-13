@@ -343,6 +343,49 @@ describe("Operational attention", () => {
   });
 });
 
+describe("Operational attention allocation queues (VI-F11-S03, AC01)", () => {
+  const empty = { count: 0, next: null };
+  const allocationQueues = {
+    allocation: {
+      count: 3,
+      next: { href: "/bookings/bk-1", label: "BK-2026-000131 · Infant Carrier", status_label: "New" },
+    },
+    installations: {
+      count: 2,
+      next: { href: "/jobs/job-1", label: "Omar Haddad · Bay C-14 · 15:15 GST", status_label: "Assigned" },
+    },
+    cleaning: { count: 1, next: { href: "/seats/s-1", label: "SEAT-0018 · Infant", status_label: "Cleaning" } },
+    inspection: empty,
+  };
+
+  it("should show each queue with its count and a link to its next item, in the nine rows of the design", () => {
+    const out = render({ allocationQueues });
+
+    expect(out).toContain("Seats requiring allocation (3)");
+    expect(out).toContain("Installations due (2)");
+    expect(out).toContain("Cleaning queue (1)");
+    expect(out).toContain('href="/bookings/bk-1"');
+    expect(out).toContain('href="/jobs/job-1"');
+    expect(out).toContain('href="/seats/s-1"');
+    expect(out).toContain("Assigned");
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(9);
+  });
+
+  it("should show a count of 0 and a dash for a queue with nothing in it", () => {
+    const out = render({ allocationQueues });
+
+    expect(out).toContain("Inspection queue (0)");
+  });
+
+  it("should show no count, only the plain name and a dash, when the queues could not be read", () => {
+    const out = render({ allocationQueues: null });
+
+    expect(out).toContain("Seats requiring allocation");
+    expect(out).not.toContain("Seats requiring allocation (");
+    expect(out).not.toContain('href="/jobs/');
+  });
+});
+
 describe("Command Centre chart style", () => {
   const charts = [
     chartResult("seats_by_status", [16, 6, 12, 2, 2, 2, 0]),
