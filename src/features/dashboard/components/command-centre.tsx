@@ -11,6 +11,7 @@ import type { AllocationQueue, AllocationQueues } from "@/features/dashboard/lib
 import type { ArrivalQueues } from "@/features/dashboard/lib/get-arrival-queues";
 import type { FlightAlertItem } from "@/features/dashboard/lib/get-flight-alerts";
 import type { DashboardChartResult } from "@/features/dashboard/lib/get-dashboard-charts";
+import type { AttentionList } from "@/features/dashboard/lib/attention-list";
 import type { StockCategory } from "@/features/dashboard/lib/stock-rows";
 
 interface CommandCentreProps {
@@ -33,6 +34,10 @@ interface CommandCentreProps {
   activeReturned?: ActiveReturned | null;
   /** Seats damaged or in quarantine with their count; `null` when they could not be read. */
   quarantineQueue?: AllocationQueue | null;
+  /** The overdue jobs, longest overdue first; `null` when they could not be read. */
+  overdueList?: AttentionList | null;
+  /** The open incidents, most severe first; `null` when they could not be read. */
+  openIncidents?: AttentionList | null;
 }
 
 /**
@@ -53,6 +58,8 @@ export function CommandCentre({
   allocationQueues = null,
   activeReturned = null,
   quarantineQueue = null,
+  overdueList = null,
+  openIncidents = null,
 }: CommandCentreProps) {
   const chart = (id: string) => charts.find((result) => result.chart.id === id);
   const seats = chart("seats_by_status");
@@ -100,6 +107,8 @@ export function CommandCentre({
         allocationQueues={allocationQueues}
         activeReturned={activeReturned}
         quarantineQueue={quarantineQueue}
+        overdueList={overdueList}
+        openIncidents={openIncidents}
       />
     </div>
   );

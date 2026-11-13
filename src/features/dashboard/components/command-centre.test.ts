@@ -333,7 +333,7 @@ describe("Command Centre stock by category (VI-F11-S06, AC01)", () => {
 });
 
 describe("Operational attention", () => {
-  it("should list the nine queues of the design, each with a dash for its next item and status", () => {
+  it("should list the twelve queues of the design, each with a dash for its next item and status", () => {
     const out = render();
 
     for (const queue of [
@@ -342,10 +342,11 @@ describe("Operational attention", () => {
       "Cleaning queue",
       "Damaged or quarantined",
       "Overdue tasks",
+      "Open incidents",
     ]) {
       expect(out).toContain(queue);
     }
-    expect(out.match(/data-label="Queue"/g)).toHaveLength(11);
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(12);
     expect(out).toContain('data-stacked=""');
   });
 
@@ -367,14 +368,14 @@ describe("Operational attention", () => {
     expect(out).toContain('href="/bookings/u1"');
     expect(out).toContain("Technician Assigned");
     expect(out).toContain("Allocated");
-    expect(out.match(/data-label="Queue"/g)).toHaveLength(12);
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(13);
   });
 
   it("should keep a dash for a queue that has no booking", () => {
     const out = render({ arrivalQueues: { arrivals_today: [], upcoming_bookings: [] } });
 
     expect(out).not.toContain('href="/bookings/');
-    expect(out.match(/data-label="Queue"/g)).toHaveLength(11);
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(12);
   });
 });
 
@@ -393,7 +394,7 @@ describe("Operational attention allocation queues (VI-F11-S03, AC01)", () => {
     inspection: empty,
   };
 
-  it("should show each queue with its count and a link to its next item, in the eleven rows of the table", () => {
+  it("should show each queue with its count and a link to its next item, in the twelve rows of the table", () => {
     const out = render({ allocationQueues });
 
     expect(out).toContain("Seats requiring allocation (3)");
@@ -403,7 +404,7 @@ describe("Operational attention allocation queues (VI-F11-S03, AC01)", () => {
     expect(out).toContain('href="/jobs/job-1"');
     expect(out).toContain('href="/seats/s-1"');
     expect(out).toContain("Assigned");
-    expect(out.match(/data-label="Queue"/g)).toHaveLength(11);
+    expect(out.match(/data-label="Queue"/g)).toHaveLength(12);
   });
 
   it("should show a count of 0 and a dash for a queue with nothing in it", () => {
@@ -512,5 +513,43 @@ describe("Command Centre chart content", () => {
     expect(out.indexOf("Low")).toBeLessThan(out.indexOf("Medium"));
     expect(out.indexOf("Medium")).toBeLessThan(out.indexOf("High"));
     expect(out.indexOf("High")).toBeLessThan(out.indexOf("Critical"));
+  });
+});
+
+describe("Overdue tasks and open incidents (VI-F11-S08)", () => {
+  const item = (id: string, label: string) => ({ id, href: `/jobs/${id}`, label, status_label: "Assigned" });
+
+  it("should list the overdue items with a link to each one (AC01)", () => {
+    const out = render({
+      overdueList: { count: 2, items: [item("j-1", "JOB-1 · Cleaning"), item("j-2", "JOB-2 · Inspection")] },
+    });
+
+    expect(out).toContain('href="/jobs/j-1"');
+    expect(out.indexOf("JOB-1")).toBeLessThan(out.indexOf("JOB-2"));
+    expect(out).not.toContain("View all");
+  });
+
+  it.each([
+    ["overdueList", "No overdue tasks."],
+    ["openIncidents", "No open incidents."],
+  ])("should show an empty message when %s has no item (AC02)", (prop, message) => {
+    expect(render({ [prop]: { count: 0, items: [] } })).toContain(message);
+  });
+
+  it.each([
+    ["overdueList", "/jobs?deadline=overdue"],
+    ["openIncidents", "/incidents?status=open"],
+  ])("should link to the full list when %s has more items than it shows (AC03)", (prop, href) => {
+    const out = render({ [prop]: { count: 12, items: [item("x-1", "First")] } });
+
+    expect(out).toContain(`href="${href}"`);
+    expect(out).toContain("View all (12)");
+  });
+
+  it("should show a dash, not an empty message, when a list could not be read", () => {
+    const out = render({ overdueList: null, openIncidents: null });
+
+    expect(out).not.toContain("No overdue tasks.");
+    expect(out).not.toContain("No open incidents.");
   });
 });
