@@ -537,6 +537,7 @@ describe("Overdue tasks and open incidents (VI-F11-S08)", () => {
   it.each([
     ["overdueList", "No overdue tasks."],
     ["openIncidents", "No open incidents."],
+    ["technicianAssignments", "No technician assignments."],
   ])("should show an empty message when %s has no item (AC02)", (prop, message) => {
     expect(render({ [prop]: { count: 0, items: [] } })).toContain(message);
   });
@@ -544,6 +545,7 @@ describe("Overdue tasks and open incidents (VI-F11-S08)", () => {
   it.each([
     ["overdueList", "/jobs?deadline=overdue"],
     ["openIncidents", "/incidents?status=open"],
+    ["technicianAssignments", "/jobs"],
   ])("should link to the full list when %s has more items than it shows (AC03)", (prop, href) => {
     const out = render({ [prop]: { count: 12, items: [item("x-1", "First")] } });
 
@@ -552,9 +554,26 @@ describe("Overdue tasks and open incidents (VI-F11-S08)", () => {
   });
 
   it("should show a dash, not an empty message, when a list could not be read", () => {
-    const out = render({ overdueList: null, openIncidents: null });
+    const out = render({ overdueList: null, openIncidents: null, technicianAssignments: null });
 
     expect(out).not.toContain("No overdue tasks.");
     expect(out).not.toContain("No open incidents.");
+    expect(out).not.toContain("No technician assignments.");
+  });
+
+  it("should list the technician assignments with a link to each job (VI-F11-S07, AC01)", () => {
+    const out = render({
+      technicianAssignments: {
+        count: 2,
+        items: [
+          item("j-1", "Amina Khan · JOB-1 · Cleaning"),
+          item("j-2", "Omar Ali · JOB-2 · Inspection"),
+        ],
+      },
+    });
+
+    expect(out).toContain('href="/jobs/j-1"');
+    expect(out).toContain("Amina Khan");
+    expect(out.indexOf("JOB-1")).toBeLessThan(out.indexOf("JOB-2"));
   });
 });
