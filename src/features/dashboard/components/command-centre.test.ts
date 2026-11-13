@@ -110,9 +110,10 @@ describe("Command Centre Overdue tasks tile (UI-F06-T01, AC05)", () => {
     expect(render({ overdueTasks: 0 })).toContain('aria-label="Overdue tasks: 0"');
   });
 
-  it("should show a dash and no link when the figure could not be read", () => {
+  it("should say Unavailable and show no link when the figure could not be read", () => {
     const out = render({ overdueTasks: null });
 
+    expect(out).toMatch(/Overdue tasks<\/p><p[^>]*>Unavailable</);
     expect(out).not.toContain("/jobs?deadline=overdue");
     expect(out).not.toContain("Overdue tasks: 0");
   });
@@ -133,11 +134,11 @@ describe("Command Centre Arrivals today and Installations due tiles (VI-F05-T02,
     expect(out).toMatch(/Installations due<\/p><p[^>]*>0</);
   });
 
-  it("should show a dash when a figure could not be read", () => {
+  it("should say Unavailable, not a dash or 0, when a figure could not be read (VI-F11-S13, AC01)", () => {
     const out = render({ arrivalsToday: null, installationsDue: null });
 
-    expect(out).toMatch(/Arrivals today<\/p><p[^>]*>—</);
-    expect(out).toMatch(/Installations due<\/p><p[^>]*>—</);
+    expect(out).toMatch(/Arrivals today<\/p><p[^>]*>Unavailable</);
+    expect(out).toMatch(/Installations due<\/p><p[^>]*>Unavailable</);
   });
 });
 
@@ -553,12 +554,13 @@ describe("Overdue tasks and open incidents (VI-F11-S08)", () => {
     expect(out).toContain("View all (12)");
   });
 
-  it("should show a dash, not an empty message, when a list could not be read", () => {
+  it("should say Unavailable, not an empty message, when a list could not be read", () => {
     const out = render({ overdueList: null, openIncidents: null, technicianAssignments: null });
 
     expect(out).not.toContain("No overdue tasks.");
     expect(out).not.toContain("No open incidents.");
     expect(out).not.toContain("No technician assignments.");
+    expect(out.match(/>Unavailable</g)).toHaveLength(3);
   });
 
   it("should list the technician assignments with a link to each job (VI-F11-S07, AC01)", () => {
@@ -575,5 +577,27 @@ describe("Overdue tasks and open incidents (VI-F11-S08)", () => {
     expect(out).toContain('href="/jobs/j-1"');
     expect(out).toContain("Amina Khan");
     expect(out.indexOf("JOB-1")).toBeLessThan(out.indexOf("JOB-2"));
+  });
+});
+
+describe("Command Centre partial failure (VI-F11-S13, AC01, E3)", () => {
+  it("should say Unavailable in the block that failed and still show every block that loaded", () => {
+    const out = render({
+      arrivalsToday: 12,
+      installationsDue: 5,
+      overdueTasks: null,
+      arrivalQueues: null,
+      openIncidents: { count: 1, items: [{ id: "i-1", href: "/incidents/i-1", label: "damage · High", status_label: "Open" }] },
+    });
+
+    expect(out).toMatch(/Arrivals today<\/p><p[^>]*>12</);
+    expect(out).toMatch(/Overdue tasks<\/p><p[^>]*>Unavailable</);
+    expect(out).toContain('href="/incidents/i-1"');
+    // The Overdue tasks tile and the two queues of the failed arrivals source.
+    expect(out.match(/>Unavailable</g)).toHaveLength(3);
+  });
+
+  it("should not say Unavailable for a source that was not given", () => {
+    expect(render()).not.toContain("Unavailable");
   });
 });

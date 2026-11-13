@@ -46,23 +46,23 @@ interface CommandCentreProps {
  * The Command Centre as the design draws it (UI-F06-S04): the tiles, the flight banners, the status charts
  * side by side, the incidents and the stock, and the queues. Arrivals today and Installations due have their
  * numbers from the KPI figures (VI-F05-T02) and Overdue tasks from the rule of the jobs list; a figure that
- * could not be read, and Active rentals, show a dash. A chart shows only for a role that may see its figures.
+ * could not be read says Unavailable (VI-F11-S13) and Active rentals shows a dash. A chart shows only for a role that may see its figures.
  */
 export function CommandCentre({
   charts,
   flightAlerts,
   stock,
   loadedAt,
-  overdueTasks = null,
-  arrivalsToday = null,
-  installationsDue = null,
-  arrivalQueues = null,
-  allocationQueues = null,
-  activeReturned = null,
-  quarantineQueue = null,
-  overdueList = null,
-  openIncidents = null,
-  technicianAssignments = null,
+  overdueTasks,
+  arrivalsToday,
+  installationsDue,
+  arrivalQueues,
+  allocationQueues,
+  activeReturned,
+  quarantineQueue,
+  overdueList,
+  openIncidents,
+  technicianAssignments,
 }: CommandCentreProps) {
   const chart = (id: string) => charts.find((result) => result.chart.id === id);
   const seats = chart("seats_by_status");
@@ -73,20 +73,21 @@ export function CommandCentre({
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <OverviewTile label="Arrivals today" value={arrivalsToday ?? undefined} />
-        <OverviewTile label="Installations due" value={installationsDue ?? undefined} />
+        <OverviewTile label="Arrivals today" value={arrivalsToday ?? undefined} unavailable={arrivalsToday === null} />
+        <OverviewTile label="Installations due" value={installationsDue ?? undefined} unavailable={installationsDue === null} />
         <OverviewTile label="Active rentals" />
         <OverviewTile
           label="Overdue tasks"
           value={overdueTasks ?? undefined}
-          href={overdueTasks === null ? undefined : OVERDUE_JOBS_HREF}
+          unavailable={overdueTasks === null}
+          href={typeof overdueTasks === "number" ? OVERDUE_JOBS_HREF : undefined}
         />
       </div>
 
       {isNothingToAttend({
-        arrivalsToday,
-        installationsDue,
-        overdueTasks,
+        arrivalsToday: arrivalsToday ?? null,
+        installationsDue: installationsDue ?? null,
+        overdueTasks: overdueTasks ?? null,
         flightAlertCount: flightAlerts.length,
       }) && <PageEmpty message="Nothing needs attention today." />}
 

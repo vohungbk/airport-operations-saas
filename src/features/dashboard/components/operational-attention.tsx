@@ -14,6 +14,7 @@ import type { ActiveReturned } from "@/features/dashboard/lib/get-active-returne
 import type { AllocationQueue, AllocationQueueId, AllocationQueues } from "@/features/dashboard/lib/get-allocation-queues";
 import type { ArrivalQueueItem, ArrivalQueues } from "@/features/dashboard/lib/get-arrival-queues";
 import type { AttentionList } from "@/features/dashboard/lib/attention-list";
+import { isQueueUnavailable, UNAVAILABLE_TEXT, type QueueSources } from "@/features/dashboard/lib/failed-queues";
 import { OPEN_INCIDENTS_HREF } from "@/features/dashboard/lib/get-open-incidents";
 import { OVERDUE_JOBS_HREF } from "@/features/dashboard/lib/get-overdue-jobs";
 import { TECHNICIAN_ASSIGNMENTS_HREF } from "@/features/dashboard/lib/get-technician-assignments";
@@ -101,18 +102,19 @@ function BookingItem({ item }: { item: ArrivalQueueItem }) {
  * Installations due and the Cleaning and Inspection queues show their count in the name and one next item
  * (VI-F11-S03); so do Active rentals and Returned seats (VI-F11-S04) and Damaged or quarantined
  * (VI-F11-S05). Technician assignments, Overdue tasks and Open incidents list their first five items, an empty message when there
- * is none, and a link to the full list when there are more (VI-F11-S08). A queue with no item or that could not be read, and the queues not built yet (another
- * ticket), show a dash.
+ * is none, and a link to the full list when there are more (VI-F11-S08). A queue whose source could not be read says Unavailable and the others still load (VI-F11-S13); a queue with no item shows a dash.
  */
 export function OperationalAttention({
-  arrivalQueues = null,
-  allocationQueues = null,
-  activeReturned = null,
-  quarantineQueue = null,
-  technicianAssignments = null,
-  overdueList = null,
-  openIncidents = null,
+  arrivalQueues,
+  allocationQueues,
+  activeReturned,
+  quarantineQueue,
+  technicianAssignments,
+  overdueList,
+  openIncidents,
 }: OperationalAttentionProps) {
+  const sources: QueueSources = { arrivalQueues, allocationQueues, activeReturned, quarantineQueue, technicianAssignments, overdueList, openIncidents };
+
   const listsByQueue: Partial<Record<keyof typeof LISTED_QUEUES, AttentionList | null>> = {
     "Technician assignments": technicianAssignments,
     "Overdue tasks": overdueList,
@@ -153,6 +155,10 @@ export function OperationalAttention({
             </TableHeader>
             <TableBody className="sm:[&_tr]:border-0">
               {QUEUES.flatMap((queue) => {
+                if (isQueueUnavailable(queue, sources)) {
+                  return <QueueRow key={queue} queue={queue} next={<span className="text-muted-foreground">{UNAVAILABLE_TEXT}</span>} />;
+                }
+
                 const counted = countedQueues[queue];
 
                 if (counted) {
