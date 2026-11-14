@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils"
 
 interface DatePickerProps extends Omit<CalendarProps, "className"> {
   placeholder?: string
+  /** How the picked day reads in the box (for example `1 Oct 2026`); the value itself stays `YYYY-MM-DD`. */
+  formatValue?: (value: string) => string
   disabled?: boolean
   "aria-invalid"?: boolean
   className?: string
@@ -20,6 +22,7 @@ function DatePicker({
   min,
   max,
   placeholder = "Pick a date",
+  formatValue,
   disabled,
   className,
   ...props
@@ -38,7 +41,7 @@ function DatePicker({
           className
         )}
       >
-        <span className="min-w-0 truncate">{value ?? placeholder}</span>
+        <span className="min-w-0 truncate">{value ? (formatValue ? formatValue(value) : value) : placeholder}</span>
         <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>

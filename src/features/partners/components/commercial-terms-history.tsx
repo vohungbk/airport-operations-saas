@@ -1,39 +1,76 @@
-import { TermsCard } from "@/features/partners/components/commercial-terms-summary";
-import type { CommercialTermsVersion } from "@/features/partners/lib/commercial-terms";
+import { Check } from "lucide-react";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type { TermsHistoryRow } from "@/features/partners/lib/commercial-terms";
 
 interface CommercialTermsHistoryProps {
-  earlier: CommercialTermsVersion[];
+  rows: TermsHistoryRow[];
+  /** `v3`, shown under the table; null when the partner has no terms. */
+  currentLabel: string | null;
   /** Older versions were cut off by the limit. */
   truncated: boolean;
   limit: number;
 }
 
 /**
- * VI-F04 R2: the terms that have ended, with the days they applied, read only. Earlier terms are
- * kept as they were, so what a completed rental was calculated with can still be explained.
+ * VI-F04 R2: the "Terms history" card of the design, read only. Every version is kept as it was, so
+ * what a completed rental was calculated with can still be explained.
  */
-export function CommercialTermsHistory({ earlier, truncated, limit }: CommercialTermsHistoryProps) {
+export function CommercialTermsHistory({ rows, currentLabel, truncated, limit }: CommercialTermsHistoryProps) {
   return (
-    <section aria-labelledby="terms-history-heading" className="flex flex-col gap-4">
-      <h2 id="terms-history-heading" className="text-lg font-medium text-foreground">
-        Earlier terms
-      </h2>
+    <section aria-labelledby="terms-history-heading" className="flex flex-col gap-3 rounded-xl border bg-card p-6">
+      <div className="flex flex-col gap-1">
+        <h2 id="terms-history-heading" className="text-sm font-semibold text-foreground">
+          Terms history
+        </h2>
+        <p className="text-xs text-muted-foreground">Read only · Earlier versions are retained</p>
+      </div>
 
-      {earlier.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No earlier terms. Terms that have ended are listed here.</p>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No terms yet. Every saved version is listed here.</p>
       ) : (
-        <ul className="flex flex-col gap-4">
-          {earlier.map((version) => (
-            <li key={version.id}>
-              <TermsCard title={`${version.effective_from} to ${version.effective_to}`} version={version} />
-            </li>
-          ))}
-        </ul>
+        <Table>
+          <TableHeader className="[&_th]:h-10 [&_th]:text-[11px] [&_th]:font-medium [&_th]:text-muted-foreground">
+            <TableRow>
+              <TableHead>Version</TableHead>
+              <TableHead>Effective date</TableHead>
+              <TableHead>Partner share</TableHead>
+              <TableHead>Launch share</TableHead>
+              <TableHead>Changed by</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="text-xs">
+            {rows.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell>
+                  <span className="inline-flex items-center gap-1">
+                    {row.label}
+                    {row.is_current && <Check aria-label="Current terms" className="size-3 text-success-fg" />}
+                  </span>
+                </TableCell>
+                <TableCell>{row.effective_date}</TableCell>
+                <TableCell>{row.partner_share}</TableCell>
+                <TableCell>{row.launch_share}</TableCell>
+                <TableCell>{row.changed_by}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
 
-      {truncated && (
-        <p className="text-sm text-muted-foreground">Only the latest {limit} versions are shown.</p>
+      {currentLabel && (
+        <p className="text-[11px] tracking-wide text-muted-foreground uppercase">
+          Current terms · {currentLabel.toUpperCase()}
+        </p>
       )}
+      {truncated && <p className="text-xs text-muted-foreground">Only the latest {limit} versions are shown.</p>}
     </section>
   );
 }
