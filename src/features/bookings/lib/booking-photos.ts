@@ -30,12 +30,37 @@ export interface BookingPhoto {
   taken_at: string | null;
 }
 
+/** The photos of a booking are at most 2 MB each (FO-F06-S01); other photo screens keep their own limit. */
+export const BOOKING_PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+export const BOOKING_PHOTO_DROP_HINT = "JPG or PNG, up to 2 MB";
+export const BOOKING_PHOTO_RULE_HINT = "JPG or PNG · Up to 2 MB per photo";
+export const BOOKING_PHOTO_CAPTION_MAX_LENGTH = 200;
+
+/** The private bucket of the booking photos (migration 20261227090000). */
+export const BOOKING_PHOTO_BUCKET = "booking-photos";
+
+/** The signed addresses of the private photos stay valid for an hour. */
+export const BOOKING_PHOTO_SIGNED_URL_SECONDS = 60 * 60;
+
+/** The caption of a photo that has none typed: its file name without the extension, cut to the caption limit. Pure. */
+export function captionFromFileName(fileName: string): string {
+  return fileName.replace(/\.[^./\\]+$/, "").trim().slice(0, BOOKING_PHOTO_CAPTION_MAX_LENGTH);
+}
+
+/** `<booking id>/<type>/<photo id>.jpg`: the folder record_booking_photo() accepts. Pure. */
+export function bookingPhotoPath(bookingId: string, type: BookingPhotoType, photoId: string, contentType: string): string {
+  return `${bookingId}/${type}/${photoId}.${contentType === "image/png" ? "png" : "jpg"}`;
+}
+
 /** The reason a file is rejected, or `null` when it may be added. Nothing is stored for a rejected file. */
-export function validatePhotoFile(file: { type: string; size: number; name: string }): string | null {
+export function validatePhotoFile(
+  file: { type: string; size: number; name: string },
+  maxBytes: number = PHOTO_MAX_BYTES,
+): string | null {
   if (!(PHOTO_ACCEPTED_TYPES as readonly string[]).includes(file.type)) {
     return `${file.name} is not a JPG or PNG photo.`;
   }
-  if (file.size > PHOTO_MAX_BYTES) return `${file.name} is larger than 10 MB.`;
+  if (file.size > maxBytes) return `${file.name} is larger than ${Math.round(maxBytes / (1024 * 1024))} MB.`;
   return null;
 }
 

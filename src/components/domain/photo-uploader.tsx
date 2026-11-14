@@ -13,6 +13,12 @@ interface PhotoUploaderProps {
   title?: string
   /** A line under the heading, for example the seat and the date. */
   description?: string
+  /** Replaces the file rule under the heading when a screen has its own limit. */
+  rule_hint?: string
+  /** The text of the button that opens the file chooser; the default is "Choose files". */
+  choose_label?: string
+  /** Extra classes of the dashed area, for a screen that tints it. */
+  box_className?: string
   /** The camera view is open: the part offers Capture and Close instead of Take a photo. */
   camera_open?: boolean
   on_open_camera?: () => void
@@ -33,6 +39,9 @@ function PhotoUploader({
   items,
   title,
   description,
+  rule_hint,
+  choose_label = "Choose files",
+  box_className,
   camera_open = false,
   on_open_camera,
   on_capture,
@@ -47,7 +56,7 @@ function PhotoUploader({
 
   return (
     <div data-slot="photo-uploader" data-state={state} className={cn("flex min-w-0 flex-col gap-3", className)}>
-      <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-dashed border-border p-4">
+      <div className={cn("flex min-w-0 flex-col gap-3 rounded-lg border border-dashed border-border p-4", box_className)}>
         {camera_open ? (
           <>
             <p className="text-sm font-medium">The camera is open.</p>
@@ -66,16 +75,18 @@ function PhotoUploader({
             <div className="flex min-w-0 flex-col gap-1">
               <p className="text-sm font-medium">{title ?? (empty ? "No photos yet. Take a photo or choose files" : "Take a photo or choose files")}</p>
               {description && <p className="text-sm text-muted-foreground">{description}</p>}
-              <p className="text-xs text-muted-foreground">{PHOTO_RULE_HINT}</p>
+              {rule_hint !== "" && <p className="text-xs text-muted-foreground">{rule_hint ?? PHOTO_RULE_HINT}</p>}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={on_open_camera}>
-                <CameraIcon data-icon="inline-start" aria-hidden="true" />
-                Take photo
-              </Button>
-              <Button type="button" variant="outline" onClick={on_choose_files}>
+              {on_open_camera && (
+                <Button type="button" onClick={on_open_camera}>
+                  <CameraIcon data-icon="inline-start" aria-hidden="true" />
+                  Take photo
+                </Button>
+              )}
+              <Button type="button" variant={on_open_camera ? "outline" : "default"} onClick={on_choose_files}>
                 <ImagePlusIcon data-icon="inline-start" aria-hidden="true" />
-                Choose files
+                {choose_label}
               </Button>
             </div>
           </>

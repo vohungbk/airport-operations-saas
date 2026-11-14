@@ -15,6 +15,7 @@ import { getFlightUpdates } from "@/features/flights/lib/get-flight-updates";
 import { canAddAdjustment } from "@/features/bookings/lib/booking-adjustment";
 import { getBookingAdjustments } from "@/features/bookings/lib/get-booking-adjustments";
 import { getBookingRevenue } from "@/features/bookings/lib/get-booking-revenue";
+import { getBookingPhotos } from "@/features/bookings/lib/get-booking-photos";
 import { getChainHistory } from "@/features/return-queue/lib/get-chain-history";
 import { resolveBookingPageTab } from "@/features/bookings/lib/booking-tabs";
 
@@ -50,6 +51,8 @@ export default async function BookingDetailPage({
   const isInternalRole = user.role === "admin" || user.role === "operations_manager";
   const chainHistory = isInternalRole ? await getChainHistory({ bookingId: id }) : null;
 
+  const photos = isInternalRole ? await getBookingPhotos(id) : null;
+
   const canManage = hasPermission(user.role, "bookings:manage");
   const canViewRevenue = hasAnyPermission(user.role, FINANCE_ACCESS_PERMISSIONS);
   const mayAdjust = hasAnyPermission(user.role, FINANCE_ADJUSTMENT_PERMISSIONS);
@@ -69,6 +72,7 @@ export default async function BookingDetailPage({
       canManage={canManage}
       canEnterArrival={isInternalRole}
       chainHistory={chainHistory}
+      photos={photos}
       canViewRevenue={canViewRevenue}
       revenue={
         revenueRow ? { row: revenueRow, adjustments, canAdjust: mayAdjust && canAddAdjustment(revenueRow) } : null

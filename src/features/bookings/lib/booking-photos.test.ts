@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BOOKING_PHOTO_MAX_BYTES,
+  bookingPhotoPath,
+  captionFromFileName,
   filterBookingPhotos,
   stepPhotoIndex,
   validatePhotoFile,
@@ -31,6 +34,34 @@ describe("validatePhotoFile", () => {
     expect(validatePhotoFile({ name: "big.png", type: "image/png", size: PHOTO_MAX_BYTES + 1 })).toBe(
       "big.png is larger than 10 MB.",
     );
+  });
+});
+
+describe("validatePhotoFile for a booking photo (2 MB)", () => {
+  it.each([
+    ["a JPG of exactly 2 MB", "image/jpeg", BOOKING_PHOTO_MAX_BYTES, null],
+    ["a PNG over 2 MB", "image/png", BOOKING_PHOTO_MAX_BYTES + 1, "big.png is larger than 2 MB."],
+    ["a GIF", "image/gif", 10, "big.png is not a JPG or PNG photo."],
+  ])("should handle %s", (_name, type, size, expected) => {
+    expect(validatePhotoFile({ name: "big.png", type, size }, BOOKING_PHOTO_MAX_BYTES)).toBe(expected);
+  });
+});
+
+describe("bookingPhotoPath", () => {
+  it("should put the photo in the folder of its booking and type with the extension of its content", () => {
+    expect(bookingPhotoPath("b-1", "incident", "p-1", "image/png")).toBe("b-1/incident/p-1.png");
+    expect(bookingPhotoPath("b-1", "installation", "p-2", "image/jpeg")).toBe("b-1/installation/p-2.jpg");
+  });
+});
+
+describe("captionFromFileName", () => {
+  it.each([
+    ["seat-front.jpg", "seat-front"],
+    ["IMG 1.final.png", "IMG 1.final"],
+    ["noextension", "noextension"],
+    [`${"a".repeat(250)}.jpg`, "a".repeat(200)],
+  ])("should turn %s into a caption: %s", (name, expected) => {
+    expect(captionFromFileName(name)).toBe(expected);
   });
 });
 

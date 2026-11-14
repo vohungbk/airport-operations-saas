@@ -7,6 +7,7 @@ const getFlightUpdatesMock = vi.hoisted(() => vi.fn());
 const getRevenueMock = vi.hoisted(() => vi.fn());
 const getAdjustmentsMock = vi.hoisted(() => vi.fn());
 const getChainHistoryMock = vi.hoisted(() => vi.fn());
+const getPhotosMock = vi.hoisted(() => vi.fn());
 const notFoundMock = vi.hoisted(() =>
   vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -32,6 +33,7 @@ vi.mock("@/features/flights/lib/get-flight-updates", () => ({
 vi.mock("@/features/bookings/lib/get-booking-revenue", () => ({ getBookingRevenue: getRevenueMock }));
 vi.mock("@/features/bookings/lib/get-booking-adjustments", () => ({ getBookingAdjustments: getAdjustmentsMock }));
 
+vi.mock("@/features/bookings/lib/get-booking-photos", () => ({ getBookingPhotos: getPhotosMock }));
 vi.mock("@/features/return-queue/lib/get-chain-history", () => ({ getChainHistory: getChainHistoryMock }));
 
 vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
@@ -53,6 +55,8 @@ describe("BookingDetailPage", () => {
     getRevenueMock.mockResolvedValue(null);
     getChainHistoryMock.mockReset();
     getChainHistoryMock.mockResolvedValue({ items: [], truncated: false });
+    getPhotosMock.mockReset();
+    getPhotosMock.mockResolvedValue({ photos: [], failed: false });
     getAdjustmentsMock.mockReset();
     getAdjustmentsMock.mockResolvedValue([]);
   });
@@ -128,6 +132,7 @@ describe("BookingDetailPage", () => {
 
     expect(getChainHistoryMock.mock.calls.length > 0).toBe(expected);
     expect((element as { props: { chainHistory: unknown } }).props.chainHistory !== null).toBe(expected);
+    expect(getPhotosMock.mock.calls.length > 0).toBe(expected);
   });
 
   it("should pass the history of the booking's flight to the page (VI-F02-T01)", async () => {

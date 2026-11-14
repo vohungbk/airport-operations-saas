@@ -8,7 +8,6 @@ import { BookingRevenueTab, type BookingRevenueData } from "@/features/bookings/
 import { BookingOverview } from "@/features/bookings/components/booking-overview";
 import { BookingStatusBadge } from "@/features/bookings/components/booking-status-badge";
 import { BookingPhotosTab } from "@/features/bookings/components/booking-photos-tab";
-import { formatBookingDate } from "@/features/bookings/lib/booking-time";
 import { BookingTimelineTab } from "@/features/bookings/components/booking-timeline-tab";
 import { BookingDetailTabs } from "@/features/bookings/components/booking-detail-tabs";
 import { BookingFlightPanel } from "@/features/bookings/components/booking-flight-panel";
@@ -27,6 +26,7 @@ import type { BookingDetailItem } from "@/features/bookings/lib/get-bookings";
 import { getInstallationDeadline } from "@/features/flights/lib/flight-panel";
 import { ChainHistory } from "@/features/return-queue/components/chain-history";
 import type { ChainHistoryResult } from "@/features/return-queue/lib/get-chain-history";
+import type { BookingPhotosResult } from "@/features/bookings/lib/get-booking-photos";
 import { formatReportedAt } from "@/features/incidents/lib/incident-time";
 import { stepOf } from "@/lib/workflow/board";
 import type { FlightUpdatesResult } from "@/features/flights/lib/get-flight-updates";
@@ -48,6 +48,8 @@ interface BookingDetailProps {
   canEnterArrival?: boolean;
   /** The stored steps of the booking's return chain (FO-F08-S10); `null` when the role may not read them. */
   chainHistory?: ChainHistoryResult | null;
+  /** The photos of the booking for the Photos tab; `null` when the role may not read them. */
+  photos?: BookingPhotosResult | null;
 }
 
 /** The badges of the header are 28 px high, taller than the default badge. */
@@ -68,6 +70,7 @@ export function BookingDetail({
   flightHistory = null,
   canEnterArrival = false,
   chainHistory = null,
+  photos = null,
 }: BookingDetailProps) {
   const timeZone = booking.airport?.timezone ?? "UTC";
   const allowedTransitions = getAllowedManualTransitions(booking.status);
@@ -169,12 +172,12 @@ export function BookingDetail({
       revenue={revenue && <BookingRevenueTab data={revenue} timeZone={timeZone} />}
       photos={
         <BookingPhotosTab
-          photos={[]}
+          bookingId={booking.id}
+          photos={photos?.photos ?? []}
+          loadFailed={photos?.failed}
           timeZone={timeZone}
           canUpload={canManage && isBookingEditable(booking.status)}
-          uploadContext={[booking.seat?.serial_number, booking.airport?.code, formatBookingDate(new Date().toISOString(), timeZone)]
-            .filter(Boolean)
-            .join(" · ")}
+          bookingNumber={booking.booking_number}
         />
       }
     />

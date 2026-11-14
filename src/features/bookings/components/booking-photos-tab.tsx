@@ -8,9 +8,12 @@ import { PhotoViewer } from "@/components/domain/photo-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useBookingPhotoUpload, type SendBookingPhoto } from "@/features/bookings/hooks/use-booking-photo-upload";
+import { useBookingPhotoUpload } from "@/features/bookings/hooks/use-booking-photo-upload";
+import { useSendBookingPhoto } from "@/features/bookings/hooks/use-send-booking-photo";
 import {
+  BOOKING_PHOTO_DROP_HINT,
   BOOKING_PHOTO_FILTERS,
+  BOOKING_PHOTO_RULE_HINT,
   BOOKING_PHOTO_TYPE_LABEL,
   filterBookingPhotos,
   stepPhotoIndex,
@@ -22,15 +25,15 @@ import { PHOTO_ACCEPTED_TYPES } from "@/lib/field/photo-upload";
 import { cn } from "@/lib/utils";
 
 interface BookingPhotosTabProps {
+  bookingId: string;
   photos: BookingPhoto[];
   timeZone: string;
-  /** The line under the heading of the upload area, for example `SEAT-0001 · DXB · 24 Oct 2026`. */
-  uploadContext?: string;
+  /** The booking number in the line under the upload area: `Evidence for BK-2026-000123`. */
+  bookingNumber: string;
   /** Admin, Operations Manager or the assigned technician; a Partner User reads only. */
   canUpload: boolean;
   /** The photos could not be read. */
   loadFailed?: boolean;
-  send?: SendBookingPhoto;
 }
 
 /**
@@ -38,17 +41,16 @@ interface BookingPhotosTabProps {
  * uploader and time, a viewer, and the upload area for the roles that may add photos.
  */
 export function BookingPhotosTab({
+  bookingId,
   photos,
   timeZone,
-  uploadContext,
+  bookingNumber,
   canUpload,
   loadFailed = false,
-  send,
 }: BookingPhotosTabProps) {
   const [filter, setFilter] = useState<BookingPhotoFilter>("all");
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const upload = useBookingPhotoUpload(send);
-  const cameraInput = useRef<HTMLInputElement>(null);
+  const upload = useBookingPhotoUpload(useSendBookingPhoto(bookingId, "installation"));
   const fileInput = useRef<HTMLInputElement>(null);
 
   const visible = filterBookingPhotos(photos, filter);
@@ -104,7 +106,7 @@ export function BookingPhotosTab({
               </button>
               <div className="flex min-w-0 flex-col gap-2 p-3">
                 <p className="text-xs font-semibold break-words text-foreground">{photo.caption ?? "Untitled photo"}</p>
-                <Badge variant="secondary" className="w-fit">
+                <Badge variant="secondary" className="h-[27px] w-fit pointer-coarse:h-[27px]">
                   {BOOKING_PHOTO_TYPE_LABEL[photo.type]}
                 </Badge>
                 {photo.uploader_name && <p className="text-xs text-muted-foreground">{photo.uploader_name}</p>}
@@ -116,18 +118,38 @@ export function BookingPhotosTab({
       )}
 
       {canUpload && (
-        <div className="flex flex-col gap-2">
+        <div
+          role="presentation"
+          className="flex flex-col gap-2"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            upload.addFiles(event.dataTransfer.files);
+          }}
+        >
           <PhotoUploader
             items={upload.items}
-            title="Add installation photos"
-            description={uploadContext}
-            on_open_camera={() => cameraInput.current?.click()}
+            title="Drop photos to upload"
+            description={BOOKING_PHOTO_DROP_HINT}
+            rule_hint=""
+            choose_label="Choose photos"
+            box_className="bg-primary-subtle"
             on_choose_files={() => fileInput.current?.click()}
             on_retry={upload.retry}
             on_remove={upload.remove}
           />
-          <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={handleInput} />
-          <input ref={fileInput} type="file" accept={PHOTO_ACCEPTED_TYPES.join(",")} multiple hidden onChange={handleInput} />
+          <input
+            ref={fileInput}
+            aria-label="Choose photos"
+            type="file"
+            accept={PHOTO_ACCEPTED_TYPES.join(",")}
+            multiple
+            hidden
+            onChange={handleInput}
+          />
+          <p className="text-sm text-muted-foreground">
+            {BOOKING_PHOTO_RULE_HINT} · Evidence for {bookingNumber}
+          </p>
           {upload.errors.length > 0 && (
             <ul role="alert" className="flex flex-col gap-1 text-sm text-danger-fg">
               {upload.errors.map((message) => (
