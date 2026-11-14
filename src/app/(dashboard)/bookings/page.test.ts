@@ -72,6 +72,17 @@ describe("BookingsPage", () => {
     );
   });
 
+  it.each([
+    [OPS, true],
+    [PARTNER, false],
+  ])("should offer the Import link only to who may import bookings: %j", async (user, expected) => {
+    requireAnyPermissionMock.mockResolvedValue(user);
+
+    const html = renderToStaticMarkup(await BookingsPage({ searchParams: Promise.resolve({}) }));
+
+    expect(html.includes('href="/bookings/import"')).toBe(expected);
+  });
+
   it("should propagate the guard's redirect and not load bookings", async () => {
     requireAnyPermissionMock.mockRejectedValue(new Error("REDIRECT:/forbidden"));
 

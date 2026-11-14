@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, UploadIcon } from "lucide-react";
 
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import {
   BOOKINGS_ACCESS_PERMISSIONS,
+  BOOKINGS_IMPORT_PERMISSIONS,
   BOOKINGS_WRITE_PERMISSIONS,
   hasAnyPermission,
   hasPermission,
@@ -49,6 +50,8 @@ export default async function BookingsPage({
   const canManage = hasPermission(user.role, "bookings:manage");
   // Managers and partner users (for their own partner) may add a booking.
   const canCreate = hasAnyPermission(user.role, BOOKINGS_WRITE_PERMISSIONS);
+  // Only an admin or an operations manager may open the import screen (CO-F07-S01).
+  const canImport = hasAnyPermission(user.role, BOOKINGS_IMPORT_PERMISSIONS);
 
   const airport = options.airports.find((a) => a.value === query.airport_id);
   const subtitle = `${airport?.label ?? "All airports"} · ${total} booking${total === 1 ? "" : "s"}`;
@@ -65,15 +68,29 @@ export default async function BookingsPage({
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">
             Bookings
           </h1>
-          {canCreate && (
-            <Link
-              href="/bookings/new"
-              className={buttonVariants({ className: "min-h-11 px-4" })}
-            >
-              <PlusIcon aria-hidden="true" />
-              Create booking
-            </Link>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {canImport && (
+              <Link
+                href="/bookings/import"
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "min-h-11 bg-surface px-4 dark:bg-surface",
+                })}
+              >
+                <UploadIcon aria-hidden="true" />
+                Import
+              </Link>
+            )}
+            {canCreate && (
+              <Link
+                href="/bookings/new"
+                className={buttonVariants({ className: "min-h-11 px-4" })}
+              >
+                <PlusIcon aria-hidden="true" />
+                Create booking
+              </Link>
+            )}
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BOOKINGS_IMPORT_PERMISSIONS,
   BOOKINGS_WRITE_PERMISSIONS,
   CLEANING_RECORD_PERMISSIONS,
   INCIDENTS_ACCESS_PERMISSIONS,
@@ -152,6 +153,17 @@ describe("booking write access (VI-F03-S03)", () => {
     expect(hasPermission("operations_manager", "bookings:manage")).toBe(true);
     expect(ROLE_PERMISSIONS.operations_manager).not.toContain("bookings:manage_own_partner");
     expect(ROLE_PERMISSIONS.technician).not.toContain("bookings:manage_own_partner");
+  });
+});
+
+describe("booking import access (CO-F07-S01)", () => {
+  it.each([
+    ["admin", true],
+    ["operations_manager", true],
+    ["partner_user", false],
+    ["technician", false],
+  ] as const)("should give %s booking import access: %s", (role, expected) => {
+    expect(hasAnyPermission(role, BOOKINGS_IMPORT_PERMISSIONS)).toBe(expected);
   });
 });
 
