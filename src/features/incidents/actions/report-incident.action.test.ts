@@ -122,6 +122,7 @@ describe("reportIncidentAction", () => {
 
   it.each([
     ["P0002", "NOT_FOUND"],
+    ["JB010", "PHOTO_REQUIRED"],
     ["42501", "FORBIDDEN"],
     ["23503", "VALIDATION_ERROR"],
     ["XX000", "INTERNAL_ERROR"],

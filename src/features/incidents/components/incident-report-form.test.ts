@@ -3,6 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hookMock = vi.hoisted(() => vi.fn());
+const photoMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/features/bookings/hooks/use-step-photo-upload", () => ({
+  useStepPhotoUpload: photoMock,
+}));
 
 vi.mock("@/features/incidents/hooks/use-report-incident-form", () => ({
   useReportIncidentForm: hookMock,
@@ -11,9 +16,22 @@ vi.mock("@/features/incidents/hooks/use-report-incident-form", () => ({
 import { IncidentReportForm } from "@/features/incidents/components/incident-report-form";
 
 const JOBS = [
-  { id: "j-1", job_type: "inspection" as const, booking_number: "BK-00002", seat_number: "SEAT-0001" },
-  { id: "j-2", job_type: "cleaning" as const, booking_number: "BK-00004", seat_number: "SEAT-0002" },
+  { id: "j-1", job_type: "inspection" as const, booking_id: "b-1", booking_number: "BK-00002", seat_number: "SEAT-0001" },
+  { id: "j-2", job_type: "cleaning" as const, booking_id: "b-2", booking_number: "BK-00004", seat_number: "SEAT-0002" },
 ];
+
+function photoState(uploaded: boolean) {
+  return {
+    items: uploaded ? [{ id: "p-1", file_name: "seat.jpg", status: "uploaded" as const }] : [],
+    errors: [],
+    addFiles: vi.fn(),
+    retry: vi.fn(),
+    remove: vi.fn(),
+    hasPhoto: uploaded,
+    isUploading: false,
+    canSave: uploaded,
+  };
+}
 
 function hookState(
   result: unknown,
@@ -47,6 +65,8 @@ function render(cancelHref = "/incidents") {
 describe("IncidentReportForm", () => {
   beforeEach(() => {
     hookMock.mockReset();
+    photoMock.mockReset();
+    photoMock.mockReturnValue(photoState(true));
   });
 
   it("should show the seat and severity choices with none selected, a description, Submit incident and Cancel", () => {
@@ -86,14 +106,29 @@ describe("IncidentReportForm", () => {
     expect(render()).toContain(">BK-00004<");
   });
 
-  it("should show the photos box with the upload buttons disabled", () => {
-    hookMock.mockReturnValue(hookState(null));
+  it("should say the photos are required and keep Submit incident off until one is stored", () => {
+    hookMock.mockReturnValue(hookState(null, {}, "j-1"));
+    photoMock.mockReturnValue(photoState(false));
 
     const html = render();
 
-    expect(html).toContain("Photos (optional)");
-    expect(html).toMatch(/<button[^>]*disabled[^>]*>Open camera/);
-    expect(html).toMatch(/<button[^>]*disabled[^>]*>Choose files/);
+    expect(html).toContain("Photos (required)");
+    expect(html).toMatch(/<button[^>]*\sdisabled=""[^>]*>Submit incident</);
+    expect(photoMock).toHaveBeenCalledWith("b-1", "incident");
+  });
+
+  it("should ask for a seat before photos can be added", () => {
+    hookMock.mockReturnValue(hookState(null));
+    photoMock.mockReturnValue(photoState(false));
+
+    expect(render()).toContain("Select a seat first, then add at least one photo.");
+    expect(photoMock).toHaveBeenCalledWith("", "incident");
+  });
+
+  it("should let the user submit once a photo is stored", () => {
+    hookMock.mockReturnValue(hookState(null, {}, "j-1"));
+
+    expect(render()).not.toMatch(/<button[^>]*\sdisabled=""[^>]*>Submit incident</);
   });
 
   it("should send Cancel back to the jobs for a technician", () => {
