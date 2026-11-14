@@ -3,7 +3,7 @@
 import { forbidden } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { requirePermission } from "@/lib/auth/current-user";
+import { requireAuth } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import {
   BOOKING_PHOTO_VALIDATION_ERROR,
@@ -18,7 +18,8 @@ import { recordBookingPhotoSchema } from "@/features/bookings/schemas/booking-ph
  * path and the caption again, and stores the photo with the actor and the time.
  */
 export async function recordBookingPhotoAction(input: unknown): Promise<BookingPhotoActionResult> {
-  await requirePermission("bookings:manage");
+  // The database decides who may add a photo (admin, operations manager, or the assigned technician).
+  await requireAuth();
 
   const parsed = recordBookingPhotoSchema.safeParse(input);
 
