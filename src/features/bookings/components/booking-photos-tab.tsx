@@ -8,6 +8,7 @@ import { PhotoViewer } from "@/components/domain/photo-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useBookingPhotoLink } from "@/features/bookings/hooks/use-booking-photo-link";
 import { useBookingPhotoUpload } from "@/features/bookings/hooks/use-booking-photo-upload";
 import { useSendBookingPhoto } from "@/features/bookings/hooks/use-send-booking-photo";
 import {
@@ -55,6 +56,7 @@ export function BookingPhotosTab({
 
   const visible = filterBookingPhotos(photos, filter);
   const open = openIndex === null ? null : (visible[openIndex] ?? null);
+  const link = useBookingPhotoLink(open);
   const formatTime = (iso: string) => formatBookingDateTime(iso, timeZone);
 
   function handleInput(event: React.ChangeEvent<HTMLInputElement>) {
@@ -167,9 +169,14 @@ export function BookingPhotosTab({
             <DialogDescription>{open?.uploader_name ?? "Booking photo"}</DialogDescription>
           </DialogHeader>
           <PhotoViewer
-            photo={open && { url: open.url, alt: open.caption ?? "Booking photo", caption: open.caption, taken_at: open.taken_at }}
+            photo={open && { url: link.url ?? open.url, alt: open.caption ?? "Booking photo", caption: open.caption, taken_at: open.taken_at }}
             formatTime={formatTime}
           />
+          {link.failed && (
+            <p role="alert" className="text-sm text-danger-fg">
+              The photo could not be refreshed. Close it and open it again.
+            </p>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex gap-2">
               <Button
@@ -192,7 +199,7 @@ export function BookingPhotosTab({
               </Button>
             </div>
             {open && (
-              <a href={open.url} download className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary">
+              <a href={link.url ?? open.url} download className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary">
                 <DownloadIcon className="size-4" aria-hidden="true" />
                 Download
               </a>
