@@ -44,6 +44,32 @@ describe.skipIf(!available)("booking photos (FO-F06-S01)", () => {
     expect(result(rows, "read")).toBe("1");
   });
 
+  it("should keep the bucket private so no public link exists (FO-F06-S02 AC01)", () => {
+    const rows = run(`
+      do $$ begin
+        raise notice 'R|public|%', (select public from storage.buckets where id = 'booking-photos');
+      end $$;`);
+
+    expect(result(rows, "public")).toBe("f");
+  });
+
+  it("should keep the path, record, actor, time and file type of a stored photo (FO-F06-S02 AC02, AC03)", () => {
+    const rows = run(`
+      ${SETUP}
+      ${asCaller(
+        USER("operations_manager"),
+        `${record("add")}
+         do $$ begin
+           raise notice 'R|saved|%', (
+             select concat_ws(',', storage_path = '${PATH}', booking_id = '${BOOKING}', type, content_type,
+               uploaded_by is not null, created_at is not null)
+             from public.booking_photos);
+         end $$;`,
+      )}`);
+
+    expect(result(rows, "saved")).toBe("true,true,installation,image/jpeg,true,true");
+  });
+
   it.each([["technician"], ["partner_user"]])("should refuse a %s the photo and the read (AC02)", (role) => {
     const rows = run(`
       ${SETUP}
