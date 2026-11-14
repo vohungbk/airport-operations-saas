@@ -11,17 +11,19 @@ import {
   type BookingPhotoType,
 } from "@/features/bookings/lib/booking-photos";
 import type { SendBookingPhoto } from "@/features/bookings/hooks/use-booking-photo-upload";
+import { stripPhotoFileMetadata } from "@/lib/field/strip-photo-metadata";
 import { createClient } from "@/lib/supabase/client";
 
 /**
- * Sends one photo of a booking: the file goes straight to the private bucket (which refuses a wrong type
+ * Sends one photo of a booking: location data is cut from the file first, then it goes straight to the private bucket (which refuses a wrong type
  * or a file over 2 MB), then the action links it to the booking. Resolves with a signed address to show
  * the thumbnail. The design has no caption field, so the caption is the file name.
  */
 export function useSendBookingPhoto(bookingId: string, type: BookingPhotoType): SendBookingPhoto {
   return useCallback(
-    async (file, onProgress) => {
+    async (original, onProgress) => {
       const supabase = createClient();
+      const file = await stripPhotoFileMetadata(original);
       const path = bookingPhotoPath(bookingId, type, crypto.randomUUID(), file.type);
 
       const { error } = await supabase.storage.from(BOOKING_PHOTO_BUCKET).upload(path, file, { contentType: file.type });
