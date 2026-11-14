@@ -28,7 +28,7 @@ interface ImportUploadCardProps {
  * "Validate file" stays off. "Download template" (R3) is live.
  */
 export function ImportUploadCard({ partners }: ImportUploadCardProps) {
-  const dropzone = useCsvDropzone();
+  const { file, isDragging, bindArea, onChange } = useCsvDropzone();
 
   return (
     <section
@@ -66,10 +66,8 @@ export function ImportUploadCard({ partners }: ImportUploadCardProps) {
 
       <label
         data-slot="csv-dropzone"
-        data-dragging={dropzone.isDragging || undefined}
-        onDragOver={dropzone.onDragOver}
-        onDragLeave={dropzone.onDragLeave}
-        onDrop={dropzone.onDrop}
+        data-dragging={isDragging || undefined}
+        ref={bindArea}
         className={cn(
           "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border px-4 py-10 text-center transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
           "data-dragging:border-primary data-dragging:bg-accent",
@@ -80,15 +78,15 @@ export function ImportUploadCard({ partners }: ImportUploadCardProps) {
           accept={CSV_FILE_ACCEPT}
           aria-label="Choose a CSV file"
           className="sr-only"
-          onChange={dropzone.onChange}
+          onChange={onChange}
         />
         <span className="flex size-11 items-center justify-center rounded-lg bg-muted text-muted-foreground">
           <Upload className="size-5" aria-hidden="true" />
         </span>
         <p className="text-sm font-medium text-foreground">Drop a CSV file here or browse</p>
         <p className="text-xs text-muted-foreground">
-          {dropzone.file
-            ? `${dropzone.file.name} · ${formatFileSize(dropzone.file.size)}`
+          {file
+            ? `${file.name} · ${formatFileSize(file.size)}`
             : "CSV only, max size to be confirmed"}
         </p>
         <a
