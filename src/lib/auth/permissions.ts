@@ -111,6 +111,16 @@ export const BOOKINGS_WRITE_PERMISSIONS = [
 ] as const satisfies readonly Permission[];
 
 /**
+ * Who may open the booking import screen and download its template (CO-F07-S01): an admin and an
+ * operations manager, who both hold `bookings:manage`. A partner user and a technician may not
+ * (spec §2.1). The permission matrix is unchanged; this is an any-of set, and the import stories
+ * that save rows check the role again on the server.
+ */
+export const BOOKINGS_IMPORT_PERMISSIONS = [
+  "bookings:manage",
+] as const satisfies readonly Permission[];
+
+/**
  * Who may see the finance figures of a booking (VI-F04-S08): managers (`finance:view`, every
  * partner) and partner users (`finance:view_own_partner`, only the bookings of their partner;
  * RLS decides which rows). A technician has neither. The permission matrix is unchanged; this
