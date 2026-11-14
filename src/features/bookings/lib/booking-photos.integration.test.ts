@@ -144,6 +144,60 @@ describe.skipIf(!available)("booking photos (FO-F06-S01)", () => {
     expect(result(rows, "long")).toBe("22023");
   });
 
+  it.each([["admin"], ["operations_manager"]])(
+    "should let %s neither delete nor change a stored photo or its file (FO-F06-S08 AC01)",
+    (role) => {
+      const rows = run(`
+        ${SETUP}
+        ${asCaller(
+          USER(role),
+          `${record("add")}
+           do $$ begin
+             delete from public.booking_photos;
+             raise notice 'R|delete|done';
+           exception when others then
+             raise notice 'R|delete|%', sqlstate;
+           end $$;
+           do $$ begin
+             update public.booking_photos set caption = 'Changed';
+             raise notice 'R|update|done';
+           exception when others then
+             raise notice 'R|update|%', sqlstate;
+           end $$;
+           do $$ begin
+             delete from storage.objects where bucket_id = 'booking-photos';
+             raise notice 'R|remove|done';
+           exception when others then
+             raise notice 'R|remove|%', sqlstate;
+           end $$;
+           ${count("rows")} ${files("file")}
+           do $$ begin
+             raise notice 'R|caption|%', (select caption from public.booking_photos);
+           end $$;`,
+        )}`);
+
+      expect(result(rows, "delete")).toBe("42501");
+      expect(result(rows, "update")).toBe("42501");
+      expect(result(rows, "rows")).toBe("1");
+      expect(result(rows, "file")).toBe("1");
+      expect(result(rows, "caption")).toBe("Seat fitted");
+    },
+  );
+
+  it("should keep both photos when the same photo is uploaded twice (FO-F06-S08 AC02)", () => {
+    const rows = run(`
+      ${SETUP}
+      insert into storage.objects (bucket_id, name) values ('booking-photos', '${BOOKING}/installation/p-2.jpg');
+      ${asCaller(
+        USER("operations_manager"),
+        `${record("first")} ${record("second", `${BOOKING}/installation/p-2.jpg`)} ${count("read")}`,
+      )}`);
+
+    expect(result(rows, "first")).toBe("stored");
+    expect(result(rows, "second")).toBe("stored");
+    expect(result(rows, "read")).toBe("2");
+  });
+
   it("should give a technician no way to add a file to the bucket", () => {
     const rows = run(`
       ${SETUP}
