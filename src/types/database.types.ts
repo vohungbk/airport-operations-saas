@@ -1288,6 +1288,7 @@ export type Database = {
       partner_commercial_terms: {
         Row: {
           annual_fee: number
+          changed_by: string | null
           created_at: string
           effective_from: string
           effective_to: string | null
@@ -1306,6 +1307,7 @@ export type Database = {
         }
         Insert: {
           annual_fee?: number
+          changed_by?: string | null
           created_at?: string
           effective_from: string
           effective_to?: string | null
@@ -1324,6 +1326,7 @@ export type Database = {
         }
         Update: {
           annual_fee?: number
+          changed_by?: string | null
           created_at?: string
           effective_from?: string
           effective_to?: string | null
@@ -1346,6 +1349,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_commercial_terms_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
