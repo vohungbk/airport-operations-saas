@@ -16,10 +16,14 @@ import { isAlreadyRecordedError } from "@/features/installations/lib/installatio
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
 import { OfflineBanner } from "@/features/jobs/components/offline-banner";
 import { StepActionBar } from "@/features/jobs/components/step-action-bar";
+import { StepPhotoField } from "@/features/bookings/components/step-photo-field";
+import { useStepPhotoUpload } from "@/features/bookings/hooks/use-step-photo-upload";
 import { useRecordInstallationForm } from "@/features/installations/hooks/use-record-installation-form";
 
 interface InstallationFormProps {
   jobId: string;
+  /** The booking of the job: the installation photos are added to it. */
+  bookingId: string;
   seatId: string;
   seatLabel: string;
   timeZone: string;
@@ -33,6 +37,7 @@ interface InstallationFormProps {
  */
 export function InstallationForm({
   jobId,
+  bookingId,
   seatId,
   seatLabel,
   timeZone,
@@ -45,6 +50,7 @@ export function InstallationForm({
       timeZone,
       defaultInstalledAt,
     });
+  const { canSave, ...photos } = useStepPhotoUpload(bookingId, "installation");
   const {
     register,
     formState: { errors },
@@ -113,8 +119,13 @@ export function InstallationForm({
         />
       </Field>
 
+      <Field>
+        <span className="text-sm font-medium">Installation photos</span>
+        <StepPhotoField subject="installation" {...photos} />
+      </Field>
+
       <StepActionBar>
-        <Button type="submit" disabled={isPending} className="min-h-11 px-4">
+        <Button type="submit" disabled={isPending || !canSave} className="min-h-11 px-4">
           {isPending ? "Saving..." : "Save"}
         </Button>
         <Link

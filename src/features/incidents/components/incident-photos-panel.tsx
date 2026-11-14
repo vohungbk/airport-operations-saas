@@ -1,51 +1,37 @@
-import { Button } from "@/components/ui/button";
+import { StepPhotoField } from "@/features/bookings/components/step-photo-field";
+import type { useStepPhotoUpload } from "@/features/bookings/hooks/use-step-photo-upload";
 
 interface IncidentPhotosPanelProps {
-  /** `04 Nov 2026 11:15 GST`: when the photos would be added. */
+  /** `04 Nov 2026 11:15 GST`: when the photos are added. */
   stamp: string;
+  /** The photos of the incident: they go to the booking of the chosen job. */
+  photos: Omit<ReturnType<typeof useStepPhotoUpload>, "canSave">;
+  /** No job is chosen yet, so there is no booking to add photos to. */
+  disabled: boolean;
 }
 
 /**
- * The Photos (optional) box of the design. Photo upload is not built yet
- * (it waits for the photo storage work), so the two buttons are disabled.
+ * The Photos box of the incident form. An incident needs at least one photo (FO-F06-S06): the form keeps
+ * Submit incident off until one is stored.
  */
-export function IncidentPhotosPanel({ stamp }: IncidentPhotosPanelProps) {
+export function IncidentPhotosPanel({ stamp, photos, disabled }: IncidentPhotosPanelProps) {
   return (
     <section aria-labelledby="incident-photos-title" className="flex flex-col gap-4">
       <h2
         id="incident-photos-title"
         className="text-base font-semibold text-foreground"
       >
-        Photos (optional)
+        Photos (required)
       </h2>
-      <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border-input p-4">
-        <p className="text-sm font-semibold">Add incident photos</p>
-        <p className="text-xs text-text-muted">{stamp}</p>
-        <p className="text-xs text-text-muted">
-          Choose JPG or PNG files, or take a photo. Maximum 10 MB per photo.
-        </p>
-        <div className="flex flex-col gap-2 sm:max-w-44">
-          <Button
-            type="button"
-            variant="outline"
-            disabled
-            className="min-h-11 rounded-lg bg-surface px-4"
-          >
-            Open camera
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled
-            className="min-h-11 rounded-lg bg-surface px-4"
-          >
-            Choose files
-          </Button>
-        </div>
-      </div>
+      <p className="text-xs text-text-muted">{stamp}</p>
+      <StepPhotoField
+        subject="incident"
+        {...photos}
+        disabled={disabled}
+        disabledHint="Select a seat first, then add at least one photo."
+      />
       <p className="text-xs text-text-muted">
-        JPG or PNG - up to 10 MB per photo. Neutral seat, strap or car interior
-        evidence only.
+        Neutral seat, strap or car interior evidence only.
       </p>
     </section>
   );

@@ -67,5 +67,11 @@ export function useBookingPhotoUpload(send: SendBookingPhoto) {
     setItems((current) => current.filter((item) => item.id !== id));
   }, []);
 
-  return { items, errors, addFiles, retry, remove };
+  const reset = useCallback(() => {
+    files.current.clear();
+    setItems([]);
+    setErrors([]);
+  }, []);
+
+  return { items, errors, addFiles, retry, remove, reset };
 }

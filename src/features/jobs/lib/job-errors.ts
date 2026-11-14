@@ -20,6 +20,7 @@ export interface JobActionError {
     | "SEAT_NOT_ELIGIBLE"
     | "SEAT_IN_USE"
     | "NOT_STARTED"
+    | "PHOTO_REQUIRED"
     | "INTERNAL_ERROR";
   message: string;
 }
@@ -79,6 +80,12 @@ export const NETWORK_ERROR: JobActionError = {
     "Could not reach the server. Your input is kept; check your connection and try again.",
 };
 
+/** A step that needs a photo was sent without one (FO-F06-S06, spec R9). */
+export const PHOTO_REQUIRED_ERROR: JobActionError = {
+  code: "PHOTO_REQUIRED",
+  message: "Add a photo of this step before you save.",
+};
+
 const INTERNAL_ERROR: JobActionError = {
   code: "INTERNAL_ERROR",
   message: "Something went wrong. Please try again.",
@@ -99,7 +106,7 @@ export function isJobUnavailableError(
  * raised by the job guard triggers; `23505` is the open-job unique index;
  * `23503`/`22P02`/`22023` are bad input; `42501` is an RLS/role denial;
  * `P0002` job not found (or hidden by RLS); `55000` invalid transition;
- * `JB004` the job changed since the caller loaded it.
+ * `JB004` the job changed since the caller loaded it; `JB010` the step needs a photo.
  */
 export function mapJobError(error: PostgrestError): JobActionError {
   switch (error.code) {
@@ -119,6 +126,8 @@ export function mapJobError(error: PostgrestError): JobActionError {
       return INVALID_TRANSITION_ERROR;
     case "JB004":
       return STALE_DATA_ERROR;
+    case "JB010":
+      return PHOTO_REQUIRED_ERROR;
     case "42501":
       return FORBIDDEN_ERROR;
     default:
