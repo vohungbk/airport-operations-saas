@@ -87,3 +87,32 @@ Server Actions/Route Handlers).
 - Never use Redux. Never use either library to hold data that actually
   comes from the database — that's server state, and belongs in the
   Server Component / Server Action flow, not a client store.
+
+## Restyling a screen from Figma
+
+These are hard rules for every UI task that follows a Figma frame. They apply
+to every field and button on the screen, not only the ones the ticket names.
+
+- **Match the frame exactly.** Call `get_design_context` for that exact frame
+  and look at its screenshot before building (a node tree alone is not reading
+  the design). Do not add sections, headings, buttons, links, helper text,
+  subtitles, banners, or made-up copy or numbers that are not in the frame. A
+  value that has no formula yet is a plain dash. If old behavior or an
+  existing test conflicts with the frame, stop and ask; never build a hybrid.
+  Name anything that is not in the frame before building, and ask.
+- **Form fields are all 44px.** Every `Input` and `SelectTrigger` in a form,
+  filter bar or dialog is exactly 44px high. `SelectTrigger` ships
+  `data-[size=default]:h-8`, so a plain `h-11` does not win on desktop. Use
+  `h-11 data-[size=default]:h-11` on every `SelectTrigger` and `h-11` on every
+  `Input`.
+- **Buttons are at least 44px.** Every button and link-button on the screen
+  (primary, outline, dialog triggers, Clear filters, row actions) gets
+  `min-h-11`. The base `Button` is only `min-h-8`. Outline buttons use
+  `bg-surface dark:bg-surface`.
+- **Check in the browser before saying done.** Open the route in the browser
+  at the frame width, compare it with the Figma frame, and measure the real
+  heights with `getBoundingClientRect` (fields 44px, buttons at least 44px).
+  Do not trust the class names. Put a color class after custom text-size
+  tokens in `cn()`, because `tailwind-merge` can drop it. If the browser is
+  not signed in, say so and ask the user to sign in. Do not stop or restart a
+  dev server the user started.
