@@ -1649,6 +1649,7 @@ export type Database = {
           period_start: string
           platform_share: number
           refunds: number
+          settlement_number: string
           status: Database["public"]["Enums"]["settlement_status"]
           status_changed_at: string
           status_changed_by: string | null
@@ -1669,6 +1670,7 @@ export type Database = {
           period_start: string
           platform_share?: number
           refunds?: number
+          settlement_number?: string
           status?: Database["public"]["Enums"]["settlement_status"]
           status_changed_at?: string
           status_changed_by?: string | null
@@ -1689,6 +1691,7 @@ export type Database = {
           period_start?: string
           platform_share?: number
           refunds?: number
+          settlement_number?: string
           status?: Database["public"]["Enums"]["settlement_status"]
           status_changed_at?: string
           status_changed_by?: string | null

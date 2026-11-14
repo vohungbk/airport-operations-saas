@@ -84,3 +84,21 @@ service-role-key policy.
   existing project policy, not a convenience shortcut for a single query.
 - When adding or changing a tenant-scoped table or policy, write/update
   the RLS policy as part of that same change — not as a follow-up task.
+
+## Running SQL or migrations on the cloud database
+
+The user works directly on the linked Supabase cloud project (the app is built
+and deployed against it). The Supabase CLI is already logged in and linked.
+Local Supabase and Docker are usually not running, so never hand over a
+`psql` command, a `$DATABASE_URL` or a SQL Editor guide.
+
+- Give one CLI command, first, in its own bash block, with no long preamble:
+  - Migration: `npx supabase db push --linked`
+  - Seed or one-off SQL file: `npx supabase db query --remote -f <file>`
+- Before handing it over, check with what is read only: `npx supabase db push
+  --linked --dry-run` and `npx supabase db query --remote --read-only "<select>"`
+  (do the rows, partners and columns the script needs exist?). Say in one line
+  what the check showed and what was not run.
+- The user runs the write command. Do not run `db push` or a seed on the cloud
+  yourself. Say that the target is `production` as the CLI names it.
+- A seed file must be safe to run twice (insert only, skip what exists).

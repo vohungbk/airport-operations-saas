@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 
 import { runClientAction } from "@/lib/actions/run-client-action";
@@ -15,13 +15,27 @@ import {
   type GenerateSettlementInput,
 } from "@/features/settlements/schemas/settlement.schema";
 
-export function useGenerateSettlementForm() {
+/**
+ * `onGenerated` is called once a run ends without a failure: on success the Server Action redirects
+ * back to the list, so no result comes back, and a form in a dialog uses this to close itself.
+ */
+export function useGenerateSettlementForm(onGenerated?: () => void) {
   const form = useForm<GenerateSettlementInput>({
     resolver: zodResolver(createGenerateSettlementSchema()),
     defaultValues: { partner_id: undefined, month: "" },
   });
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<SettlementActionResult | null>(null);
+
+  const wasPending = useRef(false);
+
+  useEffect(() => {
+    if (wasPending.current && !isPending && result === null) {
+      onGenerated?.();
+    }
+
+    wasPending.current = isPending;
+  }, [isPending, result, onGenerated]);
 
   const onSubmit = form.handleSubmit((values) => {
     setResult(null);
