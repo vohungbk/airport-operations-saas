@@ -72,3 +72,8 @@ export function filterBookingPhotos(photos: readonly BookingPhoto[], filter: Boo
 export function stepPhotoIndex(index: number, count: number, direction: 1 | -1): number {
   return count === 0 ? 0 : (index + direction + count) % count;
 }
+
+/** `6 photos`, `1 photo`: the count line of the Photo viewer. */
+export function photoCountLabel(count: number): string {
+  return `${count} ${count === 1 ? "photo" : "photos"}`;
+}

@@ -15,9 +15,10 @@ export interface BookingPhotoLink {
 
 /**
  * Every time a photo is opened, asks for a new signed link (FO-F06-S04, E6), so a link that expired while the
- * page stayed open is never used. Opening the same photo again asks again.
+ * page stayed open is never used. Opening the same photo again asks again; a changed `attempt` (the "Open
+ * again" button) asks again for the photo that is already open.
  */
-export function useBookingPhotoLink(photo: { id: string; url: string } | null): BookingPhotoLink {
+export function useBookingPhotoLink(photo: { id: string; url: string } | null, attempt = 0): BookingPhotoLink {
   const [fresh, setFresh] = useState<{ id: string; url: string } | null>(null);
   const [failedId, setFailedId] = useState<string | null>(null);
   const photoId = photo?.id ?? null;
@@ -39,7 +40,7 @@ export function useBookingPhotoLink(photo: { id: string; url: string } | null): 
       setFresh(null);
       setFailedId(null);
     };
-  }, [photoId]);
+  }, [photoId, attempt]);
 
   if (photo === null) return { url: null, failed: false };
 

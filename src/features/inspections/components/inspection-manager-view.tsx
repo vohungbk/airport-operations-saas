@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ImageIcon } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { PageEmpty } from "@/components/shared/page-state";
@@ -59,15 +60,27 @@ export function InspectionManagerView({
         <InspectionJobContext job={job} links={links} />
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-col items-start gap-3">
-            <Link
-              href={`/jobs/${job.id}`}
-              className={buttonVariants({
-                variant: "outline",
-                className: "min-h-11 rounded-lg bg-surface px-4",
-              })}
-            >
-              Back to job
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href={`/jobs/${job.id}`}
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "min-h-11 rounded-lg bg-surface px-4",
+                })}
+              >
+                Back to job
+              </Link>
+              <Link
+                href={`/jobs/${job.id}/photos`}
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "min-h-11 rounded-lg bg-surface px-4",
+                })}
+              >
+                <ImageIcon data-icon="inline-start" aria-hidden="true" />
+                Open photos
+              </Link>
+            </div>
             {seat && (
               <>
                 <NameLink href={links.seat ? `/seats/${seat.id}` : null}>

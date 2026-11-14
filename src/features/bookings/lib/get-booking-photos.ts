@@ -13,7 +13,7 @@ export interface BookingPhotosResult {
   failed: boolean;
 }
 
-interface BookingPhotoRow {
+export interface BookingPhotoRow {
   id: string;
   type: BookingPhotoType;
   storage_path: string;
@@ -44,8 +44,14 @@ export async function getBookingPhotos(bookingId: string): Promise<BookingPhotos
     return { photos: [], failed: true };
   }
 
-  const rows = (data ?? []) as unknown as BookingPhotoRow[];
+  return signBookingPhotos(supabase, (data ?? []) as unknown as BookingPhotoRow[]);
+}
 
+/** One query signs every address (no query per photo). Shared by the booking and the seat photo readers. */
+export async function signBookingPhotos(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: readonly BookingPhotoRow[],
+): Promise<BookingPhotosResult> {
   if (rows.length === 0) {
     return { photos: [], failed: false };
   }

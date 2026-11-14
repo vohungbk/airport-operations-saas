@@ -5,9 +5,9 @@ import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon } from "lucide-react";
 
 import { PhotoUploader } from "@/components/domain/photo-uploader";
 import { PhotoViewer } from "@/components/domain/photo-viewer";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BookingPhotoCard } from "@/features/bookings/components/booking-photo-card";
 import { useBookingPhotoLink } from "@/features/bookings/hooks/use-booking-photo-link";
 import { useBookingPhotoUpload } from "@/features/bookings/hooks/use-booking-photo-upload";
 import { useSendBookingPhoto } from "@/features/bookings/hooks/use-send-booking-photo";
@@ -15,7 +15,6 @@ import {
   BOOKING_PHOTO_DROP_HINT,
   BOOKING_PHOTO_FILTERS,
   BOOKING_PHOTO_RULE_HINT,
-  BOOKING_PHOTO_TYPE_LABEL,
   filterBookingPhotos,
   stepPhotoIndex,
   type BookingPhoto,
@@ -96,25 +95,7 @@ export function BookingPhotosTab({
       ) : (
         <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {visible.map((photo, index) => (
-            <li key={photo.id} className="min-w-0 overflow-hidden rounded-lg border border-border bg-card">
-              <button
-                type="button"
-                onClick={() => setOpenIndex(index)}
-                aria-label={`Open ${photo.caption ?? "photo"}`}
-                className="block min-h-11 w-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element -- a private signed address of any size */}
-                <img src={photo.url} alt={photo.caption ?? "Booking photo"} loading="lazy" className="aspect-video w-full bg-muted object-cover" />
-              </button>
-              <div className="flex min-w-0 flex-col gap-2 p-3">
-                <p className="text-xs font-semibold break-words text-foreground">{photo.caption ?? "Untitled photo"}</p>
-                <Badge variant="secondary" className="h-[27px] w-fit pointer-coarse:h-[27px]">
-                  {BOOKING_PHOTO_TYPE_LABEL[photo.type]}
-                </Badge>
-                {photo.uploader_name && <p className="text-xs text-muted-foreground">{photo.uploader_name}</p>}
-                {photo.taken_at && <p className="text-xs tabular-nums text-muted-foreground">{formatTime(photo.taken_at)}</p>}
-              </div>
-            </li>
+            <BookingPhotoCard key={photo.id} photo={photo} formatTime={formatTime} onOpen={() => setOpenIndex(index)} />
           ))}
         </ul>
       )}

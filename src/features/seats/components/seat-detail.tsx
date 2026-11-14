@@ -124,6 +124,7 @@ export function SeatDetail({ seat, history, chainBookingId, chainHistory }: Seat
         <SeatStatusHistory
           history={history.items}
           truncated={history.truncated}
+          photosHref={`/seats/${seat.id}/photos`}
         />
       </div>
 
