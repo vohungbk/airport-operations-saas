@@ -26,3 +26,20 @@ describe("settlement helpers", () => {
     expect(SETTLEMENT_MOVES.approved.map((m) => m.to)).not.toContain("pending_approval");
   });
 });
+
+describe("settlement list formats", () => {
+  it("should write the period as the month name and the year", async () => {
+    const { settlementPeriodLabel } = await import("@/features/settlements/lib/settlement");
+
+    expect(settlementPeriodLabel("2026-10-01")).toBe("October 2026");
+    expect(settlementPeriodLabel("2026-01-01")).toBe("January 2026");
+  });
+
+  it("should write an amount with two decimals and thousands separators, and zero as 0.00", async () => {
+    const { formatSettlementAmount } = await import("@/features/settlements/lib/settlement");
+
+    expect(formatSettlementAmount(11865)).toBe("11,865.00");
+    expect(formatSettlementAmount(5932.5)).toBe("5,932.50");
+    expect(formatSettlementAmount(0)).toBe("0.00");
+  });
+});

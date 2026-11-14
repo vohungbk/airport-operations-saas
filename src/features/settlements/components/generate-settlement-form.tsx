@@ -19,6 +19,10 @@ import { currentMonth } from "@/features/settlements/schemas/settlement.schema";
 
 interface GenerateSettlementFormProps {
   partners: SettlementPartnerOption[];
+  /** Called when the settlement was generated; the dialog that holds the form closes on it. */
+  onGenerated?: () => void;
+  /** Gives the form a Cancel button; the dialog that holds the form closes on it. */
+  onCancel?: () => void;
 }
 
 /**
@@ -26,8 +30,8 @@ interface GenerateSettlementFormProps {
  * and the list is shown again (NAV-5). Presentation only: the rules are in the schema, the Server
  * Action and the database function.
  */
-export function GenerateSettlementForm({ partners }: GenerateSettlementFormProps) {
-  const { form, onSubmit, isPending, result } = useGenerateSettlementForm();
+export function GenerateSettlementForm({ partners, onGenerated, onCancel }: GenerateSettlementFormProps) {
+  const { form, onSubmit, isPending, result } = useGenerateSettlementForm(onGenerated);
   const {
     register,
     control,
@@ -35,7 +39,7 @@ export function GenerateSettlementForm({ partners }: GenerateSettlementFormProps
   } = form;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex max-w-lg flex-col gap-5">
+    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       {result && !result.success && !result.error?.field && (
         <Alert variant="destructive">
           <AlertTitle>Could not generate the settlement</AlertTitle>
@@ -50,7 +54,11 @@ export function GenerateSettlementForm({ partners }: GenerateSettlementFormProps
           name="partner_id"
           render={({ field }) => (
             <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={isPending}>
-              <SelectTrigger id="partner_id" aria-invalid={!!errors.partner_id}>
+              <SelectTrigger
+                id="partner_id"
+                aria-invalid={!!errors.partner_id}
+                className="h-11 w-full data-[size=default]:h-11"
+              >
                 <SelectValue placeholder="Choose a partner" />
               </SelectTrigger>
               <SelectContent>
@@ -74,13 +82,19 @@ export function GenerateSettlementForm({ partners }: GenerateSettlementFormProps
           max={currentMonth()}
           aria-invalid={!!errors.month}
           disabled={isPending}
+          className="h-11"
           {...register("month")}
         />
         <FieldError errors={errors.month ? [errors.month] : undefined} />
       </Field>
 
-      <div>
-        <Button type="submit" disabled={isPending}>
+      <div className="flex flex-wrap justify-end gap-2">
+        {onCancel && (
+          <Button type="button" variant="outline" className="min-h-11 px-4" disabled={isPending} onClick={onCancel}>
+            Cancel
+          </Button>
+        )}
+        <Button type="submit" className="min-h-11 px-4" disabled={isPending}>
           {isPending ? "Generating..." : "Generate"}
         </Button>
       </div>

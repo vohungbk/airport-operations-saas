@@ -15,6 +15,23 @@ export const SETTLEMENT_STATUS_LABEL: Record<SettlementStatus, string> = {
 /** The month a settlement covers, as `YYYY-MM`. */
 export const settlementMonth = (periodStart: string): string => periodStart.slice(0, 7);
 
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+] as const;
+
+/** `2026-10-01` -> `October 2026`, the period as the list shows it. */
+export function settlementPeriodLabel(periodStart: string): string {
+  const [year, month] = periodStart.split("-");
+
+  return `${MONTH_NAMES[Number(month) - 1] ?? month} ${year}`;
+}
+
+/** `11865` -> `11,865.00`: two decimals and thousands separators, no currency (the list says "USD" once). */
+export function formatSettlementAmount(value: number): string {
+  return value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export interface SettlementMove {
   to: SettlementStatus;
   label: string;
