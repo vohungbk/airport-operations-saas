@@ -42,6 +42,23 @@ export function mapBookingPhotoError(error: Pick<PostgrestError, "code" | "messa
   }
 }
 
+/** Shown when the user lost the right to add photos to the booking while the screen was open (FO-F06-S09). */
+export const BOOKING_PHOTO_FORBIDDEN_MESSAGE = "You no longer have permission to add photos to this booking.";
+
+/**
+ * Whether a failed upload was refused for lack of permission: the 403 signal of `forbidden()` (Next) from the
+ * action, or a 403 from the private bucket. Any other failure is a network or server problem. Pure.
+ */
+export function isBookingPhotoForbiddenError(error: unknown): boolean {
+  const { digest, status, statusCode } = (error ?? {}) as { digest?: unknown; status?: unknown; statusCode?: unknown };
+
+  return (
+    (typeof digest === "string" && digest.startsWith("NEXT_HTTP_ERROR_FALLBACK;403")) ||
+    status === 403 ||
+    statusCode === "403"
+  );
+}
+
 /** Result of asking for a fresh signed link of one photo (FO-F06-S04). Raw storage errors never reach the client. */
 export type BookingPhotoLinkResult =
   | { success: true; url: string }
