@@ -27,3 +27,8 @@ export const recordBookingPhotoSchema = z
       ctx.addIssue({ code: "custom", path: ["storage_path"], message: BOOKING_PHOTO_REQUIRED_MESSAGE });
     }
   });
+
+/** Ask for a fresh signed link of one photo (FO-F06-S04, E6). */
+export const bookingPhotoLinkSchema = z.object({
+  photo_id: z.guid("Photo not found."),
+});

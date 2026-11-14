@@ -41,3 +41,14 @@ export function mapBookingPhotoError(error: Pick<PostgrestError, "code" | "messa
       return { code: "INTERNAL_ERROR", message: "Something went wrong. Try again." };
   }
 }
+
+/** Result of asking for a fresh signed link of one photo (FO-F06-S04). Raw storage errors never reach the client. */
+export type BookingPhotoLinkResult =
+  | { success: true; url: string }
+  | { success: false; error: BookingPhotoActionError };
+
+/** The photo link could not be requested (storage or network). */
+export const BOOKING_PHOTO_LINK_ERROR: BookingPhotoActionError = {
+  code: "INTERNAL_ERROR",
+  message: "The photo could not be opened. Try again.",
+};

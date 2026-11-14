@@ -39,8 +39,8 @@ export const BOOKING_PHOTO_CAPTION_MAX_LENGTH = 200;
 /** The private bucket of the booking photos (migration 20261227090000). */
 export const BOOKING_PHOTO_BUCKET = "booking-photos";
 
-/** The signed addresses of the private photos stay valid for an hour. */
-export const BOOKING_PHOTO_SIGNED_URL_SECONDS = 60 * 60;
+/** The signed addresses of the private photos are short-lived (FO-F06-S04, R7): they stay valid for five minutes. */
+export const BOOKING_PHOTO_SIGNED_URL_SECONDS = 5 * 60;
 
 /** The caption of a photo that has none typed: its file name without the extension, cut to the caption limit. Pure. */
 export function captionFromFileName(fileName: string): string {
