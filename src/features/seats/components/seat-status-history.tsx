@@ -1,3 +1,7 @@
+import Link from "next/link";
+import { ImageIcon } from "lucide-react";
+
+import { buttonVariants } from "@/components/ui/button";
 import { SeatHistoryTimeline } from "@/components/domain/seat-history-timeline";
 import {
   SEAT_HISTORY_LIMIT,
@@ -7,6 +11,8 @@ import {
 interface SeatStatusHistoryProps {
   history: SeatHistoryItem[];
   truncated?: boolean;
+  /** The Photo viewer of the seat; the Open photos button is shown only when it is given. */
+  photosHref?: string;
 }
 
 /** The time of a change as it was shown before the restyle (UI-F06-S02, spec R8): no new time zone. */
@@ -20,15 +26,27 @@ export const formatChangeTime = (iso: string) => new Date(iso).toLocaleString();
 export function SeatStatusHistory({
   history,
   truncated = false,
+  photosHref,
 }: SeatStatusHistoryProps) {
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5" aria-labelledby="seat-history">
-      <h2
-        id="seat-history"
-        className="text-base leading-snug font-semibold text-foreground"
-      >
-        Status history
-      </h2>
+      <div className="flex items-center gap-2">
+        <h2
+          id="seat-history"
+          className="min-w-0 flex-1 text-base leading-snug font-semibold text-foreground"
+        >
+          Status history
+        </h2>
+        {photosHref && (
+          <Link
+            href={photosHref}
+            className={buttonVariants({ variant: "outline", className: "min-h-11 bg-surface px-4" })}
+          >
+            <ImageIcon data-icon="inline-start" aria-hidden="true" />
+            Open photos
+          </Link>
+        )}
+      </div>
       {history.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No status changes recorded.
