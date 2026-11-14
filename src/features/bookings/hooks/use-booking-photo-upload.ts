@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import { BOOKING_PHOTO_FORBIDDEN_MESSAGE, isBookingPhotoForbiddenError } from "@/features/bookings/lib/booking-photo-errors";
 import { BOOKING_PHOTO_MAX_BYTES, validatePhotoFile } from "@/features/bookings/lib/booking-photos";
 import type { PhotoUploadItem } from "@/lib/field/photo-upload";
 
@@ -28,7 +29,14 @@ export function useBookingPhotoUpload(send: SendBookingPhoto) {
       try {
         const url = await send(file, (progress) => patch(id, { progress }));
         patch(id, { status: "uploaded", thumbnail_url: url });
-      } catch {
+      } catch (error) {
+        if (isBookingPhotoForbiddenError(error)) {
+          // The right to add photos is gone: a retry cannot work, so the photo is dropped and the user is told.
+          files.current.delete(id);
+          setItems((current) => current.filter((item) => item.id !== id));
+          setErrors([BOOKING_PHOTO_FORBIDDEN_MESSAGE]);
+          return;
+        }
         patch(id, { status: "failed" });
       }
     },

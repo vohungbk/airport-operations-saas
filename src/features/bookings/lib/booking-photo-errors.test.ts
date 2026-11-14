@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { mapBookingPhotoError } from "@/features/bookings/lib/booking-photo-errors";
+import { isBookingPhotoForbiddenError, mapBookingPhotoError } from "@/features/bookings/lib/booking-photo-errors";
+
+describe("isBookingPhotoForbiddenError", () => {
+  it.each([
+    ["the forbidden() signal of the action", { digest: "NEXT_HTTP_ERROR_FALLBACK;403" }],
+    ["a 403 status from the bucket", { status: 403 }],
+    ["a 403 status code from the bucket", { statusCode: "403" }],
+  ])("should be true for %s", (_name, error) => {
+    expect(isBookingPhotoForbiddenError(error)).toBe(true);
+  });
+
+  it.each([
+    ["a network failure", new TypeError("Failed to fetch")],
+    ["a not found signal", { digest: "NEXT_HTTP_ERROR_FALLBACK;404" }],
+    ["a server error", { status: 500, statusCode: "500" }],
+    ["nothing", null],
+  ])("should be false for %s", (_name, error) => {
+    expect(isBookingPhotoForbiddenError(error)).toBe(false);
+  });
+});
 
 describe("mapBookingPhotoError", () => {
   it.each([
