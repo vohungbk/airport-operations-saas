@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const requirePermissionMock = vi.hoisted(() => vi.fn());
+const requireAuthMock = vi.hoisted(() => vi.fn());
 const rpcMock = vi.hoisted(() => vi.fn());
 const revalidatePathMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/auth/current-user", () => ({ requirePermission: requirePermissionMock }));
+vi.mock("@/lib/auth/current-user", () => ({ requireAuth: requireAuthMock }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({ rpc: rpcMock })) }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/navigation", () => ({
@@ -25,8 +25,8 @@ const INPUT = {
 
 describe("recordBookingPhotoAction", () => {
   beforeEach(() => {
-    requirePermissionMock.mockReset();
-    requirePermissionMock.mockResolvedValue({ id: "u-1", role: "operations_manager" });
+    requireAuthMock.mockReset();
+    requireAuthMock.mockResolvedValue({ id: "u-1", role: "operations_manager" });
     rpcMock.mockReset();
     rpcMock.mockResolvedValue({ error: null });
     revalidatePathMock.mockReset();
@@ -35,7 +35,7 @@ describe("recordBookingPhotoAction", () => {
   it("should link the photo to the booking and refresh the booking page", async () => {
     await expect(recordBookingPhotoAction(INPUT)).resolves.toEqual({ success: true });
 
-    expect(requirePermissionMock).toHaveBeenCalledWith("bookings:manage");
+    expect(requireAuthMock).toHaveBeenCalled();
     expect(rpcMock).toHaveBeenCalledWith("record_booking_photo", {
       p_booking_id: BOOKING_ID,
       p_type: "installation",
@@ -55,14 +55,15 @@ describe("recordBookingPhotoAction", () => {
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
-  it("should not call the database when the permission is missing", async () => {
-    requirePermissionMock.mockRejectedValue(new Error("FORBIDDEN"));
+  it("should not call the database when nobody is signed in", async () => {
+    requireAuthMock.mockRejectedValue(new Error("FORBIDDEN"));
 
     await expect(recordBookingPhotoAction(INPUT)).rejects.toThrow("FORBIDDEN");
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
-  it("should show the forbidden state when the database refuses the role", async () => {
+  it("should show the forbidden state when the database refuses a technician who is not assigned (AC03)", async () => {
+    requireAuthMock.mockResolvedValue({ id: "u-2", role: "technician" });
     rpcMock.mockResolvedValue({ error: { code: "42501", message: "Not allowed" } });
 
     await expect(recordBookingPhotoAction(INPUT)).rejects.toThrow("FORBIDDEN");

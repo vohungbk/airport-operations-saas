@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { AIRPORT, CATEGORY, PARTNER, USER, available, run } from "@/lib/finance/finance-test-support";
 
 /**
- * FO-F06-S01: only an admin or an operations manager adds or reads the photos of a booking; a technician, a
- * partner user and nobody signed in are refused. Every scenario runs in a transaction that is rolled back and
+ * FO-F06-S01, S03: an admin or an operations manager adds or reads the photos of a booking; the assigned
+ * technician adds and reads those of their booking; a partner user reads only those of their own partner;
+ * anyone else and nobody signed in are refused. Every scenario runs in a transaction that is rolled back and
  * makes its own booking and bucket file. Skipped when the local stack is not running.
  */
 const BOOKING = "dd000000-0000-0000-0000-000000000001";
@@ -29,9 +30,19 @@ const record = (label: string, path = PATH, caption = "'Seat fitted'") => `
     raise notice 'R|${label}|%', sqlstate;
   end $$;`;
 
-const count = (label: string) => `
+const count = (label: string, from = "public.booking_photos") => `
   do $$ begin
-    raise notice 'R|${label}|%', (select count(*) from public.booking_photos);
+    raise notice 'R|${label}|%', (select count(*) from ${from});
+  end $$;`;
+
+const files = (label: string) => count(label, "storage.objects where bucket_id = 'booking-photos'");
+
+const addFile = (label: string) => `
+  do $$ begin
+    insert into storage.objects (bucket_id, name) values ('booking-photos', '${BOOKING}/installation/t-1.jpg');
+    raise notice 'R|${label}|stored';
+  exception when others then
+    raise notice 'R|${label}|%', sqlstate;
   end $$;`;
 
 const result = (rows: string[][], label: string) => rows.find((row) => row[0] === label)![1];
@@ -70,14 +81,56 @@ describe.skipIf(!available)("booking photos (FO-F06-S01)", () => {
     expect(result(rows, "saved")).toBe("true,true,installation,image/jpeg,true,true");
   });
 
-  it.each([["technician"], ["partner_user"]])("should refuse a %s the photo and the read (AC02)", (role) => {
+  it.each([["technician"], ["partner_user"]])("should refuse a %s who has no link to the booking the photo and the read (FO-F06-S03 AC02)", (role) => {
     const rows = run(`
       ${SETUP}
       ${asCaller(USER("operations_manager"), record("seed"))}
-      ${asCaller(USER(role), `${record("add")} ${count("read")}`)}`);
+      ${asCaller(USER(role), `${record("add")} ${count("read")} ${files("file")}`)}`);
 
     expect(result(rows, "add")).toBe("42501");
     expect(result(rows, "read")).toBe("0");
+    expect(result(rows, "file")).toBe("0");
+  });
+
+  it("should let the assigned technician add and read a photo of their booking (FO-F06-S03 AC01)", () => {
+    const rows = run(`
+      ${SETUP}
+      update public.bookings set assigned_technician_id = ${USER("technician")} where id = '${BOOKING}';
+      ${asCaller(USER("technician"), `${addFile("upload")} ${record("add")} ${count("read")} ${files("file")}`)}`);
+
+    expect(result(rows, "upload")).toBe("stored");
+    expect(result(rows, "add")).toBe("stored");
+    expect(result(rows, "read")).toBe("1");
+    expect(result(rows, "file")).toBe("2");
+  });
+
+  it("should refuse a technician who is not assigned the upload and the photo (FO-F06-S03 AC03)", () => {
+    const rows = run(`
+      ${SETUP}
+      update public.bookings set assigned_technician_id = ${USER("technician", 1)} where id = '${BOOKING}';
+      ${asCaller(USER("technician"), `${addFile("upload")} ${record("add")}`)}`);
+
+    expect(result(rows, "upload")).not.toBe("stored");
+    expect(result(rows, "add")).toBe("42501");
+  });
+
+  it("should let a partner user read the photos of their own partner and none of another partner (FO-F06-S03 AC01, AC02)", () => {
+    const rows = run(`
+      ${SETUP}
+      update public.bookings set partner_id = (select partner_id from public.users where id::text = ${USER("partner_user")})
+        where id = '${BOOKING}';
+      ${asCaller(USER("operations_manager"), record("seed"))}
+      ${asCaller(USER("partner_user"), `${count("own")} ${files("ownfile")}`)}
+      update public.bookings set partner_id = (
+        select p.id from public.partners p
+        where p.id <> (select partner_id from public.users where id::text = ${USER("partner_user")}) limit 1
+      ) where id = '${BOOKING}';
+      ${asCaller(USER("partner_user"), `${count("other")} ${files("otherfile")}`)}`);
+
+    expect(result(rows, "own")).toBe("1");
+    expect(result(rows, "ownfile")).toBe("1");
+    expect(result(rows, "other")).toBe("0");
+    expect(result(rows, "otherfile")).toBe("0");
   });
 
   it("should refuse nobody signed in, a missing file and a caption over 200 characters (AC03, AC04)", () => {
