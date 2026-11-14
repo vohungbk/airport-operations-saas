@@ -221,6 +221,51 @@ export type Database = {
           },
         ]
       }
+      booking_photos: {
+        Row: {
+          booking_id: string
+          caption: string | null
+          created_at: string
+          id: string
+          storage_path: string
+          type: string
+          uploaded_by: string
+        }
+        Insert: {
+          booking_id: string
+          caption?: string | null
+          created_at?: string
+          id?: string
+          storage_path: string
+          type: string
+          uploaded_by: string
+        }
+        Update: {
+          booking_id?: string
+          caption?: string | null
+          created_at?: string
+          id?: string
+          storage_path?: string
+          type?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_photos_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_photos_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           actual_arrival_at: string | null
@@ -1844,6 +1889,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      record_booking_photo: {
+        Args: {
+          p_booking_id: string
+          p_caption: string
+          p_path: string
+          p_type: string
+        }
+        Returns: {
+          booking_id: string
+          caption: string | null
+          created_at: string
+          id: string
+          storage_path: string
+          type: string
+          uploaded_by: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "booking_photos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       record_flight_provider_error: {
         Args: { p_kind: string; p_source: string }
         Returns: undefined

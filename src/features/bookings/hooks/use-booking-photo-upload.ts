@@ -2,18 +2,18 @@
 
 import { useCallback, useRef, useState } from "react";
 
-import { validatePhotoFile } from "@/features/bookings/lib/booking-photos";
+import { BOOKING_PHOTO_MAX_BYTES, validatePhotoFile } from "@/features/bookings/lib/booking-photos";
 import type { PhotoUploadItem } from "@/lib/field/photo-upload";
 
-/** Sends one photo to the server; resolves with its address. Given by the feature that stores the photos. */
+/** Sends one photo to the server; resolves with its address. See `useSendBookingPhoto`. */
 export type SendBookingPhoto = (file: File, onProgress: (percent: number) => void) => Promise<string>;
 
 /**
  * The photos being added on the Photos tab: each file is checked first (a rejected file is named in `errors`
- * and nothing is kept), then sent. With no `send`, an accepted file is shown as failed so it can be retried
- * or removed, because the storage of photos is not built yet.
+ * and nothing is kept), then sent. A file that could not be sent is shown as failed so it can be retried
+ * or removed.
  */
-export function useBookingPhotoUpload(send?: SendBookingPhoto) {
+export function useBookingPhotoUpload(send: SendBookingPhoto) {
   const [items, setItems] = useState<PhotoUploadItem[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const files = useRef(new Map<string, File>());
@@ -26,7 +26,6 @@ export function useBookingPhotoUpload(send?: SendBookingPhoto) {
     async (id: string, file: File) => {
       patch(id, { status: "uploading", progress: 0 });
       try {
-        if (!send) throw new Error("not available");
         const url = await send(file, (progress) => patch(id, { progress }));
         patch(id, { status: "uploaded", thumbnail_url: url });
       } catch {
@@ -40,7 +39,7 @@ export function useBookingPhotoUpload(send?: SendBookingPhoto) {
     (list: FileList | File[]) => {
       const rejected: string[] = [];
       for (const file of Array.from(list)) {
-        const reason = validatePhotoFile(file);
+        const reason = validatePhotoFile(file, BOOKING_PHOTO_MAX_BYTES);
         if (reason) {
           rejected.push(reason);
           continue;
