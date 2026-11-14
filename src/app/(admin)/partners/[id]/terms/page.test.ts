@@ -75,38 +75,49 @@ describe("CommercialTermsPage", () => {
     expect(getTermsMock).not.toHaveBeenCalled();
   });
 
-  it("should show the empty state and the form with 30 and 50 to an admin when there are no terms (AC01, AC02)", async () => {
+  it("should show the heading, the notice and the form with 30 and 50 to an admin when there are no terms (AC01, AC02)", async () => {
     const html = await render();
 
-    expect(html).toContain("Demo Car Rental");
-    expect(html).toContain("No commercial terms yet");
+    expect(html).toContain("Commercial terms");
+    expect(html).toContain("Demo Car Rental · Internal only");
+    expect(html).not.toContain("Terms v");
+    expect(html).toContain("New terms apply from the effective date. Completed rentals keep their earlier terms.");
     expect(html).toContain("FORM");
+    expect(html).toContain("No terms yet.");
     expect(formProps.current).toMatchObject({
       partnerId: PARTNER_ID,
+      canEdit: true,
       defaultValues: { partner_share_percent: 30, launch_partner_share_percent: 50 },
     });
   });
 
-  it("should show the terms in force to an admin, with the form starting from them", async () => {
+  it("should give an admin the Save button in the header, pointing at the form", async () => {
+    const html = await render();
+
+    expect(html).toContain(">Save new terms version<");
+    expect(html).toContain('form="commercial-terms-form"');
+  });
+
+  it("should show the version in force in the subtitle and the form starting from it", async () => {
     getTermsMock.mockResolvedValue({ versions: [terms("t-1", "2020-01-01", null, 40, 55)], truncated: false });
 
     const html = await render();
 
-    expect(html).toContain("Terms in force");
-    expect(html).toContain("40%");
+    expect(html).toContain("Demo Car Rental · Internal only · Terms v1");
+    expect(html).toContain("Current terms · V1");
     expect(formProps.current).toMatchObject({
       defaultValues: { partner_share_percent: 40, launch_partner_share_percent: 55 },
     });
   });
 
-  it("should show an operations manager the terms but not the form (permission to edit)", async () => {
+  it("should show an operations manager the same layout, with no Save button and the form told it is read only", async () => {
     asRole("operations_manager");
 
     const html = await render();
 
-    expect(html).toContain("Read only");
-    expect(html).not.toContain("FORM");
-    expect(formProps.current).toBeNull();
+    expect(html).toContain("FORM");
+    expect(html).not.toContain("Save new terms version");
+    expect(formProps.current).toMatchObject({ canEdit: false });
   });
 
   it("should answer not found for an unknown partner, and read no terms", async () => {
@@ -116,7 +127,7 @@ describe("CommercialTermsPage", () => {
     expect(getTermsMock).not.toHaveBeenCalled();
   });
 
-  it("should list the earlier terms with the days they applied, to an admin (VI-F04-S03 AC01)", async () => {
+  it("should list every version with its number, newest first (VI-F04-S03 AC01)", async () => {
     getTermsMock.mockResolvedValue({
       versions: [terms("t-2", "2020-06-01", null, 40), terms("t-1", "2020-01-01", "2020-05-31", 30)],
       truncated: false,
@@ -124,35 +135,30 @@ describe("CommercialTermsPage", () => {
 
     const html = await render();
 
-    expect(html).toContain("Earlier terms");
-    expect(html).toContain("2020-01-01 to 2020-05-31");
-    expect(html).toContain("Terms in force");
+    expect(html).toContain("Terms history");
+    expect(html).toContain("1 Jun 2020");
+    expect(html).toContain("1 Jan 2020");
+    expect(html.indexOf("1 Jun 2020")).toBeLessThan(html.indexOf("1 Jan 2020"));
+    expect(html).toContain("Terms v2");
   });
 
-  it("should list the earlier terms to an operations manager too, read only", async () => {
-    asRole("operations_manager");
+  it("should show the launch credit card only when the version in force has a target", async () => {
+    expect(await render()).not.toContain("Launch credit");
+
     getTermsMock.mockResolvedValue({
-      versions: [terms("t-2", "2020-06-01", null), terms("t-1", "2020-01-01", "2020-05-31")],
+      versions: [{ ...terms("t-1", "2020-01-01", null), launch_credit_target: 10000, launch_credit_accumulated: 6000 }],
       truncated: false,
     });
-
     const html = await render();
 
-    expect(html).toContain("2020-01-01 to 2020-05-31");
-    expect(html).toContain("Read only");
-  });
-
-  it("should say there are no earlier terms when none has ended", async () => {
-    expect(await render()).toContain("No earlier terms");
+    expect(html).toContain("60% reached");
+    expect(html).toContain("USD 6,000.00");
+    expect(html).toContain("of USD 10,000.00 target");
   });
 
   it("should note that older versions were cut off", async () => {
     getTermsMock.mockResolvedValue({ versions: [], truncated: true });
 
     expect(await render()).toContain("Only the latest 100 versions are shown.");
-  });
-
-  it("should link back to the partner", async () => {
-    expect(await render()).toContain(`href="/partners/${PARTNER_ID}"`);
   });
 });

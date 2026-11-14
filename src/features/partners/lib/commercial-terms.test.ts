@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildTermsHistory,
   dayAfter,
   defaultCommercialTermsFormValues,
+  formatMoneyText,
+  formatTermsDate,
+  launchCreditProgress,
+  paymentTermsLabel,
+  paymentTermsOptions,
   pickCommercialTerms,
   platformShareOf,
   utcToday,
@@ -157,5 +163,66 @@ describe("defaultCommercialTermsFormValues", () => {
   it("should start the day after a version that begins today or later, since the database needs a later date", () => {
     expect(defaultCommercialTermsFormValues([version("a", "2026-10-24")], "2026-10-24").effective_from).toBe("2026-10-25");
     expect(defaultCommercialTermsFormValues([version("a", "2026-12-31")], "2026-10-24").effective_from).toBe("2027-01-01");
+  });
+});
+
+describe("terms history and launch credit helpers", () => {
+  const version = (id: string, from: string, to: string | null, extra: Partial<CommercialTermsVersion> = {}): CommercialTermsVersion => ({
+    id,
+    partner_share_percent: 30,
+    platform_share_percent: 70,
+    launch_partner_share_percent: 50,
+    launch_credit_target: null,
+    annual_fee: 0,
+    onboarding_fee: 0,
+    vat_rate_percent: 0,
+    payment_terms_days: 14,
+    effective_from: from,
+    effective_to: to,
+    ...extra,
+  });
+
+  it("should number the versions from the oldest, list the newest first and mark the one in force", () => {
+    const { rows, currentLabel } = buildTermsHistory(
+      [
+        version("b", "2026-09-01", "2026-09-30"),
+        version("c", "2026-10-01", null, { changed_by_name: "Priya Nair" }),
+        version("a", "2026-01-01", "2026-08-31"),
+      ],
+      "2026-10-24",
+    );
+
+    expect(rows.map((row) => row.label)).toEqual(["v3", "v2", "v1"]);
+    expect(rows[0]).toMatchObject({ effective_date: "1 Oct 2026", changed_by: "Priya Nair", is_current: true });
+    expect(rows[1]).toMatchObject({ changed_by: "-", is_current: false });
+    expect(currentLabel).toBe("v3");
+  });
+
+  it("should name the latest version when none is in force yet, and nothing when there is none", () => {
+    expect(buildTermsHistory([version("a", "2027-01-01", null)], "2026-10-24").currentLabel).toBe("v1");
+    expect(buildTermsHistory([], "2026-10-24")).toEqual({ rows: [], currentLabel: null });
+  });
+
+  it("should give the launch credit as a whole percent that stops at 100", () => {
+    expect(launchCreditProgress(version("a", "2026-01-01", null, { launch_credit_target: 10000, launch_credit_accumulated: 6000 }))).toEqual({
+      accumulated: 6000,
+      target: 10000,
+      percent: 60,
+    });
+    expect(launchCreditProgress(version("a", "2026-01-01", null, { launch_credit_target: 100, launch_credit_accumulated: 250 }))?.percent).toBe(100);
+  });
+
+  it("should give no launch credit when there is no target to reach", () => {
+    expect(launchCreditProgress(null)).toBeNull();
+    expect(launchCreditProgress(version("a", "2026-01-01", null))).toBeNull();
+    expect(launchCreditProgress(version("a", "2026-01-01", null, { launch_credit_target: 0 }))).toBeNull();
+  });
+
+  it("should write dates, money and payment terms as the design does", () => {
+    expect(formatTermsDate("2026-10-01")).toBe("1 Oct 2026");
+    expect(formatMoneyText(10000)).toBe("10,000.00");
+    expect(paymentTermsLabel(14)).toBe("Net 14 days");
+    expect(paymentTermsOptions(14)).toEqual([7, 14, 30, 45, 60]);
+    expect(paymentTermsOptions(21)).toEqual([7, 14, 21, 30, 45, 60]);
   });
 });

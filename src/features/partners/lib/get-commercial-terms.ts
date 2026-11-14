@@ -2,9 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import type { CommercialTermsVersion } from "@/features/partners/lib/commercial-terms";
 import { partnerIdSchema } from "@/features/partners/schemas/commercial-terms.schema";
 
-/** Explicit columns: the terms and the dates. No launch credit balance, no partner data. */
+/** Explicit columns: the terms, the dates, the launch credit counted so far and the name of who saved them. No partner data. */
 export const COMMERCIAL_TERMS_SELECT =
-  "id, partner_share_percent, platform_share_percent, launch_partner_share_percent, launch_credit_target, annual_fee, onboarding_fee, vat_rate_percent, payment_terms_days, effective_from, effective_to";
+  "id, partner_share_percent, platform_share_percent, launch_partner_share_percent, launch_credit_target, annual_fee, onboarding_fee, vat_rate_percent, payment_terms_days, effective_from, effective_to, launch_credit_accumulated, changed_by_user:users!changed_by(full_name)";
 
 /** More than this many versions of one partner is not expected to be shown (a note says so). */
 export const COMMERCIAL_TERMS_LIMIT = 100;
@@ -38,7 +38,12 @@ export async function getCommercialTerms(partnerId: string): Promise<CommercialT
     throw error;
   }
 
-  const rows = data ?? [];
+  const rows = ((data ?? []) as unknown as Array<
+    Omit<CommercialTermsVersion, "changed_by_name"> & { changed_by_user: { full_name: string } | null }
+  >).map(({ changed_by_user, ...version }) => ({
+    ...version,
+    changed_by_name: changed_by_user?.full_name ?? null,
+  }));
 
   return {
     versions: rows.slice(0, COMMERCIAL_TERMS_LIMIT),

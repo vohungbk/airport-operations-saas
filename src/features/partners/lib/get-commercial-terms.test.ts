@@ -53,7 +53,22 @@ describe("getCommercialTerms", () => {
     const rows = [{ id: "t-1", partner_share_percent: 30 }];
     mockQuery({ data: rows, error: null });
 
-    await expect(getCommercialTerms(PARTNER_ID)).resolves.toEqual({ versions: rows, truncated: false });
+    await expect(getCommercialTerms(PARTNER_ID)).resolves.toEqual({
+      versions: [{ id: "t-1", partner_share_percent: 30, changed_by_name: null }],
+      truncated: false,
+    });
+  });
+
+  it("should give the name of who saved a version, read with the version in the same query", async () => {
+    const rows = [{ id: "t-1", changed_by_user: { full_name: "Priya Nair" } }];
+    mockQuery({ data: rows, error: null });
+
+    const result = await getCommercialTerms(PARTNER_ID);
+
+    expect(COMMERCIAL_TERMS_SELECT).toContain("changed_by_user:users!changed_by(full_name)");
+    expect(COMMERCIAL_TERMS_SELECT).toContain("launch_credit_accumulated");
+    expect(result.versions[0]).toMatchObject({ id: "t-1", changed_by_name: "Priya Nair" });
+    expect(result.versions[0]).not.toHaveProperty("changed_by_user");
   });
 
   it("should ask for one more than the limit, and say older versions were cut off when it gets it (VI-F04-S03)", async () => {

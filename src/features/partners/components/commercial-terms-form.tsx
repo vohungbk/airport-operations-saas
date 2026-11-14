@@ -1,38 +1,54 @@
 "use client";
 
+import type { ReactNode } from "react";
+import { Controller } from "react-hook-form";
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TermsMoneyInput } from "@/features/partners/components/terms-money-input";
 import { useCommercialTermsForm } from "@/features/partners/hooks/use-commercial-terms-form";
+import {
+  COMMERCIAL_TERMS_FORM_ID,
+  formatTermsDate,
+  paymentTermsLabel,
+  paymentTermsOptions,
+} from "@/features/partners/lib/commercial-terms";
 import type { CommercialTermsInput } from "@/features/partners/schemas/commercial-terms.schema";
 
-type NumberFieldName =
-  | "launch_credit_target"
-  | "annual_fee"
-  | "onboarding_fee"
-  | "vat_rate_percent"
-  | "payment_terms_days";
-
-const EXTRA_FIELDS: { name: NumberFieldName; label: string; step: string; optional?: boolean }[] = [
-  { name: "launch_credit_target", label: "Launch credit target (leave empty for none)", step: "0.01", optional: true },
-  { name: "annual_fee", label: "Annual programme fee", step: "0.01" },
-  { name: "onboarding_fee", label: "Onboarding credit", step: "0.01" },
-  { name: "vat_rate_percent", label: "VAT rate (%)", step: "0.01" },
-  { name: "payment_terms_days", label: "Payment terms (days until an invoice is due)", step: "1" },
-];
+const HINT_CLASS = "text-xs text-muted-foreground";
 
 interface CommercialTermsFormProps {
   partnerId: string;
   today: string;
   defaultValues: CommercialTermsInput;
+  /** Only an admin changes the terms; anyone else reads them in the same layout, with the fields off. */
+  canEdit: boolean;
+}
+
+function Hint({ children, testId }: { children: ReactNode; testId?: string }) {
+  return (
+    <p className={HINT_CLASS} data-testid={testId}>
+      {children}
+    </p>
+  );
 }
 
 /**
- * VI-F04 S1: set the commercial terms of a partner. Saving adds a version that starts on the
- * effective date; the earlier terms stay as they were (R1). Only shown to an admin.
+ * VI-F04 S1: the "Revenue and programme terms" card of the design. Saving adds a version that
+ * starts on the effective date; the earlier terms stay as they were (R1). The Save button is in the
+ * page header and submits this form by its id. Presentation only: the rules are in the schema, the
+ * Server Action and the database function.
  */
-export function CommercialTermsForm({ partnerId, today, defaultValues }: CommercialTermsFormProps) {
+export function CommercialTermsForm({ partnerId, today, defaultValues, canEdit }: CommercialTermsFormProps) {
   const { form, onSubmit, isPending, result, platformShare } = useCommercialTermsForm({
     partnerId,
     today,
@@ -40,11 +56,23 @@ export function CommercialTermsForm({ partnerId, today, defaultValues }: Commerc
   });
   const {
     register,
+    control,
     formState: { errors },
   } = form;
+  const locked = isPending || !canEdit;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex max-w-lg flex-col gap-5">
+    <form
+      id={COMMERCIAL_TERMS_FORM_ID}
+      onSubmit={onSubmit}
+      noValidate
+      className="flex min-w-0 flex-col gap-6 rounded-xl border bg-card p-6"
+    >
+      <div className="flex flex-col gap-1">
+        <h2 className="text-base font-semibold text-foreground">Revenue and programme terms</h2>
+        <p className="text-sm text-muted-foreground">Define revenue sharing and programme charges.</p>
+      </div>
+
       {result?.success && (
         <Alert variant="success">
           <AlertTitle>Terms saved</AlertTitle>
@@ -58,83 +86,191 @@ export function CommercialTermsForm({ partnerId, today, defaultValues }: Commerc
         </Alert>
       )}
 
-      <Field data-invalid={!!errors.partner_share_percent}>
-        <FieldLabel htmlFor="partner_share_percent">Partner share (%)</FieldLabel>
-        <Input
-          id="partner_share_percent"
-          type="number"
-          step="0.01"
-          inputMode="decimal"
-          aria-invalid={!!errors.partner_share_percent}
-          disabled={isPending}
-          {...register("partner_share_percent", { valueAsNumber: true })}
-        />
-        <FieldError errors={errors.partner_share_percent ? [errors.partner_share_percent] : undefined} />
-      </Field>
-
-      <div>
-        <p className="text-sm text-muted-foreground">Platform share (%)</p>
-        <p className="mt-1 text-sm text-foreground" data-testid="platform-share">
-          {platformShare === null ? "-" : platformShare}
-        </p>
-      </div>
-
-      <Field data-invalid={!!errors.launch_partner_share_percent}>
-        <FieldLabel htmlFor="launch_partner_share_percent">Launch partner share (%)</FieldLabel>
-        <Input
-          id="launch_partner_share_percent"
-          type="number"
-          step="0.01"
-          inputMode="decimal"
-          aria-invalid={!!errors.launch_partner_share_percent}
-          disabled={isPending}
-          {...register("launch_partner_share_percent", { valueAsNumber: true })}
-        />
-        <FieldError
-          errors={errors.launch_partner_share_percent ? [errors.launch_partner_share_percent] : undefined}
-        />
-      </Field>
-
-      {EXTRA_FIELDS.map(({ name, label, step, optional }) => (
-        <Field key={name} data-invalid={!!errors[name]}>
-          <FieldLabel htmlFor={name}>{label}</FieldLabel>
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+        <Field data-invalid={!!errors.partner_share_percent}>
+          <FieldLabel htmlFor="partner_share_percent">Standard partner share (%)</FieldLabel>
           <Input
-            id={name}
+            id="partner_share_percent"
             type="number"
-            step={step}
-            min={0}
+            step="0.01"
             inputMode="decimal"
-            aria-invalid={!!errors[name]}
-            disabled={isPending}
-            {...register(
-              name,
-              // An empty optional field is "none", not zero or not a number.
-              optional
-                ? { setValueAs: (value) => (value === "" || value == null ? null : Number(value)) }
-                : { valueAsNumber: true },
+            className="h-11"
+            aria-invalid={!!errors.partner_share_percent}
+            disabled={locked}
+            {...register("partner_share_percent", { valueAsNumber: true })}
+          />
+          <FieldError errors={errors.partner_share_percent ? [errors.partner_share_percent] : undefined} />
+          <Hint>
+            Platform share: <span data-testid="platform-share">{platformShare === null ? "-" : `${platformShare}%`}</span>
+            {" · Allowed range: 0–100%"}
+          </Hint>
+        </Field>
+
+        <Field data-invalid={!!errors.launch_partner_share_percent}>
+          <FieldLabel htmlFor="launch_partner_share_percent">Launch partner share (%)</FieldLabel>
+          <Input
+            id="launch_partner_share_percent"
+            type="number"
+            step="0.01"
+            inputMode="decimal"
+            className="h-11"
+            aria-invalid={!!errors.launch_partner_share_percent}
+            disabled={locked}
+            {...register("launch_partner_share_percent", { valueAsNumber: true })}
+          />
+          <FieldError
+            errors={errors.launch_partner_share_percent ? [errors.launch_partner_share_percent] : undefined}
+          />
+          <Hint>Must be at least the standard partner share.</Hint>
+        </Field>
+
+        <Field data-invalid={!!errors.launch_credit_target}>
+          <FieldLabel htmlFor="launch_credit_target">Launch credit target (USD)</FieldLabel>
+          <Controller
+            control={control}
+            name="launch_credit_target"
+            render={({ field }) => (
+              <TermsMoneyInput
+                id="launch_credit_target"
+                name={field.name}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                disabled={locked}
+                invalid={!!errors.launch_credit_target}
+                optional
+              />
             )}
           />
-          <FieldError errors={errors[name] ? [errors[name]] : undefined} />
+          <FieldError errors={errors.launch_credit_target ? [errors.launch_credit_target] : undefined} />
+          <Hint>Exact amount · 2 decimal places</Hint>
         </Field>
-      ))}
 
-      <Field data-invalid={!!errors.effective_from}>
-        <FieldLabel htmlFor="effective_from">Effective from</FieldLabel>
-        <Input
-          id="effective_from"
-          type="date"
-          min={today}
-          aria-invalid={!!errors.effective_from}
-          disabled={isPending}
-          {...register("effective_from")}
-        />
-        <FieldError errors={errors.effective_from ? [errors.effective_from] : undefined} />
-      </Field>
+        <Field data-invalid={!!errors.annual_fee}>
+          <FieldLabel htmlFor="annual_fee">Annual programme fee (USD)</FieldLabel>
+          <Controller
+            control={control}
+            name="annual_fee"
+            render={({ field }) => (
+              <TermsMoneyInput
+                id="annual_fee"
+                name={field.name}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                disabled={locked}
+                invalid={!!errors.annual_fee}
+              />
+            )}
+          />
+          <FieldError errors={errors.annual_fee ? [errors.annual_fee] : undefined} />
+          <Hint>Charged annually</Hint>
+        </Field>
 
-      <div>
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : "Save terms"}
-        </Button>
+        <Field data-invalid={!!errors.onboarding_fee}>
+          <FieldLabel htmlFor="onboarding_fee">Onboarding credit (USD)</FieldLabel>
+          <Controller
+            control={control}
+            name="onboarding_fee"
+            render={({ field }) => (
+              <TermsMoneyInput
+                id="onboarding_fee"
+                name={field.name}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                disabled={locked}
+                invalid={!!errors.onboarding_fee}
+              />
+            )}
+          />
+          <FieldError errors={errors.onboarding_fee ? [errors.onboarding_fee] : undefined} />
+          <Hint>One-time credit</Hint>
+        </Field>
+
+        <Field data-invalid={!!errors.vat_rate_percent}>
+          <FieldLabel htmlFor="vat_rate_percent">VAT (%)</FieldLabel>
+          <Input
+            id="vat_rate_percent"
+            type="number"
+            step="0.01"
+            min={0}
+            inputMode="decimal"
+            className="h-11"
+            aria-invalid={!!errors.vat_rate_percent}
+            disabled={locked}
+            {...register("vat_rate_percent", { valueAsNumber: true })}
+          />
+          <FieldError errors={errors.vat_rate_percent ? [errors.vat_rate_percent] : undefined} />
+          <Hint>Allowed range: 0–100%</Hint>
+        </Field>
+
+        <Field data-invalid={!!errors.payment_terms_days}>
+          <FieldLabel htmlFor="payment_terms_days">Payment terms</FieldLabel>
+          <Controller
+            control={control}
+            name="payment_terms_days"
+            render={({ field }) => {
+              const items = paymentTermsOptions(defaultValues.payment_terms_days).map((days) => ({
+                value: String(days),
+                label: paymentTermsLabel(days),
+              }));
+
+              return (
+                <Select
+                  value={String(field.value)}
+                  items={items}
+                  disabled={locked}
+                  onValueChange={(value) => field.onChange(Number(value))}
+                >
+                  <SelectTrigger
+                    id="payment_terms_days"
+                    aria-invalid={!!errors.payment_terms_days}
+                    className="h-11 w-full data-[size=default]:h-11"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {items.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              );
+            }}
+          />
+          <FieldError errors={errors.payment_terms_days ? [errors.payment_terms_days] : undefined} />
+          <Hint>Payment due after issue</Hint>
+        </Field>
+
+        <Field data-invalid={!!errors.effective_from}>
+          <FieldLabel htmlFor="effective_from">Effective date</FieldLabel>
+          <Controller
+            control={control}
+            name="effective_from"
+            render={({ field }) => (
+              <DatePicker
+                value={field.value}
+                min={today}
+                formatValue={formatTermsDate}
+                onValueChange={field.onChange}
+                disabled={locked}
+                aria-invalid={!!errors.effective_from}
+                className="h-11"
+              />
+            )}
+          />
+          <FieldError errors={errors.effective_from ? [errors.effective_from] : undefined} />
+          <Hint>New version takes effect on this date</Hint>
+        </Field>
+      </div>
+
+      <div className="flex flex-col gap-1 rounded-lg bg-muted px-4 py-3 text-xs text-muted-foreground">
+        <p>Share limits: 0–100% · Launch share ≥ standard share</p>
+        <p>All monetary values are stored with 2 decimal places.</p>
+        {!canEdit && <p>Only an admin can change commercial terms.</p>}
       </div>
     </form>
   );

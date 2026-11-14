@@ -1,14 +1,16 @@
-import Link from "next/link";
+import { Info } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { requirePermission } from "@/lib/auth/current-user";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
-import { CommercialTermsHistory } from "@/features/partners/components/commercial-terms-history";
+import { Button } from "@/components/ui/button";
 import { CommercialTermsForm } from "@/features/partners/components/commercial-terms-form";
-import { CommercialTermsSummary } from "@/features/partners/components/commercial-terms-summary";
+import { CommercialTermsHistory } from "@/features/partners/components/commercial-terms-history";
+import { CommercialTermsLaunchCredit } from "@/features/partners/components/commercial-terms-launch-credit";
 import {
+  COMMERCIAL_TERMS_FORM_ID,
+  buildTermsHistory,
   defaultCommercialTermsFormValues,
+  launchCreditProgress,
   pickCommercialTerms,
   utcToday,
 } from "@/features/partners/lib/commercial-terms";
@@ -21,9 +23,9 @@ interface CommercialTermsPageProps {
 
 /**
  * VI-F04-S01 and S03: set and review the commercial terms of a partner, and read the earlier ones. Admin and operations manager
- * open it (`partners:manage`); only an admin gets the form (spec Q1 is open), the operations
- * manager reads. The save checks the role again on the server and in the database. An unknown
- * partner is not found.
+ * open it (`partners:manage`); only an admin can save (spec Q1 is open), the operations manager reads
+ * the same layout with the fields off. The save checks the role again on the server and in the
+ * database. An unknown partner is not found.
  */
 export default async function CommercialTermsPage({ params }: CommercialTermsPageProps) {
   const user = await requirePermission("partners:manage");
@@ -37,46 +39,51 @@ export default async function CommercialTermsPage({ params }: CommercialTermsPag
 
   const today = utcToday();
   const { versions, truncated } = await getCommercialTerms(partner.id);
-  const terms = pickCommercialTerms(versions, today);
+  const { current } = pickCommercialTerms(versions, today);
+  const { rows, currentLabel } = buildTermsHistory(versions, today);
+  const progress = launchCreditProgress(current);
   const canEdit = user.role === "admin";
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Commercial terms</h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Commercial terms</h1>
           <p className="text-sm text-muted-foreground">
-            {partner.name} ({partner.code})
+            {[partner.name, "Internal only", currentLabel ? `Terms ${currentLabel}` : null]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
-        <Link href={`/partners/${partner.id}`} className={buttonVariants({ variant: "outline" })}>
-          Back to partner
-        </Link>
+        {canEdit && (
+          <Button type="submit" form={COMMERCIAL_TERMS_FORM_ID} className="min-h-11 px-4">
+            Save new terms version
+          </Button>
+        )}
       </div>
 
-      <CommercialTermsSummary terms={terms} />
+      <p className="flex items-center gap-2 rounded-lg bg-info-bg px-4 py-3 text-xs text-info-fg">
+        <Info aria-hidden="true" className="size-4 shrink-0" />
+        New terms apply from the effective date. Completed rentals keep their earlier terms.
+      </p>
 
-      {canEdit ? (
-        <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-medium text-foreground">Set new terms</h2>
-          <p className="max-w-lg text-sm text-muted-foreground">
-            Saving adds new terms from the effective date. Earlier terms are kept, and rentals that are
-            already completed keep the terms they were calculated with.
-          </p>
-          <CommercialTermsForm
-            partnerId={partner.id}
-            today={today}
-            defaultValues={defaultCommercialTermsFormValues(versions, today)}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <CommercialTermsForm
+          partnerId={partner.id}
+          today={today}
+          defaultValues={defaultCommercialTermsFormValues(versions, today)}
+          canEdit={canEdit}
+        />
+        <div className="flex flex-col gap-6">
+          {progress && <CommercialTermsLaunchCredit progress={progress} />}
+          <CommercialTermsHistory
+            rows={rows}
+            currentLabel={currentLabel}
+            truncated={truncated}
+            limit={COMMERCIAL_TERMS_LIMIT}
           />
-        </section>
-      ) : (
-        <Alert>
-          <AlertTitle>Read only</AlertTitle>
-          <AlertDescription>Only an admin can change commercial terms.</AlertDescription>
-        </Alert>
-      )}
-
-      <CommercialTermsHistory earlier={terms.earlier} truncated={truncated} limit={COMMERCIAL_TERMS_LIMIT} />
+        </div>
+      </div>
     </div>
   );
 }
