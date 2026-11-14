@@ -87,6 +87,7 @@ export default async function InstallationPage({
           ) : (
             <InstallationForm
               jobId={job.id}
+              bookingId={booking.id}
               seatId={booking.seat.id}
               seatLabel={`${booking.seat.serial_number}${
                 booking.seat.category_name

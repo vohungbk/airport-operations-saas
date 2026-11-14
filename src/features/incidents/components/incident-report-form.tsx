@@ -14,6 +14,7 @@ import {
 import { IncidentPhotosPanel } from "@/features/incidents/components/incident-photos-panel";
 import { JobActionErrorAlert } from "@/features/jobs/components/job-action-error-alert";
 import { JOB_TYPE_LABEL } from "@/features/jobs/lib/job-type";
+import { useStepPhotoUpload } from "@/features/bookings/hooks/use-step-photo-upload";
 import { useReportIncidentForm } from "@/features/incidents/hooks/use-report-incident-form";
 import {
   INCIDENT_SEVERITIES,
@@ -122,6 +123,7 @@ export function IncidentReportForm({
     formState: { errors },
   } = form;
   const chosenJob = jobs.find((job) => job.id === watch("job_id"));
+  const { canSave, ...photos } = useStepPhotoUpload(chosenJob?.booking_id ?? "", "incident");
 
   return (
     <form
@@ -233,7 +235,7 @@ export function IncidentReportForm({
         <div className="flex flex-wrap items-center gap-3">
           <Button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || !canSave}
             className="min-h-11 rounded-lg px-4"
           >
             {isPending ? "Submitting..." : "Submit incident"}
@@ -250,7 +252,7 @@ export function IncidentReportForm({
         </div>
       </div>
 
-      <IncidentPhotosPanel stamp={reportedAt} />
+      <IncidentPhotosPanel stamp={reportedAt} photos={photos} disabled={!chosenJob} />
     </form>
   );
 }

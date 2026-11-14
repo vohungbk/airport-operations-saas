@@ -28,15 +28,15 @@ describe("getIncidentJobOptions", () => {
   it("should map the jobs to options, newest first, capped, without cancelled jobs", async () => {
     const { from, neq, order1, limit } = mockQuery({
       data: [
-        { id: "j-1", job_type: "inspection", booking: { booking_number: "BK-1", seat: { serial_number: "SEAT-1" } } },
+        { id: "j-1", job_type: "inspection", booking: { id: "b-1", booking_number: "BK-1", seat: { serial_number: "SEAT-1" } } },
         { id: "j-2", job_type: "cleaning", booking: null },
       ],
       error: null,
     });
 
     await expect(getIncidentJobOptions()).resolves.toEqual([
-      { id: "j-1", job_type: "inspection", booking_number: "BK-1", seat_number: "SEAT-1" },
-      { id: "j-2", job_type: "cleaning", booking_number: "", seat_number: "" },
+      { id: "j-1", job_type: "inspection", booking_id: "b-1", booking_number: "BK-1", seat_number: "SEAT-1" },
+      { id: "j-2", job_type: "cleaning", booking_id: "", booking_number: "", seat_number: "" },
     ]);
     expect(from).toHaveBeenCalledWith("technician_jobs");
     expect(neq).toHaveBeenCalledWith("status", "cancelled");

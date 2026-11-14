@@ -4,6 +4,8 @@ import type { JobType } from "@/features/jobs/lib/job-type";
 export interface IncidentJobOption {
   id: string;
   job_type: JobType;
+  /** The booking of the job: the photos of the incident are added to it. */
+  booking_id: string;
   booking_number: string;
   seat_number: string;
 }
@@ -14,6 +16,7 @@ interface Row {
   id: string;
   job_type: JobType;
   booking: {
+    id: string;
     booking_number: string;
     seat: { serial_number: string } | null;
   } | null;
@@ -28,7 +31,7 @@ export async function getIncidentJobOptions(): Promise<IncidentJobOption[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("technician_jobs")
-    .select("id, job_type, booking:bookings!inner(booking_number, seat:seats(serial_number))")
+    .select("id, job_type, booking:bookings!inner(id, booking_number, seat:seats(serial_number))")
     .neq("status", "cancelled")
     .order("assigned_at", { ascending: false })
     .order("id", { ascending: true })
@@ -41,6 +44,7 @@ export async function getIncidentJobOptions(): Promise<IncidentJobOption[]> {
   return ((data ?? []) as unknown as Row[]).map((row) => ({
     id: row.id,
     job_type: row.job_type,
+    booking_id: row.booking?.id ?? "",
     booking_number: row.booking?.booking_number ?? "",
     seat_number: row.booking?.seat?.serial_number ?? "",
   }));

@@ -145,6 +145,7 @@ describe("recordInstallationAction", () => {
     ["JB005", "JOB_NOT_ELIGIBLE"],
     ["JB006", "JOB_NOT_ELIGIBLE"],
     ["JB007", "SEAT_NOT_ELIGIBLE"],
+    ["JB010", "PHOTO_REQUIRED"],
     ["42501", "FORBIDDEN"],
   ])("should map database error %s to %s", async (code, expected) => {
     insertMock.mockResolvedValue({ error: { code, message: "raw" } });

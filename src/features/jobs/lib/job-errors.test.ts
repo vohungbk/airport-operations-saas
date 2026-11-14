@@ -37,6 +37,13 @@ describe("mapJobError", () => {
     expect(error.message).toContain("latest status is shown");
   });
 
+  it("should tell the user a photo is needed when the step has none", () => {
+    const error = mapJobError(pgError("JB010"));
+
+    expect(error.code).toBe("PHOTO_REQUIRED");
+    expect(error.message).toContain("Add a photo");
+  });
+
   it("should report a forbidden state when the caller may not do the action", () => {
     expect(mapJobError(pgError("42501")).code).toBe("FORBIDDEN");
   });

@@ -21,6 +21,7 @@ export interface InstallationContext {
     technician_id: string;
   };
   booking: {
+    id: string;
     booking_number: string;
     airport: { code: string; name: string; timezone: string };
     seat: {
@@ -43,7 +44,7 @@ const INSTALLATION_CONTEXT_SELECT = [
   "status",
   "job_type",
   "technician_id",
-  "booking:bookings!inner(booking_number, airport:airports!inner(code, name, timezone), seat:seats!assigned_seat_id(id, serial_number, status, category:seat_categories(name)))",
+  "booking:bookings!inner(id, booking_number, airport:airports!inner(code, name, timezone), seat:seats!assigned_seat_id(id, serial_number, status, category:seat_categories(name)))",
   "installation:installations(id, completed_at, notes, created_at, seat:seats(serial_number), recorder:users!created_by(full_name))",
 ].join(", ");
 
@@ -53,6 +54,7 @@ interface Row {
   job_type: JobType;
   technician_id: string;
   booking: {
+    id: string;
     booking_number: string;
     airport: { code: string; name: string; timezone: string };
     seat: {
@@ -114,6 +116,7 @@ export async function getInstallationContext(
       technician_id: row.technician_id,
     },
     booking: {
+      id: row.booking.id,
       booking_number: row.booking.booking_number,
       airport: row.booking.airport,
       seat: row.booking.seat && {

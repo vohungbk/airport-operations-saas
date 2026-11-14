@@ -3,12 +3,30 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hookMock = vi.hoisted(() => vi.fn());
+const photoMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/features/bookings/hooks/use-step-photo-upload", () => ({
+  useStepPhotoUpload: photoMock,
+}));
 
 vi.mock("@/features/installations/hooks/use-record-installation-form", () => ({
   useRecordInstallationForm: hookMock,
 }));
 
 import { InstallationForm } from "@/features/installations/components/installation-form";
+
+function photoState(uploaded: boolean) {
+  return {
+    items: uploaded ? [{ id: "p-1", file_name: "seat.jpg", status: "uploaded" as const }] : [],
+    errors: [],
+    addFiles: vi.fn(),
+    retry: vi.fn(),
+    remove: vi.fn(),
+    hasPhoto: uploaded,
+    isUploading: false,
+    canSave: uploaded,
+  };
+}
 
 function hookState(result: unknown) {
   return {
@@ -27,6 +45,7 @@ function render() {
   return renderToStaticMarkup(
     createElement(InstallationForm, {
       jobId: "j-1",
+      bookingId: "b-1",
       seatId: "s-1",
       seatLabel: "SN-1",
       timeZone: "Asia/Dubai",
@@ -38,6 +57,27 @@ function render() {
 describe("InstallationForm", () => {
   beforeEach(() => {
     hookMock.mockReset();
+    photoMock.mockReset();
+    photoMock.mockReturnValue(photoState(true));
+  });
+
+  it("should keep Save off and ask for a photo while the installation has none", () => {
+    hookMock.mockReturnValue(hookState(null));
+    photoMock.mockReturnValue(photoState(false));
+
+    const html = render();
+
+    expect(html).toMatch(/<button[^>]*\sdisabled=""[^>]*>Save</);
+    expect(html).toContain("A photo is required before you can save this step.");
+  });
+
+  it("should let the user save once a photo is stored", () => {
+    hookMock.mockReturnValue(hookState(null));
+
+    const html = render();
+
+    expect(html).not.toMatch(/<button[^>]*\sdisabled=""[^>]*>Save</);
+    expect(html).not.toContain("A photo is required before you can save this step.");
   });
 
   it("should show no error before the first submit", () => {
