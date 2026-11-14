@@ -23,14 +23,9 @@ export function useBookingPhotoLink(photo: { id: string; url: string } | null): 
   const photoId = photo?.id ?? null;
 
   useEffect(() => {
-    if (photoId === null) {
-      setFresh(null);
-      setFailedId(null);
-      return;
-    }
+    if (photoId === null) return;
 
     let cancelled = false;
-    setFailedId(null);
 
     void runClientAction(() => getBookingPhotoLinkAction({ photo_id: photoId }), BOOKING_PHOTO_LINK_ERROR).then((result) => {
       if (cancelled) return;
@@ -38,8 +33,11 @@ export function useBookingPhotoLink(photo: { id: string; url: string } | null): 
       else setFailedId(photoId);
     });
 
+    // Leaving the photo (closing it, or going to another) drops its link, so opening it again asks again.
     return () => {
       cancelled = true;
+      setFresh(null);
+      setFailedId(null);
     };
   }, [photoId]);
 
