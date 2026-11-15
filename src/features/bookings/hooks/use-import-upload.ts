@@ -7,6 +7,7 @@ import {
   confirmBookingImportAction,
   type ConfirmedImport,
 } from "@/features/bookings/actions/confirm-booking-import.action";
+import { runClientAction } from "@/lib/actions/run-client-action";
 import { useCsvDropzone } from "@/features/bookings/hooks/use-csv-dropzone";
 import type { ImportFileErrorCode } from "@/features/bookings/lib/booking-import-file";
 import type { ImportReport } from "@/features/bookings/lib/validate-import-rows";
@@ -28,6 +29,8 @@ export function useImportUpload() {
   const [confirmed, setConfirmed] = useState<ConfirmedImport | null>(null);
   const [importFailure, setImportFailure] = useState<ImportFileErrorCode | null>(null);
   const [isImporting, startImport] = useTransition();
+  const [forbidden, setForbidden] = useState(false);
+  const [submitFailure, setSubmitFailure] = useState<ImportFileErrorCode | null>(null);
 
   const serverCode = serverRefusal && serverRefusal.file === file ? serverRefusal.code : null;
   const errorCode = fileError ?? serverCode;
@@ -44,13 +47,20 @@ export function useImportUpload() {
     data.set("partner_id", partnerId);
     data.set("file", file);
 
+    setSubmitFailure(null);
     startTransition(async () => {
-      const result = await checkBookingImportFileAction(data);
+      // CO-F07-S13 (E9): a call that did not get through keeps the file and the partner, and can be tried again.
+      const result = await runClientAction(() => checkBookingImportFileAction(data), "NETWORK_ERROR" as const);
+      if ("error" in result) {
+        setSubmitFailure(result.error);
+        return;
+      }
       if (result.success) {
         setChecked({ file, report: result.report });
         return;
       }
-      if (result.code === "PARTNER_REQUIRED") setPartnerMissing(true);
+      if (result.code === "FORBIDDEN") setForbidden(true);
+      else if (result.code === "PARTNER_REQUIRED") setPartnerMissing(true);
       else setServerRefusal({ file, code: result.code });
     });
   };
@@ -66,8 +76,10 @@ export function useImportUpload() {
 
     setImportFailure(null);
     startImport(async () => {
-      const result = await confirmBookingImportAction(data);
-      if (result.success) setConfirmed(result.result);
+      const result = await runClientAction(() => confirmBookingImportAction(data), "NETWORK_ERROR" as const);
+      if ("error" in result) setImportFailure(result.error);
+      else if (result.success) setConfirmed(result.result);
+      else if (result.code === "FORBIDDEN") setForbidden(true);
       else setImportFailure(result.code);
     });
   };
@@ -81,6 +93,8 @@ export function useImportUpload() {
     isPending,
     isImporting,
     importFailure,
+    submitFailure,
+    forbidden,
     confirmed,
     confirm,
     report: checked?.report ?? null,
@@ -91,6 +105,7 @@ export function useImportUpload() {
     onPartnerChange: (value: string | null) => {
       setPartnerId(value ?? "");
       setPartnerMissing(false);
+      setSubmitFailure(null);
     },
     submit,
     /** Back from the report to the upload card, to choose another file. */

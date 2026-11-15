@@ -1,9 +1,8 @@
 "use server";
 
-import { requireAnyPermission } from "@/lib/auth/current-user";
-import { BOOKINGS_IMPORT_PERMISSIONS } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import type { ImportFileErrorCode } from "@/features/bookings/lib/booking-import-file";
+import { authorizeBookingImport } from "@/features/bookings/lib/authorize-import";
 import { prepareBookingImport } from "@/features/bookings/lib/prepare-booking-import";
 
 export interface ConfirmedImport {
@@ -29,10 +28,11 @@ export type ConfirmImportResult =
  * of the design: valid rows only); a row with an error or a duplicate is left out and the report says so.
  * The rows go to `import_bookings()` in one transaction: each through `create_booking()`, so the rules are
  * the ones of a booking typed by hand, each linked to the import and recorded with the source CSV. If the
- * database fails, nothing is created. The caller must hold the import permission.
+ * database fails, nothing is created. A caller who does not hold the import permission (any more) gets FORBIDDEN.
  */
 export async function confirmBookingImportAction(formData: FormData): Promise<ConfirmImportResult> {
-  const user = await requireAnyPermission(BOOKINGS_IMPORT_PERMISSIONS);
+  const user = await authorizeBookingImport();
+  if (!user) return { success: false, code: "FORBIDDEN" };
 
   const prepared = await prepareBookingImport(formData);
   if (!prepared.success) return { success: false, code: prepared.code };
@@ -47,6 +47,8 @@ export async function confirmBookingImportAction(formData: FormData): Promise<Co
     p_total_rows: prepared.totalRows,
     p_rows: prepared.plan.rows,
   });
+  // 42501: the database checked the role again and refused it (S13, E10).
+  if (error?.code === "42501") return { success: false, code: "FORBIDDEN" };
   if (error || !data || typeof data !== "object" || Array.isArray(data)) {
     return { success: false, code: "IMPORT_FAILED" };
   }
