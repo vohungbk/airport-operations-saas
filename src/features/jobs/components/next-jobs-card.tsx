@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { formatClock } from "@/features/flights/lib/flight-panel";
 import {
   NONE,
   SectionCard,
@@ -17,7 +18,7 @@ export function NextJobsCard({ jobs }: NextJobsCardProps) {
 
   return (
     <SectionCard title="Next jobs">
-      <ul className="flex flex-col gap-3">
+      <ul className="grid gap-3 md:grid-cols-2">
         {jobs.map((job) => (
           <li key={job.id}>
             <Link
@@ -25,7 +26,7 @@ export function NextJobsCard({ jobs }: NextJobsCardProps) {
               className="block min-h-11 rounded-lg border border-border bg-card p-4 text-sm leading-7 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <p className="font-mono font-bold break-words">
-                {NONE} · {job.booking_number}
+                {job.job_number} · {job.booking_number}
               </p>
               <p className="break-words">
                 Partner / location: {job.partner_name ?? NONE} · {job.vehicle_bay ?? NONE}
@@ -33,7 +34,12 @@ export function NextJobsCard({ jobs }: NextJobsCardProps) {
               <p className="break-words">
                 Vehicle / seat: {job.vehicle ?? NONE} · {job.seat ?? NONE}
               </p>
-              <p>Deadline: {NONE}</p>
+              <p>
+                Deadline:{" "}
+                {job.deadline_at
+                  ? formatClock(job.deadline_at, job.airport?.timezone ?? "UTC")
+                  : NONE}
+              </p>
               <p>Status: ● {JOB_STATUS_LABEL[job.status]}</p>
             </Link>
           </li>

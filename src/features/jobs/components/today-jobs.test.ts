@@ -9,6 +9,8 @@ const NOW = new Date("2026-10-24T10:05:00Z");
 
 const job = (overrides: Partial<TodayJob> = {}): TodayJob => ({
   id: "j1",
+  job_number: "JOB-2026-0081",
+  deadline_at: "2026-10-24T11:15:00Z",
   status: "assigned",
   job_type: "installation",
   pickup_at: "2026-10-24T11:00:00Z",
@@ -48,23 +50,29 @@ describe("Today's Jobs card of the first job", () => {
     expect(out).toContain("Deadline · Asia/Dubai");
   });
 
-  it("should write a dash, never an invented value, for the job number, the partner and the deadline", () => {
+  it("should show the job number and the deadline of the job in the zone of the airport", () => {
     const out = render({ jobs: [job()] });
 
+    expect(out).toContain("JOB-2026-0081");
+    expect(out).toContain("24 Oct · 15:15 GST");
     expect(out).toContain("Partner");
     expect(out).not.toContain("Emirates");
-    expect(out).not.toContain("JOB-2026");
+  });
+
+  it("should write a dash, never an invented time, for a job with no deadline", () => {
+    const out = render({ jobs: [job({ deadline_at: null })] });
+
     expect(out).not.toContain("15:15");
-    expect(out.match(/>—</g)?.length).toBeGreaterThanOrEqual(4);
+    expect(out).toContain("Complete JOB-2026-0081 before —.");
   });
 
   it("should write a dash for what the job does not have", () => {
     const out = render({
-      jobs: [job({ seat: null, required_category: null, vehicle: null, vehicle_bay: null, flight: null, airport: null })],
+      jobs: [job({ seat: null, required_category: null, vehicle: null, vehicle_bay: null, flight: null, airport: null, deadline_at: null })],
     });
 
     expect(out).not.toContain("Terminal");
-    expect(out.match(/>—</g)?.length).toBeGreaterThanOrEqual(7);
+    expect(out.match(/>—</g)?.length).toBeGreaterThanOrEqual(6);
   });
 });
 
@@ -79,6 +87,7 @@ describe("Today's Jobs flight card and banner", () => {
     expect(out).toContain("16:30 · 24 Oct 2026");
     expect(out).toContain("15:45 · 24 Oct 2026");
     expect(out).toContain("Installation deadline");
+    expect(out).toContain("15:15 GST");
     expect(out).toContain("Provider sync 14:02 GST · Updated 3 min ago");
   });
 
@@ -87,6 +96,7 @@ describe("Today's Jobs flight card and banner", () => {
 
     expect(out).toContain('data-slot="priority-banner"');
     expect(out).toContain("Priority · EK 203 arriving 45 minutes early");
+    expect(out).toContain("Complete JOB-2026-0081 before 15:15 GST.");
   });
 
   it("should show no banner and no flight card when no flight is early or linked", () => {
@@ -127,11 +137,12 @@ describe("Today's Jobs button and next jobs", () => {
 
   it("should list the other jobs as records that open their job, in the order given", () => {
     const out = render({
-      jobs: [job({ id: "first" }), job({ id: "second", booking_number: "BK-2026-000124", seat: "SEAT-0008" }), job({ id: "third" })],
+      jobs: [job({ id: "first" }), job({ id: "second", job_number: "JOB-2026-0082", booking_number: "BK-2026-000124", seat: "SEAT-0008" }), job({ id: "third" })],
     });
 
     expect(out).toContain("Next jobs");
-    expect(out).toContain("BK-2026-000124");
+    expect(out).toContain("JOB-2026-0082 · BK-2026-000124");
+    expect(out).toContain("Deadline: 15:15 GST");
     expect(out).toContain("Vehicle / seat: Toyota RAV4 · DXB A 48291 · SEAT-0008");
     expect(out).toContain("Status: ● Assigned");
     expect(out.indexOf("/jobs/second")).toBeLessThan(out.indexOf("/jobs/third"));

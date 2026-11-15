@@ -6,6 +6,8 @@ const NOW = new Date("2026-10-28T10:00:00Z");
 
 const row = (id: string, pickup_at: string, overrides: Partial<TodayJobRow> = {}): TodayJobRow => ({
   id,
+  job_number: `JOB-2026-${id}`,
+  deadline_at: null,
   status: "assigned",
   job_type: "installation",
   vehicle_bay: null,
@@ -31,6 +33,25 @@ describe("selectTodaysJobs", () => {
     );
 
     expect(jobs.map((job) => job.id)).toEqual(["a", "c", "b"]);
+  });
+
+  it("should put the earliest deadline first and a job with no deadline last", () => {
+    const { jobs } = selectTodaysJobs(
+      [
+        row("none", "2026-10-28T08:00:00Z"),
+        row("late", "2026-10-28T09:00:00Z", { deadline_at: "2026-10-28T17:00:00Z" }),
+        row("soon", "2026-10-28T12:00:00Z", { deadline_at: "2026-10-28T11:15:00Z" }),
+      ],
+      NOW,
+    );
+
+    expect(jobs.map((job) => job.id)).toEqual(["soon", "late", "none"]);
+  });
+
+  it("should carry the job number and the deadline of the job to the list", () => {
+    const { jobs } = selectTodaysJobs([row("a", "2026-10-28T12:00:00Z", { deadline_at: "2026-10-28T11:15:00Z" })], NOW);
+
+    expect(jobs[0]).toMatchObject({ job_number: "JOB-2026-a", deadline_at: "2026-10-28T11:15:00Z" });
   });
 
   it("should break a tie by id, so the order does not change between reads", () => {
