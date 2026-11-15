@@ -53,6 +53,26 @@ export default async function InstallationPage({
   const timeZone = booking.airport.timezone;
   const isActive = job.status === "assigned" || job.status === "in_progress";
 
+  const seat = booking.seat;
+
+  // The form brings its own heading, as in the design (ME3).
+  if (!installation && isActive && seat && isSeatEligibleForInstallation(seat.status)) {
+    return (
+      <div className="flex flex-1 flex-col gap-6 p-4 md:p-8">
+        <InstallationForm
+          jobId={job.id}
+          jobNumber={job.job_number}
+          bookingNumber={booking.booking_number}
+          bookingId={booking.id}
+          seatId={seat.id}
+          seatLabel={`${seat.serial_number}${seat.category_name ? ` (${seat.category_name})` : ""}`}
+          timeZone={timeZone}
+          defaultInstalledAt={utcToZonedLocalInput(new Date().toISOString(), timeZone)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -76,29 +96,11 @@ export default async function InstallationPage({
             <InstallationRecord record={installation} timeZone={timeZone} />
           ) : !isActive ? (
             <PageEmpty message="This job is not active, so an installation cannot be recorded." />
-          ) : !booking.seat ? (
+          ) : !seat ? (
             <PageEmpty message="This job's booking has no seat assigned yet." />
-          ) : !isSeatEligibleForInstallation(booking.seat.status) ? (
-            <PageEmpty
-              message={`The seat status is ${
-                SEAT_STATUS_LABEL[booking.seat.status]
-              }, so an installation cannot be recorded.`}
-            />
           ) : (
-            <InstallationForm
-              jobId={job.id}
-              bookingId={booking.id}
-              seatId={booking.seat.id}
-              seatLabel={`${booking.seat.serial_number}${
-                booking.seat.category_name
-                  ? ` (${booking.seat.category_name})`
-                  : ""
-              }`}
-              timeZone={timeZone}
-              defaultInstalledAt={utcToZonedLocalInput(
-                new Date().toISOString(),
-                timeZone,
-              )}
+            <PageEmpty
+              message={`The seat status is ${SEAT_STATUS_LABEL[seat.status]}, so an installation cannot be recorded.`}
             />
           )}
         </CardContent>

@@ -51,8 +51,15 @@ export async function recordInstallationAction(
     context.booking.airport.timezone,
   ).safeParse(input);
 
+  // The issue messages are ours and name the missing item, so the technician can see what to fix.
   if (!parsed.success) {
-    return { success: false, error: VALIDATION_ERROR };
+    return {
+      success: false,
+      error: {
+        ...VALIDATION_ERROR,
+        message: parsed.error.issues[0]?.message ?? VALIDATION_ERROR.message,
+      },
+    };
   }
 
   if (!context.booking.seat) {
@@ -83,6 +90,8 @@ export async function recordInstallationAction(
     technician_job_id: context.job.id,
     completed_at: completedAt,
     notes: parsed.data.notes || null,
+    vehicle_location: parsed.data.vehicle_location,
+    checklist: parsed.data.checklist,
     installation_completed: true,
   });
 
