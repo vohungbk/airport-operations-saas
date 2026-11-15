@@ -21,6 +21,7 @@ export interface JobActionError {
     | "SEAT_IN_USE"
     | "NOT_STARTED"
     | "PHOTO_REQUIRED"
+    | "SCAN_REQUIRED"
     | "INTERNAL_ERROR";
   message: string;
 }

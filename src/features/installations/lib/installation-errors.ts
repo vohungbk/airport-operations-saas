@@ -25,6 +25,11 @@ export const SEAT_WRONG_CATEGORY_ERROR: JobActionError = {
   message: "The assigned seat is not the category this booking requires.",
 };
 
+const SCAN_REQUIRED_ERROR: JobActionError = {
+  code: "SCAN_REQUIRED",
+  message: "Scan the seat QR code and verify the seat before completing the installation.",
+};
+
 const SEAT_NOT_ELIGIBLE_ERROR: JobActionError = {
   code: "SEAT_NOT_ELIGIBLE",
   message: "The seat is not in a status that allows installation.",
@@ -42,7 +47,7 @@ export function isAlreadyRecordedError(
 
 /**
  * `JB005` not an installation job and `JB006` job not active are raised by
- * the insert guard trigger; `JB007` is a missing or ineligible seat;
+ * the insert guard trigger; `JB007` is a missing or ineligible seat; `JB013` the seat was not scanned and verified;
  * `23505` is the one-installation-per-job unique index. Everything else is
  * handled like any other job error (forbidden, not found, bad input).
  */
@@ -53,6 +58,8 @@ export function mapInstallationError(error: PostgrestError): JobActionError {
       return JOB_NOT_ELIGIBLE_ERROR;
     case "JB007":
       return SEAT_NOT_ELIGIBLE_ERROR;
+    case "JB013":
+      return SCAN_REQUIRED_ERROR;
     case "23505":
       return ALREADY_RECORDED_ERROR;
     default:

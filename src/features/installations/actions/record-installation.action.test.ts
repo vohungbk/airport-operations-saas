@@ -188,6 +188,7 @@ describe("recordInstallationAction", () => {
     ["JB006", "JOB_NOT_ELIGIBLE"],
     ["JB007", "SEAT_NOT_ELIGIBLE"],
     ["JB010", "PHOTO_REQUIRED"],
+    ["JB013", "SCAN_REQUIRED"],
     ["22023", "VALIDATION_ERROR"],
     ["42501", "FORBIDDEN"],
   ])("should map database error %s to %s", async (code, expected) => {
