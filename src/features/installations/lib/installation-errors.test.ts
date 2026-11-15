@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isAlreadyRecordedError,
+  mapFamilyReadyError,
   mapInstallationError,
 } from "@/features/installations/lib/installation-errors";
 
@@ -55,5 +56,18 @@ describe("isAlreadyRecordedError", () => {
 
   it("should be false when there is no error", () => {
     expect(isAlreadyRecordedError(undefined)).toBe(false);
+  });
+});
+
+describe("mapFamilyReadyError", () => {
+  it.each([
+    ["BK007", "STALE_DATA"],
+    ["BK008", "SEAT_NOT_ELIGIBLE"],
+    ["BK009", "SEAT_NOT_ELIGIBLE"],
+    ["55000", "INVALID_TRANSITION"],
+    ["42501", "FORBIDDEN"],
+    ["XX000", "INTERNAL_ERROR"],
+  ])("should map database error %s to %s", (code, expected) => {
+    expect(mapFamilyReadyError(pgError(code)).code).toBe(expected);
   });
 });

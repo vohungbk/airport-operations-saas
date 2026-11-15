@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const getContextMock = vi.hoisted(() => vi.fn());
 const insertMock = vi.hoisted(() => vi.fn());
+const rpcMock = vi.hoisted(() => vi.fn());
 const fromMock = vi.hoisted(() => vi.fn(() => ({ insert: insertMock })));
 
 vi.mock("@/lib/auth/current-user", () => ({
@@ -14,7 +15,7 @@ vi.mock("@/features/installations/lib/get-installation-context", () => ({
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => ({ from: fromMock })),
+  createClient: vi.fn(async () => ({ from: fromMock, rpc: rpcMock })),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -31,6 +32,8 @@ const SEAT_ID = "e0000000-0000-0000-0000-000000000002";
 const CONTEXT = {
   job: { id: JOB_ID, status: "in_progress", job_type: "installation", technician_id: "t-1" },
   booking: {
+    id: "b0000000-0000-0000-0000-000000000002",
+    status: "en_route",
     booking_number: "BK-00002",
     airport: { code: "DXB", name: "Dubai", timezone: "Asia/Dubai" },
     seat: { id: SEAT_ID, serial_number: "SN-2", category_name: "Infant" },
@@ -56,11 +59,13 @@ describe("recordInstallationAction", () => {
     insertMock.mockReset();
     insertMock.mockResolvedValue({ error: null });
     fromMock.mockClear();
+    rpcMock.mockReset();
+    rpcMock.mockResolvedValue({ error: null });
   });
 
-  it("should insert the installation and redirect to the success screen on success", async () => {
+  it("should insert the installation and redirect to the Family Ready screen on success", async () => {
     await expect(recordInstallationAction(VALID_INPUT)).rejects.toThrow(
-      `REDIRECT:/jobs/${JOB_ID}/done?step=installation`,
+      `REDIRECT:/jobs/${JOB_ID}/family-ready`,
     );
 
     expect(requireAnyPermissionMock).toHaveBeenCalledWith([
@@ -197,5 +202,25 @@ describe("recordInstallationAction", () => {
     const result = await recordInstallationAction(VALID_INPUT);
 
     expect(result.error?.code).toBe(expected);
+  });
+
+  it("should move the booking from En Route to Installed after the installation is recorded", async () => {
+    await expect(recordInstallationAction(VALID_INPUT)).rejects.toThrow("REDIRECT:");
+
+    expect(rpcMock).toHaveBeenCalledWith("move_booking_to_next_step", {
+      p_booking_id: "b0000000-0000-0000-0000-000000000002",
+      p_expected_status: "en_route",
+    });
+  });
+
+  it("should not move a booking that is not En Route", async () => {
+    getContextMock.mockResolvedValue({
+      ...CONTEXT,
+      booking: { ...CONTEXT.booking, status: "assigned" },
+    });
+
+    await expect(recordInstallationAction(VALID_INPUT)).rejects.toThrow("REDIRECT:");
+
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 });
