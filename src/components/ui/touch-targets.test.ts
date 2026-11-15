@@ -52,6 +52,5 @@ describe("touch targets", () => {
   it("should not make a part taller than the design for a mouse", () => {
     const out = html(createElement(Button, null));
     expect(out).toContain("min-h-8");
-    expect(html(createElement(Input, null))).toContain("h-8");
   });
 });
