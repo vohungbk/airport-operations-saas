@@ -15,6 +15,7 @@ const FIELD_SCREENS = [
   "src/features/jobs/components/today-flight-card.tsx",
   "src/features/jobs/components/today-parts.tsx",
   "src/features/jobs/components/next-jobs-card.tsx",
+  "src/features/jobs/components/job-information.tsx",
   "src/features/jobs/components/step-done.tsx",
   "src/features/jobs/components/step-action-bar.tsx",
   "src/features/jobs/components/offline-banner.tsx",
