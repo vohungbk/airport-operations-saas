@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { CalendarIcon } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
+import { MonthGrid } from "@/components/ui/month-picker";
 import { cn } from "@/lib/utils";
 import { formatShortMonth } from "@/features/invoices/lib/invoice-list";
 
@@ -55,14 +55,26 @@ export function InvoicesPeriodField({ id, from, to, onApply }: InvoicesPeriodFie
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Positioner sideOffset={4} className="isolate z-50">
           <PopoverPrimitive.Popup className="flex flex-col gap-3 rounded-lg bg-popover p-3 text-popover-foreground shadow-md ring-1 ring-foreground/10">
-            <label className="flex flex-col gap-1 text-sm">
-              From month
-              <Input type="month" value={draft.from} max={draft.to || undefined} onChange={(event) => setDraft({ ...draft, from: event.target.value })} className="h-11" />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              To month
-              <Input type="month" value={draft.to} min={draft.from || undefined} onChange={(event) => setDraft({ ...draft, to: event.target.value })} className="h-11" />
-            </label>
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="flex flex-col gap-1 text-sm">
+                <span id={`${id}-from-label`}>From month</span>
+                <MonthGrid
+                  value={draft.from}
+                  max={draft.to || undefined}
+                  onValueChange={(value) => setDraft({ ...draft, from: value })}
+                  className="p-0"
+                />
+              </div>
+              <div className="flex flex-col gap-1 text-sm">
+                <span id={`${id}-to-label`}>To month</span>
+                <MonthGrid
+                  value={draft.to}
+                  min={draft.from || undefined}
+                  onValueChange={(value) => setDraft({ ...draft, to: value })}
+                  className="p-0"
+                />
+              </div>
+            </div>
           </PopoverPrimitive.Popup>
         </PopoverPrimitive.Positioner>
       </PopoverPrimitive.Portal>

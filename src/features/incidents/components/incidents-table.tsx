@@ -88,7 +88,7 @@ export function IncidentsTable({ incidents, timeZone }: IncidentsTableProps) {
                 aria-label={`View incident ${incident.type}`}
                 className={buttonVariants({
                   variant: "outline",
-                  className: "min-h-11 rounded-lg bg-surface px-4",
+                  className: "min-h-11 rounded-md bg-surface px-4",
                 })}
               >
                 View

@@ -47,7 +47,7 @@ function ReadOnlyField({
           id={id}
           value={value}
           readOnly
-          className="h-11 rounded-lg border-border-input bg-surface-muted pr-10 text-sm"
+          className="h-11 rounded-md border-border-input bg-surface-muted pr-10 text-sm"
         />
         <Lock
           aria-hidden="true"

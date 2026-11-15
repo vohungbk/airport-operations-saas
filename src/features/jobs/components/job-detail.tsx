@@ -130,7 +130,7 @@ export function JobDetail({
               href={reportIncidentHref}
               className={buttonVariants({
                 variant: "outline",
-                className: "min-h-11 rounded-lg bg-surface px-4",
+                className: "min-h-11 rounded-md bg-surface px-4",
               })}
             >
               Report incident
@@ -149,7 +149,7 @@ export function JobDetail({
               href={editHref}
               className={buttonVariants({
                 variant: "outline",
-                className: "min-h-11 rounded-lg bg-surface px-4",
+                className: "min-h-11 rounded-md bg-surface px-4",
               })}
             >
               Edit
@@ -159,7 +159,7 @@ export function JobDetail({
             href="/jobs"
             className={buttonVariants({
               variant: "outline",
-              className: "min-h-11 rounded-lg bg-surface px-4",
+              className: "min-h-11 rounded-md bg-surface px-4",
             })}
           >
             Back to jobs

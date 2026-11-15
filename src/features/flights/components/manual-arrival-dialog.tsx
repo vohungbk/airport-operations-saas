@@ -1,5 +1,6 @@
 "use client";
 
+import { Controller } from "react-hook-form";
 import { useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -19,7 +20,7 @@ import {
   FieldError as FieldErrorMessage,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { useManualArrivalForm } from "@/features/flights/hooks/use-manual-arrival-form";
 import { MANUAL_REASON_MAX_LENGTH } from "@/features/flights/schemas/manual-arrival.schema";
@@ -46,6 +47,7 @@ export function ManualArrivalDialog({ bookingId, flightNumber, timeZone, require
   });
   const {
     register,
+    control,
     formState: { errors },
   } = form;
 
@@ -80,13 +82,20 @@ export function ManualArrivalDialog({ bookingId, flightNumber, timeZone, require
           {requireScheduled && (
             <Field data-invalid={!!errors.scheduled_arrival_at}>
               <FieldLabel htmlFor="scheduled_arrival_at">Scheduled arrival</FieldLabel>
-              <Input
-                id="scheduled_arrival_at"
-                type="datetime-local"
-                aria-invalid={!!errors.scheduled_arrival_at}
-                aria-describedby="scheduled_arrival_at-hint scheduled_arrival_at-error"
-                disabled={isPending}
-                {...register("scheduled_arrival_at")}
+              <Controller
+                control={control}
+                name="scheduled_arrival_at"
+                render={({ field }) => (
+                  <DateTimePicker
+                    id="scheduled_arrival_at"
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    timeZone={timeZone}
+                    disabled={isPending}
+                    aria-invalid={!!errors.scheduled_arrival_at}
+                    aria-describedby="scheduled_arrival_at-hint scheduled_arrival_at-error"
+                  />
+                )}
               />
               <FieldDescription id="scheduled_arrival_at-hint">
                 The provider does not know this flight, so the schedule is needed. Time at the airport ({timeZone}).
@@ -100,13 +109,20 @@ export function ManualArrivalDialog({ bookingId, flightNumber, timeZone, require
 
           <Field data-invalid={!!errors.arrival_at}>
             <FieldLabel htmlFor="arrival_at">Arrival</FieldLabel>
-            <Input
-              id="arrival_at"
-              type="datetime-local"
-              aria-invalid={!!errors.arrival_at}
-              aria-describedby="arrival_at-hint arrival_at-error"
-              disabled={isPending}
-              {...register("arrival_at")}
+            <Controller
+              control={control}
+              name="arrival_at"
+              render={({ field }) => (
+                <DateTimePicker
+                  id="arrival_at"
+                  value={field.value ?? ""}
+                  onValueChange={field.onChange}
+                  timeZone={timeZone}
+                  disabled={isPending}
+                  aria-invalid={!!errors.arrival_at}
+                  aria-describedby="arrival_at-hint arrival_at-error"
+                />
+              )}
             />
             <FieldDescription id="arrival_at-hint">Time at the airport ({timeZone}).</FieldDescription>
             <FieldErrorMessage id="arrival_at-error" errors={errors.arrival_at ? [errors.arrival_at] : undefined} />

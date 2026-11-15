@@ -12,6 +12,7 @@ import {
   FieldError as FieldErrorMessage,
   FieldLabel,
 } from "@/components/ui/field";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -119,14 +120,20 @@ export function FlightSimulatorForm({ enabled, airport }: FlightSimulatorFormPro
             <FieldLabel htmlFor="estimated_arrival_at" className={LABEL}>
               Estimated arrival *
             </FieldLabel>
-            <Input
-              id="estimated_arrival_at"
-              type="datetime-local"
-              aria-invalid={!!errors.estimated_arrival_at}
-              aria-describedby="estimated_arrival_at-hint estimated_arrival_at-error"
-              disabled={locked}
-              className="h-11 rounded-md"
-              {...register("estimated_arrival_at")}
+            <Controller
+              control={control}
+              name="estimated_arrival_at"
+              render={({ field }) => (
+                <DateTimePicker
+                  id="estimated_arrival_at"
+                  value={field.value ?? ""}
+                  onValueChange={field.onChange}
+                  timeZone={timeZone}
+                  disabled={locked}
+                  aria-invalid={!!errors.estimated_arrival_at}
+                  aria-describedby="estimated_arrival_at-hint estimated_arrival_at-error"
+                />
+              )}
             />
             <FieldDescription id="estimated_arrival_at-hint" className={HINT}>
               {`Required · Airport time, ${timeZone}`}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Controller } from "react-hook-form";
 import Link from "next/link";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
   FieldError as FieldErrorMessage,
   FieldLabel,
 } from "@/components/ui/field";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Input } from "@/components/ui/input";
 import { InstallationChecklistStep } from "@/features/installations/components/installation-checklist-step";
 import { InstallationConflictAlert } from "@/features/installations/components/installation-conflict-alert";
@@ -71,6 +73,7 @@ export function InstallationForm({
   const { canSave, ...photos } = useStepPhotoUpload(bookingId, "installation");
   const {
     register,
+    control,
     formState: { errors },
   } = form;
 
@@ -136,13 +139,20 @@ export function InstallationForm({
                 <FieldLabel htmlFor="installed_at">
                   Installation time
                 </FieldLabel>
-                <Input
-                  id="installed_at"
-                  type="datetime-local"
-                  aria-invalid={!!errors.installed_at}
-                  aria-describedby="installed_at-hint installed_at-error"
-                  disabled={isPending}
-                  {...register("installed_at")}
+                <Controller
+                  control={control}
+                  name="installed_at"
+                  render={({ field }) => (
+                    <DateTimePicker
+                      id="installed_at"
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      timeZone={timeZone}
+                      disabled={isPending}
+                      aria-invalid={!!errors.installed_at}
+                      aria-describedby="installed_at-hint installed_at-error"
+                    />
+                  )}
                 />
                 <FieldDescription id="installed_at-hint">
                   Local time at the airport ({timeZone}).

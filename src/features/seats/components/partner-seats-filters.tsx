@@ -3,6 +3,13 @@ import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   SEAT_STATUSES,
   SEAT_STATUS_LABEL,
 } from "@/features/seats/lib/seat-status";
@@ -12,8 +19,13 @@ interface PartnerSeatsFiltersProps {
   query: PartnerSeatsQuery;
 }
 
-const SELECT_CLASS =
-  "h-11 w-full sm:w-40 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+const STATUS_CHOICES = [
+  { value: "", label: "All statuses" },
+  ...SEAT_STATUSES.map((value) => ({
+    value,
+    label: SEAT_STATUS_LABEL[value],
+  })),
+];
 
 /**
  * Server Component: a plain GET form, so it needs no client JS. A new search
@@ -36,19 +48,25 @@ export function PartnerSeatsFilters({ query }: PartnerSeatsFiltersProps) {
         className="h-11 w-full sm:w-72"
         aria-label="Search seats"
       />
-      <select
+      <Select
         name="status"
         defaultValue={query.status ?? ""}
-        className={SELECT_CLASS}
-        aria-label="Filter by status"
+        items={STATUS_CHOICES}
       >
-        <option value="">All statuses</option>
-        {SEAT_STATUSES.map((value) => (
-          <option key={value} value={value}>
-            {SEAT_STATUS_LABEL[value]}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger
+          aria-label="Filter by status"
+          className="w-full sm:w-40"
+        >
+          <SelectValue placeholder="All statuses" />
+        </SelectTrigger>
+        <SelectContent>
+          {STATUS_CHOICES.map((choice) => (
+            <SelectItem key={choice.value} value={choice.value}>
+              {choice.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <input type="hidden" name="sort" value={query.sort} />
       <input type="hidden" name="order" value={query.order} />
       <Button type="submit" variant="outline" className="min-h-11 px-4">

@@ -42,7 +42,7 @@ export function IncidentsStatusChips({ query }: IncidentsStatusChipsProps) {
             aria-current={active ? "page" : undefined}
             className={buttonVariants({
               variant: active ? "default" : "outline",
-              className: "min-h-11 rounded-lg px-4",
+              className: "min-h-11 rounded-md px-4",
             })}
           >
             {label}

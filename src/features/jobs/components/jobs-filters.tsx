@@ -247,7 +247,7 @@ export function JobsFilters({ query, technicians, airports, timeZone, clearHref 
           type="button"
           variant="outline"
           onClick={() => router.push(clearHref)}
-          className="min-h-11 rounded-lg bg-surface px-4"
+          className="min-h-11 rounded-md bg-surface px-4"
         >
           Clear filters
         </Button>

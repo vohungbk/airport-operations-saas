@@ -2,9 +2,22 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import type { FieldError, UseFormRegisterReturn } from "react-hook-form";
+import {
+  Controller,
+  type Control,
+  type FieldError,
+  type FieldValues,
+  type Path,
+} from "react-hook-form";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Field,
@@ -34,9 +47,6 @@ interface IncidentReportFormProps {
   cancelHref: string;
 }
 
-const CONTROL_CLASS =
-  "w-full min-w-0 rounded-lg border border-border-input bg-surface px-3 py-1.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
-
 function Required() {
   return <span aria-hidden="true"> *</span>;
 }
@@ -49,48 +59,61 @@ function Hint({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
-interface SelectFieldProps {
-  name: string;
+interface SelectFieldProps<TFieldValues extends FieldValues> {
+  name: Path<TFieldValues>;
   label: string;
   placeholder: string;
   choices: { value: string; label: string }[];
   hint: string;
-  registration: UseFormRegisterReturn;
+  control: Control<TFieldValues>;
   error?: FieldError;
   isPending: boolean;
 }
 
-function SelectField({
+function SelectField<TFieldValues extends FieldValues>({
   name,
   label,
   placeholder,
   choices,
   hint,
-  registration,
+  control,
   error,
   isPending,
-}: SelectFieldProps) {
+}: SelectFieldProps<TFieldValues>) {
   return (
     <Field data-invalid={!!error}>
       <FieldLabel htmlFor={name} className="text-sm font-semibold">
         {label}
         <Required />
       </FieldLabel>
-      <select
-        id={name}
-        aria-invalid={!!error}
-        aria-describedby={error ? `${name}-error` : `${name}-hint`}
-        disabled={isPending}
-        className={`h-11 ${CONTROL_CLASS}`}
-        {...registration}
-      >
-        <option value="">{placeholder}</option>
-        {choices.map((choice) => (
-          <option key={choice.value} value={choice.value}>
-            {choice.label}
-          </option>
-        ))}
-      </select>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => (
+          <Select
+            value={field.value ?? ""}
+            items={choices}
+            onValueChange={(value) => field.onChange(value)}
+            disabled={isPending}
+          >
+            <SelectTrigger
+              id={name}
+              aria-invalid={!!error}
+              aria-describedby={error ? `${name}-error` : `${name}-hint`}
+              className="w-full"
+            >
+              <SelectValue placeholder={placeholder} />
+            </SelectTrigger>
+            <SelectContent>
+              {choices.map((choice) => (
+                <SelectItem key={choice.value} value={choice.value}>
+                  {choice.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      />
       {error ? (
         <FieldErrorMessage id={`${name}-error`} errors={[error]} />
       ) : (
@@ -119,6 +142,7 @@ export function IncidentReportForm({
   });
   const {
     register,
+    control,
     watch,
     formState: { errors },
   } = form;
@@ -154,7 +178,7 @@ export function IncidentReportForm({
               .join(" - "),
           }))}
           hint="Required - the seat comes from the job"
-          registration={register("job_id")}
+          control={control}
           error={errors.job_id}
           isPending={isPending}
         />
@@ -182,7 +206,7 @@ export function IncidentReportForm({
             label: INCIDENT_SEVERITY_LABEL[severity],
           }))}
           hint="Low / Medium / High / Critical"
-          registration={register("severity")}
+          control={control}
           error={errors.severity}
           isPending={isPending}
         />
@@ -201,7 +225,7 @@ export function IncidentReportForm({
               errors.description ? "description-error" : "description-hint"
             }
             disabled={isPending}
-            className="rounded-lg border-border-input bg-surface px-3 text-sm"
+            className="rounded-md border-border-input bg-surface px-3 text-sm"
             {...register("description")}
           />
           {errors.description ? (
@@ -236,7 +260,7 @@ export function IncidentReportForm({
           <Button
             type="submit"
             disabled={isPending || !canSave}
-            className="min-h-11 rounded-lg px-4"
+            className="min-h-11 rounded-md px-4"
           >
             {isPending ? "Submitting..." : "Submit incident"}
           </Button>
@@ -244,7 +268,7 @@ export function IncidentReportForm({
             href={cancelHref}
             className={buttonVariants({
               variant: "outline",
-              className: "min-h-11 rounded-lg bg-surface px-4",
+              className: "min-h-11 rounded-md bg-surface px-4",
             })}
           >
             Cancel

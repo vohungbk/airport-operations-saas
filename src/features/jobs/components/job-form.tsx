@@ -4,11 +4,20 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   Controller,
+  type Control,
   type FieldError,
-  type UseFormRegisterReturn,
+  type FieldValues,
+  type Path,
 } from "react-hook-form";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Field,
   FieldError as FieldErrorMessage,
@@ -33,9 +42,6 @@ interface JobFormProps {
   edit?: JobFormEdit;
 }
 
-const CONTROL_CLASS =
-  "h-11 w-full min-w-0 rounded-lg border border-border-input bg-surface px-3 py-1.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
-
 function Hint({ id, children }: { id: string; children: ReactNode }) {
   return (
     <p id={id} className="text-xs text-text-muted">
@@ -44,50 +50,63 @@ function Hint({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
-interface SelectFieldProps {
-  name: string;
+interface SelectFieldProps<TFieldValues extends FieldValues> {
+  name: Path<TFieldValues>;
   label: string;
   required?: boolean;
   placeholder: string;
   choices: { value: string; label: string }[];
   hint: string;
-  registration: UseFormRegisterReturn;
+  control: Control<TFieldValues>;
   error?: FieldError;
   isPending: boolean;
 }
 
-function SelectField({
+function SelectField<TFieldValues extends FieldValues>({
   name,
   label,
   required = true,
   placeholder,
   choices,
   hint,
-  registration,
+  control,
   error,
   isPending,
-}: SelectFieldProps) {
+}: SelectFieldProps<TFieldValues>) {
   return (
     <Field data-invalid={!!error}>
       <FieldLabel htmlFor={name} className="text-sm font-semibold">
         {label}
         {required && <span aria-hidden="true"> *</span>}
       </FieldLabel>
-      <select
-        id={name}
-        aria-invalid={!!error}
-        aria-describedby={error ? `${name}-error` : `${name}-hint`}
-        disabled={isPending}
-        className={CONTROL_CLASS}
-        {...registration}
-      >
-        <option value="">{placeholder}</option>
-        {choices.map((choice) => (
-          <option key={choice.value} value={choice.value}>
-            {choice.label}
-          </option>
-        ))}
-      </select>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => (
+          <Select
+            value={field.value ?? ""}
+            items={choices}
+            onValueChange={(value) => field.onChange(value)}
+            disabled={isPending}
+          >
+            <SelectTrigger
+              id={name}
+              aria-invalid={!!error}
+              aria-describedby={error ? `${name}-error` : `${name}-hint`}
+              className="w-full"
+            >
+              <SelectValue placeholder={placeholder} />
+            </SelectTrigger>
+            <SelectContent>
+              {choices.map((choice) => (
+                <SelectItem key={choice.value} value={choice.value}>
+                  {choice.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      />
       {error ? (
         <FieldErrorMessage id={`${name}-error`} errors={[error]} />
       ) : (
@@ -108,7 +127,6 @@ export function JobForm({ options, edit }: JobFormProps) {
     defaultValues: edit?.defaultValues,
   });
   const {
-    register,
     control,
     formState: { errors },
   } = form;
@@ -147,7 +165,7 @@ export function JobForm({ options, edit }: JobFormProps) {
             label: JOB_TYPE_LABEL[type],
           }))}
           hint="Installation, Cleaning or Inspection"
-          registration={register("job_type")}
+          control={control}
           error={errors.job_type}
           isPending={isPending}
         />
@@ -207,7 +225,7 @@ export function JobForm({ options, edit }: JobFormProps) {
             placeholder="Select a booking"
             choices={options.bookings}
             hint="Required - link an existing booking"
-            registration={register("booking_id")}
+            control={control}
             error={errors.booking_id}
             isPending={isPending}
           />
@@ -219,7 +237,7 @@ export function JobForm({ options, edit }: JobFormProps) {
           href={edit ? `/jobs/${edit.jobId}` : "/jobs"}
           className={buttonVariants({
             variant: "outline",
-            className: "min-h-11 rounded-lg bg-surface px-4",
+            className: "min-h-11 rounded-md bg-surface px-4",
           })}
         >
           Cancel
@@ -227,7 +245,7 @@ export function JobForm({ options, edit }: JobFormProps) {
         <Button
           type="submit"
           disabled={isPending}
-          className="min-h-11 min-w-[84px] rounded-lg px-4"
+          className="min-h-11 min-w-[84px] rounded-md px-4"
         >
           {isPending ? "Saving..." : "Save"}
         </Button>

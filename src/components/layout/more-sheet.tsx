@@ -75,7 +75,7 @@ export function MoreSheet({ items, user, slotClassName }: MoreSheetProps) {
             </ul>
           </nav>
         )}
-        <div className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+        <div className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
           <span className="text-sm text-foreground">Theme</span>
           <ThemeControl />
         </div>

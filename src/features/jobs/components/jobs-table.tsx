@@ -90,7 +90,7 @@ export function JobsTable({ jobs, now = new Date() }: JobsTableProps) {
                 <Link
                   href={`/jobs/${job.id}`}
                   aria-label={`View job ${job.job_number}`}
-                  className={buttonVariants({ variant: "outline", className: "min-h-11 rounded-lg bg-surface px-4" })}
+                  className={buttonVariants({ variant: "outline", className: "min-h-11 rounded-md bg-surface px-4" })}
                 >
                   View
                 </Link>

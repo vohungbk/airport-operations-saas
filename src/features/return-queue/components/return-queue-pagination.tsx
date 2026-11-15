@@ -14,7 +14,7 @@ interface ReturnQueuePaginationProps {
 function PageLink({ href, children }: { href: string | null; children: ReactNode }) {
   const linkClass = cn(
     buttonVariants({ variant: "outline" }),
-    "min-h-11 w-24 rounded-lg bg-surface text-sm",
+    "min-h-11 w-24 rounded-md bg-surface text-sm",
   );
 
   return href ? (

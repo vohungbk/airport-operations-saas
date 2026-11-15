@@ -80,7 +80,7 @@ export function ChangeIncidentStatusDialog({
       }}
     >
       <DialogTrigger
-        render={<Button className="min-h-11 rounded-lg px-4" />}
+        render={<Button className="min-h-11 rounded-md px-4" />}
       >
         Change status
       </DialogTrigger>
