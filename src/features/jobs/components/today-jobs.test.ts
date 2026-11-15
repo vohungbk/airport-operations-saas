@@ -127,10 +127,10 @@ describe("Today's Jobs partner name (VI-F11-T02, AC01)", () => {
 });
 
 describe("Today's Jobs button and next jobs", () => {
-  it("should open the installation of the first job with a button of at least 44 px", () => {
+  it("should open the job information of the first job with a button of at least 44 px", () => {
     const out = render({ jobs: [job({ id: "abc" })] });
 
-    expect(out).toContain('href="/jobs/abc/installation"');
+    expect(out).toContain('href="/technician/abc"');
     expect(out).toContain("Open installation job");
     expect(out).toContain("min-h-11");
   });
@@ -146,7 +146,8 @@ describe("Today's Jobs button and next jobs", () => {
     expect(out).toContain("Vehicle / seat: Toyota RAV4 · DXB A 48291 · SEAT-0008");
     expect(out).toContain("Status: ● Assigned");
     expect(out.indexOf("/technician/second")).toBeLessThan(out.indexOf("/technician/third"));
-    expect(out).not.toContain('href="/technician/first"');
+    // The first job is the card above, not a record of the list: its link is the button only.
+    expect(out.match(/href="\/technician\/first"/g)).toHaveLength(1);
   });
 
   it("should not show the next jobs card when there is only one job", () => {

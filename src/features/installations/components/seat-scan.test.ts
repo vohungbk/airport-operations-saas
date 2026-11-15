@@ -14,8 +14,8 @@ const html = (element: Parameters<typeof renderToStaticMarkup>[0]) => renderToSt
 
 const scan = (overrides: Partial<SeatScanView> = {}): SeatScanView => ({
   match: true,
-  assigned: { serial_number: "SEAT-0001", category_name: "Convertible", airport_code: "DXB" },
-  scanned: { serial_number: "SEAT-0001", category_name: "Convertible", status: "reserved" },
+  assigned: { serial_number: "SEAT-0001", category_name: "Convertible", required_category_name: "Convertible", airport_code: "DXB" },
+  scanned: { found: true, serial_number: "SEAT-0001", category_name: "Convertible", status: "reserved" },
   checks: {
     last_cleaning: { at: "2026-10-24T09:20:00Z", passed: true },
     last_inspection: { at: "2026-10-24T09:45:00Z", result: "pass" },
@@ -88,7 +88,7 @@ describe("Seat scan: the seat matches", () => {
 describe("Seat scan: the seat is not the assigned one", () => {
   const mismatch = scan({
     match: false,
-    scanned: { serial_number: "SEAT-0005", category_name: "Convertible", status: "reserved" },
+    scanned: { found: true, serial_number: "SEAT-0005", category_name: "Convertible", status: "reserved" },
     checks: null,
   });
 
@@ -112,11 +112,28 @@ describe("Seat scan: the seat is not the assigned one", () => {
     );
   });
 
-  it("should write a dash for a seat the technician cannot read, and make nothing up", () => {
-    const out = renderResult(scan({ ...mismatch, scanned: { serial_number: null, category_name: null, status: null } }));
+  it("should show a not-found result with no seat data for a code that names no seat", () => {
+    const out = renderResult(scan({ ...mismatch, scanned: { found: false, serial_number: null, category_name: null, status: null } }));
 
-    expect(out).toContain("Scanned —.");
+    expect(out).toContain("This seat code was not found. This booking requires SEAT-0001. Do not install this seat.");
+    expect(out).not.toContain("Scanned SEAT");
     expect(out).not.toContain("Reserved for another booking");
+    expect(out).not.toContain("Continue to checklist");
+  });
+
+  it("should show the required and the scanned category when the assigned seat has the wrong one", () => {
+    const out = renderResult(
+      scan({
+        match: false,
+        assigned: { ...mismatch.assigned, required_category_name: "Standard" },
+        scanned: { found: true, serial_number: "SEAT-0001", category_name: "Convertible", status: "reserved" },
+        checks: null,
+      }),
+    );
+
+    expect(out).toContain("This seat is not the required category");
+    expect(out).toContain("Scanned SEAT-0001 · Convertible. This booking requires Standard.");
+    expect(out).not.toContain("Continue to checklist");
   });
 
   it("should hide Report mismatch from a user who may not report an incident", () => {
