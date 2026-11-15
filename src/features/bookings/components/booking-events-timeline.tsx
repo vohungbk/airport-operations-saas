@@ -47,7 +47,7 @@ function EventSummary({
 }) {
   switch (event.event_type) {
     case "created":
-      return <span>{describeBookingCreated(event.source)}</span>;
+      return <span>{describeBookingCreated(event.source, event.allocation_needed)}</span>;
     case "status_changed":
       return (
         <span className="flex flex-wrap items-center gap-2">

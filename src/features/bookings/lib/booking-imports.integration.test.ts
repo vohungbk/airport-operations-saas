@@ -116,4 +116,29 @@ describe.skipIf(!available)("import bookings (CO-F07-S04, S05)", () => {
     expect(get(rows, "read")).toEqual(["1", "0"]);
     expect(get(rows, "write")).toEqual(["42501"]);
   });
+  it("should create the rows beyond the stock without a seat and flag only those for allocation (S06, E5)", () => {
+    const rows = run(`
+      ${newPartner(45)}
+      ${asUser("operations_manager")}
+      do $$ declare n integer; r jsonb; begin
+        select count(*) into n from public.seats s
+         where s.airport_id = '${AIRPORT}' and s.category_id = '${CATEGORY}' and s.status = 'available';
+        -- one row more than there are seats: all rows ask for the same days
+        select jsonb_agg(jsonb_build_object(
+          'row_number', g, 'seat_category_id', '${CATEGORY}', 'pickup_at', '2031-03-01T10:00:00Z',
+          'return_at', '2031-03-04T10:00:00Z', 'daily_rate', 90)) into r from generate_series(1, n + 1) g;
+        perform public.import_bookings('${partnerId(45)}', '${AIRPORT}', 'stock.csv', 120, n + 1, r);
+        raise notice 'R|stock|%', n;
+      end $$;
+      do $$ declare c integer; f integer; s integer; begin
+        select count(*) into c from public.bookings where partner_id = '${partnerId(45)}';
+        select count(*) into f from public.booking_events ev join public.bookings b on b.id = ev.booking_id
+         where b.partner_id = '${partnerId(45)}' and ev.metadata->>'event_type' = 'created' and ev.metadata->>'allocation' = 'needed';
+        select count(*) into s from public.bookings where partner_id = '${partnerId(45)}' and assigned_seat_id is not null;
+        raise notice 'R|state|%|%|%', c, f, s;
+      end $$;`);
+
+    const [seats] = get(rows, "stock");
+    expect(get(rows, "state")).toEqual([String(Number(seats) + 1), "1", "0"]);
+  });
 });

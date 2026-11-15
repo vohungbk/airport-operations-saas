@@ -15,12 +15,24 @@ export function readBookingSource(metadata: Record<string, unknown> | null): Boo
   return typeof value === "string" && BOOKING_SOURCES.includes(value) ? (value as BookingSource) : null;
 }
 
-/** The line of the "created" event: a booking made by hand keeps the plain text, an import or a webhook is named. */
-export function describeBookingCreated(source?: BookingSource | null): string {
-  if (source === "csv") return "Booking created by CSV import";
-  if (source === "webhook") return "Booking created by webhook";
+/** CO-F07-S06 (E5): `true` when the "created" event says the booking waits for a seat to be allocated. */
+export function readAllocationNeeded(metadata: Record<string, unknown> | null): boolean {
+  return metadata?.allocation === "needed";
+}
 
-  return "Booking created";
+/**
+ * The line of the "created" event: a booking made by hand keeps the plain text, an import or a webhook is named,
+ * and a booking made with no seat in stock says it is flagged for allocation.
+ */
+export function describeBookingCreated(source?: BookingSource | null, allocationNeeded = false): string {
+  const line =
+    source === "csv"
+      ? "Booking created by CSV import"
+      : source === "webhook"
+        ? "Booking created by webhook"
+        : "Booking created";
+
+  return allocationNeeded ? `${line}, no seat in stock, flagged for allocation` : line;
 }
 
 /** The filter chips of the Timeline tab, in the order of the design. */

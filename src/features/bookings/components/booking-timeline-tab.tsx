@@ -52,7 +52,7 @@ function formatChangeValue(
 function eventTitle(event: BookingEventItem): string {
   switch (event.event_type) {
     case "created":
-      return describeBookingCreated(event.source);
+      return describeBookingCreated(event.source, event.allocation_needed);
     case "status_changed":
       return "Status changed";
     case "seat_changed":

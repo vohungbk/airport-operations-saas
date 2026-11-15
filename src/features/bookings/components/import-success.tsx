@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { CircleCheck, FileText } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { StatCard } from "@/features/bookings/components/import-validation-report";
 import type { ConfirmedImport } from "@/features/bookings/actions/confirm-booking-import.action";
 import { formatBookingDateTime, formatTimeZoneLabel } from "@/features/bookings/lib/booking-time";
@@ -22,8 +23,7 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 /**
  * CO-F07-S05 (design "Import bookings, Success"): what a confirmed import did: the bookings created, the rows
- * left out, and the record that was saved. "View import history" opens the history of imports, which is its
- * own story (CO-F07-S07), so the button is shown and stays off until that screen exists.
+ * left out, and the record that was saved. "View import history" opens the history of imports (CO-F07-S07).
  */
 export function ImportSuccess({ result }: ImportSuccessProps) {
   return (
@@ -82,9 +82,12 @@ export function ImportSuccess({ result }: ImportSuccessProps) {
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
             <CircleCheck className="size-3.5" aria-hidden="true" />A record of this import has been saved.
           </p>
-          <Button type="button" variant="outline" disabled className="min-h-11 bg-surface px-4 dark:bg-surface">
+          <Link
+            href="/bookings/import/history"
+            className={buttonVariants({ variant: "outline", className: "min-h-11 bg-surface px-4 dark:bg-surface" })}
+          >
             View import history
-          </Button>
+          </Link>
         </div>
       </section>
     </div>
