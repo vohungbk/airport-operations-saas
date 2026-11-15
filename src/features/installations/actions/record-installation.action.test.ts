@@ -43,6 +43,8 @@ const VALID_INPUT = {
   seat_id: SEAT_ID,
   installed_at: "2020-01-01T10:00",
   notes: "  Fitted  ",
+  checklist: ["category_and_fit","shell_and_harness","isofix_belt","seat_movement","harness_tension","final_safety"],
+  vehicle_location: "  Bay B12  ",
 };
 
 describe("recordInstallationAction", () => {
@@ -71,6 +73,8 @@ describe("recordInstallationAction", () => {
       // 10:00 in Asia/Dubai (UTC+4)
       completed_at: "2020-01-01T06:00:00.000Z",
       notes: "Fitted",
+      vehicle_location: "Bay B12",
+      checklist: ["category_and_fit","shell_and_harness","isofix_belt","seat_movement","harness_tension","final_safety"],
       installation_completed: true,
     });
   });
@@ -97,6 +101,28 @@ describe("recordInstallationAction", () => {
     });
 
     expect(result.error?.code).toBe("VALIDATION_ERROR");
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("should refuse and name the missing item when the checklist is incomplete", async () => {
+    const result = await recordInstallationAction({
+      ...VALID_INPUT,
+      checklist: VALID_INPUT.checklist.slice(0, 5),
+    });
+
+    expect(result.error?.code).toBe("VALIDATION_ERROR");
+    expect(result.error?.message).toContain("Final safety check completed");
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("should refuse when the vehicle location is blank", async () => {
+    const result = await recordInstallationAction({
+      ...VALID_INPUT,
+      vehicle_location: "   ",
+    });
+
+    expect(result.error?.code).toBe("VALIDATION_ERROR");
+    expect(result.error?.message).toBe("Enter the vehicle location or bay.");
     expect(insertMock).not.toHaveBeenCalled();
   });
 
@@ -162,6 +188,7 @@ describe("recordInstallationAction", () => {
     ["JB006", "JOB_NOT_ELIGIBLE"],
     ["JB007", "SEAT_NOT_ELIGIBLE"],
     ["JB010", "PHOTO_REQUIRED"],
+    ["22023", "VALIDATION_ERROR"],
     ["42501", "FORBIDDEN"],
   ])("should map database error %s to %s", async (code, expected) => {
     insertMock.mockResolvedValue({ error: { code, message: "raw" } });

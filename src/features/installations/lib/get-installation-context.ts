@@ -16,6 +16,7 @@ export interface InstallationRecord {
 export interface InstallationContext {
   job: {
     id: string;
+    job_number: string;
     status: JobStatus;
     job_type: JobType;
     technician_id: string;
@@ -44,6 +45,7 @@ export interface InstallationContext {
  */
 const INSTALLATION_CONTEXT_SELECT = [
   "id",
+  "job_number",
   "status",
   "job_type",
   "technician_id",
@@ -53,6 +55,7 @@ const INSTALLATION_CONTEXT_SELECT = [
 
 interface Row {
   id: string;
+  job_number: string;
   status: JobStatus;
   job_type: JobType;
   technician_id: string;
@@ -115,6 +118,7 @@ export async function getInstallationContext(
   return {
     job: {
       id: row.id,
+      job_number: row.job_number,
       status: row.status,
       job_type: row.job_type,
       technician_id: row.technician_id,
