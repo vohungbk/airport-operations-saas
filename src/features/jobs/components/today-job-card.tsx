@@ -5,6 +5,8 @@ import {
   SectionCard,
   terminalLabel,
 } from "@/features/jobs/components/today-parts";
+import { formatClock } from "@/features/flights/lib/flight-panel";
+import { formatDayMonth } from "@/features/jobs/lib/job-time";
 import type { TodayJob } from "@/features/jobs/lib/todays-jobs";
 
 interface TodayJobCardProps {
@@ -25,12 +27,13 @@ function locationOf(job: TodayJob): string {
 
 /**
  * The job to do first, as the design draws it (UI-F07-S01, spec R1). The partner is the name given to the
- * technician (VI-F11-T02). The job number and the deadline have no source yet (no job number column, no
- * deadline formula), so they are a dash.
+ * technician (VI-F11-T02). The job number and the deadline come from the job; a job with no deadline writes a dash.
  */
 export function TodayJobCard({ job }: TodayJobCardProps) {
+  const timeZone = job.airport?.timezone ?? "UTC";
+
   return (
-    <SectionCard title={NONE}>
+    <SectionCard title={job.job_number}>
       <div>
         <JobStatusBadge status={job.status} />
       </div>
@@ -50,7 +53,9 @@ export function TodayJobCard({ job }: TodayJobCardProps) {
       <KeyValue
         label={`Deadline${job.airport ? ` · ${job.airport.timezone}` : ""}`}
       >
-        {NONE}
+        {job.deadline_at
+          ? `${formatDayMonth(job.deadline_at, timeZone)} · ${formatClock(job.deadline_at, timeZone)}`
+          : NONE}
       </KeyValue>
     </SectionCard>
   );

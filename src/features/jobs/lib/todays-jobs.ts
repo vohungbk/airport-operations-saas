@@ -8,9 +8,8 @@ import type { JobStatus } from "@/features/jobs/lib/job-status";
 import type { JobType } from "@/features/jobs/lib/job-type";
 
 /**
- * Pure logic for Today's Jobs (UI-F07-S01, spec R1, E3). A job has no deadline column, so the list is
- * ordered by the pickup time of its booking, the time by which the seat has to be ready; no deadline is
- * written on the screen until its formula exists. "Today" is the UTC day, as on the dashboard.
+ * Pure logic for Today's Jobs (UI-F07-S01, spec R1, E3). The list is ordered by deadline (a job with
+ * none last), then by the pickup time of its booking. "Today" is the UTC day, as on the dashboard.
  */
 
 /** The statuses of a job that is still to be done. */
@@ -22,6 +21,8 @@ export const OPEN_JOB_STATUSES = [
 /** One job as the read returns it, before it is picked for today. */
 export interface TodayJobRow {
   id: string;
+  job_number: string;
+  deadline_at: string | null;
   status: JobStatus;
   job_type: JobType;
   vehicle_bay: string | null;
@@ -52,6 +53,9 @@ export interface TodayJobRow {
 /** One job of Today's Jobs, with what the screen writes about it. */
 export interface TodayJob {
   id: string;
+  job_number: string;
+  /** When the job has to be done; null while none is stored. */
+  deadline_at: string | null;
   status: JobStatus;
   job_type: JobType;
   /** The pickup time of the booking: it orders the list and is the time of the next job in the empty state. */
@@ -92,32 +96,43 @@ export function endOfUtcDay(now: Date): number {
 }
 
 type Ordered = { pickup_at: string; id: string };
+type OrderedByDeadline = Ordered & { deadline_at: string | null };
 
 const byPickup = (a: Ordered, b: Ordered) =>
   Date.parse(a.pickup_at) - Date.parse(b.pickup_at) || a.id.localeCompare(b.id);
 
+/** The earliest deadline first, a job with no deadline last, then by pickup and id. */
+const byDeadline = (a: OrderedByDeadline, b: OrderedByDeadline) => {
+  const left = a.deadline_at === null ? Infinity : Date.parse(a.deadline_at);
+  const right = b.deadline_at === null ? Infinity : Date.parse(b.deadline_at);
+
+  return left === right ? byPickup(a, b) : left < right ? -1 : 1;
+};
+
 /**
- * The open jobs whose pickup is today or earlier, and every job in progress, the earliest first, and the
+ * The open jobs whose pickup is today or earlier, and every job in progress, the earliest deadline first, and the
  * pickup of the first open job after today. A job of another status, or one with no booking, is not listed.
  */
 export function selectTodaysJobs(rows: readonly TodayJobRow[], now: Date): TodaysJobs {
   const endOfToday = endOfUtcDay(now);
   const open = rows.flatMap((row) =>
     row.booking && (OPEN_JOB_STATUSES as readonly JobStatus[]).includes(row.status)
-      ? [{ id: row.id, row, booking: row.booking, pickup_at: row.booking.pickup_at }]
+      ? [{ id: row.id, row, booking: row.booking, pickup_at: row.booking.pickup_at, deadline_at: row.deadline_at }]
       : [],
   );
 
   const jobs = open
     // A job that is in progress stays on the list, whatever its pickup: it is being done now.
     .filter(({ row, pickup_at }) => row.status === "in_progress" || Date.parse(pickup_at) < endOfToday)
-    .sort(byPickup)
+    .sort(byDeadline)
     .map(({ id, row, booking, pickup_at }): TodayJob => {
       const { flight, seat } = booking;
       const offset = flight ? getFlightOffsetMinutes(flight) : null;
 
       return {
         id,
+        job_number: row.job_number,
+        deadline_at: row.deadline_at,
         status: row.status,
         job_type: row.job_type,
         pickup_at,

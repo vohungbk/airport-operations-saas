@@ -3,6 +3,7 @@ import { CircleAlert } from "lucide-react";
 
 import { PageEmpty } from "@/components/shared/page-state";
 import { buttonVariants } from "@/components/ui/button";
+import { formatClock } from "@/features/flights/lib/flight-panel";
 import { NextJobsCard } from "@/features/jobs/components/next-jobs-card";
 import { TodayFlightCard } from "@/features/jobs/components/today-flight-card";
 import { TodayJobCard } from "@/features/jobs/components/today-job-card";
@@ -37,6 +38,9 @@ export function TodayJobsList({ today, now }: TodayJobsListProps) {
   }
 
   const early = today.jobs.find((job) => job.flight?.timing === "early");
+  const earlyDeadline = early?.deadline_at
+    ? formatClock(early.deadline_at, early.airport?.timezone ?? "UTC")
+    : NONE;
 
   return (
     <>
@@ -52,19 +56,23 @@ export function TodayJobsList({ today, now }: TodayJobsListProps) {
               {Math.abs(early.flight.offset_minutes ?? 0)} minutes early
             </p>
             <p className="break-words">
-              Complete {NONE} before {NONE}.
+              Complete {early.job_number} before {earlyDeadline}.
             </p>
           </div>
         </div>
       )}
-      <TodayJobCard job={first} />
-      <TodayFlightCard job={first} now={now} />
-      <Link
-        href={`/jobs/${first.id}/installation`}
-        className={buttonVariants({ className: "min-h-11 px-4" })}
-      >
-        Open installation job
-      </Link>
+      <div className="grid items-start gap-6 md:grid-cols-2">
+        <TodayJobCard job={first} />
+        <div className="flex flex-col gap-6">
+          <TodayFlightCard job={first} now={now} />
+          <Link
+            href={`/jobs/${first.id}/installation`}
+            className={buttonVariants({ className: "min-h-11 px-4 md:self-start" })}
+          >
+            Open installation job
+          </Link>
+        </div>
+      </div>
       <NextJobsCard jobs={rest} />
     </>
   );

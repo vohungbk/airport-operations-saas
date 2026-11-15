@@ -14,6 +14,8 @@ import {
  */
 export const TODAYS_JOBS_SELECT = [
   "id",
+  "job_number",
+  "deadline_at",
   "status",
   "job_type",
   "vehicle_bay",
