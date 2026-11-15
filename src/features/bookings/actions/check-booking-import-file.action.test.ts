@@ -4,10 +4,14 @@ const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
 const maybeSingleMock = vi.hoisted(() => vi.fn());
 const fromMock = vi.hoisted(() => vi.fn());
 const lookupsMock = vi.hoisted(() => vi.fn());
+const existingMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/current-user", () => ({ requireAnyPermission: requireAnyPermissionMock }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({ from: fromMock })) }));
-vi.mock("@/features/bookings/lib/get-booking-import-lookups", () => ({ getBookingImportLookups: lookupsMock }));
+vi.mock("@/features/bookings/lib/get-booking-import-lookups", () => ({
+  getBookingImportLookups: lookupsMock,
+  getExistingExternalNumbers: existingMock,
+}));
 
 import { checkBookingImportFileAction } from "@/features/bookings/actions/check-booking-import-file.action";
 import {
@@ -38,6 +42,8 @@ describe("checkBookingImportFileAction (CO-F07-S02, S03)", () => {
     maybeSingleMock.mockResolvedValue({ data: { id: PARTNER_ID, name: "Emirates Rent A Car" }, error: null });
     fromMock.mockReset();
     fromMock.mockReturnValue({ select: () => ({ eq: () => ({ maybeSingle: maybeSingleMock }) }) });
+    existingMock.mockReset();
+    existingMock.mockResolvedValue(new Set());
     lookupsMock.mockReset();
     lookupsMock.mockResolvedValue({
       airport: { id: AIRPORT_ID, timezone: "Asia/Dubai" },
@@ -58,6 +64,17 @@ describe("checkBookingImportFileAction (CO-F07-S02, S03)", () => {
     // Only reads: the partner by id; nothing is inserted or updated.
     expect(fromMock.mock.calls.map(([table]) => table)).toEqual(["partners"]);
     expect(requireAnyPermissionMock).toHaveBeenCalledWith(["bookings:manage"]);
+  });
+
+  it("should mark a row that repeats a number the partner already has as a duplicate, and not change that booking (S04)", async () => {
+    existingMock.mockResolvedValue(new Set(["EXT-1"]));
+
+    const result = await checkBookingImportFileAction(form({ file: new File([csv(GOOD_ROW)], "bookings.csv") }));
+
+    expect(result).toMatchObject({ success: true, report: { total: 1, valid: 0, invalid: 1 } });
+    expect(result.success && result.report.rows[0]).toMatchObject({ status: "duplicate", error: "Duplicate external booking number" });
+    expect(existingMock).toHaveBeenCalledWith(expect.anything(), PARTNER_ID, ["EXT-1"]);
+    expect(fromMock.mock.calls.map(([table]) => table)).toEqual(["partners"]);
   });
 
   it.each([

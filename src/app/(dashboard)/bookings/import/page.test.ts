@@ -41,7 +41,7 @@ describe("ImportBookingsPage", () => {
     expect(html).toContain("Download template");
     expect(html).toContain('type="file"');
     expect(html).toContain('accept=".csv,text/csv"');
-    expect(html).toMatch(/<button[^>]*disabled[^>]*>Validate file<\/button>/);
+    expect(html).toMatch(/<button[^>]*\sdisabled=""[^>]*>Validate file<\/button>/);
     expect(html).toContain('href="/bookings"');
     expect(html).not.toContain("do not have permission");
   });
