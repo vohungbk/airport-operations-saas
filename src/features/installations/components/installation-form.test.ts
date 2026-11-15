@@ -13,6 +13,7 @@ vi.mock("@/features/installations/hooks/use-record-installation-form", () => ({
   useRecordInstallationForm: hookMock,
 }));
 
+import { INSTALLATION_CHECKLIST } from "@/features/installations/lib/installation-checklist";
 import { InstallationForm } from "@/features/installations/components/installation-form";
 
 function photoState(uploaded: boolean) {
@@ -28,8 +29,19 @@ function photoState(uploaded: boolean) {
   };
 }
 
-function hookState(result: unknown) {
+function hookState(result: unknown, step: "checklist" | "details" = "details") {
   return {
+    step,
+    backToChecklist: vi.fn(),
+    continueToDetails: vi.fn(),
+    checklist: {
+      items: INSTALLATION_CHECKLIST,
+      checked: ["category_and_fit", "shell_and_harness", "isofix_belt", "seat_movement"],
+      total: 6,
+      completed: 4,
+      hint: "Complete the final two checks to continue.",
+      toggleItem: vi.fn(),
+    },
     form: {
       register: () => ({}),
       formState: { errors: {} },
@@ -45,6 +57,8 @@ function render() {
   return renderToStaticMarkup(
     createElement(InstallationForm, {
       jobId: "j-1",
+      jobNumber: "JOB-2026-0081",
+      bookingNumber: "BK-2026-000123",
       bookingId: "b-1",
       seatId: "s-1",
       seatLabel: "SN-1",
@@ -59,6 +73,30 @@ describe("InstallationForm", () => {
     hookMock.mockReset();
     photoMock.mockReset();
     photoMock.mockReturnValue(photoState(true));
+  });
+
+  it("should show the checklist with its progress and the way on while on the first step", () => {
+    hookMock.mockReturnValue(hookState(null, "checklist"));
+
+    const html = render();
+
+    expect(html).toContain("JOB-2026-0081 · BK-2026-000123 · Asia/Dubai");
+    expect(html).toContain("All checks are required");
+    expect(html).toContain("4 of 6 complete");
+    expect(html).toContain("Final safety check completed");
+    expect(html).toContain("Continue to photos");
+    expect(html).toContain("Complete the final two checks to continue.");
+    expect(html).not.toContain('id="installed_at"');
+  });
+
+  it("should show the vehicle location field on the second step", () => {
+    hookMock.mockReturnValue(hookState(null));
+
+    const html = render();
+
+    expect(html).toContain('id="vehicle_location"');
+    expect(html).toContain("Back to checklist");
+    expect(html).not.toContain("Continue to photos");
   });
 
   it("should keep Save off and ask for a photo while the installation has none", () => {

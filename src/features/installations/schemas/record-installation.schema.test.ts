@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   NOTES_MAX_LENGTH,
+  VEHICLE_LOCATION_MAX_LENGTH,
   buildRecordInstallationSchema,
   toInstalledAtIso,
 } from "@/features/installations/schemas/record-installation.schema";
@@ -15,6 +16,8 @@ const VALID = {
   seat_id: "e0000000-0000-0000-0000-000000000002",
   installed_at: "2026-10-16T15:30",
   notes: "Fitted in the rear left seat",
+  checklist: ["category_and_fit","shell_and_harness","isofix_belt","seat_movement","harness_tension","final_safety"],
+  vehicle_location: "Bay B12",
 };
 
 const schema = buildRecordInstallationSchema(TIME_ZONE, () => NOW);
@@ -73,6 +76,46 @@ describe("buildRecordInstallationSchema", () => {
     expect(
       firstIssue({ ...VALID, notes: "a".repeat(NOTES_MAX_LENGTH + 1) })?.path,
     ).toEqual(["notes"]);
+  });
+});
+
+describe("buildRecordInstallationSchema checklist and vehicle location", () => {
+  it("should return error naming the missing item when the checklist is incomplete", () => {
+    const issue = firstIssue({
+      ...VALID,
+      checklist: VALID.checklist.slice(0, 4),
+    });
+
+    expect(issue?.path).toEqual(["checklist"]);
+    expect(issue?.message).toContain("Harness height and tension verified");
+    expect(issue?.message).toContain("Final safety check completed");
+    expect(issue?.message).not.toContain("Seat movement checked at belt path");
+  });
+
+  it("should return error when the checklist is empty", () => {
+    expect(firstIssue({ ...VALID, checklist: [] })?.path).toEqual(["checklist"]);
+  });
+
+  it("should return error when the checklist has an unknown item", () => {
+    expect(firstIssue({ ...VALID, checklist: ["unknown"] })?.path).toEqual([
+      "checklist",
+      0,
+    ]);
+  });
+
+  it.each([
+    ["is empty", "", "Enter the vehicle location or bay."],
+    ["is only spaces", "   ", "Enter the vehicle location or bay."],
+    [
+      "is too long",
+      "a".repeat(VEHICLE_LOCATION_MAX_LENGTH + 1),
+      `Vehicle location must be at most ${VEHICLE_LOCATION_MAX_LENGTH} characters.`,
+    ],
+  ])("should return error when the vehicle location %s", (_name, value, message) => {
+    const issue = firstIssue({ ...VALID, vehicle_location: value });
+
+    expect(issue?.path).toEqual(["vehicle_location"]);
+    expect(issue?.message).toBe(message);
   });
 });
 

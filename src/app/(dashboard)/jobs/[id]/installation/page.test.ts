@@ -32,6 +32,7 @@ function context(overrides: Record<string, unknown> = {}) {
   return {
     job: {
       id: "j-1",
+      job_number: "JOB-2026-0081",
       status: "in_progress",
       job_type: "installation",
       technician_id: "t-1",
@@ -102,13 +103,13 @@ describe("InstallationPage", () => {
     await expect(render()).rejects.toThrow("NOT_FOUND");
   });
 
-  it("should show the form with the booking's seat and a Cancel link back to the job", async () => {
+  it("should open the form on the checklist with the job and booking numbers", async () => {
     const html = await render();
 
-    expect(html).toContain("SN-2 (Infant)");
-    expect(html).toContain("Installation time");
-    expect(html).toContain('href="/jobs/j-1"');
-    expect(html).toContain("Cancel");
+    expect(html).toContain("Installation checklist");
+    expect(html).toContain("JOB-2026-0081 · BK-00002 · Asia/Dubai");
+    expect(html).toContain("Continue to photos");
+    expect(html).not.toContain("Installation time");
   });
 
   it.each([["available"], ["reserved"]])(
@@ -123,7 +124,7 @@ describe("InstallationPage", () => {
         }),
       );
 
-      expect(await render()).toContain("Installation time");
+      expect(await render()).toContain("Installation checklist");
     },
   );
 
