@@ -1,10 +1,8 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-
 import { z } from "zod";
 
-const bearerSchema = z.string().regex(/^Bearer\s+\S+$/);
+import { safeEqual } from "@/lib/security/safe-equal";
 
-const digest = (value: string) => createHash("sha256").update(value).digest();
+const bearerSchema = z.string().regex(/^Bearer\s+\S+$/);
 
 /**
  * True when the `Authorization` header is `Bearer <token>` and the token is the expected one. The two sides are hashed
@@ -15,5 +13,5 @@ export function isCronAuthorized(authorization: string | null, expected_token: s
   if (!parsed.success) return false;
 
   const token = parsed.data.replace(/^Bearer\s+/, "");
-  return timingSafeEqual(digest(token), digest(expected_token));
+  return safeEqual(token, expected_token);
 }

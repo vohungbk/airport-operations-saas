@@ -221,6 +221,63 @@ export type Database = {
           },
         ]
       }
+      booking_webhook_calls: {
+        Row: {
+          booking_id: string | null
+          config_id: string | null
+          error: string | null
+          external_booking_number: string | null
+          id: string
+          partner_id: string | null
+          received_at: string
+          result: string
+        }
+        Insert: {
+          booking_id?: string | null
+          config_id?: string | null
+          error?: string | null
+          external_booking_number?: string | null
+          id?: string
+          partner_id?: string | null
+          received_at?: string
+          result: string
+        }
+        Update: {
+          booking_id?: string | null
+          config_id?: string | null
+          error?: string | null
+          external_booking_number?: string | null
+          id?: string
+          partner_id?: string | null
+          received_at?: string
+          result?: string
+        }
+        Relationships: []
+      }
+      booking_webhook_config: {
+        Row: {
+          airport_id: string
+          created_at: string
+          id: string
+          partner_id: string
+          secret: string
+        }
+        Insert: {
+          airport_id: string
+          created_at?: string
+          id?: string
+          partner_id: string
+          secret: string
+        }
+        Update: {
+          airport_id?: string
+          created_at?: string
+          id?: string
+          partner_id?: string
+          secret?: string
+        }
+        Relationships: []
+      }
       booking_imports: {
         Row: {
           airport_id: string
@@ -2552,6 +2609,23 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      get_booking_webhook_secret: {
+        Args: { p_config_id: string }
+        Returns: string
+      }
+      log_booking_webhook_call: {
+        Args: {
+          p_config_id: string
+          p_error: string
+          p_external_booking_number: string
+          p_result: string
+        }
+        Returns: undefined
+      }
+      receive_webhook_booking: {
+        Args: { p_body: Json; p_config_id: string }
+        Returns: Json
       }
       import_bookings: {
         Args: {

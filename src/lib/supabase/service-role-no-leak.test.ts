@@ -12,7 +12,7 @@ const SRC = join(process.cwd(), "src");
 const KEY_VARIABLE = "SUPABASE_SERVICE_ROLE_KEY";
 const ENV_FILE = "src/lib/config/server-env.ts";
 const CLIENT_FILE = "src/lib/supabase/service-role.ts";
-const ALLOWED_CLIENT_USERS = ["src/app/api/flights/refresh/route.ts"];
+const ALLOWED_CLIENT_USERS = ["src/app/api/bookings/webhook/route.ts", "src/app/api/flights/refresh/route.ts"];
 
 function listFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -38,8 +38,8 @@ describe("the service-role key stays in the system jobs", () => {
     expect(filesMatching(/NEXT_PUBLIC_\w*(SERVICE_ROLE|CRON)/i)).toEqual([]);
   });
 
-  it("should import the service-role client in the flight refresh route only", () => {
-    expect(filesMatching(/from\s+["'][^"']*supabase\/service-role["']/)).toEqual(ALLOWED_CLIENT_USERS);
+  it("should import the service-role client in the system job routes only", () => {
+    expect(filesMatching(/from\s+["'][^"']*supabase\/service-role["']/).sort()).toEqual(ALLOWED_CLIENT_USERS);
   });
 
   it("should define the service-role client in one file of the app", () => {

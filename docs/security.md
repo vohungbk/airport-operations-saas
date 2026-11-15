@@ -600,9 +600,10 @@ time at the airport and converted to UTC with `airports.timezone`.
 - `SUPABASE_SERVICE_ROLE_KEY` / the newer secret key (`sb_secret_...`)
   must never be shipped to client-side code, imported into a Client
   Component, or exposed via a `NEXT_PUBLIC_` prefixed variable.
-- One service-role client exists (VI-F02-S03, see "Flight refresh" below). It is
-  introduced only when a specific feature has a concrete, reviewed need to
-  bypass RLS from trusted server code, and no other code may use it.
+- One service-role client exists (VI-F02-S03, see "Flight refresh" below); it has a
+  second reviewed user, the booking webhook (CO-F07-S08, see "Booking webhook"
+  below). It is introduced only when a specific feature has a concrete, reviewed
+  need to bypass RLS from trusted server code, and no other code may use it.
 - The publishable key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) is safe to
   expose — it carries the same low privilege as the legacy anon key, and
   access is enforced by RLS, not by keeping the key secret.
@@ -2194,6 +2195,32 @@ when a save fails or the permission is lost.
   route answers the standardized error and never the text of the source or the database.
 - **Set up.** Set `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` as server variables, and have a scheduler call
   the route every 5 minutes with the header above.
+
+## Booking webhook (CO-F07-S08, S09, S10)
+
+- **Why the service-role client.** An external system calls `POST /api/bookings/webhook` with no session, and a
+  booking can be created only by an admin or an operations manager (RLS). The reviewed need is this one route.
+  `createServiceRoleClient()` is imported only by this route and the flight refresh route
+  (`service-role-no-leak.test.ts`).
+- **Access to the route.** The sender puts the id of its configuration in `X-Webhook-Id` and
+  `X-Webhook-Signature: sha256=<HMAC-SHA256 of the raw body under its secret>`. The route checks the signature in
+  constant time before it reads the body; a missing, unknown or wrong id or signature answers 401, creates nothing
+  and is logged (R12). The proxy lets the path through without a session (`PUBLIC_ROUTES`); the route refuses.
+- **The secret.** One per partner, in `booking_webhook_config` (RLS on, no policy, privileges revoked from `anon`
+  and `authenticated`). Only `get_booking_webhook_secret()` reads it, and only the service role may call it. A call
+  creates a booking only for the partner and airport of its configuration, never for one named in the body (R15).
+- **The booking.** `receive_webhook_booking()` is `SECURITY DEFINER`, its `EXECUTE` is revoked from `public`, `anon`
+  and `authenticated` and granted to `service_role` only. It creates a pending booking with the source `webhook`
+  in the history (R11, R14). A repeated external booking number of the partner returns the first booking and creates
+  none (R13); the function takes the same advisory lock as a CSV import, so two calls at once cannot both create it.
+- **The limit (E6).** 60 accepted calls a minute for one configuration; the next answers 429 with `Retry-After`.
+- **The log.** `booking_webhook_calls` is append only for every role (a trigger refuses update, delete and truncate)
+  and is read by an admin and an operations manager only. It holds the result and a short error, never the secret
+  or the body. A call with an unknown id is logged without a partner.
+- **Errors.** The standardized error shape; only the messages the function raises itself are returned, no other
+  database text.
+- **Set up.** Insert a row in `booking_webhook_config` for the partner (a secret of 32 characters or more), give the
+  sender its `id` and secret, and have it sign each body.
 
 ## Flight access (VI-F02-S13)
 
