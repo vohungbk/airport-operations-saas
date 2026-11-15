@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
+const requireAuthMock = vi.hoisted(() => vi.fn());
 const maybeSingleMock = vi.hoisted(() => vi.fn());
 const fromMock = vi.hoisted(() => vi.fn());
 const rpcMock = vi.hoisted(() => vi.fn());
 const lookupsMock = vi.hoisted(() => vi.fn());
 const existingMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/auth/current-user", () => ({ requireAnyPermission: requireAnyPermissionMock }));
+vi.mock("@/lib/auth/current-user", () => ({ requireAuth: requireAuthMock }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({ from: fromMock, rpc: rpcMock })) }));
 vi.mock("@/features/bookings/lib/get-booking-import-lookups", () => ({
   getBookingImportLookups: lookupsMock,
@@ -33,8 +33,8 @@ const form = (content = csv(GOOD("EXT-1"), GOOD("EXT-2"), BAD), name = "bookings
 
 describe("confirmBookingImportAction (CO-F07-S05)", () => {
   beforeEach(() => {
-    requireAnyPermissionMock.mockReset();
-    requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role: "operations_manager", full_name: "Priya Nair" });
+    requireAuthMock.mockReset();
+    requireAuthMock.mockResolvedValue({ id: "u-1", role: "operations_manager", full_name: "Priya Nair" });
     maybeSingleMock.mockReset();
     maybeSingleMock.mockResolvedValue({ data: { id: PARTNER_ID, name: "Emirates Rent A Car" }, error: null });
     fromMock.mockReset();
@@ -101,15 +101,30 @@ describe("confirmBookingImportAction (CO-F07-S05)", () => {
     expect(await confirmBookingImportAction(form())).toEqual({ success: false, code: "IMPORT_FAILED" });
   });
 
+  it("should answer FORBIDDEN when the database refuses the role, so the user sees the forbidden state (S13, E10)", async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { code: "42501", message: "Not allowed" } });
+
+    expect(await confirmBookingImportAction(form())).toEqual({ success: false, code: "FORBIDDEN" });
+  });
+
+  it("should send the chosen partner once and let no row name another partner (S12, R15)", async () => {
+    await confirmBookingImportAction(form());
+
+    const [, args] = rpcMock.mock.calls[0];
+    expect(args.p_partner_id).toBe(PARTNER_ID);
+    expect(args.p_rows.length).toBeGreaterThan(0);
+    for (const row of args.p_rows) expect(row).not.toHaveProperty("partner_id");
+  });
+
   it("should check the file again and refuse a wrong header without calling the database", async () => {
     expect(await confirmBookingImportAction(form("a,b\r\n1,2"))).toEqual({ success: false, code: "WRONG_HEADER" });
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
-  it("should refuse a user without the import permission and look at nothing", async () => {
-    requireAnyPermissionMock.mockRejectedValue(new Error("FORBIDDEN"));
+  it("should answer FORBIDDEN for a user without the import permission (any more) and look at nothing (S13, E10)", async () => {
+    requireAuthMock.mockResolvedValue({ id: "u-2", role: "partner_user", full_name: "Sam Lee" });
 
-    await expect(confirmBookingImportAction(form())).rejects.toThrow("FORBIDDEN");
+    expect(await confirmBookingImportAction(form())).toEqual({ success: false, code: "FORBIDDEN" });
     expect(fromMock).not.toHaveBeenCalled();
     expect(rpcMock).not.toHaveBeenCalled();
   });
