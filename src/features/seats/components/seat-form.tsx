@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+import Link from "next/link";
 import {
   Controller,
   type Control,
@@ -14,9 +16,9 @@ import {
   Field,
   FieldDescription,
   FieldError as FieldErrorMessage,
-  FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -25,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import type { SeatFormOptions } from "@/features/seats/lib/get-seat-form-options";
 import type {
   CreateSeatInput,
@@ -99,6 +102,7 @@ function TextField<TFieldValues extends FieldValues>({
       <Input
         id={name}
         type={type}
+        className="h-11"
         min={type === "number" ? 1 : undefined}
         step={type === "number" ? 1 : undefined}
         aria-invalid={!!error}
@@ -125,7 +129,11 @@ function SelectField<TFieldValues extends FieldValues>({
   errors,
   isPending,
   choices,
-}: Pick<FieldShellProps<TFieldValues>, "name" | "label" | "errors" | "isPending"> & {
+  hint,
+}: Pick<
+  FieldShellProps<TFieldValues>,
+  "name" | "label" | "errors" | "isPending" | "hint"
+> & {
   control: Control<TFieldValues>;
   choices: { value: string; label: string }[];
 }) {
@@ -147,8 +155,8 @@ function SelectField<TFieldValues extends FieldValues>({
             <SelectTrigger
               id={name}
               aria-invalid={!!error}
-              aria-describedby={describedBy(name, error)}
-              className="w-full"
+              aria-describedby={describedBy(name, error, hint)}
+              className="h-11 w-full data-[size=default]:h-11"
             >
               <SelectValue placeholder="Select..." />
             </SelectTrigger>
@@ -162,6 +170,7 @@ function SelectField<TFieldValues extends FieldValues>({
           </Select>
         )}
       />
+      {hint && <FieldDescription id={`${name}-hint`}>{hint}</FieldDescription>}
       <FieldErrorMessage
         id={`${name}-error`}
         errors={error ? [error] : undefined}
@@ -170,8 +179,46 @@ function SelectField<TFieldValues extends FieldValues>({
   );
 }
 
-/** Fields editable in both modes (everything except the create-only serial). */
-function SharedFields<TFieldValues extends FieldValues>({
+interface FormSectionProps {
+  title: string;
+  children: ReactNode;
+  columns?: "two" | "three";
+}
+
+function FormSection({ title, children, columns = "three" }: FormSectionProps) {
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-base font-semibold text-foreground">{title}</h2>
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2",
+          columns === "three" && "lg:grid-cols-3",
+        )}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/** The make and model of the seat, editable in both modes. */
+function ProductFields<TFieldValues extends FieldValues>({
+  register,
+  errors,
+  isPending,
+}: Pick<SharedFieldsProps<TFieldValues>, "register" | "errors" | "isPending">) {
+  const shell = { register, errors, isPending };
+
+  return (
+    <>
+      <TextField {...shell} name="manufacturer" label="Manufacturer" />
+      <TextField {...shell} name="model" label="Model" />
+    </>
+  );
+}
+
+/** Where the seat is, its category and its rental limits, editable in both modes. */
+function ConfigurationFields<TFieldValues extends FieldValues>({
   register,
   control,
   errors,
@@ -182,8 +229,24 @@ function SharedFields<TFieldValues extends FieldValues>({
 
   return (
     <>
-      <TextField {...shell} name="manufacturer" label="Manufacturer" />
-      <TextField {...shell} name="model" label="Model" />
+      <SelectField
+        control={control}
+        errors={errors}
+        isPending={isPending}
+        name="airport_id"
+        label="Airport *"
+        hint="Required"
+        choices={options.airports}
+      />
+      <SelectField
+        control={control}
+        errors={errors}
+        isPending={isPending}
+        name="category_id"
+        label="Category *"
+        hint="Required"
+        choices={options.categories}
+      />
       <TextField
         {...shell}
         name="manufacture_date"
@@ -202,22 +265,115 @@ function SharedFields<TFieldValues extends FieldValues>({
         label="Max rental cycles"
         type="number"
       />
-      <SelectField
-        control={control}
-        errors={errors}
-        isPending={isPending}
-        name="category_id"
-        label="Category"
-        choices={options.categories}
+    </>
+  );
+}
+
+/** The public token is made by the database, so the form only shows that it is automatic. */
+function PublicTokenField() {
+  return (
+    <Field>
+      <FieldLabel htmlFor="public_token">Public token</FieldLabel>
+      <Input
+        id="public_token"
+        value="AUTO-GEN"
+        readOnly
+        aria-describedby="public_token-hint"
+        className="h-11 bg-muted"
       />
-      <SelectField
-        control={control}
-        errors={errors}
-        isPending={isPending}
-        name="airport_id"
-        label="Airport"
-        choices={options.airports}
-      />
+      <FieldDescription id="public_token-hint">
+        Used to create the permanent QR code
+      </FieldDescription>
+    </Field>
+  );
+}
+
+interface SeatFormLayoutProps {
+  formId: string;
+  title: string;
+  cancelHref: string;
+  submitLabel: string;
+  isPending: boolean;
+  onSubmit: () => void;
+  alert?: ReactNode;
+  children: ReactNode;
+}
+
+/** Page heading with Cancel and Save, and the white card that holds the form sections. */
+export function SeatFormLayout({
+  formId,
+  title,
+  cancelHref,
+  submitLabel,
+  isPending,
+  onSubmit,
+  alert,
+  children,
+}: SeatFormLayoutProps) {
+  return (
+    <form
+      id={formId}
+      onSubmit={onSubmit}
+      noValidate
+      className="flex flex-col gap-6"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          {title}
+        </h1>
+        <div className="flex items-center gap-3">
+          <Link
+            href={cancelHref}
+            className={buttonVariants({
+              variant: "outline",
+              className: "min-h-11 bg-surface px-4 dark:bg-surface",
+            })}
+          >
+            Cancel
+          </Link>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={isPending}
+            className="min-h-11 px-4"
+          >
+            {submitLabel}
+          </Button>
+        </div>
+      </div>
+
+      {alert}
+
+      <div className="flex flex-col gap-8 rounded-xl border bg-surface p-6">
+        {children}
+      </div>
+    </form>
+  );
+}
+
+interface SeatFormSectionsProps<TFieldValues extends FieldValues>
+  extends SharedFieldsProps<TFieldValues> {
+  /** Fields that come before the make and model: the serial and token on create. */
+  identity?: ReactNode;
+}
+
+function SeatFormSections<TFieldValues extends FieldValues>({
+  identity,
+  ...shared
+}: SeatFormSectionsProps<TFieldValues>) {
+  return (
+    <>
+      <FormSection title="Seat identity" columns="two">
+        {identity}
+        <ProductFields
+          register={shared.register}
+          errors={shared.errors}
+          isPending={shared.isPending}
+        />
+      </FormSection>
+      <FormSection title="Configuration">
+        <ConfigurationFields {...shared} />
+      </FormSection>
     </>
   );
 }
@@ -232,37 +388,38 @@ export function SeatForm(props: SeatFormProps) {
     const { register, control, errors, isPending, options } = props;
 
     return (
-      <FieldGroup>
-        <TextField
-          register={register}
-          errors={errors}
-          isPending={isPending}
-          name="serial_number"
-          label="Serial number"
-          hint="Cannot be changed after the seat is created."
-        />
-        <SharedFields
-          register={register}
-          control={control}
-          errors={errors}
-          isPending={isPending}
-          options={options}
-        />
-      </FieldGroup>
+      <SeatFormSections
+        register={register}
+        control={control}
+        errors={errors}
+        isPending={isPending}
+        options={options}
+        identity={
+          <>
+            <TextField
+              register={register}
+              errors={errors}
+              isPending={isPending}
+              name="serial_number"
+              label="Serial number *"
+              hint="Required unique identifier"
+            />
+            <PublicTokenField />
+          </>
+        }
+      />
     );
   }
 
   const { register, control, errors, isPending, options } = props;
 
   return (
-    <FieldGroup>
-      <SharedFields
-        register={register}
-        control={control}
-        errors={errors}
-        isPending={isPending}
-        options={options}
-      />
-    </FieldGroup>
+    <SeatFormSections
+      register={register}
+      control={control}
+      errors={errors}
+      isPending={isPending}
+      options={options}
+    />
   );
 }
