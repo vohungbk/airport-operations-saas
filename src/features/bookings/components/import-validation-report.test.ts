@@ -141,7 +141,7 @@ describe("ImportSuccess (CO-F07-S05)", () => {
     expect(html).toContain("Priya Nair");
     expect(html).toContain("A record of this import has been saved.");
     expect(html).toContain("07 Nov 2026, 09:42");
-    expect(html).toMatch(/<button[^>]*\sdisabled=""[^>]*>View import history<\/button>/);
+    expect(html).toMatch(/<a[^>]*href="\/bookings\/import\/history"[^>]*>View import history<\/a>/);
   });
 
   it("should not talk about excluded rows when none was left out", () => {

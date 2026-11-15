@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   TIMELINE_FILTERS,
   describeBookingCreated,
+  readAllocationNeeded,
   filterTimelineEntries,
   formatTimelineTime,
   readBookingSource,
@@ -164,5 +165,21 @@ describe("booking source (CO-F07-S05, R14)", () => {
     [undefined, "Booking created"],
   ] as const)("should write the creation of a booking from %s as %s", (source, expected) => {
     expect(describeBookingCreated(source)).toBe(expected);
+  });
+
+  it.each([
+    [{ allocation: "needed" }, true],
+    [{ allocation: "other" }, false],
+    [{}, false],
+    [null, false],
+  ])("should read the allocation flag of %j as %s (CO-F07-S06, E5)", (metadata, expected) => {
+    expect(readAllocationNeeded(metadata)).toBe(expected);
+  });
+
+  it("should add the allocation flag to the line of a booking created with no seat in stock", () => {
+    expect(describeBookingCreated("csv", true)).toBe(
+      "Booking created by CSV import, no seat in stock, flagged for allocation",
+    );
+    expect(describeBookingCreated("csv", false)).toBe("Booking created by CSV import");
   });
 });
