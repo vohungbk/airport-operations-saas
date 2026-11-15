@@ -116,6 +116,33 @@ describe.skipIf(!available)("import bookings (CO-F07-S04, S05)", () => {
     expect(get(rows, "read")).toEqual(["1", "0"]);
     expect(get(rows, "write")).toEqual(["42501"]);
   });
+  it("should refuse a partner user, so a partner cannot import for itself or for another partner (S12, R15)", () => {
+    const rows = run(`
+      ${newPartner(45)}
+      ${importRows("partner_user", "partner_user", 45, [row(1, "EXT-1")])}
+      do $$ declare n integer; begin
+        select count(*) into n from public.bookings where partner_id = '${partnerId(45)}';
+        raise notice 'R|count|%', n;
+      end $$;`);
+
+    expect(get(rows, "partner_user")).toEqual(["42501"]);
+    expect(get(rows, "count")).toEqual(["0"]);
+  });
+
+  it("should create the rows for the chosen partner only and none for another partner (S12, R15)", () => {
+    const rows = run(`
+      ${newPartner(46)}
+      ${newPartner(47)}
+      ${importRows("import", "operations_manager", 46, [row(1, "EXT-1"), row(2, "EXT-2")])}
+      do $$ declare chosen integer; other integer; begin
+        select count(*) into chosen from public.bookings where partner_id = '${partnerId(46)}';
+        select count(*) into other from public.bookings where partner_id = '${partnerId(47)}';
+        raise notice 'R|scope|%|%', chosen, other;
+      end $$;`);
+
+    expect(get(rows, "scope")).toEqual(["2", "0"]);
+  });
+
   it("should create the rows beyond the stock without a seat and flag only those for allocation (S06, E5)", () => {
     const rows = run(`
       ${newPartner(45)}

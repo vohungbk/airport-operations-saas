@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Download, Upload } from "lucide-react";
+import { CircleAlert, Download, Upload } from "lucide-react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ImportPermissionDenied } from "@/features/bookings/components/import-permission-denied";
 import { ImportFileError } from "@/features/bookings/components/import-file-error";
 import { ImportSuccess } from "@/features/bookings/components/import-success";
 import { ImportValidating } from "@/features/bookings/components/import-validating";
@@ -48,6 +50,8 @@ export function ImportUploadCard({ partners }: ImportUploadCardProps) {
     isPending,
     isImporting,
     importFailure,
+    submitFailure,
+    forbidden,
     confirmed,
     confirm,
     report,
@@ -64,6 +68,8 @@ export function ImportUploadCard({ partners }: ImportUploadCardProps) {
     clearReport();
     document.getElementById(FILE_INPUT_ID)?.click();
   };
+
+  if (forbidden) return <ImportPermissionDenied />;
 
   return (
     <div className="group/upload flex flex-col gap-4">
@@ -163,6 +169,14 @@ export function ImportUploadCard({ partners }: ImportUploadCardProps) {
               </a>
             </label>
           )}
+
+          {submitFailure ? (
+            <Alert variant="destructive" role="alert">
+              <CircleAlert aria-hidden="true" />
+              <AlertTitle>{IMPORT_FILE_ERRORS[submitFailure].title}</AlertTitle>
+              <AlertDescription>{IMPORT_FILE_ERRORS[submitFailure].message}</AlertDescription>
+            </Alert>
+          ) : null}
 
           <div className="flex flex-wrap items-center justify-end gap-2">
             {errorCode ? <p className="mr-auto text-xs text-muted-foreground">{FILE_HINT}</p> : null}

@@ -21,7 +21,9 @@ export type ImportFileErrorCode =
   | "NOT_A_CSV"
   | "FILE_TOO_LARGE"
   | "WRONG_HEADER"
-  | "UNSUPPORTED_ENCODING";
+  | "UNSUPPORTED_ENCODING"
+  | "FORBIDDEN"
+  | "NETWORK_ERROR";
 
 interface ImportFileErrorCopy {
   title: string;
@@ -86,6 +88,16 @@ export const IMPORT_FILE_ERRORS: Record<ImportFileErrorCode, ImportFileErrorCopy
     title: "Unsupported encoding",
     message: "We couldn't read this file's text encoding. Save the CSV with UTF-8 encoding and upload it again.",
     tips: "In your spreadsheet app, use Save as or Export and choose CSV UTF-8. Keep the template header unchanged so booking numbers and other text can be read correctly.",
+  },
+  FORBIDDEN: {
+    title: "You do not have permission to import bookings",
+    message: "Your access to booking imports has changed. Nothing was imported.",
+    tips: "Contact your administrator to request booking import access.",
+  },
+  NETWORK_ERROR: {
+    title: "Connection problem",
+    message: "The request did not reach the server. Nothing was saved.",
+    tips: "Check your connection and try again. Your file and partner are kept on this screen.",
   },
 };
 

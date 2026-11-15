@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const requireAnyPermissionMock = vi.hoisted(() => vi.fn());
+const requireAuthMock = vi.hoisted(() => vi.fn());
 const maybeSingleMock = vi.hoisted(() => vi.fn());
 const fromMock = vi.hoisted(() => vi.fn());
 const lookupsMock = vi.hoisted(() => vi.fn());
 const existingMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/auth/current-user", () => ({ requireAnyPermission: requireAnyPermissionMock }));
+vi.mock("@/lib/auth/current-user", () => ({ requireAuth: requireAuthMock }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({ from: fromMock })) }));
 vi.mock("@/features/bookings/lib/get-booking-import-lookups", () => ({
   getBookingImportLookups: lookupsMock,
@@ -36,8 +36,8 @@ const form = (fields: { partner_id?: string; file?: File | string } = {}) => {
 
 describe("checkBookingImportFileAction (CO-F07-S02, S03)", () => {
   beforeEach(() => {
-    requireAnyPermissionMock.mockReset();
-    requireAnyPermissionMock.mockResolvedValue({ id: "u-1", role: "operations_manager" });
+    requireAuthMock.mockReset();
+    requireAuthMock.mockResolvedValue({ id: "u-1", role: "operations_manager" });
     maybeSingleMock.mockReset();
     maybeSingleMock.mockResolvedValue({ data: { id: PARTNER_ID, name: "Emirates Rent A Car" }, error: null });
     fromMock.mockReset();
@@ -63,8 +63,7 @@ describe("checkBookingImportFileAction (CO-F07-S02, S03)", () => {
     expect(result.success && result.report.rows.map((row) => row.error)).toEqual([null, "Seat category not found"]);
     // Only reads: the partner by id; nothing is inserted or updated.
     expect(fromMock.mock.calls.map(([table]) => table)).toEqual(["partners"]);
-    expect(requireAnyPermissionMock).toHaveBeenCalledWith(["bookings:manage"]);
-  });
+    });
 
   it("should mark a row that repeats a number the partner already has as a duplicate, and not change that booking (S04)", async () => {
     existingMock.mockResolvedValue(new Set(["EXT-1"]));
@@ -143,10 +142,10 @@ describe("checkBookingImportFileAction (CO-F07-S02, S03)", () => {
     expect(await checkBookingImportFileAction(form())).toEqual({ success: false, code: "AIRPORT_UNAVAILABLE" });
   });
 
-  it("should refuse a user without the import permission and look at nothing", async () => {
-    requireAnyPermissionMock.mockRejectedValue(new Error("FORBIDDEN"));
+  it("should answer FORBIDDEN for a user without the import permission (any more) and look at nothing (S13, E10)", async () => {
+    requireAuthMock.mockResolvedValue({ id: "u-2", role: "partner_user", full_name: "Sam Lee" });
 
-    await expect(checkBookingImportFileAction(form())).rejects.toThrow("FORBIDDEN");
+    expect(await checkBookingImportFileAction(form())).toEqual({ success: false, code: "FORBIDDEN" });
     expect(fromMock).not.toHaveBeenCalled();
   });
 });
