@@ -13,7 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCsvDropzone } from "@/features/bookings/hooks/use-csv-dropzone";
+import { ImportFileError } from "@/features/bookings/components/import-file-error";
+import { useImportUpload } from "@/features/bookings/hooks/use-import-upload";
+import { IMPORT_FILE_ERRORS } from "@/features/bookings/lib/booking-import-file";
 import { BOOKING_IMPORT_TEMPLATE_HREF } from "@/features/bookings/lib/booking-import-template";
 import { CSV_FILE_ACCEPT, formatFileSize } from "@/features/bookings/lib/csv-file";
 import { cn } from "@/lib/utils";
@@ -22,13 +24,28 @@ interface ImportUploadCardProps {
   partners: Array<{ value: string; label: string }>;
 }
 
+const FILE_INPUT_ID = "import-file";
+const FILE_HINT = "CSV only, max size to be confirmed";
+const OUTLINE_BUTTON = "min-h-11 min-w-[94px] bg-surface dark:bg-surface";
+
 /**
- * CO-F07-S01 (design "Import bookings, Empty"): the card where a partner is chosen and a CSV is
- * dropped on the area or picked with a click. Validating the file belongs to the next story, so
- * "Validate file" stays off. "Download template" (R3) is live.
+ * CO-F07-S01, S02 (design "Import bookings", Empty and the file errors): the card where a partner is
+ * chosen and a CSV is dropped on the area or picked with a click. "Validate file" checks the partner
+ * and the file (V1, V2) and asks the server for the encoding and the header (E2, E3). Checking the
+ * rows belongs to the next story. "Download template" (R3) is live.
  */
 export function ImportUploadCard({ partners }: ImportUploadCardProps) {
-  const { file, isDragging, bindArea, onChange } = useCsvDropzone();
+  const {
+    file,
+    errorCode,
+    partnerMissing,
+    isDragging,
+    canValidate,
+    bindArea,
+    onFileChange,
+    onPartnerChange,
+    submit,
+  } = useImportUpload();
 
   return (
     <section
@@ -46,9 +63,11 @@ export function ImportUploadCard({ partners }: ImportUploadCardProps) {
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="import-partner">Partner *</Label>
-        <Select items={partners}>
+        <Select items={partners} onValueChange={onPartnerChange}>
           <SelectTrigger
             id="import-partner"
+            aria-invalid={partnerMissing}
+            aria-describedby="import-partner-note"
             className="h-11 w-full bg-card px-3 data-[size=default]:h-11 sm:w-80"
           >
             <SelectValue placeholder="Select a partner" />
@@ -61,54 +80,75 @@ export function ImportUploadCard({ partners }: ImportUploadCardProps) {
             ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">Rows will be created for this partner only</p>
+        {partnerMissing ? (
+          <p id="import-partner-note" role="alert" className="text-xs text-danger-fg">
+            {IMPORT_FILE_ERRORS.PARTNER_REQUIRED.title}
+          </p>
+        ) : (
+          <p id="import-partner-note" className="text-xs text-muted-foreground">
+            Rows will be created for this partner only
+          </p>
+        )}
       </div>
 
-      <label
-        data-slot="csv-dropzone"
-        data-dragging={isDragging || undefined}
-        ref={bindArea}
-        className={cn(
-          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border px-4 py-10 text-center transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
-          "data-dragging:border-primary data-dragging:bg-accent",
-        )}
-      >
-        <Input
-          type="file"
-          accept={CSV_FILE_ACCEPT}
-          aria-label="Choose a CSV file"
-          className="sr-only"
-          onChange={onChange}
-        />
-        <span className="flex size-11 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <Upload className="size-5" aria-hidden="true" />
-        </span>
-        <p className="text-sm font-medium text-foreground">Drop a CSV file here or browse</p>
-        <p className="text-xs text-muted-foreground">
-          {file
-            ? `${file.name} · ${formatFileSize(file.size)}`
-            : "CSV only, max size to be confirmed"}
-        </p>
-        <a
-          href={BOOKING_IMPORT_TEMPLATE_HREF}
-          download
-          className={buttonVariants({ variant: "link", className: "min-h-11 gap-1.5 px-2" })}
-        >
-          <Download aria-hidden="true" />
-          Download template
-        </a>
-      </label>
+      <Input
+        id={FILE_INPUT_ID}
+        type="file"
+        accept={CSV_FILE_ACCEPT}
+        aria-label="Choose a CSV file"
+        className="peer sr-only"
+        onChange={onFileChange}
+      />
 
-      <div className="flex items-center justify-end gap-2">
-        <Link
-          href="/bookings"
-          className={buttonVariants({ variant: "outline", className: "min-h-11 min-w-[94px] bg-surface dark:bg-surface" })}
+      {file && errorCode ? (
+        <ImportFileError file={file} code={errorCode} />
+      ) : (
+        <label
+          htmlFor={FILE_INPUT_ID}
+          data-slot="csv-dropzone"
+          data-dragging={isDragging || undefined}
+          ref={bindArea}
+          className={cn(
+            "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border px-4 py-10 text-center transition-colors peer-focus-visible:border-ring peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50",
+            "data-dragging:border-primary data-dragging:bg-accent",
+          )}
         >
+          <span className="flex size-11 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <Upload className="size-5" aria-hidden="true" />
+          </span>
+          <p className="text-sm font-medium text-foreground">Drop a CSV file here or browse</p>
+          <p className="text-xs text-muted-foreground">
+            {file ? `${file.name} · ${formatFileSize(file.size)}` : FILE_HINT}
+          </p>
+          <a
+            href={BOOKING_IMPORT_TEMPLATE_HREF}
+            download
+            className={buttonVariants({ variant: "link", className: "min-h-11 gap-1.5 px-2" })}
+          >
+            <Download aria-hidden="true" />
+            Download template
+          </a>
+        </label>
+      )}
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {errorCode ? <p className="mr-auto text-xs text-muted-foreground">{FILE_HINT}</p> : null}
+        <Link href="/bookings" className={buttonVariants({ variant: "outline", className: OUTLINE_BUTTON })}>
           Cancel
         </Link>
-        <Button type="button" className="min-h-11 min-w-[130px]" disabled>
-          Validate file
-        </Button>
+        {errorCode ? (
+          <Button
+            type="button"
+            className="min-h-11 min-w-[130px]"
+            onClick={() => document.getElementById(FILE_INPUT_ID)?.click()}
+          >
+            Replace file
+          </Button>
+        ) : (
+          <Button type="button" className="min-h-11 min-w-[130px]" disabled={!canValidate} onClick={submit}>
+            Validate file
+          </Button>
+        )}
       </div>
     </section>
   );
