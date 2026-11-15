@@ -18,11 +18,9 @@ import {
   Tag,
   TrendingUp,
   TriangleAlert,
-  Upload,
   User,
   UserCircle,
   Users,
-  ScanLine,
 } from "lucide-react";
 
 import {
@@ -53,8 +51,6 @@ const FIGMA_ADMIN_MENU = [
   ["Invoices", FileText],
   ["KPI", BarChart3],
   ["ROI", TrendingUp],
-  ["Reports", BarChart3],
-  ["Import", Upload],
   ["Settings", Settings],
 ] as const;
 
@@ -83,22 +79,20 @@ describe("getVisibleNavItems", () => {
     );
   });
 
-  it("should give the technician Today's Jobs, My History, Scan and Incidents, and nothing else", () => {
+  it("should give the technician Today's Jobs, My History and Incidents, and nothing else", () => {
     expect(getVisibleNavItems("technician").map((item) => [item.label, item.href])).toEqual([
       ["Today's Jobs", "/technician"],
       ["My History", "/technician/history"],
-      ["Scan", "/technician/scan"],
       ["Incidents", "/incidents"],
     ]);
   });
 
-  it("should give the partner user Overview, Rentals, Seats, Finance, Invoices, KPI, ROI and Assistant, in that order", () => {
+  it("should give the partner user Overview, Rentals, Seats, Finance, KPI, ROI and Assistant, in that order", () => {
     expect(getVisibleNavItems("partner_user").map((item) => [item.label, item.href])).toEqual([
       ["Overview", "/partner"],
       ["Rentals", "/bookings"],
       ["Seats", "/partner/seats"],
       ["Finance", "/partner/finance"],
-      ["Invoices", "/invoices"],
       ["KPI", "/partner/kpi"],
       ["ROI", "/partner/roi"],
       ["Assistant", "/partner/assistant"],
@@ -109,7 +103,6 @@ describe("getVisibleNavItems", () => {
     expect(labelsAndIcons("technician")).toEqual([
       ["Today's Jobs", ClipboardList],
       ["My History", History],
-      ["Scan", ScanLine],
       ["Incidents", TriangleAlert],
     ]);
     expect(labelsAndIcons("partner_user")).toEqual([
@@ -196,10 +189,7 @@ describe("NAV_ITEMS", () => {
     }
   });
 
-  it("should mark the items whose page is not built yet, so they are easy to find", () => {
-    expect(NAV_ITEMS.filter((item) => item.planned).map((item) => item.label)).toEqual([
-      "Reports",
-      "Import",
-    ]);
+  it("should have no item marked as planned", () => {
+    expect(NAV_ITEMS.filter((item) => item.planned)).toEqual([]);
   });
 });

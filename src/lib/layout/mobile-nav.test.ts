@@ -36,8 +36,6 @@ describe("splitMobileNav", () => {
       "/invoices",
       "/kpi",
       "/roi",
-      "/reports",
-      "/import",
       "/settings",
     ]);
   });
@@ -56,7 +54,7 @@ describe("splitMobileNav", () => {
   it("should keep My History, whose page is not built yet, out of the bar of a technician and in More", () => {
     const { bottom, more } = splitMobileNav(menuOf("technician"), "technician");
 
-    expect(bottom.map((i) => i.href)).toEqual(["/technician", "/technician/scan", "/incidents"]);
+    expect(bottom.map((i) => i.href)).toEqual(["/technician", "/incidents"]);
     expect(more.map((i) => i.href)).toEqual(["/technician/history"]);
   });
 
@@ -76,7 +74,7 @@ describe("splitMobileNav", () => {
     const { bottom, more } = splitMobileNav(menuOf("partner_user"), "partner_user");
 
     expect(bottom.map((i) => i.href)).toEqual(["/partner", "/bookings", "/partner/seats", "/partner/finance"]);
-    expect(more.map((i) => i.href)).toEqual(["/invoices", "/partner/kpi", "/partner/roi", "/partner/assistant"]);
+    expect(more.map((i) => i.href)).toEqual(["/partner/kpi", "/partner/roi", "/partner/assistant"]);
   });
 
   it("should skip a priority item that the menu does not have", () => {
