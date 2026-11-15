@@ -38,6 +38,31 @@ function labelOf(segment: string): string {
   return isRecordSegment(segment) ? "Details" : humanize(segment);
 }
 
+const TECHNICIAN_HOME = "/technician";
+
+/**
+ * The screens of a job (`/jobs/<id>`, `/jobs/<id>/scan`) are opened by a technician, whose menu has no Jobs
+ * area, so the rule below would leave every crumb without a link. For that menu the way back goes through
+ * Today's Jobs and the Job information of the job (FO-F07, NAV-2, back from the scan).
+ */
+function buildTechnicianJobBreadcrumb(segments: string[], menu: NavLabel[]): Crumb[] | null {
+  const [area, id, ...steps] = segments;
+  const home = menu.find((item) => item.href === TECHNICIAN_HOME);
+
+  if (area !== "jobs" || !id || !UUID.test(id) || !home || menu.some((item) => item.href === "/jobs")) {
+    return null;
+  }
+
+  return [
+    { label: home.label, href: TECHNICIAN_HOME },
+    { label: "Job information", href: steps.length > 0 ? `${TECHNICIAN_HOME}/${id}` : null },
+    ...steps.map((step, index) => ({
+      label: labelOf(step),
+      href: index === steps.length - 1 ? null : `/jobs/${id}/${steps.slice(0, index + 1).join("/")}`,
+    })),
+  ];
+}
+
 /**
  * The crumbs of a path, first the area (named as in the menu), then each step below it. The
  * last one is the current page and has no link. Every other crumb links to its own path, except
@@ -46,6 +71,9 @@ function labelOf(segment: string): string {
 export function buildBreadcrumb(pathname: string, menu: NavLabel[]): Crumb[] {
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0) return [];
+
+  const technicianJob = buildTechnicianJobBreadcrumb(segments, menu);
+  if (technicianJob) return technicianJob;
 
   const areaHref = `/${segments[0]}`;
   const area = menu.find((item) => item.href === areaHref);

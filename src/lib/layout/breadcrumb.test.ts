@@ -67,6 +67,35 @@ describe("buildBreadcrumb", () => {
     ]);
   });
 
+  describe("the screens of a job for a technician, whose menu has no Jobs area", () => {
+    const TECHNICIAN_MENU = [
+      { href: "/technician", label: "Today's Jobs" },
+      { href: "/incidents", label: "Incidents" },
+    ];
+
+    it("should link back to Today's Jobs and to the Job information from the scan", () => {
+      expect(buildBreadcrumb(`/jobs/${ID}/scan`, TECHNICIAN_MENU)).toEqual([
+        { label: "Today's Jobs", href: "/technician" },
+        { label: "Job information", href: `/technician/${ID}` },
+        { label: "Scan", href: null },
+      ]);
+    });
+
+    it("should link back to Today's Jobs from the job itself", () => {
+      expect(buildBreadcrumb(`/jobs/${ID}`, TECHNICIAN_MENU)).toEqual([
+        { label: "Today's Jobs", href: "/technician" },
+        { label: "Job information", href: null },
+      ]);
+    });
+
+    it("should keep the crumbs of a menu that has the Jobs area", () => {
+      expect(buildBreadcrumb(`/jobs/${ID}/scan`, [...TECHNICIAN_MENU, { href: "/jobs", label: "Jobs" }])[0]).toEqual({
+        label: "Jobs",
+        href: "/jobs",
+      });
+    });
+  });
+
   it("should name an area from the menu, not from its path", () => {
     expect(buildBreadcrumb("/seat-categories", MENU)[0].label).toBe("Seat Categories");
   });

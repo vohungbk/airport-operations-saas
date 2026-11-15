@@ -34,4 +34,10 @@ describe("buildMobileAppBar", () => {
   it("should name the app when there is no path", () => {
     expect(barOf("/")).toEqual({ title: "Airport Operations", backHref: null });
   });
+
+  it("should send the arrow of the scan of a technician to the Job information", () => {
+    const bar = buildMobileAppBar(buildBreadcrumb(`/jobs/${ID}/scan`, [{ href: "/technician", label: "Today's Jobs" }]));
+
+    expect(bar).toEqual({ title: "Scan", backHref: `/technician/${ID}` });
+  });
 });

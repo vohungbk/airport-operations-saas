@@ -33,7 +33,7 @@ describe("JobInformationPage", () => {
   beforeEach(() => {
     requirePermissionMock.mockReset();
     getJobInformationMock.mockReset();
-    requirePermissionMock.mockResolvedValue({ role: "technician" });
+    requirePermissionMock.mockResolvedValue({ id: "tech-1", role: "technician" });
   });
 
   it("should guard the page with jobs:view_assigned", async () => {
@@ -54,6 +54,30 @@ describe("JobInformationPage", () => {
     expect(out).toContain("JOB-2026-0081 · BK-2026-000123 · Asia/Dubai");
     expect(out).toContain("Emirates Rent A Car");
     expect(out).toContain("SEAT-0001");
+  });
+
+  it("should offer the Scan button for an active installation job", async () => {
+    getJobInformationMock.mockResolvedValue(JOB);
+
+    const out = renderToStaticMarkup(await JobInformationPage({ params }));
+
+    expect(out).toContain('href="/jobs/job-1/scan"');
+    expect(out).toContain("Scan assigned seat");
+    expect(out).toContain("min-h-11");
+    expect(out).toContain("Readiness gate");
+    expect(out).toContain("Seat, checklist, photos and vehicle bay must be verified before installation can be completed.");
+  });
+
+  it.each([
+    ["a cleaning job", { job_type: "cleaning" }],
+    ["a completed job", { status: "completed" }],
+  ])("should not offer the Scan button for %s", async (_name, overrides) => {
+    getJobInformationMock.mockResolvedValue({ ...JOB, ...overrides });
+
+    const out = renderToStaticMarkup(await JobInformationPage({ params }));
+
+    expect(out).not.toContain("/scan");
+    expect(out).not.toContain("Scan assigned seat");
   });
 
   it("should show the forbidden state when the job is not assigned to the technician", async () => {

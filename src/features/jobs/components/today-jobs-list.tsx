@@ -19,7 +19,7 @@ interface TodayJobsListProps {
 
 /**
  * Today's Jobs as the design draws it (UI-F07-S01): the priority banner for an early flight, the first job
- * with its flight and the button that opens its installation, and the next jobs. With no job it is the
+ * with its flight and the button that opens its job (NAV-1), and the next jobs. With no job it is the
  * empty state with the time of the next job when there is one (spec E3).
  */
 export function TodayJobsList({ today, now }: TodayJobsListProps) {
@@ -66,7 +66,7 @@ export function TodayJobsList({ today, now }: TodayJobsListProps) {
         <div className="flex flex-col gap-6">
           <TodayFlightCard job={first} now={now} />
           <Link
-            href={`/jobs/${first.id}/installation`}
+            href={`/technician/${first.id}`}
             className={buttonVariants({ className: "min-h-11 px-4 md:self-start" })}
           >
             Open installation job
