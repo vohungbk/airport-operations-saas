@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImportFileError } from "@/features/bookings/components/import-file-error";
+import { ImportSuccess } from "@/features/bookings/components/import-success";
 import { ImportValidating } from "@/features/bookings/components/import-validating";
 import { ImportValidationReport } from "@/features/bookings/components/import-validation-report";
 import { useImportUpload } from "@/features/bookings/hooks/use-import-upload";
@@ -45,6 +46,10 @@ export function ImportUploadCard({ partners }: ImportUploadCardProps) {
     partnerMissing,
     isDragging,
     isPending,
+    isImporting,
+    importFailure,
+    confirmed,
+    confirm,
     report,
     reportFile,
     canValidate,
@@ -71,8 +76,17 @@ export function ImportUploadCard({ partners }: ImportUploadCardProps) {
         onChange={onFileChange}
       />
 
-      {report && reportFile ? (
-        <ImportValidationReport file={reportFile} report={report} onReplaceFile={replaceFile} />
+      {confirmed ? (
+        <ImportSuccess result={confirmed} />
+      ) : report && reportFile ? (
+        <ImportValidationReport
+          file={reportFile}
+          report={report}
+          onReplaceFile={replaceFile}
+          onConfirm={confirm}
+          importing={isImporting}
+          failureCode={importFailure}
+        />
       ) : isPending && file ? (
         <ImportValidating partnerLabel={partners.find((partner) => partner.value === partnerId)?.label ?? ""} file={file} />
       ) : (

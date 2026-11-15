@@ -5,6 +5,7 @@ import {
   type BookingEventItem,
 } from "@/features/bookings/lib/get-booking-events";
 import { formatBookingDateTime } from "@/features/bookings/lib/booking-time";
+import { describeBookingCreated } from "@/features/bookings/lib/booking-timeline";
 
 interface BookingEventsTimelineProps {
   events: BookingEventItem[];
@@ -46,7 +47,7 @@ function EventSummary({
 }) {
   switch (event.event_type) {
     case "created":
-      return <span>Booking created</span>;
+      return <span>{describeBookingCreated(event.source)}</span>;
     case "status_changed":
       return (
         <span className="flex flex-wrap items-center gap-2">

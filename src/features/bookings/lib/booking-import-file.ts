@@ -15,6 +15,8 @@ export type ImportFileErrorCode =
   | "AIRPORT_UNAVAILABLE"
   | "NO_ROWS"
   | "TOO_MANY_ROWS"
+  | "NOTHING_TO_IMPORT"
+  | "IMPORT_FAILED"
   | "FILE_REQUIRED"
   | "NOT_A_CSV"
   | "FILE_TOO_LARGE"
@@ -49,6 +51,16 @@ export const IMPORT_FILE_ERRORS: Record<ImportFileErrorCode, ImportFileErrorCopy
     title: "Too many rows",
     message: `This file has more than ${BOOKING_IMPORT_MAX_ROWS} rows. Split it into smaller files and upload them again.`,
     tips: `Keep the template header in each file. The maximum number of rows is to be confirmed.`,
+  },
+  NOTHING_TO_IMPORT: {
+    title: "No valid rows",
+    message: "None of the rows passed validation, so no bookings can be created from this file.",
+    tips: "Fix the rows in the report and upload the file again.",
+  },
+  IMPORT_FAILED: {
+    title: "Import failed",
+    message: "The import could not be completed. No bookings were created. Try again.",
+    tips: "Check your connection and try the import again. Your file is kept on this screen.",
   },
   FILE_REQUIRED: {
     title: "Choose a CSV file",

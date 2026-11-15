@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-react";
+import { CircleAlert, CircleCheck, Loader2, Lock, TriangleAlert } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { IMPORT_FILE_ERRORS, type ImportFileErrorCode } from "@/features/bookings/lib/booking-import-file";
+import { IndeterminateProgress } from "@/features/bookings/components/import-progress";
 import { formatTimeZoneLabel } from "@/features/bookings/lib/booking-time";
 import { formatFileSize } from "@/features/bookings/lib/csv-file";
 import {
@@ -32,6 +34,11 @@ interface ImportValidationReportProps {
   file: Pick<File, "name" | "size">;
   report: ImportReport;
   onReplaceFile: () => void;
+  onConfirm: () => void;
+  /** The valid rows are being created: nothing on the screen can be changed. */
+  importing?: boolean;
+  /** Why the last confirmation failed; `null` when none did. */
+  failureCode?: ImportFileErrorCode | null;
 }
 
 interface StatCardProps {
@@ -41,7 +48,7 @@ interface StatCardProps {
   tone?: "default" | "success" | "danger";
 }
 
-function StatCard({ label, value, note, tone = "default" }: StatCardProps) {
+export function StatCard({ label, value, note, tone = "default" }: StatCardProps) {
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-border bg-card p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
@@ -94,9 +101,16 @@ function ReportBanner({ report }: { report: ImportReport }) {
 /**
  * CO-F07-S03 (design "Import bookings, Validation errors" and "All valid"): what the file holds before
  * anything is saved (R1): the counts, the report with a result for every row, and the way on. "Confirm
- * import" belongs to the story that saves the bookings, so it is shown and stays off.
+ * import" (S05) creates the valid rows; while it runs the table and the buttons are locked (design "Importing").
  */
-export function ImportValidationReport({ file, report, onReplaceFile }: ImportValidationReportProps) {
+export function ImportValidationReport({
+  file,
+  report,
+  onReplaceFile,
+  onConfirm,
+  importing = false,
+  failureCode = null,
+}: ImportValidationReportProps) {
   const [filter, setFilter] = useState<ImportRowFilter>("all");
   const shown = filterImportRows(report.rows, filter, IMPORT_REPORT_ROW_LIMIT);
 
@@ -138,6 +152,24 @@ export function ImportValidationReport({ file, report, onReplaceFile }: ImportVa
 
         <ReportBanner report={report} />
 
+        {failureCode ? (
+          <Alert variant="destructive">
+            <CircleAlert aria-hidden="true" />
+            <AlertTitle>{IMPORT_FILE_ERRORS[failureCode].title}</AlertTitle>
+            <AlertDescription>{IMPORT_FILE_ERRORS[failureCode].message}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {importing ? (
+          <div className="flex flex-col gap-2 rounded-lg border border-border px-4 py-3" aria-live="polite">
+            <p className="text-sm font-medium text-foreground">Importing valid rows...</p>
+            <IndeterminateProgress label="Importing valid rows" />
+            <p className="text-xs text-muted-foreground">
+              Creating {report.valid} bookings{report.invalid > 0 ? ` · ${report.invalid} rows with errors excluded` : ""}
+            </p>
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div role="group" aria-label="Filter rows" className="flex flex-wrap gap-2">
             {FILTERS.map((option) => (
@@ -146,6 +178,7 @@ export function ImportValidationReport({ file, report, onReplaceFile }: ImportVa
                 type="button"
                 variant={filter === option.value ? "default" : "outline"}
                 aria-pressed={filter === option.value}
+                disabled={importing}
                 className={cn("min-h-11 min-w-16", filter !== option.value && "bg-surface dark:bg-surface")}
                 onClick={() => setFilter(option.value)}
               >
@@ -153,11 +186,13 @@ export function ImportValidationReport({ file, report, onReplaceFile }: ImportVa
               </Button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Showing {shown.rows.length} of {shown.matching} rows
+          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            {importing ? <Lock className="size-3" aria-hidden="true" /> : null}
+            {importing ? "Table locked while importing" : `Showing ${shown.rows.length} of ${shown.matching} rows`}
           </p>
         </div>
 
+        <div className={cn(importing && "pointer-events-none opacity-60")} aria-disabled={importing || undefined}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -172,7 +207,7 @@ export function ImportValidationReport({ file, report, onReplaceFile }: ImportVa
           </TableHeader>
           <TableBody>
             {shown.rows.map((row) => (
-              <TableRow key={row.row_number} data-status={row.status} className={cn(row.status === "error" && "bg-danger-bg/40")}>
+              <TableRow key={row.row_number} data-status={row.status} className={cn(row.status !== "valid" && "bg-danger-bg/40")}>
                 <TableCell>{row.row_number}</TableCell>
                 <TableCell>{row.external_booking_number || "—"}</TableCell>
                 <TableCell>{row.pickup_time || "—"}</TableCell>
@@ -187,7 +222,7 @@ export function ImportValidationReport({ file, report, onReplaceFile }: ImportVa
                   ) : (
                     <Badge variant="destructive">
                       <CircleAlert aria-hidden="true" />
-                      Error
+                      {row.status === "duplicate" ? "Duplicate" : "Error"}
                     </Badge>
                   )}
                 </TableCell>
@@ -196,20 +231,30 @@ export function ImportValidationReport({ file, report, onReplaceFile }: ImportVa
             ))}
           </TableBody>
         </Table>
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            {report.valid} bookings will be created{report.invalid > 0 ? ` · ${report.invalid} rows excluded` : ""}
+            {importing
+              ? "Do not close this page until the import finishes."
+              : `${report.valid} bookings will be created${report.invalid > 0 ? ` · ${report.invalid} rows excluded` : ""}`}
           </p>
           <div className="flex items-center gap-2">
-            <Link href="/bookings" className={buttonVariants({ variant: "outline", className: OUTLINE_BUTTON })}>
-              Cancel
-            </Link>
-            <Button type="button" variant="outline" className={OUTLINE_BUTTON} onClick={onReplaceFile}>
+            {importing ? (
+              <Button type="button" variant="outline" disabled className={OUTLINE_BUTTON}>
+                Cancel
+              </Button>
+            ) : (
+              <Link href="/bookings" className={buttonVariants({ variant: "outline", className: OUTLINE_BUTTON })}>
+                Cancel
+              </Link>
+            )}
+            <Button type="button" variant="outline" className={OUTLINE_BUTTON} disabled={importing} onClick={onReplaceFile}>
               Replace file
             </Button>
-            <Button type="button" className="min-h-11 px-4" disabled>
-              Confirm import
+            <Button type="button" className="min-h-11 px-4" disabled={importing || report.valid === 0} onClick={onConfirm}>
+              {importing ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+              {importing ? "Importing..." : failureCode ? "Retry" : "Confirm import"}
             </Button>
           </div>
         </div>

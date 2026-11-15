@@ -19,9 +19,15 @@ export type BookingEventItem = Pick<
   to_seat_serial: string | null;
   /** Field-level before/after values of an `updated` event. */
   changes: Record<string, { from: unknown; to: unknown }> | null;
+  /** Where the booking came from, read from a `created` event (R14); `null` for an event of another kind or an older one. */
+  source?: BookingSource | null;
 };
 
-import { BOOKING_EVENTS_LIMIT } from "@/features/bookings/lib/booking-timeline";
+import {
+  BOOKING_EVENTS_LIMIT,
+  readBookingSource,
+  type BookingSource,
+} from "@/features/bookings/lib/booking-timeline";
 
 export { BOOKING_EVENTS_LIMIT };
 
@@ -131,6 +137,7 @@ export async function getBookingEvents(
       actor_name: row.actor?.full_name ?? null,
       from_seat_serial: serialOf(readSeatId(row.metadata, "from_seat_id")),
       to_seat_serial: serialOf(readSeatId(row.metadata, "to_seat_id")),
+      source: readBookingSource(row.metadata),
       changes:
         rawChanges && typeof rawChanges === "object"
           ? (rawChanges as BookingEventItem["changes"])

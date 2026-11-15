@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   TIMELINE_FILTERS,
+  describeBookingCreated,
   filterTimelineEntries,
   formatTimelineTime,
+  readBookingSource,
   type TimelineEntry,
 } from "@/features/bookings/lib/booking-timeline";
 import { buildTimelineEntries } from "@/features/bookings/lib/build-timeline-entries";
@@ -135,5 +137,32 @@ describe("formatTimelineTime", () => {
     expect(formatTimelineTime("24 Oct 2026, 16:45", "Asia/Dubai")).toBe(
       "24 Oct 2026, 16:45 · Asia/Dubai",
     );
+  });
+});
+
+describe("booking source (CO-F07-S05, R14)", () => {
+  it.each([
+    ["manual", "manual"],
+    ["csv", "csv"],
+    ["webhook", "webhook"],
+    ["ftp", null],
+    [42, null],
+    [undefined, null],
+  ])("should read the source %j from the event as %s", (value, expected) => {
+    expect(readBookingSource(value === undefined ? {} : { source: value })).toBe(expected);
+  });
+
+  it("should read nothing from an event with no metadata", () => {
+    expect(readBookingSource(null)).toBeNull();
+  });
+
+  it.each([
+    ["csv", "Booking created by CSV import"],
+    ["webhook", "Booking created by webhook"],
+    ["manual", "Booking created"],
+    [null, "Booking created"],
+    [undefined, "Booking created"],
+  ] as const)("should write the creation of a booking from %s as %s", (source, expected) => {
+    expect(describeBookingCreated(source)).toBe(expected);
   });
 });

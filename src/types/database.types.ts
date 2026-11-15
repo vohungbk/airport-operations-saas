@@ -221,6 +221,67 @@ export type Database = {
           },
         ]
       }
+      booking_imports: {
+        Row: {
+          airport_id: string
+          created_at: string
+          created_by: string | null
+          created_rows: number
+          file_name: string
+          file_size_bytes: number
+          id: string
+          partner_id: string
+          rejected_rows: number
+          total_rows: number
+        }
+        Insert: {
+          airport_id: string
+          created_at?: string
+          created_by?: string | null
+          created_rows?: number
+          file_name: string
+          file_size_bytes: number
+          id?: string
+          partner_id: string
+          rejected_rows?: number
+          total_rows: number
+        }
+        Update: {
+          airport_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_rows?: number
+          file_name?: string
+          file_size_bytes?: number
+          id?: string
+          partner_id?: string
+          rejected_rows?: number
+          total_rows?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_imports_airport_id_fkey"
+            columns: ["airport_id"]
+            isOneToOne: false
+            referencedRelation: "airports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_imports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_imports_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_photos: {
         Row: {
           booking_id: string
@@ -292,6 +353,7 @@ export type Database = {
           flight_number: string | null
           gross_revenue: number | null
           id: string
+          import_id: string | null
           launch_credit: number
           launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
@@ -334,6 +396,7 @@ export type Database = {
           flight_number?: string | null
           gross_revenue?: number | null
           id?: string
+          import_id?: string | null
           launch_credit?: number
           launch_credit_balance?: number | null
           incident_status?:
@@ -377,6 +440,7 @@ export type Database = {
           flight_number?: string | null
           gross_revenue?: number | null
           id?: string
+          import_id?: string | null
           launch_credit?: number
           launch_credit_balance?: number | null
           incident_status?:
@@ -399,6 +463,13 @@ export type Database = {
           vehicle_bay?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "booking_imports"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_airport_id_fkey"
             columns: ["airport_id"]
@@ -2362,6 +2433,7 @@ export type Database = {
           flight_number: string | null
           gross_revenue: number | null
           id: string
+          import_id: string | null
           launch_credit: number
           launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
@@ -2481,6 +2553,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      import_bookings: {
+        Args: {
+          p_airport_id: string
+          p_file_name: string
+          p_file_size_bytes: number
+          p_partner_id: string
+          p_rows: Json
+          p_total_rows: number
+        }
+        Returns: Json
+      }
       create_booking: {
         Args: {
           p_airport_id: string
@@ -2519,6 +2602,7 @@ export type Database = {
           flight_number: string | null
           gross_revenue: number | null
           id: string
+          import_id: string | null
           launch_credit: number
           launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
@@ -2582,6 +2666,7 @@ export type Database = {
           flight_number: string | null
           gross_revenue: number | null
           id: string
+          import_id: string | null
           launch_credit: number
           launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
@@ -2700,6 +2785,7 @@ export type Database = {
           flight_number: string | null
           gross_revenue: number | null
           id: string
+          import_id: string | null
           launch_credit: number
           launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
@@ -2911,6 +2997,7 @@ export type Database = {
           flight_number: string | null
           gross_revenue: number | null
           id: string
+          import_id: string | null
           launch_credit: number
           launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
@@ -2973,6 +3060,7 @@ export type Database = {
           flight_number: string | null
           gross_revenue: number | null
           id: string
+          import_id: string | null
           launch_credit: number
           launch_credit_balance: number | null
           incident_status: Database["public"]["Enums"]["incident_status"] | null
