@@ -2,11 +2,12 @@
 
 import { useEffect, useState, type ChangeEvent } from "react";
 
-import { isCsvFile } from "@/features/bookings/lib/csv-file";
+import { checkImportFileMeta } from "@/features/bookings/lib/booking-import-file";
 
 /**
- * CO-F07-S01: the file of the import screen, chosen with the file picker or dropped on the area.
- * Only a CSV is kept; any other file is ignored and the one chosen before stays. The drop area is
+ * CO-F07-S01, S02: the file of the import screen, chosen with the file picker or dropped on the area.
+ * The last file chosen is kept even when it is refused (not a CSV, too large), so the screen can say
+ * why; `fileError` is that refusal, decided before a byte of the file is read (E1). The drop area is
  * a label that opens the picker on a click, so the drag events are bound to it here: pass `bindArea` as its `ref`.
  */
 export function useCsvDropzone() {
@@ -26,7 +27,7 @@ export function useCsvDropzone() {
       event.preventDefault();
       setIsDragging(false);
       const dropped = event.dataTransfer?.files?.[0];
-      if (dropped && isCsvFile(dropped)) setFile(dropped);
+      if (dropped) setFile(dropped);
     };
 
     area.addEventListener("dragover", onDragOver);
@@ -41,11 +42,12 @@ export function useCsvDropzone() {
 
   return {
     file,
+    fileError: file ? checkImportFileMeta(file) : null,
     isDragging,
     bindArea: setArea,
     onChange: (event: ChangeEvent<HTMLInputElement>) => {
       const picked = event.target.files?.[0];
-      if (picked && isCsvFile(picked)) setFile(picked);
+      if (picked) setFile(picked);
       // The same file can be chosen again after it was replaced.
       event.target.value = "";
     },
