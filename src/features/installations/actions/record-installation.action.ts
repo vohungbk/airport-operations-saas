@@ -16,6 +16,7 @@ import {
   SEAT_REQUIRED_ERROR,
   mapInstallationError,
 } from "@/features/installations/lib/installation-errors";
+import { moveBookingToStep } from "@/features/installations/lib/family-ready";
 import { isSeatCategoryMatch } from "@/features/installations/lib/seat-eligibility";
 import {
   buildRecordInstallationSchema,
@@ -99,5 +100,11 @@ export async function recordInstallationAction(
     return { success: false, error: mapInstallationError(error) };
   }
 
-  redirect(`/jobs/${context.job.id}/done?step=installation`);
+  // AC02: the workflow step follows the installation. A failure here does not undo the record: the
+  // Family Ready action catches the booking up from En Route.
+  if (context.booking.status === "en_route") {
+    await moveBookingToStep(supabase, context.booking.id, "en_route", "installed");
+  }
+
+  redirect(`/jobs/${context.job.id}/family-ready`);
 }

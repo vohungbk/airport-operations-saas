@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { jobIdSchema } from "@/features/jobs/schemas/jobs-query.schema";
 import type { JobStatus } from "@/features/jobs/lib/job-status";
 import type { JobType } from "@/features/jobs/lib/job-type";
+import type { BookingStatus } from "@/features/bookings/types";
 import type { SeatStatus } from "@/features/seats/types";
 
 export interface InstallationRecord {
@@ -24,6 +25,10 @@ export interface InstallationContext {
   booking: {
     id: string;
     booking_number: string;
+    /** The step of the booking now; Family Ready needs it. */
+    status: BookingStatus;
+    vehicle: string | null;
+    vehicle_bay: string | null;
     airport: { code: string; name: string; timezone: string };
     /** The category the booking asks for; null when it asks for none. */
     required_category: { id: string; name: string } | null;
@@ -49,7 +54,7 @@ const INSTALLATION_CONTEXT_SELECT = [
   "status",
   "job_type",
   "technician_id",
-  "booking:bookings!inner(id, booking_number, airport:airports!inner(code, name, timezone), required_category:seat_categories!seat_category_id(id, name), seat:seats!assigned_seat_id(id, serial_number, status, category:seat_categories(id, name)))",
+  "booking:bookings!inner(id, booking_number, status, vehicle, vehicle_bay, airport:airports!inner(code, name, timezone), required_category:seat_categories!seat_category_id(id, name), seat:seats!assigned_seat_id(id, serial_number, status, category:seat_categories(id, name)))",
   "installation:installations(id, completed_at, notes, created_at, seat:seats(serial_number), recorder:users!created_by(full_name))",
 ].join(", ");
 
@@ -62,6 +67,9 @@ interface Row {
   booking: {
     id: string;
     booking_number: string;
+    status: BookingStatus;
+    vehicle: string | null;
+    vehicle_bay: string | null;
     airport: { code: string; name: string; timezone: string };
     required_category: { id: string; name: string } | null;
     seat: {
@@ -126,6 +134,9 @@ export async function getInstallationContext(
     booking: {
       id: row.booking.id,
       booking_number: row.booking.booking_number,
+      status: row.booking.status,
+      vehicle: row.booking.vehicle,
+      vehicle_bay: row.booking.vehicle_bay,
       airport: row.booking.airport,
       required_category: row.booking.required_category,
       seat: row.booking.seat && {
