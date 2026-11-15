@@ -9,12 +9,7 @@ export default async function NewSeatPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        Add seat
-      </h1>
-      <div className="max-w-lg">
-        <CreateSeatForm options={options} />
-      </div>
+      <CreateSeatForm options={options} />
     </div>
   );
 }

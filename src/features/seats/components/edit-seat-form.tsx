@@ -1,11 +1,8 @@
 "use client";
 
-import Link from "next/link";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { useUpdateSeatForm } from "@/features/seats/hooks/use-update-seat-form";
-import { SeatForm } from "@/features/seats/components/seat-form";
+import { SeatForm, SeatFormLayout } from "@/features/seats/components/seat-form";
 import type { SeatFormOptions } from "@/features/seats/lib/get-seat-form-options";
 import type { Seat } from "@/features/seats/types";
 
@@ -34,14 +31,22 @@ export function EditSeatForm({ seat, options }: EditSeatFormProps) {
   } = form;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
-      {result && !result.success && (
-        <Alert variant="destructive">
-          <AlertTitle>Could not update seat</AlertTitle>
-          <AlertDescription>{result.error?.message}</AlertDescription>
-        </Alert>
-      )}
-
+    <SeatFormLayout
+      formId="edit-seat-form"
+      title="Edit seat"
+      cancelHref={`/seats/${seat.id}`}
+      submitLabel={isPending ? "Saving..." : "Save"}
+      isPending={isPending}
+      onSubmit={onSubmit}
+      alert={
+        result && !result.success ? (
+          <Alert variant="destructive">
+            <AlertTitle>Could not update seat</AlertTitle>
+            <AlertDescription>{result.error?.message}</AlertDescription>
+          </Alert>
+        ) : undefined
+      }
+    >
       <SeatForm
         mode="edit"
         register={register}
@@ -50,18 +55,6 @@ export function EditSeatForm({ seat, options }: EditSeatFormProps) {
         isPending={isPending}
         options={options}
       />
-
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : "Save changes"}
-        </Button>
-        <Link
-          href={`/seats/${seat.id}`}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          Cancel
-        </Link>
-      </div>
-    </form>
+    </SeatFormLayout>
   );
 }
