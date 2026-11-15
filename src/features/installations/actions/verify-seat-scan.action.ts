@@ -10,6 +10,7 @@ import { getInstallationContext } from "@/features/installations/lib/get-install
 import { getSeatLastChecks } from "@/features/installations/lib/get-seat-last-checks";
 import { SEAT_REQUIRED_ERROR } from "@/features/installations/lib/installation-errors";
 import { recordSeatScan } from "@/features/installations/lib/record-seat-scan";
+import { isSeatCategoryMatch } from "@/features/installations/lib/seat-eligibility";
 import { parseScannedCode } from "@/features/installations/lib/seat-scan";
 import type { VerifySeatScanResult } from "@/features/installations/lib/seat-scan-result";
 import { verifySeatScanSchema } from "@/features/installations/schemas/verify-seat-scan.schema";
@@ -57,7 +58,7 @@ export async function verifySeatScanAction(
   // Spec R6: the assigned seat, and the category the booking requires.
   const match =
     scannedSeat?.id === assigned.id &&
-    (!required_category || assigned.category_id === required_category.id);
+    isSeatCategoryMatch(required_category, assigned.category_id);
 
   // The log write runs while the checks are read.
   const [, checks] = await Promise.all([

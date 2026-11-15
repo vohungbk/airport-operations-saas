@@ -20,6 +20,11 @@ export const SEAT_REQUIRED_ERROR: JobActionError = {
   message: "This job's booking has no seat assigned yet.",
 };
 
+export const SEAT_WRONG_CATEGORY_ERROR: JobActionError = {
+  code: "SEAT_NOT_ELIGIBLE",
+  message: "The assigned seat is not the category this booking requires.",
+};
+
 const SEAT_NOT_ELIGIBLE_ERROR: JobActionError = {
   code: "SEAT_NOT_ELIGIBLE",
   message: "The seat is not in a status that allows installation.",
