@@ -7,15 +7,21 @@ import { isCsvFile } from "@/features/bookings/lib/csv-file";
  */
 export const BOOKING_IMPORT_MAX_FILE_BYTES = 5 * 1024 * 1024;
 
+/** CO-F07-S03 (Q2): the most rows one import may hold. Open in the spec, kept in this one place. */
+export const BOOKING_IMPORT_MAX_ROWS = 1000;
+
 export type ImportFileErrorCode =
   | "PARTNER_REQUIRED"
+  | "AIRPORT_UNAVAILABLE"
+  | "NO_ROWS"
+  | "TOO_MANY_ROWS"
   | "FILE_REQUIRED"
   | "NOT_A_CSV"
   | "FILE_TOO_LARGE"
   | "WRONG_HEADER"
   | "UNSUPPORTED_ENCODING";
 
-export interface ImportFileErrorCopy {
+interface ImportFileErrorCopy {
   title: string;
   message: string;
   /** The text of "Before you try again". */
@@ -28,6 +34,21 @@ export const IMPORT_FILE_ERRORS: Record<ImportFileErrorCode, ImportFileErrorCopy
     title: "Select a partner",
     message: "Choose the partner the bookings belong to.",
     tips: "",
+  },
+  AIRPORT_UNAVAILABLE: {
+    title: "Airport not set",
+    message: "The import needs exactly one airport, and this account does not see exactly one.",
+    tips: "Contact your administrator to set the airport for booking imports.",
+  },
+  NO_ROWS: {
+    title: "No booking rows",
+    message: "The file has a header but no booking rows. Add your bookings under the header and upload it again.",
+    tips: "Download the template and copy your booking data into it, one booking on each line.",
+  },
+  TOO_MANY_ROWS: {
+    title: "Too many rows",
+    message: `This file has more than ${BOOKING_IMPORT_MAX_ROWS} rows. Split it into smaller files and upload them again.`,
+    tips: `Keep the template header in each file. The maximum number of rows is to be confirmed.`,
   },
   FILE_REQUIRED: {
     title: "Choose a CSV file",
