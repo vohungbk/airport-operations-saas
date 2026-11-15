@@ -13,8 +13,8 @@ const TAB_CLASS =
 
 /**
  * CO-F07-S01 (design "Import bookings"): the frame of the screen, the path, the title, the two tabs,
- * the card of the current state and the note at the bottom. The tab "Import history" belongs to its
- * own story, so it is shown but cannot be opened yet.
+ * the card of the current state and the note at the bottom. The tab "Import history" opens the history
+ * of imports (CO-F07-S07).
  */
 export function ImportBookingsScreen({ children }: ImportBookingsScreenProps) {
   return (
@@ -42,7 +42,12 @@ export function ImportBookingsScreen({ children }: ImportBookingsScreenProps) {
           <TabsTrigger value="import" className={TAB_CLASS}>
             Import bookings
           </TabsTrigger>
-          <TabsTrigger value="history" disabled className={TAB_CLASS}>
+          <TabsTrigger
+            value="history"
+            nativeButton={false}
+            render={<Link href="/bookings/import/history" />}
+            className={TAB_CLASS}
+          >
             Import history
           </TabsTrigger>
         </TabsList>

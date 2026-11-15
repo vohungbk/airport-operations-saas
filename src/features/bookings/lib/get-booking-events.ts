@@ -21,10 +21,13 @@ export type BookingEventItem = Pick<
   changes: Record<string, { from: unknown; to: unknown }> | null;
   /** Where the booking came from, read from a `created` event (R14); `null` for an event of another kind or an older one. */
   source?: BookingSource | null;
+  /** CO-F07-S06: the booking was created with no seat in stock and waits for allocation. */
+  allocation_needed?: boolean;
 };
 
 import {
   BOOKING_EVENTS_LIMIT,
+  readAllocationNeeded,
   readBookingSource,
   type BookingSource,
 } from "@/features/bookings/lib/booking-timeline";
@@ -138,6 +141,7 @@ export async function getBookingEvents(
       from_seat_serial: serialOf(readSeatId(row.metadata, "from_seat_id")),
       to_seat_serial: serialOf(readSeatId(row.metadata, "to_seat_id")),
       source: readBookingSource(row.metadata),
+      allocation_needed: readAllocationNeeded(row.metadata),
       changes:
         rawChanges && typeof rawChanges === "object"
           ? (rawChanges as BookingEventItem["changes"])
