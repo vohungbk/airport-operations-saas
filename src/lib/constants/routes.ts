@@ -70,7 +70,8 @@ export const PARTNER_INACTIVE_ROUTE = `${FORBIDDEN_ROUTE}?reason=partner_inactiv
  * confirmation / recovery callback — it must be reachable while signed
  * out since that's exactly when it's used. `/api/flights/refresh` is called by a
  * scheduler, not a person (VI-F02-S03): the proxy lets it through and the route
- * itself refuses a request that has no valid `CRON_SECRET`.
+ * itself refuses a request that has no valid `CRON_SECRET`. `/api/bookings/webhook` is called by an
+ * external system (CO-F07-S08): the route refuses a call without a valid signature.
  */
 export const PUBLIC_ROUTES = [
   "/",
@@ -80,6 +81,7 @@ export const PUBLIC_ROUTES = [
   "/reset-password",
   "/api/auth/confirm",
   "/api/flights/refresh",
+  "/api/bookings/webhook",
 ] as const;
 
 /**

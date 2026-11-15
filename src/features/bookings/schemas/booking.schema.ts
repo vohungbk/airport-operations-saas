@@ -11,7 +11,7 @@ import { flightNumberField } from "@/features/flights/lib/flight-number";
 // are not RFC-variant UUIDs and z.uuid() would reject them.
 export const bookingIdSchema = z.guid();
 
-const DAILY_RATE_MAX = 1_000_000;
+export const DAILY_RATE_MAX = 1_000_000;
 const CHILD_HEIGHT_MAX = 250;
 
 const optionalText = (label: string, max: number) =>
