@@ -8,6 +8,7 @@ import { formatBookingDateTime } from "@/features/bookings/lib/booking-time";
 import {
   BOOKING_EVENTS_LIMIT,
   TIMELINE_FILTERS,
+  describeBookingCreated,
   filterTimelineEntries,
   formatTimelineTime,
   type TimelineEntry,
@@ -51,7 +52,7 @@ function formatChangeValue(
 function eventTitle(event: BookingEventItem): string {
   switch (event.event_type) {
     case "created":
-      return "Booking created";
+      return describeBookingCreated(event.source);
     case "status_changed":
       return "Status changed";
     case "seat_changed":

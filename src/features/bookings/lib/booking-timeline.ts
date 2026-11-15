@@ -3,6 +3,26 @@ import type { BookingEventItem } from "@/features/bookings/lib/get-booking-event
 /** How many events are read; here so client code can use it without importing the server-only query. */
 export const BOOKING_EVENTS_LIMIT = 100;
 
+/** CO-F07-S05 (R14): where a booking came from, written in its "created" event. */
+export type BookingSource = "manual" | "csv" | "webhook";
+
+const BOOKING_SOURCES: readonly string[] = ["manual", "csv", "webhook"];
+
+/** The source in the metadata of an event, or `null` when the event has none (an older booking). */
+export function readBookingSource(metadata: Record<string, unknown> | null): BookingSource | null {
+  const value = metadata?.source;
+
+  return typeof value === "string" && BOOKING_SOURCES.includes(value) ? (value as BookingSource) : null;
+}
+
+/** The line of the "created" event: a booking made by hand keeps the plain text, an import or a webhook is named. */
+export function describeBookingCreated(source?: BookingSource | null): string {
+  if (source === "csv") return "Booking created by CSV import";
+  if (source === "webhook") return "Booking created by webhook";
+
+  return "Booking created";
+}
+
 /** The filter chips of the Timeline tab, in the order of the design. */
 export const TIMELINE_FILTERS = [
   { value: "all", label: "All" },

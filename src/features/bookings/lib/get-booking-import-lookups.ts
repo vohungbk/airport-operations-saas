@@ -30,3 +30,42 @@ export async function getBookingImportLookups(supabase: ServerClient): Promise<B
     categoryIdsByName: new Map((categories.data ?? []).map((category) => [category.name.trim().toLowerCase(), category.id])),
   };
 }
+
+/** How many numbers go in one query: the list is part of the address of the request, so it stays short. */
+const EXISTING_NUMBERS_CHUNK = 200;
+
+/**
+ * Server-only. CO-F07-S04 (R9): which of these external booking numbers the partner already has on a booking
+ * of any status. One query for each chunk of numbers, never one for each row. RLS decides what is visible.
+ */
+export async function getExistingExternalNumbers(
+  supabase: ServerClient,
+  partnerId: string,
+  numbers: readonly string[],
+): Promise<Set<string>> {
+  const unique = [...new Set(numbers.filter((number) => number !== ""))];
+  const chunks: string[][] = [];
+  for (let start = 0; start < unique.length; start += EXISTING_NUMBERS_CHUNK) {
+    chunks.push(unique.slice(start, start + EXISTING_NUMBERS_CHUNK));
+  }
+
+  const answers = await Promise.all(
+    chunks.map((chunk) =>
+      supabase
+        .from("bookings")
+        .select("external_booking_number")
+        .eq("partner_id", partnerId)
+        .in("external_booking_number", chunk),
+    ),
+  );
+
+  const found = new Set<string>();
+  for (const { data, error } of answers) {
+    if (error) throw error;
+    for (const row of data ?? []) {
+      if (row.external_booking_number) found.add(row.external_booking_number);
+    }
+  }
+
+  return found;
+}

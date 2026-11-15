@@ -1,6 +1,7 @@
 import { FileText, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { IndeterminateProgress } from "@/features/bookings/components/import-progress";
 import { formatFileSize } from "@/features/bookings/lib/csv-file";
 
 interface ImportValidatingProps {
@@ -44,9 +45,7 @@ export function ImportValidating({ partnerLabel, file }: ImportValidatingProps) 
 
       <div className="flex flex-col gap-2 rounded-lg border border-border px-4 py-3">
         <p className="text-sm font-medium text-foreground">Validating rows...</p>
-        <div role="progressbar" aria-label="Validating rows" className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
-        </div>
+        <IndeterminateProgress label="Validating rows" />
         <p className="text-xs text-muted-foreground">Checking all rows · No bookings have been created</p>
       </div>
 
