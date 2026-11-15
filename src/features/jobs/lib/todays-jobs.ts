@@ -109,6 +109,44 @@ const byDeadline = (a: OrderedByDeadline, b: OrderedByDeadline) => {
   return left === right ? byPickup(a, b) : left < right ? -1 : 1;
 };
 
+/** The job as the screen writes it, from its row and its booking; the one place a row becomes a `TodayJob`. */
+export function toTodayJob(
+  row: TodayJobRow,
+  booking: NonNullable<TodayJobRow["booking"]>,
+): TodayJob {
+  const { flight, seat } = booking;
+  const offset = flight ? getFlightOffsetMinutes(flight) : null;
+
+  return {
+    id: row.id,
+    job_number: row.job_number,
+    deadline_at: row.deadline_at,
+    status: row.status,
+    job_type: row.job_type,
+    pickup_at: booking.pickup_at,
+    booking_number: booking.booking_number,
+    technician: row.technician?.full_name ?? null,
+    vehicle: booking.vehicle,
+    vehicle_bay: row.vehicle_bay ?? booking.vehicle_bay,
+    airport: booking.airport && {
+      code: booking.airport.code,
+      city: booking.airport.city,
+      timezone: booking.airport.timezone,
+    },
+    required_category: booking.required_category?.name ?? null,
+    seat: seat?.serial_number ?? null,
+    flight: flight && {
+      flight_number: flight.flight_number,
+      terminal: flight.terminal,
+      timing: classifyFlight(offset),
+      offset_minutes: offset,
+      scheduled_at: flight.scheduled_arrival_at,
+      expected_at: flight.actual_arrival_at ?? flight.estimated_arrival_at,
+      last_synced_at: flight.last_synced_at,
+    },
+  };
+}
+
 /**
  * The open jobs whose pickup is today or earlier, and every job in progress, the earliest deadline first, and the
  * pickup of the first open job after today. A job of another status, or one with no booking, is not listed.
@@ -125,39 +163,7 @@ export function selectTodaysJobs(rows: readonly TodayJobRow[], now: Date): Today
     // A job that is in progress stays on the list, whatever its pickup: it is being done now.
     .filter(({ row, pickup_at }) => row.status === "in_progress" || Date.parse(pickup_at) < endOfToday)
     .sort(byDeadline)
-    .map(({ id, row, booking, pickup_at }): TodayJob => {
-      const { flight, seat } = booking;
-      const offset = flight ? getFlightOffsetMinutes(flight) : null;
-
-      return {
-        id,
-        job_number: row.job_number,
-        deadline_at: row.deadline_at,
-        status: row.status,
-        job_type: row.job_type,
-        pickup_at,
-        booking_number: booking.booking_number,
-        technician: row.technician?.full_name ?? null,
-        vehicle: booking.vehicle,
-        vehicle_bay: row.vehicle_bay ?? booking.vehicle_bay,
-        airport: booking.airport && {
-          code: booking.airport.code,
-          city: booking.airport.city,
-          timezone: booking.airport.timezone,
-        },
-        required_category: booking.required_category?.name ?? null,
-        seat: seat?.serial_number ?? null,
-        flight: flight && {
-          flight_number: flight.flight_number,
-          terminal: flight.terminal,
-          timing: classifyFlight(offset),
-          offset_minutes: offset,
-          scheduled_at: flight.scheduled_arrival_at,
-          expected_at: flight.actual_arrival_at ?? flight.estimated_arrival_at,
-          last_synced_at: flight.last_synced_at,
-        },
-      };
-    });
+    .map(({ row, booking }) => toTodayJob(row, booking));
 
   const later = open
     .filter(({ row, pickup_at }) => row.status !== "in_progress" && Date.parse(pickup_at) >= endOfToday)

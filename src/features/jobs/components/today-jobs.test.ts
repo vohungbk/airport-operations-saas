@@ -135,7 +135,7 @@ describe("Today's Jobs button and next jobs", () => {
     expect(out).toContain("min-h-11");
   });
 
-  it("should list the other jobs as records that open their job, in the order given", () => {
+  it("should list the other jobs as records that open their job information, in the order given", () => {
     const out = render({
       jobs: [job({ id: "first" }), job({ id: "second", job_number: "JOB-2026-0082", booking_number: "BK-2026-000124", seat: "SEAT-0008" }), job({ id: "third" })],
     });
@@ -145,8 +145,8 @@ describe("Today's Jobs button and next jobs", () => {
     expect(out).toContain("Deadline: 15:15 GST");
     expect(out).toContain("Vehicle / seat: Toyota RAV4 · DXB A 48291 · SEAT-0008");
     expect(out).toContain("Status: ● Assigned");
-    expect(out.indexOf("/jobs/second")).toBeLessThan(out.indexOf("/jobs/third"));
-    expect(out).not.toContain('href="/jobs/first"');
+    expect(out.indexOf("/technician/second")).toBeLessThan(out.indexOf("/technician/third"));
+    expect(out).not.toContain('href="/technician/first"');
   });
 
   it("should not show the next jobs card when there is only one job", () => {
