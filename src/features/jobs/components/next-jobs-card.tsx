@@ -22,7 +22,7 @@ export function NextJobsCard({ jobs }: NextJobsCardProps) {
         {jobs.map((job) => (
           <li key={job.id}>
             <Link
-              href={`/jobs/${job.id}`}
+              href={`/technician/${job.id}`}
               className="block min-h-11 rounded-lg border border-border bg-card p-4 text-sm leading-7 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <p className="font-mono font-bold break-words">
