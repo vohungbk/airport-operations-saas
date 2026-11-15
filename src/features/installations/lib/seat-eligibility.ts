@@ -13,3 +13,11 @@ export const INSTALLABLE_SEAT_STATUSES = [
 export function isSeatEligibleForInstallation(status: SeatStatus): boolean {
   return (INSTALLABLE_SEAT_STATUSES as readonly SeatStatus[]).includes(status);
 }
+
+/** Spec R6: a seat has the category the booking requires; a booking that requires none accepts any category. */
+export function isSeatCategoryMatch(
+  requiredCategory: { id: string } | null,
+  seatCategoryId: string | null,
+): boolean {
+  return !requiredCategory || requiredCategory.id === seatCategoryId;
+}

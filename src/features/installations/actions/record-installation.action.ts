@@ -12,9 +12,11 @@ import {
 } from "@/features/jobs/lib/job-errors";
 import { getInstallationContext } from "@/features/installations/lib/get-installation-context";
 import {
+  SEAT_WRONG_CATEGORY_ERROR,
   SEAT_REQUIRED_ERROR,
   mapInstallationError,
 } from "@/features/installations/lib/installation-errors";
+import { isSeatCategoryMatch } from "@/features/installations/lib/seat-eligibility";
 import {
   buildRecordInstallationSchema,
   recordInstallationJobSchema,
@@ -55,6 +57,16 @@ export async function recordInstallationAction(
 
   if (!context.booking.seat) {
     return { success: false, error: SEAT_REQUIRED_ERROR };
+  }
+
+  // Spec R6: the step is blocked when the assigned seat is not the category the booking requires.
+  if (
+    !isSeatCategoryMatch(
+      context.booking.required_category,
+      context.booking.seat.category_id,
+    )
+  ) {
+    return { success: false, error: SEAT_WRONG_CATEGORY_ERROR };
   }
 
   const completedAt = toInstalledAtIso(
