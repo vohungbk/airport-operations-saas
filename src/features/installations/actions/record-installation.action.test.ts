@@ -122,6 +122,22 @@ describe("recordInstallationAction", () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
+  it("should return an error and skip the insert when the seat has the wrong category", async () => {
+    getContextMock.mockResolvedValue({
+      ...CONTEXT,
+      booking: {
+        ...CONTEXT.booking,
+        required_category: { id: "c-1", name: "Toddler" },
+        seat: { ...CONTEXT.booking.seat, category_id: "c-2" },
+      },
+    });
+
+    const result = await recordInstallationAction(VALID_INPUT);
+
+    expect(result.error?.code).toBe("SEAT_NOT_ELIGIBLE");
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
   it("should return NOT_FOUND when the job is outside the user's scope", async () => {
     getContextMock.mockResolvedValue(null);
 
