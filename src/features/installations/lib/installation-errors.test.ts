@@ -20,6 +20,7 @@ describe("mapInstallationError", () => {
     ["JB005", "JOB_NOT_ELIGIBLE"],
     ["JB006", "JOB_NOT_ELIGIBLE"],
     ["JB007", "SEAT_NOT_ELIGIBLE"],
+    ["JB013", "SCAN_REQUIRED"],
     ["23505", "ALREADY_RECORDED"],
     ["42501", "FORBIDDEN"],
     ["P0002", "NOT_FOUND"],
