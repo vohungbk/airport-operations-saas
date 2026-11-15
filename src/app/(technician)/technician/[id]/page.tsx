@@ -1,5 +1,6 @@
 import { requirePermission } from "@/lib/auth/current-user";
 import { PageForbidden } from "@/components/shared/page-state";
+import { getSeatScanHref } from "@/features/installations/lib/seat-scan-href";
 import { JobInformation } from "@/features/jobs/components/job-information";
 import { getJobInformation } from "@/features/jobs/lib/get-job-information";
 
@@ -9,12 +10,12 @@ interface JobInformationPageProps {
 
 /**
  * UI-F07-S02: the information of a job opened from Today's Jobs. The path is `/technician/[id]` so the arrow
- * of the app bar goes back to Today's Jobs. The page checks the permission on the server; RLS scopes the job,
+ * of the app bar goes back to Today's Jobs. The page checks the permission on the server; RLS scopes the job (the Scan button is offered only for an active installation job),
  * so a job that is not the technician's, or does not exist, shows the same forbidden state and never says
  * which. A failed read throws to `error.tsx`.
  */
 export default async function JobInformationPage({ params }: JobInformationPageProps) {
-  await requirePermission("jobs:view_assigned");
+  const user = await requirePermission("jobs:view_assigned");
 
   const { id } = await params;
   const job = await getJobInformation(id);
@@ -28,5 +29,8 @@ export default async function JobInformationPage({ params }: JobInformationPageP
     );
   }
 
-  return <JobInformation job={job} now={new Date()} />;
+  // RLS returns only the technician's own jobs, so the job read here is assigned to them (spec R10, NAV-2).
+  const scanHref = getSeatScanHref({ ...job, technician: { id: user.id } }, user);
+
+  return <JobInformation job={job} now={new Date()} scanHref={scanHref} />;
 }
