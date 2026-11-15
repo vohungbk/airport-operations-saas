@@ -21,8 +21,8 @@ import { getSeatByPublicToken } from "@/features/seats/lib/get-seat-by-token";
  * its only write is one line in the scan log (VI-F05-T01), whose failure does not change the result.
  * Recording the installation checks the job, the seat and the technician again (`recordInstallationAction`).
  * The job is read through RLS, so another technician's job is "not found".
- * A code of a seat RLS hides from the technician is a mismatch, not an error: the screen must not tell
- * whether such a seat exists.
+ * A code of a seat RLS hides from the technician is a not-found result, like an unknown or forged one: the
+ * screen must not tell whether such a seat exists, and gives back no seat data.
  */
 export async function verifySeatScanAction(
   input: unknown,
@@ -53,7 +53,11 @@ export async function verifySeatScanAction(
     code.kind === "token"
       ? await getSeatByPublicToken(code.token)
       : await getSeatBySerial(code.serial);
-  const match = scannedSeat?.id === assigned.id;
+  const { required_category } = context.booking;
+  // Spec R6: the assigned seat, and the category the booking requires.
+  const match =
+    scannedSeat?.id === assigned.id &&
+    (!required_category || assigned.category_id === required_category.id);
 
   // The log write runs while the checks are read.
   const [, checks] = await Promise.all([
@@ -68,12 +72,13 @@ export async function verifySeatScanAction(
       assigned: {
         serial_number: assigned.serial_number,
         category_name: assigned.category_name,
+        required_category_name: required_category?.name ?? null,
         airport_code: context.booking.airport.code,
       },
       scanned: {
-        serial_number:
-          scannedSeat?.serial_number ??
-          (code.kind === "serial" ? code.serial : null),
+        // A code that names no readable seat gives nothing back, not even the text that was typed (spec E3).
+        found: scannedSeat !== null,
+        serial_number: scannedSeat?.serial_number ?? null,
         category_name: scannedSeat?.category?.name ?? null,
         status: scannedSeat?.status ?? null,
       },

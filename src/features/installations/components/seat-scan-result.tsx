@@ -9,7 +9,7 @@ import {
   formatCheck,
   inspectionOutcome,
 } from "@/features/installations/lib/seat-check-text";
-import type { SeatScanView } from "@/features/installations/lib/seat-scan-result";
+import { getScanProblem, type ScanProblem, type SeatScanView } from "@/features/installations/lib/seat-scan-result";
 import {
   KeyValue,
   NONE,
@@ -29,6 +29,24 @@ interface SeatScanResultProps {
 
 const seatLine = (serial: string | null, category: string | null) =>
   [serial ?? NONE, category].filter(Boolean).join(" · ");
+
+/** The banner of a mismatch: the title and what is written under it, for each reason a scan did not match. */
+function mismatchBanner(problem: ScanProblem, { assigned, scanned }: SeatScanView) {
+  if (problem === "wrong_category") {
+    return {
+      title: "This seat is not the required category",
+      text: `Scanned ${seatLine(scanned.serial_number, scanned.category_name)}. This booking requires ${assigned.required_category_name ?? NONE}. Do not install this seat.`,
+    };
+  }
+
+  return {
+    title: "This is not the assigned seat",
+    text:
+      problem === "not_found"
+        ? `This seat code was not found. This booking requires ${assigned.serial_number}. Do not install this seat.`
+        : `Scanned ${scanned.serial_number ?? NONE}. This booking requires ${assigned.serial_number}. Do not install this seat.`,
+  };
+}
 
 /** The two screens that follow a scan (UI-F07-S02, spec E2): the seat matches, or it is not the assigned one. */
 export function SeatScanResult({
@@ -79,14 +97,19 @@ export function SeatScanResult({
     );
   }
 
+  const problem = getScanProblem(scan);
+  const banner = mismatchBanner(problem, scan);
+
   return (
     <>
-      <ScanBanner tone="danger" title="This is not the assigned seat">
-        {`Scanned ${scanned.serial_number ?? NONE}. This booking requires ${assigned.serial_number}. Do not install this seat.`}
+      <ScanBanner tone="danger" title={banner.title}>
+        {banner.text}
       </ScanBanner>
       <SectionCard title="Verification mismatch">
         <KeyValue label="Expected" mono>
-          {seatLine(assigned.serial_number, assigned.category_name)}
+          {problem === "wrong_category"
+            ? (assigned.required_category_name ?? NONE)
+            : seatLine(assigned.serial_number, assigned.category_name)}
         </KeyValue>
         <KeyValue label="Scanned" mono>
           {seatLine(scanned.serial_number, scanned.category_name)}
