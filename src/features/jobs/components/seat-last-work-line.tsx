@@ -27,7 +27,7 @@ function LastWorkResult({ tab, lastWork, timeZone }: SeatLastWorkLineProps) {
     return (
       <div role="alert" className="flex flex-col items-start gap-2 text-sm text-danger-fg">
         <p>{tab === "inspection" ? INSPECTION_LOAD_ERROR : "Unable to load cleaning. Please try again."}</p>
-        <Button type="button" variant="outline" className="min-h-11 rounded-lg bg-surface px-4" onClick={() => router.refresh()}>
+        <Button type="button" variant="outline" className="min-h-11 rounded-md bg-surface px-4" onClick={() => router.refresh()}>
           Try again
         </Button>
       </div>

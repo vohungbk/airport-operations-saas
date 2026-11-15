@@ -5,7 +5,7 @@ import { Controller } from "react-hook-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { MonthPicker } from "@/components/ui/month-picker";
 import {
   Select,
   SelectContent,
@@ -33,7 +33,6 @@ interface GenerateSettlementFormProps {
 export function GenerateSettlementForm({ partners, onGenerated, onCancel }: GenerateSettlementFormProps) {
   const { form, onSubmit, isPending, result } = useGenerateSettlementForm(onGenerated);
   const {
-    register,
     control,
     formState: { errors },
   } = form;
@@ -76,14 +75,19 @@ export function GenerateSettlementForm({ partners, onGenerated, onCancel }: Gene
 
       <Field data-invalid={!!errors.month}>
         <FieldLabel htmlFor="month">Month</FieldLabel>
-        <Input
-          id="month"
-          type="month"
-          max={currentMonth()}
-          aria-invalid={!!errors.month}
-          disabled={isPending}
-          className="h-11"
-          {...register("month")}
+        <Controller
+          control={control}
+          name="month"
+          render={({ field }) => (
+            <MonthPicker
+              id="month"
+              value={field.value ?? ""}
+              onValueChange={field.onChange}
+              max={currentMonth()}
+              disabled={isPending}
+              aria-invalid={!!errors.month}
+            />
+          )}
         />
         <FieldError errors={errors.month ? [errors.month] : undefined} />
       </Field>

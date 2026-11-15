@@ -16,7 +16,7 @@ function ComboboxInput({
       <ComboboxPrimitive.Input
         data-slot="combobox-input"
         className={cn(
-          "h-8 pointer-coarse:h-11 w-full min-w-0 rounded-lg border border-input bg-transparent py-1 pr-8 pl-2.5 text-base text-ellipsis outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30",
+          "h-8 pointer-coarse:h-11 w-full min-w-0 rounded-md border border-input bg-transparent py-1 pr-8 pl-2.5 text-base text-ellipsis outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30",
           className
         )}
         {...props}

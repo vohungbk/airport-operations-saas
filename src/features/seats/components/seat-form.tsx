@@ -19,6 +19,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -28,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { formatSeatDate } from "@/features/seats/lib/format-seat-date";
 import type { SeatFormOptions } from "@/features/seats/lib/get-seat-form-options";
 import type {
   CreateSeatInput,
@@ -92,8 +94,12 @@ function TextField<TFieldValues extends FieldValues>({
   errors,
   isPending,
   hint,
+  placeholder,
   type = "text",
-}: FieldShellProps<TFieldValues> & { type?: "text" | "number" | "date" }) {
+}: FieldShellProps<TFieldValues> & {
+  type?: "text" | "number";
+  placeholder?: string;
+}) {
   const error = fieldError(errors, name);
 
   return (
@@ -102,7 +108,7 @@ function TextField<TFieldValues extends FieldValues>({
       <Input
         id={name}
         type={type}
-        className="h-11"
+        placeholder={placeholder}
         min={type === "number" ? 1 : undefined}
         step={type === "number" ? 1 : undefined}
         aria-invalid={!!error}
@@ -130,12 +136,14 @@ function SelectField<TFieldValues extends FieldValues>({
   isPending,
   choices,
   hint,
+  placeholder = "Select...",
 }: Pick<
   FieldShellProps<TFieldValues>,
   "name" | "label" | "errors" | "isPending" | "hint"
 > & {
   control: Control<TFieldValues>;
   choices: { value: string; label: string }[];
+  placeholder?: string;
 }) {
   const error = fieldError(errors, name);
 
@@ -156,9 +164,9 @@ function SelectField<TFieldValues extends FieldValues>({
               id={name}
               aria-invalid={!!error}
               aria-describedby={describedBy(name, error, hint)}
-              className="h-11 w-full data-[size=default]:h-11"
+              className="w-full"
             >
-              <SelectValue placeholder="Select..." />
+              <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
               {choices.map((choice) => (
@@ -171,6 +179,42 @@ function SelectField<TFieldValues extends FieldValues>({
         )}
       />
       {hint && <FieldDescription id={`${name}-hint`}>{hint}</FieldDescription>}
+      <FieldErrorMessage
+        id={`${name}-error`}
+        errors={error ? [error] : undefined}
+      />
+    </Field>
+  );
+}
+
+function DateField<TFieldValues extends FieldValues>({
+  name,
+  label,
+  control,
+  errors,
+  isPending,
+}: Pick<FieldShellProps<TFieldValues>, "name" | "label" | "errors" | "isPending"> & {
+  control: Control<TFieldValues>;
+}) {
+  const error = fieldError(errors, name);
+
+  return (
+    <Field data-invalid={!!error}>
+      <FieldLabel htmlFor={name}>{label}</FieldLabel>
+      <Controller
+        control={control}
+        name={name as Path<TFieldValues>}
+        render={({ field }) => (
+          <DatePicker
+            value={field.value ?? ""}
+            formatValue={formatSeatDate}
+            onValueChange={(value) => field.onChange(value)}
+            disabled={isPending}
+            aria-invalid={!!error}
+            placeholder="Pick a date"
+          />
+        )}
+      />
       <FieldErrorMessage
         id={`${name}-error`}
         errors={error ? [error] : undefined}
@@ -235,6 +279,7 @@ function ConfigurationFields<TFieldValues extends FieldValues>({
         isPending={isPending}
         name="airport_id"
         label="Airport *"
+        placeholder="Select airport"
         hint="Required"
         choices={options.airports}
       />
@@ -244,20 +289,23 @@ function ConfigurationFields<TFieldValues extends FieldValues>({
         isPending={isPending}
         name="category_id"
         label="Category *"
+        placeholder="Select category"
         hint="Required"
         choices={options.categories}
       />
-      <TextField
-        {...shell}
+      <DateField
+        control={control}
+        errors={errors}
+        isPending={isPending}
         name="manufacture_date"
         label="Manufacture date"
-        type="date"
       />
-      <TextField
-        {...shell}
+      <DateField
+        control={control}
+        errors={errors}
+        isPending={isPending}
         name="purchase_date"
         label="Purchase date"
-        type="date"
       />
       <TextField
         {...shell}
@@ -402,6 +450,7 @@ export function SeatForm(props: SeatFormProps) {
               isPending={isPending}
               name="serial_number"
               label="Serial number *"
+              placeholder="Enter a unique serial number"
               hint="Required unique identifier"
             />
             <PublicTokenField />

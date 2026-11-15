@@ -106,7 +106,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
           {hasFilters && (
             <Link
               href={clearHref}
-              className={buttonVariants({ variant: "outline", className: "min-h-11 rounded-lg bg-surface px-4" })}
+              className={buttonVariants({ variant: "outline", className: "min-h-11 rounded-md bg-surface px-4" })}
             >
               Clear filters
             </Link>

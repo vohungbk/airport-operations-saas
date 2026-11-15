@@ -106,7 +106,7 @@ export default async function IncidentsPage({
               href={clearHref}
               className={buttonVariants({
                 variant: "outline",
-                className: "min-h-11 rounded-lg bg-surface px-4",
+                className: "min-h-11 rounded-md bg-surface px-4",
               })}
             >
               Clear filters

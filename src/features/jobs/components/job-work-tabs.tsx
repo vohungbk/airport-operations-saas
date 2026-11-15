@@ -79,7 +79,7 @@ export function JobWorkTabs({
             onClick={() => setTab(value)}
             className={cn(
               buttonVariants({ variant: tab === value ? "default" : "outline" }),
-              "min-h-11 rounded-lg px-4",
+              "min-h-11 rounded-md px-4",
               tab !== value && "bg-surface",
             )}
           >
@@ -121,7 +121,7 @@ export function JobWorkTabs({
               {workRecordHref && (
                 <Link
                   href={workRecordHref}
-                  className={buttonVariants({ className: "min-h-11 w-full rounded-lg px-4" })}
+                  className={buttonVariants({ className: "min-h-11 w-full rounded-md px-4" })}
                 >
                   {getWorkActionLabel(jobStatus, jobType)}
                 </Link>
@@ -129,7 +129,7 @@ export function JobWorkTabs({
               {scanHref && (
                 <Link
                   href={scanHref}
-                  className={buttonVariants({ variant: "outline", className: "min-h-11 w-full rounded-lg bg-surface px-4" })}
+                  className={buttonVariants({ variant: "outline", className: "min-h-11 w-full rounded-md bg-surface px-4" })}
                 >
                   <ScanLine aria-hidden="true" data-icon="inline-start" />
                   Scan assigned seat
@@ -142,7 +142,7 @@ export function JobWorkTabs({
               <p role="status" className="text-sm text-danger-fg">
                 {NOT_ASSIGNED_MESSAGE}
               </p>
-              <Button type="button" disabled className="min-h-11 w-full rounded-lg px-4">
+              <Button type="button" disabled className="min-h-11 w-full rounded-md px-4">
                 {getWorkActionLabel(jobStatus, jobType)}
               </Button>
             </>

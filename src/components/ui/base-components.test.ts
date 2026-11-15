@@ -57,8 +57,8 @@ describe("Button", () => {
 });
 
 describe("Input", () => {
-  it("should be 32 px high", () => {
-    expect(html(createElement(Input, null))).toContain("h-8");
+  it("should be 44 px high", () => {
+    expect(html(createElement(Input, null))).toMatch(/class="h-11 /);
   });
 
   it("should cut a long value with an ellipsis and keep it whole in the title", () => {

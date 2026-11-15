@@ -1,5 +1,6 @@
 "use client";
 
+import { INVOICE_OUTLINE_BUTTON_CLASS } from "@/features/invoices/lib/invoice-outline-button";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -152,7 +153,7 @@ export function InvoicesFilters({ query, isPartner, partners }: InvoicesFiltersP
         aria-disabled={!isFiltered}
         className={buttonVariants({
           variant: "outline",
-          className: cn("min-h-11 min-w-32 self-end px-4", !isFiltered && "pointer-events-none opacity-50"),
+          className: cn(INVOICE_OUTLINE_BUTTON_CLASS, "min-w-32 self-end", !isFiltered && "pointer-events-none opacity-50"),
         })}
       >
         Clear filters

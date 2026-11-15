@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { MonthPicker } from "@/components/ui/month-picker";
 import {
   Select,
   SelectContent,
@@ -84,13 +84,13 @@ export function SettlementsFilters({ query, partners }: SettlementsFiltersProps)
 
       <div className="flex w-full flex-col gap-2 sm:w-56">
         <FieldLabel htmlFor="settlement-period">Period</FieldLabel>
-        <Input
+        <MonthPicker
           id="settlement-period"
-          type="month"
           aria-label="Filter by period"
+          placeholder="All periods"
           value={query.month ?? ""}
-          onChange={(event) => go({ month: event.target.value || undefined })}
-          className="h-11"
+          onValueChange={(value) => go({ month: value || undefined })}
+          clearable
         />
       </div>
 

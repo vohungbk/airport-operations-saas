@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { INVOICE_OUTLINE_BUTTON_CLASS } from "@/features/invoices/lib/invoice-outline-button";
 
 interface ExportCsvLinkProps {
   /** The address of the export, which holds the filters and the sort of the list on the screen. */
@@ -10,7 +11,7 @@ interface ExportCsvLinkProps {
 /** The Export CSV button of the design: a link that downloads, so it needs no client JS. */
 export function ExportCsvLink({ href }: ExportCsvLinkProps) {
   return (
-    <a href={href} download className={buttonVariants({ variant: "outline", className: "min-h-11 px-4" })}>
+    <a href={href} download className={buttonVariants({ variant: "outline", className: INVOICE_OUTLINE_BUTTON_CLASS })}>
       <Download aria-hidden="true" />
       Export CSV
     </a>

@@ -1,3 +1,4 @@
+import { INVOICE_OUTLINE_BUTTON_CLASS } from "@/features/invoices/lib/invoice-outline-button";
 import Link from "next/link";
 
 import { PageEmpty } from "@/components/shared/page-state";
@@ -72,7 +73,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
           )}
           <Link
             href="/invoices/history"
-            className={buttonVariants({ variant: "outline", className: "min-h-11 px-4" })}
+            className={buttonVariants({ variant: "outline", className: INVOICE_OUTLINE_BUTTON_CLASS })}
           >
             Invoice history
           </Link>

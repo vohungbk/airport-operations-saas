@@ -19,7 +19,7 @@ interface PageLinkProps {
 function PageLink({ href, children }: PageLinkProps) {
   const linkClass = cn(
     buttonVariants({ variant: "outline" }),
-    "min-h-11 w-24 rounded-lg bg-surface",
+    "min-h-11 w-24 rounded-md bg-surface",
   );
 
   return href ? (

@@ -59,7 +59,7 @@ export function ChainStepPhotoField({
             variant="outline"
             disabled={disabled}
             onClick={() => cameraInput.current?.click()}
-            className="min-h-11 rounded-lg bg-surface px-4"
+            className="min-h-11 rounded-md bg-surface px-4"
           >
             Open camera
           </Button>
@@ -68,7 +68,7 @@ export function ChainStepPhotoField({
             variant="outline"
             disabled={disabled}
             onClick={() => filesInput.current?.click()}
-            className="min-h-11 rounded-lg bg-surface px-4"
+            className="min-h-11 rounded-md bg-surface px-4"
           >
             Choose files
           </Button>

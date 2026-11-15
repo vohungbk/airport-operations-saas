@@ -65,7 +65,7 @@ export function InspectionManagerView({
                 href={`/jobs/${job.id}`}
                 className={buttonVariants({
                   variant: "outline",
-                  className: "min-h-11 rounded-lg bg-surface px-4",
+                  className: "min-h-11 rounded-md bg-surface px-4",
                 })}
               >
                 Back to job
@@ -74,7 +74,7 @@ export function InspectionManagerView({
                 href={`/jobs/${job.id}/photos`}
                 className={buttonVariants({
                   variant: "outline",
-                  className: "min-h-11 rounded-lg bg-surface px-4",
+                  className: "min-h-11 rounded-md bg-surface px-4",
                 })}
               >
                 <ImageIcon data-icon="inline-start" aria-hidden="true" />

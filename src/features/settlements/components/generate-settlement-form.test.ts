@@ -7,7 +7,6 @@ vi.mock("@/features/settlements/actions/generate-settlement.action", () => ({
 }));
 
 import { GenerateSettlementForm } from "@/features/settlements/components/generate-settlement-form";
-import { currentMonth } from "@/features/settlements/schemas/settlement.schema";
 
 const render = () =>
   renderToStaticMarkup(
@@ -22,11 +21,11 @@ describe("GenerateSettlementForm", () => {
     expect(html).toContain('for="month">Month<');
   });
 
-  it("should use a month picker that cannot go past the current month", () => {
+  it("should use the month picker, empty until a month is chosen", () => {
     const html = render();
 
-    expect(html).toContain('type="month"');
-    expect(html).toContain(`max="${currentMonth()}"`);
+    expect(html).toContain('data-slot="month-picker-trigger"');
+    expect(html).toContain("Pick a month");
   });
 
   it("should start with no month chosen and have a Generate button", () => {

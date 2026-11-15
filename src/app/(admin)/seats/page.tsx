@@ -41,7 +41,7 @@ export default async function SeatsPage({ searchParams }: SeatsPageProps) {
             Manage seat inventory across airports
           </p>
         </div>
-        <Link href="/seats/new" className={buttonVariants({ className: "min-h-11 rounded-lg" })}>
+        <Link href="/seats/new" className={buttonVariants({ className: "min-h-11 rounded-md" })}>
           Create seat
         </Link>
       </div>
