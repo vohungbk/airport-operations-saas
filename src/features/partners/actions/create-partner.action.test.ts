@@ -57,7 +57,44 @@ describe("createPartnerAction", () => {
 
     expect(requirePermissionMock).toHaveBeenCalledWith("partners:manage");
     expect(fromMock).toHaveBeenCalledWith("partners");
-    expect(insertMock).toHaveBeenCalledWith(VALID_INPUT);
+    expect(insertMock).toHaveBeenCalledWith({
+      ...VALID_INPUT,
+      contact_name: null,
+      contact_phone: null,
+      notes: null,
+    });
+  });
+
+  it("should store the contact details when they are provided", async () => {
+    singleMock.mockResolvedValue({ data: { id: "partner-1" }, error: null });
+
+    await expect(
+      createPartnerAction({
+        ...VALID_INPUT,
+        contact_name: "Linh Tran",
+        contact_phone: "+84 903 123 456",
+        notes: "Meet-and-greet partner.",
+      }),
+    ).rejects.toThrow("REDIRECT:/partners/partner-1");
+
+    expect(insertMock).toHaveBeenCalledWith({
+      ...VALID_INPUT,
+      contact_name: "Linh Tran",
+      contact_phone: "+84 903 123 456",
+      notes: "Meet-and-greet partner.",
+    });
+  });
+
+  it("should store a null contact_email when the email is left empty", async () => {
+    singleMock.mockResolvedValue({ data: { id: "partner-1" }, error: null });
+
+    await expect(
+      createPartnerAction({ ...VALID_INPUT, contact_email: "" }),
+    ).rejects.toThrow("REDIRECT:/partners/partner-1");
+
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ contact_email: null }),
+    );
   });
 
   it("should return a validation error without calling Supabase when name is missing", async () => {

@@ -41,6 +41,7 @@ export async function createPartnerAction(
     .from("partners")
     .insert({
       ...parsed.data,
+      contact_email: parsed.data.contact_email || null,
       contact_name: parsed.data.contact_name || null,
       contact_phone: parsed.data.contact_phone || null,
       notes: parsed.data.notes || null,

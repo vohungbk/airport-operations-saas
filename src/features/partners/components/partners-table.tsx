@@ -45,7 +45,7 @@ export function PartnersTable({ partners }: PartnersTableProps) {
               {partner.name}
             </p>
             <p className="text-xs break-words text-muted-foreground">
-              Contact · {partner.contact_email}
+              Contact · {partner.contact_email ?? "—"}
             </p>
             <div className="mt-1">
               <PartnerStatusBadge status={partner.status} showDot />
@@ -90,7 +90,7 @@ function DesktopTable({ partners }: PartnersTableProps) {
               {partner.name}
             </TableCell>
             <TableCell data-label="Contact" className={CELL_CLASS}>
-              {partner.contact_email}
+              {partner.contact_email ?? "—"}
             </TableCell>
             <TableCell data-label="Status" className={CELL_CLASS}>
               <PartnerStatusBadge status={partner.status} showDot />
