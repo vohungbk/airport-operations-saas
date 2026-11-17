@@ -30,6 +30,11 @@ export const NOT_FOUND_ERROR: PartnerActionError = {
   message: "Partner not found.",
 };
 
+export const EDIT_CONFLICT_ERROR: PartnerActionError = {
+  code: "CONFLICT",
+  message: "This partner was changed by someone else. Reload to see the latest version.",
+};
+
 export const ALREADY_INACTIVE_ERROR: PartnerActionError = {
   code: "CONFLICT",
   message: "This partner is already inactive.",

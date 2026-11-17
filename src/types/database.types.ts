@@ -1494,7 +1494,7 @@ export type Database = {
       partners: {
         Row: {
           code: string
-          contact_email: string
+          contact_email: string | null
           contact_name: string | null
           contact_phone: string | null
           created_at: string
@@ -1506,7 +1506,7 @@ export type Database = {
         }
         Insert: {
           code: string
-          contact_email: string
+          contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -1518,7 +1518,7 @@ export type Database = {
         }
         Update: {
           code?: string
-          contact_email?: string
+          contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string
