@@ -50,7 +50,7 @@ export function buildPartnersQueryFilters(
   if (q) {
     const escaped = escapePostgrestFilterValue(q);
     const pattern = `%${escaped}%`;
-    search = `name.ilike.${pattern},code.ilike.${pattern}`;
+    search = `name.ilike.${pattern},code.ilike.${pattern},contact_email.ilike.${pattern}`;
   }
 
   return { search, status, sort, order, range: { from, to } };

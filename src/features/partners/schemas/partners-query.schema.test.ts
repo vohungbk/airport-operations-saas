@@ -10,7 +10,7 @@ describe("partnersQuerySchema", () => {
       sort: "name",
       order: "asc",
       page: "2",
-      page_size: "10",
+      page_size: "16",
     });
 
     expect(result.success).toBe(true);
@@ -21,7 +21,7 @@ describe("partnersQuerySchema", () => {
         sort: "name",
         order: "asc",
         page: 2,
-        page_size: 10,
+        page_size: 16,
       });
     }
   });
@@ -37,7 +37,7 @@ describe("partnersQuerySchema", () => {
         sort: "created_at",
         order: "desc",
         page: 1,
-        page_size: 20,
+        page_size: 8,
       });
     }
   });
@@ -51,12 +51,12 @@ describe("partnersQuerySchema", () => {
     }
   });
 
-  it("should clamp page_size back to the default when it exceeds the max", () => {
+  it("should fall back to the default page_size when it is not one of the Rows per page choices", () => {
     const result = partnersQuerySchema.safeParse({ page_size: "9999" });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.page_size).toBe(20);
+      expect(result.data.page_size).toBe(8);
     }
   });
 

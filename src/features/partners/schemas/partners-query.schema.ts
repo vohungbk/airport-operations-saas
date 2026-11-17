@@ -21,8 +21,9 @@ export type PartnersSortColumn = (typeof PARTNERS_SORT_COLUMNS)[number];
 export const PARTNERS_DEFAULT_SORT: PartnersSortColumn = "created_at";
 export const PARTNERS_DEFAULT_ORDER = "desc";
 export const PARTNERS_DEFAULT_PAGE = 1;
-export const PARTNERS_DEFAULT_PAGE_SIZE = 20;
-export const PARTNERS_MAX_PAGE_SIZE = 100;
+/** The "Rows per page" choices of the list; the first is the default. */
+export const PARTNERS_PAGE_SIZE_OPTIONS = [8, 16, 24] as const;
+export const PARTNERS_DEFAULT_PAGE_SIZE = PARTNERS_PAGE_SIZE_OPTIONS[0];
 
 /**
  * `searchParams` is user-editable URL state, not a trusted API body — an
@@ -44,9 +45,9 @@ export const partnersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).catch(PARTNERS_DEFAULT_PAGE),
   page_size: z.coerce
     .number()
-    .int()
-    .min(1)
-    .max(PARTNERS_MAX_PAGE_SIZE)
+    .refine((value): value is (typeof PARTNERS_PAGE_SIZE_OPTIONS)[number] =>
+      (PARTNERS_PAGE_SIZE_OPTIONS as readonly number[]).includes(value),
+    )
     .catch(PARTNERS_DEFAULT_PAGE_SIZE),
 });
 

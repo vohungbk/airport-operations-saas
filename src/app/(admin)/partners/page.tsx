@@ -1,13 +1,12 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { requirePermission } from "@/lib/auth/current-user";
-import { buttonVariants } from "@/components/ui/button";
 import { getPartners } from "@/features/partners/lib/get-partners";
+import { buildPartnersHref } from "@/features/partners/lib/build-partners-href";
 import { partnersQuerySchema } from "@/features/partners/schemas/partners-query.schema";
-import { PartnersFilters } from "@/features/partners/components/partners-filters";
-import { PartnersPagination } from "@/features/partners/components/partners-pagination";
-import { PartnersTable } from "@/features/partners/components/partners-table";
-import { PageEmpty } from "@/components/shared/page-state";
+import { PartnersPageHeader } from "@/features/partners/components/partners-page-header";
+import { PartnersRegister } from "@/features/partners/components/partners-register";
+import { PartnersSearch } from "@/features/partners/components/partners-search";
 
 interface PartnersPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -25,34 +24,19 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
   const query = partnersQuerySchema.parse(rawParams);
   const { partners, total } = await getPartners(query);
 
+  // A page past the last one goes to the last page instead of showing an empty table.
+  const totalPages = Math.max(1, Math.ceil(total / query.page_size));
+  if (total > 0 && query.page > totalPages) {
+    redirect(buildPartnersHref(query, { page: totalPages }));
+  }
+
   return (
-    <div className="flex flex-1 flex-col gap-6 p-8">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Partners
-        </h1>
-        <Link href="/partners/new" className={buttonVariants()}>
-          Add Partner
-        </Link>
-      </div>
+    <div className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
+      <PartnersPageHeader />
 
-      <PartnersFilters
-        q={query.q}
-        status={query.status}
-        sort={query.sort}
-        order={query.order}
-      />
+      <PartnersSearch key={query.q ?? ""} query={query} />
 
-      {total === 0 ? (
-        <PageEmpty
-          message="No partners found. Try adjusting the search or filters, or add a new partner."
-        />
-      ) : (
-        <>
-          <PartnersTable partners={partners} query={query} />
-          <PartnersPagination query={query} total={total} />
-        </>
-      )}
+      <PartnersRegister partners={partners} total={total} query={query} />
     </div>
   );
 }
