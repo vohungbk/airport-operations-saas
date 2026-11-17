@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { AirportsTable } from "@/features/airports/components/airports-table";
-import { PartnersTable } from "@/features/partners/components/partners-table";
 import { SeatCategoriesTable } from "@/features/seat-categories/components/seat-categories-table";
 
 const html = (element: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(element);
@@ -12,16 +11,6 @@ const esc = (text: string) => text.replace(/&/g, "&amp;").replace(/>/g, "&gt;").
 
 const LONG = "Northern Region Airport Ground Handling and Child Seat Rental Services Joint Venture Limited";
 const NO_BREAK = "X".repeat(80);
-
-const partnersQuery = { sort: "name", order: "asc", page: 1, page_size: 20 };
-const partner = (name: string) => ({
-  id: "p-1",
-  name,
-  code: "DMO",
-  status: "active",
-  created_at: "2026-08-01T00:00:00Z",
-  contact_email: "ops@example.test",
-});
 
 const airport = (name: string) => ({ id: "a-1", code: "DXB", name, city: "Dubai", country: "AE", timezone: "Asia/Dubai" });
 const category = (name: string) => ({
@@ -33,7 +22,6 @@ const category = (name: string) => ({
   is_active: true,
 });
 const TABLES = {
-  partners: (name: string) => html(createElement(PartnersTable, { partners: [partner(name)], query: partnersQuery } as never)),
   airports: (name: string) =>
     html(createElement(AirportsTable, { airports: [airport(name)], query: { sort: "code", order: "asc", page: 1, page_size: 20 } } as never)),
   "seat categories": (name: string) =>

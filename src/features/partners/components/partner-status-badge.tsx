@@ -3,6 +3,8 @@ import type { PartnerStatus } from "@/features/partners/types";
 
 interface PartnerStatusBadgeProps {
   status: PartnerStatus;
+  /** A small dot before the label, as in the Partners list. */
+  showDot?: boolean;
 }
 
 export const STATUS_VARIANT: Record<
@@ -22,6 +24,16 @@ export const STATUS_LABEL: Record<PartnerStatus, string> = {
   inactive: "Inactive",
 };
 
-export function PartnerStatusBadge({ status }: PartnerStatusBadgeProps) {
-  return <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>;
+export function PartnerStatusBadge({
+  status,
+  showDot = false,
+}: PartnerStatusBadgeProps) {
+  return (
+    <Badge variant={STATUS_VARIANT[status]}>
+      {showDot ? (
+        <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
+      ) : null}
+      {STATUS_LABEL[status]}
+    </Badge>
+  );
 }

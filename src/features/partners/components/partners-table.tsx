@@ -1,6 +1,6 @@
-import { TextLink } from "@/components/ui/text-link";
+import Link from "next/link";
+
 import {
-  SortableTableHead,
   Table,
   TableBody,
   TableCell,
@@ -10,86 +10,90 @@ import {
 } from "@/components/ui/table";
 import { PartnerStatusBadge } from "@/features/partners/components/partner-status-badge";
 import type { Partner } from "@/features/partners/types";
-import type {
-  PartnersQuery,
-  PartnersSortColumn,
-} from "@/features/partners/schemas/partners-query.schema";
 
 interface PartnersTableProps {
   partners: Partner[];
-  query: PartnersQuery;
 }
 
-const SORTABLE_COLUMNS: { key: PartnersSortColumn; label: string }[] = [
-  { key: "name", label: "Name" },
-  { key: "code", label: "Code" },
-  { key: "status", label: "Status" },
-  { key: "created_at", label: "Created" },
-];
-
-function buildSortHref(query: PartnersQuery, column: PartnersSortColumn): string {
-  const params = new URLSearchParams();
-  if (query.q) params.set("q", query.q);
-  if (query.status) params.set("status", query.status);
-  params.set("sort", column);
-  params.set(
-    "order",
-    query.sort === column && query.order === "asc" ? "desc" : "asc",
-  );
-  return `/partners?${params.toString()}`;
-}
+const HEAD_CLASS = "h-11 px-6 text-xs font-medium text-text-muted";
+const CELL_CLASS =
+  "px-6 py-1 text-sm whitespace-normal break-words text-foreground";
 
 /**
- * Server Component — sorting is plain `<Link>` navigation (new
- * `searchParams`, re-rendered server-side), no client JS needed. The
- * "active bookings" column is a static, explicitly-labeled placeholder
- * (never `0` or a live query) — Booking Management doesn't exist yet
- * (F11), and a blank/zero value here would look like real data instead
- * of "not built."
+ * Server Component. The columns of the design: partner code (the link to the partner), partner name,
+ * contact and status. The partners have no contact name yet, so the contact is the contact email. Below
+ * 640 px the design is a list of cards (code, name, contact, status) instead of a table; the code link
+ * stretches over the whole card so the card is the tap target.
  */
-export function PartnersTable({ partners, query }: PartnersTableProps) {
+export function PartnersTable({ partners }: PartnersTableProps) {
   return (
-    <Table stacked>
-      <TableHeader>
-        <TableRow>
-          {SORTABLE_COLUMNS.map((column) => (
-            <SortableTableHead
-              key={column.key}
-              href={buildSortHref(query, column.key)}
-              label={column.label}
-              direction={query.sort === column.key ? query.order : null}
-            />
-          ))}
-          <TableHead>Contact email</TableHead>
-          <TableHead>Active bookings</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+    <>
+      <ul className="flex flex-col gap-3 p-3 sm:hidden">
+        {partners.map((partner) => (
+          <li
+            key={partner.id}
+            className="relative flex flex-col items-start gap-1 rounded-lg border bg-card p-4"
+          >
+            <Link
+              href={`/partners/${partner.id}`}
+              aria-label={`View partner ${partner.name}`}
+              className="text-xs font-medium text-primary after:absolute after:inset-0 hover:underline"
+            >
+              {partner.code}
+            </Link>
+            <p className="text-sm font-semibold break-words text-foreground">
+              {partner.name}
+            </p>
+            <p className="text-xs break-words text-muted-foreground">
+              Contact · {partner.contact_email}
+            </p>
+            <div className="mt-1">
+              <PartnerStatusBadge status={partner.status} showDot />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden sm:block">
+        <DesktopTable partners={partners} />
+      </div>
+    </>
+  );
+}
+
+function DesktopTable({ partners }: PartnersTableProps) {
+  return (
+    <Table>
+      <TableHeader className="bg-surface-muted">
+        <TableRow className="hover:bg-transparent">
+          <TableHead className={HEAD_CLASS}>Partner code</TableHead>
+          <TableHead className={HEAD_CLASS}>Partner name</TableHead>
+          <TableHead className={HEAD_CLASS}>Contact</TableHead>
+          <TableHead className={HEAD_CLASS}>Status</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {partners.map((partner) => (
-          <TableRow key={partner.id}>
-            <TableCell data-label="Name" className="font-medium">
+          <TableRow key={partner.id} className="hover:bg-primary-subtle">
+            <TableCell data-label="Partner code" className={CELL_CLASS}>
+              <Link
+                href={`/partners/${partner.id}`}
+                aria-label={`View partner ${partner.name}`}
+                className="inline-flex min-h-11 items-center font-medium text-primary hover:underline"
+              >
+                {partner.code}
+              </Link>
+            </TableCell>
+            <TableCell
+              data-label="Partner name"
+              className={`${CELL_CLASS} font-semibold`}
+            >
               {partner.name}
             </TableCell>
-            <TableCell data-label="Code">{partner.code}</TableCell>
-            <TableCell data-label="Status">
-              <PartnerStatusBadge status={partner.status} />
+            <TableCell data-label="Contact" className={CELL_CLASS}>
+              {partner.contact_email}
             </TableCell>
-            <TableCell data-label="Created">
-              {new Date(partner.created_at).toLocaleDateString()}
-            </TableCell>
-            <TableCell data-label="Contact email">{partner.contact_email}</TableCell>
-            <TableCell
-              data-label="Active bookings"
-              className="text-sm text-muted-foreground"
-              title="Available once Booking Management (F11) ships"
-            >
-              Not available yet
-            </TableCell>
-            <TableCell data-label="Actions" className="text-right">
-              <TextLink href={`/partners/${partner.id}`} aria-label={`View partner ${partner.name}`}>
-                View
-              </TextLink>
+            <TableCell data-label="Status" className={CELL_CLASS}>
+              <PartnerStatusBadge status={partner.status} showDot />
             </TableCell>
           </TableRow>
         ))}
