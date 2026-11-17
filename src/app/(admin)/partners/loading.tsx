@@ -29,7 +29,7 @@ export default function PartnersLoading() {
         </ul>
         <div className="hidden grid-cols-[1fr_2fr_2fr_1fr] gap-6 bg-surface-muted px-6 py-4 sm:grid">
           {["Partner code", "Partner name", "Contact", "Status"].map((label) => (
-            <span key={label} className="text-xs font-medium text-text-muted">
+            <span key={label} className="text-xs font-medium text-text-muted uppercase sm:text-sm">
               {label}
             </span>
           ))}
