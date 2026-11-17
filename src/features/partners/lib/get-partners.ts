@@ -14,7 +14,7 @@ export interface GetPartnersResult {
  * self-documenting per `backend.md`.
  */
 const PARTNER_COLUMNS =
-  "id, name, code, contact_email, status, created_at, updated_at";
+  "id, name, code, contact_email, contact_name, contact_phone, notes, status, created_at, updated_at";
 
 /**
  * Server-only. RLS (`F05`) is the actual tenant/role boundary here — this

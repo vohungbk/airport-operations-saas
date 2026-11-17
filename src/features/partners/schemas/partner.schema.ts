@@ -9,10 +9,18 @@ import { PARTNER_STATUSES } from "@/features/partners/types";
  * code. `create-partner.action.ts` maps the resulting Postgres `23505`
  * error via `partner-errors.ts` instead.
  */
+/** The contact name, contact phone and notes are optional; an empty value is stored as null by the actions. */
+const contactName = z.string().trim().max(120, "Contact name is too long.");
+const contactPhone = z.string().trim().max(40, "Contact phone is too long.");
+const notes = z.string().trim().max(2000, "Notes are too long.");
+
 export const createPartnerSchema = z.object({
   name: z.string().trim().min(1, "Name is required."),
   code: z.string().trim().min(1, "Code is required."),
   contact_email: z.email("Enter a valid contact email address."),
+  contact_name: contactName.default(""),
+  contact_phone: contactPhone.default(""),
+  notes: notes.default(""),
   status: z.enum(PARTNER_STATUSES).default("pending"),
 });
 
@@ -28,6 +36,9 @@ export type CreatePartnerInput = z.infer<typeof createPartnerSchema>;
 export const updatePartnerSchema = z.object({
   name: z.string().trim().min(1, "Name is required."),
   contact_email: z.email("Enter a valid contact email address."),
+  contact_name: contactName.default(""),
+  contact_phone: contactPhone.default(""),
+  notes: notes.default(""),
   status: z.enum(PARTNER_STATUSES),
 });
 

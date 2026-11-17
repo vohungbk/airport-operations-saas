@@ -11,6 +11,7 @@ import {
 
 import { Field, FieldError as FieldErrorMessage, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -39,6 +40,9 @@ type CreateModeProps = {
     name?: FieldError;
     code?: FieldError;
     contact_email?: FieldError;
+    contact_name?: FieldError;
+    contact_phone?: FieldError;
+    notes?: FieldError;
     status?: FieldError;
   };
   isPending: boolean;
@@ -51,6 +55,9 @@ type EditModeProps = {
   errors: {
     name?: FieldError;
     contact_email?: FieldError;
+    contact_name?: FieldError;
+    contact_phone?: FieldError;
+    notes?: FieldError;
     status?: FieldError;
   };
   isPending: boolean;
@@ -91,6 +98,31 @@ function TextField<TFieldValues extends FieldValues, TName extends Path<TFieldVa
         id={name}
         type={type}
         autoComplete={autoComplete}
+        aria-invalid={!!error}
+        disabled={isPending}
+        {...register(name)}
+      />
+      <FieldErrorMessage errors={error ? [error] : undefined} />
+    </Field>
+  );
+}
+
+function NotesField<TFieldValues extends FieldValues, TName extends Path<TFieldValues>>({
+  name,
+  register,
+  error,
+  isPending,
+}: {
+  name: TName;
+  register: UseFormRegister<TFieldValues>;
+  error?: FieldError;
+  isPending: boolean;
+}) {
+  return (
+    <Field data-invalid={!!error}>
+      <FieldLabel htmlFor={name}>Notes</FieldLabel>
+      <Textarea
+        id={name}
         aria-invalid={!!error}
         disabled={isPending}
         {...register(name)}
@@ -181,6 +213,29 @@ export function PartnerForm(props: PartnerFormProps) {
           type="email"
           autoComplete="email"
         />
+        <TextField
+          name="contact_name"
+          label="Contact name"
+          register={register}
+          error={errors.contact_name}
+          isPending={isPending}
+          autoComplete="name"
+        />
+        <TextField
+          name="contact_phone"
+          label="Contact phone"
+          register={register}
+          error={errors.contact_phone}
+          isPending={isPending}
+          type="tel"
+          autoComplete="tel"
+        />
+        <NotesField
+          name="notes"
+          register={register}
+          error={errors.notes}
+          isPending={isPending}
+        />
         <StatusField control={control} error={errors.status} isPending={isPending} />
       </FieldGroup>
     );
@@ -210,6 +265,29 @@ export function PartnerForm(props: PartnerFormProps) {
         isPending={isPending}
         type="email"
         autoComplete="email"
+      />
+      <TextField
+        name="contact_name"
+        label="Contact name"
+        register={register}
+        error={errors.contact_name}
+        isPending={isPending}
+        autoComplete="name"
+      />
+      <TextField
+        name="contact_phone"
+        label="Contact phone"
+        register={register}
+        error={errors.contact_phone}
+        isPending={isPending}
+        type="tel"
+        autoComplete="tel"
+      />
+      <NotesField
+        name="notes"
+        register={register}
+        error={errors.notes}
+        isPending={isPending}
       />
       <StatusField control={control} error={errors.status} isPending={isPending} />
     </FieldGroup>

@@ -39,7 +39,12 @@ export async function updatePartnerAction(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("partners")
-    .update(parsed.data)
+    .update({
+      ...parsed.data,
+      contact_name: parsed.data.contact_name || null,
+      contact_phone: parsed.data.contact_phone || null,
+      notes: parsed.data.notes || null,
+    })
     .eq("id", partnerId)
     .select("id")
     .maybeSingle();
