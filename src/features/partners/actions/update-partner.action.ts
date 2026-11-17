@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth/current-user";
 import { updatePartnerSchema } from "@/features/partners/schemas/partner.schema";
 import {
+  EDIT_CONFLICT_ERROR,
   NOT_FOUND_ERROR,
   VALIDATION_ERROR,
   mapPartnerError,
@@ -36,16 +37,20 @@ export async function updatePartnerAction(
     return { success: false, error: VALIDATION_ERROR };
   }
 
+  const { updated_at: loadedUpdatedAt, ...fields } = parsed.data;
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("partners")
     .update({
-      ...parsed.data,
-      contact_name: parsed.data.contact_name || null,
-      contact_phone: parsed.data.contact_phone || null,
-      notes: parsed.data.notes || null,
+      ...fields,
+      contact_email: fields.contact_email || null,
+      contact_name: fields.contact_name || null,
+      contact_phone: fields.contact_phone || null,
+      notes: fields.notes || null,
     })
     .eq("id", partnerId)
+    .eq("updated_at", loadedUpdatedAt)
     .select("id")
     .maybeSingle();
 
@@ -54,7 +59,21 @@ export async function updatePartnerAction(
   }
 
   if (!data) {
-    return { success: false, error: NOT_FOUND_ERROR };
+    // No row matched: either the partner is gone, or it changed after the form was loaded.
+    const { data: existing, error: lookupError } = await supabase
+      .from("partners")
+      .select("id")
+      .eq("id", partnerId)
+      .maybeSingle();
+
+    if (lookupError) {
+      return { success: false, error: mapPartnerError(lookupError) };
+    }
+
+    return {
+      success: false,
+      error: existing ? EDIT_CONFLICT_ERROR : NOT_FOUND_ERROR,
+    };
   }
 
   redirect(`/partners/${partnerId}`);

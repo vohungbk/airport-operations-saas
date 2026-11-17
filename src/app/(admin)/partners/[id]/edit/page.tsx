@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { requirePermission } from "@/lib/auth/current-user";
 import { getPartnerById } from "@/features/partners/lib/get-partner-by-id";
+import { PartnerFormPageHeader } from "@/features/partners/components/partner-form-page-header";
 import { EditPartnerForm } from "@/features/partners/components/edit-partner-form";
 
 interface EditPartnerPageProps {
@@ -19,13 +20,12 @@ export default async function EditPartnerPage({ params }: EditPartnerPageProps) 
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        Edit partner
-      </h1>
-      <div className="max-w-lg">
-        <EditPartnerForm partner={partner} />
-      </div>
+    <div className="flex flex-1 flex-col gap-4 p-4 sm:p-8">
+      <PartnerFormPageHeader
+        title="Edit partner"
+        description="Update partner information and contact details."
+      />
+      <EditPartnerForm partner={partner} />
     </div>
   );
 }

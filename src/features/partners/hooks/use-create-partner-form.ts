@@ -23,7 +23,7 @@ export function useCreatePartnerForm() {
       contact_name: "",
       contact_phone: "",
       notes: "",
-      status: "pending",
+      status: "active",
     },
   });
   const [isPending, startTransition] = useTransition();

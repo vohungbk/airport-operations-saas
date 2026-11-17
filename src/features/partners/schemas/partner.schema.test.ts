@@ -20,14 +20,14 @@ describe("createPartnerSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("should default status to 'pending' when omitted", () => {
+  it("should default status to 'active' when omitted", () => {
     const withoutStatus: Record<string, unknown> = { ...VALID_CREATE_INPUT };
     delete withoutStatus.status;
     const result = createPartnerSchema.safeParse(withoutStatus);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.status).toBe("pending");
+      expect(result.data.status).toBe("active");
     }
   });
 
@@ -56,10 +56,21 @@ describe("createPartnerSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("should reject a missing contact_email", () => {
+  it("should accept a missing or empty contact_email, because it is optional", () => {
     const withoutEmail: Record<string, unknown> = { ...VALID_CREATE_INPUT };
     delete withoutEmail.contact_email;
-    const result = createPartnerSchema.safeParse(withoutEmail);
+
+    expect(createPartnerSchema.safeParse(withoutEmail).success).toBe(true);
+    expect(
+      createPartnerSchema.safeParse({ ...VALID_CREATE_INPUT, contact_email: "" }).success,
+    ).toBe(true);
+  });
+
+  it("should reject notes longer than 500 characters", () => {
+    const result = createPartnerSchema.safeParse({
+      ...VALID_CREATE_INPUT,
+      notes: "a".repeat(501),
+    });
 
     expect(result.success).toBe(false);
   });
@@ -93,6 +104,7 @@ describe("updatePartnerSchema", () => {
     name: "Emirates Rent A Car",
     contact_email: "ops@erac.example.com",
     status: "active",
+    updated_at: "2026-01-01T00:00:00.000Z",
   };
 
   it("should parse a valid input", () => {
@@ -128,6 +140,13 @@ describe("updatePartnerSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("should reject a missing updated_at", () => {
+    const withoutVersion: Record<string, unknown> = { ...VALID_UPDATE_INPUT };
+    delete withoutVersion.updated_at;
+
+    expect(updatePartnerSchema.safeParse(withoutVersion).success).toBe(false);
   });
 
   it("should reject a missing status", () => {
