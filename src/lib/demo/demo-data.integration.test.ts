@@ -402,7 +402,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
       }
       for (const partner of tables.partners) {
         expect(partner.name.startsWith("Demo "), partner.name).toBe(true);
-        expect(partner.contact_email.endsWith(".example")).toBe(true);
+        expect(partner.contact_email?.endsWith(".example")).toBe(true);
       }
     });
 
@@ -465,7 +465,7 @@ describe.skipIf(!config)("demo data (VI-F07-S01)", () => {
 
         expect(error).toBeNull();
         expect(data!.map((p) => p.id)).toEqual([own]);
-        expect(data![0].contact_email.endsWith(".example")).toBe(true);
+        expect(data![0].contact_email?.endsWith(".example")).toBe(true);
       }
     });
 

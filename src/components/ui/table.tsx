@@ -100,7 +100,9 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
       data-slot="table-head"
       role="columnheader"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground group-data-stacked/table:max-sm:hidden [&:has([role=checkbox])]:pr-0",
+        // Upper case and 14 px from 640 px up, where a table is a table. `!` so it also wins over the small size
+        // that a screen sets on its own header cells or the links inside them.
+        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground uppercase sm:text-sm! sm:[&_a]:text-sm! group-data-stacked/table:max-sm:hidden [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}
