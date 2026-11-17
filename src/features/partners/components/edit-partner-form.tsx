@@ -18,6 +18,9 @@ export function EditPartnerForm({ partner }: EditPartnerFormProps) {
     defaultValues: {
       name: partner.name,
       contact_email: partner.contact_email,
+      contact_name: partner.contact_name ?? "",
+      contact_phone: partner.contact_phone ?? "",
+      notes: partner.notes ?? "",
       status: partner.status,
     },
   });

@@ -20,6 +20,9 @@ export function useCreatePartnerForm() {
       name: "",
       code: "",
       contact_email: "",
+      contact_name: "",
+      contact_phone: "",
+      notes: "",
       status: "pending",
     },
   });

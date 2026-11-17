@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Partner } from "@/features/partners/types";
 
 const PARTNER_COLUMNS =
-  "id, name, code, contact_email, status, created_at, updated_at";
+  "id, name, code, contact_email, contact_name, contact_phone, notes, status, created_at, updated_at";
 
 /**
  * Server-only. Uses `.maybeSingle()` so a nonexistent id (or one an

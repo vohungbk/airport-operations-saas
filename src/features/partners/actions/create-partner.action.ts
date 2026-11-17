@@ -39,7 +39,12 @@ export async function createPartnerAction(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("partners")
-    .insert(parsed.data)
+    .insert({
+      ...parsed.data,
+      contact_name: parsed.data.contact_name || null,
+      contact_phone: parsed.data.contact_phone || null,
+      notes: parsed.data.notes || null,
+    })
     .select("id")
     .single();
 

@@ -19,7 +19,8 @@ import type { PartnerActionError } from "@/features/partners/lib/partner-errors"
 
 interface DeactivatePartnerButtonProps {
   partnerId: string;
-  partnerName: string;
+  /** Kept for callers; the dialog of the design does not repeat the name. */
+  partnerName?: string;
 }
 
 /**
@@ -32,7 +33,6 @@ interface DeactivatePartnerButtonProps {
  */
 export function DeactivatePartnerButton({
   partnerId,
-  partnerName,
 }: DeactivatePartnerButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -63,16 +63,23 @@ export function DeactivatePartnerButton({
         }
       }}
     >
-      <DialogTrigger render={<Button variant="destructive" />}>
+      <DialogTrigger
+        render={
+          <Button
+            variant="outline"
+            className="min-h-11 border-destructive bg-surface px-4 text-danger-fg hover:bg-danger-bg dark:bg-surface"
+          />
+        }
+      >
         Deactivate
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="w-[358px] max-w-[calc(100%-1rem)] sm:w-[480px] sm:max-w-[480px] gap-6 p-6">
         <DialogHeader>
-          <DialogTitle>Deactivate {partnerName}?</DialogTitle>
-          <DialogDescription>
-            This sets the partner&apos;s status to &quot;inactive&quot;. It
-            does not delete any data and can be reversed later from the edit
-            form.
+          <DialogTitle className="text-base leading-6 font-semibold text-foreground">
+            Deactivate partner?
+          </DialogTitle>
+          <DialogDescription className="text-foreground">
+            The partner will become inactive. All historical records are kept.
           </DialogDescription>
         </DialogHeader>
 
@@ -83,16 +90,17 @@ export function DeactivatePartnerButton({
           </Alert>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="m-0 grid grid-cols-2 gap-3 border-0 bg-transparent p-0">
           <Button
             variant="outline"
+            className="min-h-11 w-full rounded-lg bg-surface px-4 dark:bg-surface"
             disabled={isPending}
             onClick={() => setOpen(false)}
           >
             Cancel
           </Button>
           <Button
-            variant="destructive"
+            className="min-h-11 w-full rounded-lg bg-danger px-4 text-surface hover:bg-danger/90"
             disabled={isPending}
             onClick={handleConfirm}
           >
