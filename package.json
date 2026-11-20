@@ -2,6 +2,7 @@
   "name": "airport-operations-saas",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "prebuild": "vitest run --project unit src/app/design-tokens.test.ts src/lib/accessibility/token-contrast.test.ts src/lib/accessibility/class-contrast.test.ts",
