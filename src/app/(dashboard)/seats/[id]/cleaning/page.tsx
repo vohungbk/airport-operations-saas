@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -6,6 +7,8 @@ import { CLEANING_RECORD_PERMISSIONS } from "@/lib/auth/permissions";
 import { buttonVariants } from "@/components/ui/button";
 import { PageForbidden } from "@/components/shared/page-state";
 import { getCleaningJobsForSeat } from "@/features/cleaning/lib/get-cleaning-jobs-for-seat";
+
+export const metadata: Metadata = { title: "Seat cleaning" };
 
 interface SeatCleaningPageProps {
   params: Promise<{ id: string }>;

@@ -1,9 +1,13 @@
+import type { Metadata } from "next";
+
 import { PageForbidden } from "@/components/shared/page-state";
 import { StandalonePage } from "@/components/shared/standalone-page";
 import { TextLink } from "@/components/ui/text-link";
 import { getAuthUser } from "@/lib/auth/session";
 import { LOGIN_ROUTE } from "@/lib/constants/routes";
 import { LogoutButton } from "@/features/auth/components/logout-button";
+
+export const metadata: Metadata = { title: "Access denied" };
 
 interface ForbiddenPageProps {
   searchParams: Promise<{ reason?: string }>;

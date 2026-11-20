@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { AuthThemeControl } from "@/components/theme/auth-theme-control";
 import {
   Card,
@@ -9,6 +11,8 @@ import {
 import { TextLink } from "@/components/ui/text-link";
 import { getAuthUser } from "@/lib/auth/session";
 import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
+
+export const metadata: Metadata = { title: "Reset password" };
 
 export default async function ResetPasswordPage() {
   const user = await getAuthUser();

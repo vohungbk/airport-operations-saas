@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { BOOKINGS_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
+
+export const metadata: Metadata = { title: "Bookings" };
 
 interface BookingsLayoutProps {
   children: ReactNode;

@@ -1,4 +1,6 @@
 
+import type { Metadata } from "next";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { requirePermission } from "@/lib/auth/current-user";
 import { BOOKING_BOARD_STEPS } from "@/lib/workflow/board";
@@ -20,6 +22,8 @@ function formatBoardDate(value: string): string {
     new Date(`${value}T00:00:00Z`),
   );
 }
+
+export const metadata: Metadata = { title: "Workflow Board" };
 
 interface AdminPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

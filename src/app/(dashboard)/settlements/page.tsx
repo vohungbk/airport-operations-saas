@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { requireAnyPermission } from "@/lib/auth/current-user";
 import { FINANCE_ACCESS_PERMISSIONS } from "@/lib/auth/permissions";
 import { formatZoneHeader } from "@/features/flights/lib/flight-board";
@@ -12,6 +14,8 @@ import {
   resolveSettlementsQuery,
   settlementsQuerySchema,
 } from "@/features/settlements/schemas/settlements-query.schema";
+
+export const metadata: Metadata = { title: "Settlements" };
 
 interface SettlementsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

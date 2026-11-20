@@ -72,9 +72,12 @@ export const PARTNER_INACTIVE_ROUTE = `${FORBIDDEN_ROUTE}?reason=partner_inactiv
  * scheduler, not a person (VI-F02-S03): the proxy lets it through and the route
  * itself refuses a request that has no valid `CRON_SECRET`. `/api/bookings/webhook` is called by an
  * external system (CO-F07-S08): the route refuses a call without a valid signature.
+ * `/robots.txt` is read by crawlers that are not signed in; behind a redirect to `/login` they would
+ * get a page instead of the rules.
  */
 export const PUBLIC_ROUTES = [
   "/",
+  "/robots.txt",
   "/login",
   "/signup",
   "/forgot-password",

@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { requireRole } from "@/lib/auth/current-user";
+
+export const metadata: Metadata = { title: "Flight simulator" };
 
 interface FlightSimulatorLayoutProps {
   children: ReactNode;

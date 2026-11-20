@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { requireAnyPermission } from "@/lib/auth/current-user";
@@ -17,6 +18,8 @@ import { getStockByCategory } from "@/features/dashboard/lib/get-stock-by-catego
 import { getTechnicianAssignments } from "@/features/dashboard/lib/get-technician-assignments";
 import { PARTNER_HOME_ROUTE } from "@/lib/constants/routes";
 import { getTodayFigures } from "@/lib/kpi/get-kpi-figures";
+
+export const metadata: Metadata = { title: "Dashboard" };
 
 /**
  * The landing page after sign-in: the Command Centre of the design (UI-F06-S04). `requireAnyPermission` is

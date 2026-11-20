@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
+
 import { AuthPageFrame } from "@/features/auth/components/auth-page-frame";
 import { LoginForm } from "@/features/auth/components/login-form";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { RETURN_TO_PARAM } from "@/lib/constants/routes";
+
+export const metadata: Metadata = { title: "Sign in" };
 
 interface LoginPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
